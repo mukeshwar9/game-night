@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wire Crossed v2 — deploy report (e16a4ab)</title>
+<style>
+body{font-family:ui-monospace,Menlo,Consolas,monospace;max-width:1060px;margin:0 auto;padding:24px;background:#f4f6ec;color:#2d3733}
+h1{font-size:20px}h2{font-size:15px;margin-top:32px;border-top:2px dashed #b9c3a5;padding-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #b9c3a5;padding:8px;text-align:left;vertical-align:top}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+figure{margin:0}img{width:100%;border:2px solid #b9c3a5;border-radius:8px;background:#fff}
+figcaption{font-size:11px;color:#5f6b51;margin-top:4px}.ok{color:#267b42;font-weight:bold}
+code{background:#e4e8d6;padding:0 4px;border-radius:4px}
+</style></head><body>
+<h1>WIRE CROSSED v2 — two-bomb match + difficulty + SWITCHES <span class="ok">● LIVE</span></h1>
+<p>Commit <code>e16a4ab</code> on <code>fm/games-coop-b-s1</code> (this worktree) · Deployed to <a href="https://game-night-91464.web.app">game-night-91464.web.app</a> · Hosting deploy ✔</p>
+<h2>1 · What changed</h2>
+<table><tr><th>Ask</th><th>Shipped</th></tr>
+<tr><td>Two rounds only — P1 disarms R1, P2 disarms R2, game completes</td><td class="ok">YES — match = Bomb 1 + Bomb 2, Tech swaps after Bomb 1, result card shows MATCH WON / MATCH LOST at 2/2</td></tr>
+<tr><td>Difficulty at start → different module counts, harder per level</td><td class="ok">YES — EASY = L1 / 3 modules / ≤4 wires / 3:00 · NORMAL = L3 / 4 modules / ≤6 wires / 3:00 · HARD = L5 / 4 modules / ≤6 wires / 2:30. One pick locks both bombs.</td></tr>
+<tr><td>New modules (PRD: SWITCHES, DIAL, LOCKWORD, CIRCUIT, SIGNAL, VENT)</td><td><span class="ok">SWITCHES shipped</span> (5-LED switchboard + COMMIT, solver + device + manual + rules + tests). DIAL/LOCKWORD/CIRCUIT/SIGNAL/VENT remain phased work per PRD (est. 5–7d + 6–8d).</td></tr>
+<tr><td>Safety</td><td>generatorVersion gate (v1 rooms keep climb/hold ladder), rules validate level/difficulty/versions, 34 unit + 6 rules tests green, lint 0 errors, build ✔</td></tr></table>
+<h2>2 · Difficulty picker (new start screen)</h2>
+<div class="grid">
+<figure><img src="01-difficulty-picker.png"><figcaption>Tech view — EASY 3 mods/3:00 · NORMAL 4/3:00 · HARD 4/2:30</figcaption></figure>
+<figure><img src="02-handbook-waits-for-difficulty.png"><figcaption>Handbook waits for Tech pick</figcaption></figure>
+<figure><img src="03-hard-ready.png"><figcaption>HARD locked — Bomb 1 of 2, same difficulty both</figcaption></figure>
+</div>
+<h2>3 · HARD bomb (4 modules — EASY would show 3)</h2>
+<div class="grid">
+<figure><img src="tech-switchboard.png"><figcaption>NEW — SWITCHES (Tech): LED pattern + 5 toggles + COMMIT</figcaption></figure>
+<figure><img src="book-switchboard.png"><figcaption>NEW — SWITCHES (Handbook): per-switch match/reverse rule</figcaption></figure>
+<figure><img src="tech-keypad.png"><figcaption>GLYPHS (Tech)</figcaption></figure>
+<figure><img src="book-keypad.png"><figcaption>GLYPHS (Handbook)</figcaption></figure>
+<figure><img src="tech-lever.png"><figcaption>LEVER (Tech)</figcaption></figure>
+<figure><img src="book-lever.png"><figcaption>LEVER (Handbook)</figcaption></figure>
+<figure><img src="tech-maze.png"><figcaption>PIPES (Tech)</figcaption></figure>
+<figure><img src="book-maze.png"><figcaption>PIPES (Handbook)</figcaption></figure>
+</div>
+<h2>4 · How to play it live</h2>
+<p>Open <a href="https://game-night-91464.web.app">game-night-91464.web.app</a> → create WIRE CROSSED room → invite second player (incognito/private window — same-browser tabs share uid) → Tech picks difficulty → ARM → defuse Bomb 1 → SWAP ROLES · NEXT BOMB → Bomb 2 → MATCH WON/LOST.</p>
+<p style="color:#5f6b51">Screenshots: Playwright e2e on emulators, 390×844, this commit. Full PRD ladder (15 levels + Endless + DIAL/LOCKWORD/CIRCUIT/SIGNAL/VENT) is documented in docs/prds/wire-crossed-levels.md as phased follow-ups.</p>
+</body></html>

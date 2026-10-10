@@ -11,7 +11,7 @@ import {
   seatOrder, pickBoardWords, randomSeed, deriveKey, verifyCard, verifySeed, normalizeRound, canStartBoard,
   buildBoard, nextBoardSetup, isSpymaster, spymasterIds, readyToDeal, keyHolders,
   spymastersNeedingSeal, sealContext, applyDeal, validateClue, applyClue, isOnTurnGuesser,
-  canGuess, applyGuess, canPass, endTurn, remainingCards, applyReveal, boardScores, tallyWins,
+  canGuess, applyGuess, canPass, endTurn, remainingCards, applyReveal, boardScores, tallyWins, cardFontPx,
 } from '../lib/codeWordsLogic'
 import useSealKey from '../hooks/useSealKey'
 import GameSwitcher from '../components/GameSwitcher'
@@ -59,6 +59,8 @@ const IDENTITY_NAME = { A: TEAM_LABEL.A, B: TEAM_LABEL.B, [NEUTRAL]: 'BYSTANDER'
 const IDENTITY_GLYPH = { A: TEAM_GLYPH.A, B: TEAM_GLYPH.B, [NEUTRAL]: '·', [ASSASSIN]: '☠' }
 
 // Token classes per identity: filled (revealed) and outlined (spymaster key).
+// The key also tints each team's cards at low alpha, so ALPHA and BRAVO read
+// apart at a glance (and in 1-BIT MONO), not by a thin dashed border alone.
 const FILLED = {
   A: 'bg-retro-tint-p1 border-retro-p1 text-retro-p1',
   B: 'bg-retro-tint-p2 border-retro-p2 text-retro-p2',
@@ -66,11 +68,12 @@ const FILLED = {
   [ASSASSIN]: 'bg-retro-tint-danger border-retro-danger text-retro-danger',
 }
 const OUTLINE = {
-  A: 'border-retro-p1 text-retro-text',
-  B: 'border-retro-p2 text-retro-text',
+  A: 'border-retro-p1 bg-retro-tint-p1/50 text-retro-text',
+  B: 'border-retro-p2 bg-retro-tint-p2/50 text-retro-text',
   [NEUTRAL]: 'border-retro-border text-retro-dim',
-  [ASSASSIN]: 'border-retro-danger text-retro-danger',
+  [ASSASSIN]: 'border-retro-danger bg-retro-tint-danger/50 text-retro-danger',
 }
+const KEY_GLYPH_TONE = { A: 'text-retro-p1', B: 'text-retro-p2', [NEUTRAL]: 'text-retro-dim', [ASSASSIN]: 'text-retro-danger' }
 const TEAM_TEXT = { A: 'text-retro-p1', B: 'text-retro-p2' }
 const TEAM_GLOW = { A: 'text-glow-p1', B: 'text-glow-p2' }
 const TEAM_BORDER = { A: 'border-retro-p1', B: 'border-retro-p2' }
@@ -494,7 +497,7 @@ export default function CodeWordsGame({
             <button
               onClick={() => writeLobby(shuffleTeams(order), null)}
               disabled={lobbyBusy || order.length < 2}
-              className="px-4 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-40"
+              className="px-4 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 transition press disabled:opacity-40"
             >
               {lobbyBusy ? 'SHUFFLING…' : 'SHUFFLE TEAMS'}
             </button>
@@ -502,7 +505,7 @@ export default function CodeWordsGame({
               <button
                 onClick={startBoard}
                 disabled={starting}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-40"
               >
                 {starting ? 'DEALING…' : 'START GAME'}
               </button>
@@ -642,24 +645,25 @@ export default function CodeWordsGame({
               disabled={!clickable}
               aria-label={`${word}${rev ? `, ${IDENTITY_NAME[rev.t]}` : known ? `, key: ${IDENTITY_NAME[known]}` : ''}${mine ? ', your pick — tap again to guess' : ''}`}
               className={cn(
-                'relative min-h-12 rounded border-2 px-0.5 py-1.5 flex items-center justify-center text-center transition-all',
-                'font-mono text-[10px] sm:text-[11px] uppercase leading-tight break-all',
+                'relative min-h-12 rounded border-2 px-0.5 py-1.5 flex items-center justify-center text-center transition',
+                'font-mono text-[10px] sm:text-[11px] uppercase leading-tight [overflow-wrap:anywhere]',
                 rev ? FILLED[rev.t]
                   : known ? cn('bg-retro-card border-dashed', OUTLINE[known])
                     : 'bg-retro-card border-retro-border text-retro-text',
-                clickable && 'hover:border-retro-cta active:scale-95',
+                clickable && 'hover:border-retro-cta press',
                 mine && 'ring-2 ring-retro-cta',
                 pending && 'arcade-blink',
                 rev && 'opacity-90',
               )}
             >
               {known && (
-                <span className="absolute top-0 left-0.5 font-pixel text-[8px]" aria-hidden="true">{IDENTITY_GLYPH[known]}</span>
+                <span className={cn('absolute top-0 left-0.5 font-pixel text-[11px] leading-none', KEY_GLYPH_TONE[known])} aria-hidden="true">{IDENTITY_GLYPH[known]}</span>
               )}
               {badCards[i] && (
                 <span className="absolute top-0 right-0.5 font-pixel text-[8px] text-retro-danger" title="Reveal failed verification">⚠</span>
               )}
-              <span className={cn(rev && 'line-through decoration-1 opacity-80')}>{word}</span>
+              {/* shrink-to-fit: a long word stays whole instead of splitting mid-word */}
+              <span className={cn(rev && 'line-through decoration-1 opacity-80')} style={{ fontSize: `${cardFontPx(word)}px` }}>{word}</span>
               {pickers.length > 0 && !rev && (
                 <span className="absolute bottom-0 inset-x-0 font-pixel text-[8px] text-retro-cta truncate px-0.5" aria-hidden="true">
                   {pickers.map(uid => nameOf(uid).slice(0, 3).toUpperCase()).join(' ')}
@@ -677,6 +681,7 @@ export default function CodeWordsGame({
             type="text"
             value={clueText}
             maxLength={24}
+            enterKeyHint="send"
             onChange={e => { setClueText(e.target.value); setClueErr('') }}
             onKeyDown={e => e.key === 'Enter' && giveClue()}
             autoCorrect="off"
@@ -696,7 +701,7 @@ export default function CodeWordsGame({
                 aria-label={`${n} card${n === 1 ? '' : 's'}`}
                 onClick={() => { setClueNumber(n); setClueErr('') }}
                 className={cn(
-                  'h-10 rounded border-2 font-pixel text-[10px] transition-all active:scale-95',
+                  'h-11 rounded border-2 font-pixel text-[10px] transition press',
                   clueNumber === n ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim',
                 )}
               >{n}</button>
@@ -706,7 +711,7 @@ export default function CodeWordsGame({
           <button
             onClick={giveClue}
             disabled={cluing}
-            className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+            className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
           >
             {cluing ? 'SENDING…' : 'GIVE CLUE'}
           </button>
@@ -724,7 +729,7 @@ export default function CodeWordsGame({
               <button
                 onClick={() => lockGuess(myPick)}
                 disabled={guessing || !!round.pending}
-                className="px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+                className="px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
               >
                 {guessing ? 'GUESSING…' : `GUESS ${round.words[myPick].toUpperCase()}`}
               </button>
@@ -733,7 +738,7 @@ export default function CodeWordsGame({
               <button
                 onClick={passTurn}
                 disabled={passing}
-                className="px-5 py-2.5 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 active:scale-95 disabled:opacity-40"
+                className="px-5 py-2.5 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 press disabled:opacity-40"
               >
                 {passing ? 'ENDING…' : 'END TURN'}
               </button>
@@ -769,7 +774,7 @@ export default function CodeWordsGame({
             <button
               onClick={restartBoard}
               disabled={restarting}
-              className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 active:scale-95 disabled:opacity-40"
+              className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 press disabled:opacity-40"
             >
               {restarting ? 'RESTARTING…' : 'RESTART BOARD'}
             </button>

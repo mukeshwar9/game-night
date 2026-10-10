@@ -4,12 +4,16 @@
 //
 // Graph: voices -> track bus (A/B crossfade) -> duck (dips under SFX)
 //        -> compressor -> music gain (player volume) -> destination
-// Tracks with `delay` add an echo send on their own bus.
+// Tracks with `delay` add an echo send on their own bus. Ambient tracks
+// (musicAmbience.js, e.g. SHORELINE's surf) have no sequence: they play a
+// texture into an ordinary bus, so they crossfade, duck and follow the
+// volume like any loop.
 //
 // Same oscillator vocabulary as sounds.js (NES-style pulse, triangle, noise),
 // so music and SFX sound like one console.
 
 import TRACKS from './musicTracks'
+import { AMBIENCES } from './musicAmbience'
 import { chordTones, hz, volumeToGain } from './musicLogic'
 
 const LOOKAHEAD = 0.2   // seconds scheduled ahead of the audio clock
@@ -171,6 +175,7 @@ export function createMusicEngine(ctx) {
   function tick() {
     const now = ctx.currentTime
     for (const p of current ? [current, ...fading] : fading) {
+      if (p.ambience) continue
       const tr = TRACKS[p.id], sd = 60 / tr.bpm / 4
       // After a stall (hidden tab, long frame) skip ahead instead of
       // machine-gunning every missed step at once.
@@ -188,7 +193,7 @@ export function createMusicEngine(ctx) {
     }
     fading = fading.filter(p => {
       if (p.stopAt > now) return true
-      setTimeout(() => p.bus.gain.disconnect(), 500)
+      setTimeout(() => { p.ambience?.stop(); p.bus.gain.disconnect() }, 500)
       return false
     })
     if (!current && fading.length === 0) {
@@ -204,7 +209,7 @@ export function createMusicEngine(ctx) {
     // Crossfades to `id` (null = silence). Same track: keeps playing.
     play(id, { fade = 1.2 } = {}) {
       if ((current?.id ?? null) === (id ?? null)) return
-      if (id && !TRACKS[id]) return
+      if (id && !TRACKS[id] && !AMBIENCES[id]) return
       const now = ctx.currentTime
       if (current) {
         const g = current.bus.gain.gain
@@ -216,10 +221,11 @@ export function createMusicEngine(ctx) {
         current = null
       }
       if (id) {
-        const bus = makeBus(TRACKS[id])
+        const bus = makeBus(TRACKS[id] ?? {})
         bus.gain.gain.setValueAtTime(0.0001, now)
         bus.gain.gain.exponentialRampToValueAtTime(1, now + fade)
-        current = { id, bus, step: 0, next: now + 0.06 }
+        const ambience = AMBIENCES[id] ? AMBIENCES[id](ctx, bus.gain) : null
+        current = { id, bus, ambience, step: 0, next: now + 0.06 }
       }
       if (!timer && (current || fading.length)) timer = setInterval(tick, TICK_MS)
       tick()

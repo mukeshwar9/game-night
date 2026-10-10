@@ -7,6 +7,11 @@ function unique(list) {
 
 export const EMOTES_PRIMARY = ['🔥', '😂', '😭', '😎', '👏', '💀', '🤫']
 
+// The room dock's fixed reaction slots. Fixed on purpose: slots that re-sort
+// by use move under the thumb (muscle memory is the point of quick emotes).
+// Recently used picks show in the picker's RECENT row instead.
+export const EMOTES_DOCK = ['🔥', '😂', '😭', '👏', '💀']
+
 const PRIMARY_FACES = ['😂', '😭', '😎', '🤫']
 
 // Full Unicode smiley / face catalog (no skin tones). Order = picker grid order.
@@ -45,6 +50,23 @@ export const EMOTES_FACES = [
 
 export const EMOTES_GESTURES = [
   '🔥', '👏', '💀', '❤️', '🎉', '🤔', '😱', '👍', '🙏', '💪', '😤', '🎯', '⚡', '🍀',
+]
+
+// PIXEL EMOTES pack (premium, see premiumCatalog.js). Plain glyphs like the free
+// ones, so rooms render them everywhere; the pack only gates the picker.
+export const EMOTES_PREMIUM = [
+  { kind: 'emote', id: 'disco', glyph: '🪩', label: 'DISCO', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'firework', glyph: '🎆', label: 'FIREWORK', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'ufo', glyph: '🛸', label: 'UFO', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'unicorn', glyph: '🦄', label: 'UNICORN', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'trophy', glyph: '🏆', label: 'TROPHY', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'joystick', glyph: '🕹️', label: 'JOYSTICK', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'gem', glyph: '💎', label: 'GEM', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'rocket', glyph: '🚀', label: 'ROCKET', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'popcorn', glyph: '🍿', label: 'POPCORN', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'ghostly', glyph: '🫧', label: 'BUBBLES', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'crown', glyph: '👑', label: 'CROWN', premium: true, pack: 'emotes-pixel' },
+  { kind: 'emote', id: 'sparkle', glyph: '✨', label: 'SPARKLE', premium: true, pack: 'emotes-pixel' },
 ]
 
 export const EMOTES_PICKER_FACES = unique([...PRIMARY_FACES, ...EMOTES_FACES])

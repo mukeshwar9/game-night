@@ -110,7 +110,7 @@ export default function TypingDemo() {
         </p>
         <p className="font-mono text-[10px] text-retro-dim text-center">WPM counts correct characters only · EFF = WPM × accuracy</p>
         <button onClick={reset}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press">
           PLAY AGAIN
         </button>
       </div>
@@ -132,7 +132,7 @@ export default function TypingDemo() {
               <div key={label} className="flex items-center gap-2">
                 <span className={cn('font-pixel text-[8px] w-8', color)}>{label}</span>
                 <div className="flex-1 h-2 bg-retro-surface rounded-full overflow-hidden">
-                  <div className={cn('h-full rounded-full transition-all duration-200', color === 'text-retro-p1' ? 'bg-retro-p1' : 'bg-retro-p2')}
+                  <div className={cn('h-full rounded-full transition duration-200', color === 'text-retro-p1' ? 'bg-retro-p1' : 'bg-retro-p2')}
                     style={{ width: `${pct}%` }} />
                 </div>
                 <span className="font-pixel text-[8px] text-retro-dim w-8 text-right tabular-nums">{pct}%</span>
@@ -152,7 +152,7 @@ export default function TypingDemo() {
           <div className="flex flex-col items-center gap-3 py-2">
             <p className="font-pixel text-[9px] text-retro-dim text-center">BEAT THE BOT · ERRORS HIGHLIGHTED · ⌫ CORRECTS</p>
             <button onClick={start}
-              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press">
               START
             </button>
           </div>

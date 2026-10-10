@@ -45,3 +45,13 @@ describe('CONVERGE', () => {
     await assertFails(as('carol').ref('games/g1/round/pending/O').set('MOON'))
   })
 })
+
+describe('WORD CO-OP', () => {
+  // Live drafts and "suggest a letter" hints are plain writes under `round`.
+  it("lets the waiting seat suggest a letter and keeps spectators out", async () => {
+    await seed(T.env, 'games/g1', room('wordcoop', { phase: 'playing', currentTurn: 'X', seed: 's' }))
+    await assertSucceeds(as('bob').ref('games/g1/round/hintO').set('R'))
+    await assertSucceeds(as('bob').ref('games/g1/round/hintO').set(null))
+    await assertFails(as('carol').ref('games/g1/round/hintO').set('R'))
+  })
+})

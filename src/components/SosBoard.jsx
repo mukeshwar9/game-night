@@ -52,7 +52,7 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
         className={cn(
           'aspect-square flex items-center justify-center',
           'border border-retro-border/60 rounded-sm',
-          'transition-all duration-100',
+          'transition duration-100',
           scoredByX && scoredByO
             ? 'bg-gradient-to-br from-retro-p1/20 to-retro-p2/20 shadow-[inset_0_0_4px_rgb(var(--c-p1)/0.2),inset_0_0_4px_rgb(var(--c-p2)/0.2)]'
             : scoredByX
@@ -83,7 +83,7 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
       <div className="relative">
         <div
           className={cn(
-            'bg-retro-surface border-2 border-retro-border rounded p-3 transition-all duration-200',
+            'bg-retro-surface border-2 border-retro-border rounded p-3 transition duration-200',
             disabled && 'board-idle',
           )}
         >
@@ -156,8 +156,8 @@ export default function SosBoard({ board, onMove, disabled, currentTurn, sosLine
             className={cn(
               'w-11 h-11 flex items-center justify-center',
               'font-pixel text-[11px] rounded border-2',
-              'transition-all duration-100',
-              !disabled && 'active:scale-95',
+              'transition duration-100',
+              !disabled && 'press',
               selectedLetter === letter
                 ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',

@@ -127,7 +127,7 @@ export default function AimTrainerDemo() {
           <p className="font-pixel text-[8px] text-retro-dim text-center">DRAW!</p>
         )}
         <button onClick={reset}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press">
           PLAY AGAIN
         </button>
       </div>
@@ -165,7 +165,7 @@ export default function AimTrainerDemo() {
             </p>
             <button
               onClick={e => { e.stopPropagation(); setPhase('countdown') }}
-              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
             >
               START
             </button>
@@ -185,7 +185,7 @@ export default function AimTrainerDemo() {
               left: targetYou.x - DEMO_R, top: targetYou.y - DEMO_R,
               width: DEMO_R * 2, height: DEMO_R * 2,
             }}
-            className="rounded-full bg-retro-p1 shadow-neon-p1 hover:brightness-110 active:scale-90 transition-transform duration-75"
+            className="rounded-full bg-retro-p1 shadow-neon-p1 hover:brightness-110 press transition-transform duration-75"
             aria-label="your target"
           />
         )}
@@ -197,7 +197,7 @@ export default function AimTrainerDemo() {
               left: targetBot.x - DEMO_R, top: targetBot.y - DEMO_R,
               width: DEMO_R * 2, height: DEMO_R * 2,
             }}
-            className="rounded-full bg-retro-p2 shadow-neon-p2 hover:brightness-110 active:scale-90 transition-transform duration-75"
+            className="rounded-full bg-retro-p2 shadow-neon-p2 hover:brightness-110 press transition-transform duration-75"
             aria-label="bot's target"
           />
         )}

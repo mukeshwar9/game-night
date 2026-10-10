@@ -9,35 +9,42 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import useCreateGame from '../hooks/useCreateGame'
 import Avatar from '../components/Avatar'
 import Onboarding from '../components/LazyOnboarding'
-import DailyTile from '../components/DailyTile'
+import DailyTile, { DailyMemoryTile } from '../components/DailyTile'
 import ContinuePlaying from '../components/ContinuePlaying'
 import RecentlyPlayed from '../components/RecentlyPlayed'
+import HeadlineGames from '../components/HeadlineGames'
+import { readRecent } from '../lib/recentRail'
 import JoinRoomSheet from '../components/JoinRoomSheet'
 import GameOptionsSheet from '../components/GameOptionsSheet'
 import RulesModal from '../components/LazyRulesModal'
 import { useAuth } from '../lib/AuthContext'
+import SaveCard from '../components/SaveCard'
 import { dismissInvite } from '../lib/social'
-import { defaultAvatarForId } from '../lib/avatars'
+import { partyInviteLine } from '../lib/partyLogic'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { checkShouldOnboard } from '../lib/onboarding'
+import { homeGreeting } from '../lib/onboardingLogic'
+import { parseAppStoreId, playLiveFrom, storeBadgeFor } from '../lib/storeLinks'
+import { isNative } from '../lib/platform'
 
 const getPlayerName = (profile) => profile?.displayName || localStorage.getItem('playerName') || ''
-const GAME_COUNT = GAME_TYPES.filter(t => !t.variantOf).length
 
-// Home's secondary rows (daily puzzle, find an opponent, all games): title,
-// one plain line, one explicit action on the right. Same shape as DailyTile.
+// Home's secondary rows (daily puzzle, find an opponent): title, one plain
+// line, one text action on the right. The whole row is the link, so the
+// action is a label, not a second bordered button. Same shape as DailyTile.
 function ActionRow({ to, title, detail, action }) {
   return (
     <Link
       to={to}
-      className="group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
-        hover:border-retro-cta/50 transition-colors active:scale-[0.99]"
+      className="glass glass-tx group w-full min-h-14 flex items-center gap-3 bg-retro-card border border-retro-border rounded px-3 py-2.5
+        hover:border-retro-cta/50 transition-colors press-card"
     >
       <span className="flex-1 min-w-0">
         <span className="block font-pixel text-[10px] text-retro-text tracking-wider">{title}</span>
         <span className="block font-mono text-[11px] text-retro-dim mt-1 truncate">{detail}</span>
       </span>
-      <span className="shrink-0 min-h-11 min-w-[76px] px-3 flex items-center justify-center border border-retro-cta text-retro-cta font-pixel text-[9px] tracking-wider rounded group-hover:bg-retro-tint-cta transition-colors">
-        {action}
+      <span className="shrink-0 min-h-11 pl-2 flex items-center gap-1.5 text-retro-cta font-pixel text-[9px] tracking-wider group-hover:text-glow-cta transition-colors">
+        {action} <span aria-hidden="true">→</span>
       </span>
     </Link>
   )
@@ -51,12 +58,24 @@ export default function Home() {
   const [joinBusy, runJoin] = useBusy()
   const [recentGame, setRecentGame] = useState(null)
   const [rulesGame, setRulesGame] = useState(null)
+  // Someone who has not played anything yet gets six headline games instead of
+  // a wall; the rail above takes over once they have.
+  const [firstVisit] = useState(() => readRecent().length === 0)
   const [showOnboarding, setShowOnboarding] = useState(() => checkShouldOnboard())
   const { canInstall, install, isIos } = useInstallPrompt()
+  // Once the apps are in the stores, phones get the store instead of the
+  // add-to-home-screen hints (lib/storeLinks.js; dark until the listings exist).
+  const [storeBadge] = useState(() => storeBadgeFor({
+    ua: navigator.userAgent,
+    appStoreId: parseAppStoreId(import.meta.env.VITE_APPSTORE_ID),
+    playLive: playLiveFrom(import.meta.env.VITE_PLAY_LIVE),
+    native: isNative,
+    standalone: navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true,
+  }))
   const [iosHintDismissed, setIosHintDismissed] = useState(() => !!localStorage.getItem('gn-ios-install-dismissed'))
   const { profile, invites } = useAuth()
   const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
-  const { createGame, loading } = useCreateGame({
+  const { createGame, createParty, loading } = useCreateGame({
     profile,
     avatar: myAvatar,
     onMissingName: () => setShowOnboarding(true),
@@ -131,12 +150,12 @@ export default function Home() {
                     <span className="text-retro-cta">{inv.fromName}</span> invited you
                   </p>
                   <p className="font-pixel text-[8px] text-retro-dim mt-0.5">
-                    {getGameConfig(inv.gameType)?.label || 'GAME'}
+                    {partyInviteLine(inv, (t) => getGameConfig(t)?.label)}
                   </p>
                 </div>
                 <button
                   onClick={() => { dismissInvite(inv.id); navigate(`/game/${inv.gameId}`) }}
-                  className="min-h-11 px-3 flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95"
+                  className="min-h-11 px-3 flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition press"
                 >
                   JOIN
                 </button>
@@ -152,30 +171,37 @@ export default function Home() {
           </section>
         )}
 
+        <div className="max-w-md mx-auto w-full empty:hidden"><SaveCard surface="home" compact /></div>
+
         <section className="max-w-md mx-auto w-full text-center pt-2">
           <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em] truncate">
-            {playerName ? `WELCOME BACK, ${playerName.toUpperCase()}` : 'GAME NIGHT'}
+            {homeGreeting({ name: playerName, firstVisit })}
           </p>
           <h1 className="font-pixel text-xl sm:text-2xl text-retro-text text-glow-cta mt-2 tracking-wider">
             READY FOR ANOTHER ROUND?
           </h1>
-          <p className="font-mono text-xs text-retro-dim mt-2">Pick a game. Share a link. Start playing.</p>
-          <Link
-            to="/games?intent=friend"
-            className="mt-5 min-h-12 w-full flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-[0.98]"
+          {/* Party first: friends gather, then the host picks a game that fits
+              how many came. A single game for two stays on the GAMES tab. */}
+          <button
+            type="button"
+            onClick={() => createParty()}
+            disabled={!!loading}
+            data-testid="start-party"
+            className="mt-5 min-h-12 w-full flex flex-col items-center justify-center gap-1 py-2 bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta transition press-card disabled:opacity-60"
           >
-            PLAY WITH FRIENDS
-          </Link>
+            <span className="font-pixel text-[10px] tracking-widest">{loading === 'party' ? 'STARTING…' : 'START A PARTY'}</span>
+            <span className="font-mono text-[10px] opacity-80">invite up to 3 friends, then pick a game</span>
+          </button>
           <div className="grid grid-cols-2 gap-2 mt-2">
             <Link
               to="/demo"
-              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]"
+              className="glass glass-tx min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card"
             >
               PLAY SOLO
             </Link>
             <button
               onClick={() => setJoinOpen(true)}
-              className="min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition-all active:scale-[0.98]"
+              className="glass glass-tx min-h-12 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card"
             >
               JOIN ROOM
             </button>
@@ -190,22 +216,34 @@ export default function Home() {
           <RecentlyPlayed onSelect={handleRecentSelect} loadingType={loading} />
         </section>
 
-        <section className="max-w-md mx-auto w-full space-y-2" aria-labelledby="home-today">
-          <h2 id="home-today" className="font-pixel text-[10px] text-retro-dim tracking-wider">TODAY</h2>
+        {firstVisit && <HeadlineGames className="max-w-md mx-auto w-full" />}
+
+        {/* ALL GAMES lived here too, a copy of the GAMES tab one row down. */}
+        <section className="max-w-md mx-auto w-full space-y-2" aria-label="More ways to play">
           <DailyTile />
+          <DailyMemoryTile />
           <ActionRow to="/online" title="FIND AN OPPONENT" detail="Join a public room or open one" action="BROWSE" />
-          <ActionRow to="/games" title="ALL GAMES" detail={`${GAME_COUNT} games to explore`} action="VIEW" />
         </section>
 
-        {canInstall && (
+        {storeBadge && (
+          <a
+            href={storeBadge.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition press"
+          >
+            {storeBadge.store === 'ios' ? 'GET THE APP ON THE APP STORE' : 'GET THE APP ON GOOGLE PLAY'}
+          </a>
+        )}
+        {!storeBadge && canInstall && (
           <button
             onClick={install}
-            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition-all active:scale-95"
+            className="max-w-md mx-auto w-full py-2.5 flex items-center justify-center gap-2 border border-retro-p1/30 bg-retro-card text-retro-p1 font-pixel text-[10px] rounded hover:border-retro-p1/60 hover:shadow-neon-p1 transition press"
           >
             + ADD TO HOME SCREEN
           </button>
         )}
-        {!canInstall && isIos && !iosHintDismissed && (
+        {!storeBadge && !canInstall && isIos && !iosHintDismissed && (
           <div className="max-w-md mx-auto w-full flex items-center gap-2.5 border border-retro-p1/30 bg-retro-card text-retro-p1 rounded px-3 py-2.5">
             <p className="flex-1 font-pixel text-[9px] tracking-wide">INSTALL: TAP SHARE → ADD TO HOME SCREEN</p>
             <button onClick={dismissIosHint} aria-label="Dismiss" className="text-retro-dim hover:text-retro-p2 font-pixel text-[9px] transition-colors">✕</button>

@@ -435,7 +435,7 @@ export default function AnagramsGame({
         {!isSpectator && !opponentOnline && <OfflineNotice label="OPPONENT" />}
         <div className="flex flex-wrap justify-center gap-2 pt-2">
           {!isSpectator && onNewMatch && (
-            <button type="button" onClick={() => runMatchAction(onNewMatch)} disabled={actionBusy || !!proposal} className="min-h-11 rounded bg-retro-cta px-5 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition-all active:scale-95 disabled:opacity-50">
+            <button type="button" onClick={() => runMatchAction(onNewMatch)} disabled={actionBusy || !!proposal} className="min-h-11 rounded bg-retro-cta px-5 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition press disabled:opacity-50">
               {actionBusy ? 'ASKING…' : 'NEW MATCH'}
             </button>
           )}
@@ -554,7 +554,7 @@ export default function AnagramsGame({
           disabled={!isPlaying || myDone || submitting}
         />
         <div className="mt-3 flex items-center gap-2">
-          <button type="button" onClick={() => submitWord()} disabled={!isPlaying || myDone || submitting || !currentWord} className="min-h-11 flex-1 rounded bg-retro-cta px-4 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition-all active:scale-95 disabled:opacity-50">
+          <button type="button" onClick={() => submitWord()} disabled={!isPlaying || myDone || submitting || !currentWord} className="min-h-11 flex-1 rounded bg-retro-cta px-4 py-3 font-pixel text-[10px] text-retro-bg shadow-neon-cta transition press disabled:opacity-50">
             {submitting ? 'CHECKING…' : 'ENTER WORD'}
           </button>
           <button type="button" onClick={finishEarly} disabled={!isPlaying || myDone || doneBusy} className="min-h-11 rounded border-2 border-retro-border px-4 py-3 font-pixel text-[10px] text-retro-dim transition-colors hover:border-retro-p2 hover:text-retro-p2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta disabled:opacity-50">

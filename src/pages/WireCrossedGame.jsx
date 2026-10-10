@@ -8,14 +8,18 @@ import useBusy from '../hooks/useBusy'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import { scaledMs, timersOff } from '../lib/timerScale'
 import { generateSeed } from '../lib/mathLogic'
-import { nextWireBomb } from '../lib/wireMatchLogic'
+import { MODE_LEVELS, nextWireBomb } from '../lib/wireMatchLogic'
 import {
-  MAX_STRIKES, MODULE_NAMES, QUICK_PHRASES, STRIKE_PENALTY_MS,
-  applyTimeout, applyWireAction, armWire, clockText, formatClock, generateBomb,
-  isSolved, normalizeWireStats, strikesOf,
+  MAX_STRIKES, MODULE_NAMES, QUICK_PHRASES,
+  acceptMode, applyGaugeBurst, applyTimeout, applyWireAction, armWire, cancelMode, clockText, formatClock, gaugeBurstAt, gaugeIndex,
+  gaugePressure, gaugeZone, generateBomb, isBlackout, isLegacyWire, isSolved, isSwapBanner, normalizeWireStats, proposeMode, roleOf,
+  strikePenaltyOf, strikesOf, timeoutCheckDelay, urgentMsOf, TIMEOUT_RETRY_MS,
 } from '../lib/wireLogic'
+import { modeSummary } from '../lib/wire/modes'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
+import ModePicker from '../components/wire/ModePicker'
+import ModifierChips from '../components/wire/ModifierChips'
 import WireDevice from '../components/wire/WireDevice'
 import WireManual from '../components/wire/WireManual'
 
@@ -81,7 +85,7 @@ function StrikeLights({ strikes }) {
 function BombStrip({ bomb, wire, now }) {
   const text = clockText(wire, now)
   const left = wire?.endsAt ? wire.endsAt - now : null
-  const urgent = left != null && left <= 30_000
+  const urgent = left != null && left <= urgentMsOf(bomb)
   return (
     <div className="w-full rounded-lg border-2 border-retro-border bg-retro-deep p-3 space-y-2">
       <div className="flex items-center justify-between">
@@ -120,12 +124,12 @@ function BombStrip({ bomb, wire, now }) {
 function LastAction({ wire, bomb, players }) {
   const last = wire?.last
   if (!last?.text) return null
-  const who = players?.[last.by]?.name || 'TECH'
+  const who = players?.[last.by]?.name || (last.by ? 'TECH' : 'BOMB')
   const mod = bomb.modules[last.mod]
   return (
     <p className="w-full text-center font-mono text-[10px] text-retro-dim" aria-live="polite">
       <span className="text-retro-text">{who}</span> · {mod ? `${MODULE_NAMES[mod.type]}: ` : ''}{last.text}{' '}
-      <span className={last.ok ? 'text-retro-win' : undefined} style={last.ok ? undefined : { color: 'rgb(var(--wire-red))' }}>{last.ok ? '✓' : `✖ STRIKE −${STRIKE_PENALTY_MS / 1000}s`}</span>
+      <span className={last.ok ? 'text-retro-win' : undefined} style={last.ok ? undefined : { color: 'rgb(var(--wire-red))' }}>{last.ok ? '✓' : `✖ STRIKE −${strikePenaltyOf(bomb) / 1000}s`}</span>
     </p>
   )
 }
@@ -149,30 +153,48 @@ function PingBar({ onPing, disabled }) {
   )
 }
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 'S'}`
+
 function ResultCard({ wire }) {
   const result = wire.result
   const stats = normalizeWireStats(wire.stats)
   const defused = result?.outcome === 'defused'
+  const mode = wire.mode && MODE_LEVELS[wire.mode] ? wire.mode : null
+  const cleared = !!mode && !!result?.cleared
+  const modeName = mode ? modeSummary(mode).name : ''
+  const record = mode ? stats.records[mode] : null
+  const run = { booms: wire.run?.booms || 0, ms: wire.run?.ms || 0 }
   const reason = result?.reason === 'strikes' ? 'THIRD STRIKE' : result?.reason === 'time' ? 'OUT OF TIME' : null
+  const level = wire.level || 1
+  let next = 'PICK A MODE FOR THE NEXT BOMB.'
+  if (cleared) next = 'RUN IT AGAIN OR CHANGE MODE.'
+  else if (mode && defused) next = `NEXT: LEVEL ${level + 1} OF ${MODE_LEVELS[mode]}.`
+  else if (mode) next = `RETRY LEVEL ${level} OF ${MODE_LEVELS[mode]}.`
   return (
     <div className={cn(
       'w-full rounded border-2 p-4 text-center space-y-2',
       defused ? 'border-retro-win bg-retro-card shadow-neon-win' : 'border-retro-p1 bg-retro-tint-p1',
     )}>
       <p className={cn('font-pixel text-xl tracking-widest', defused ? 'text-retro-win' : 'text-retro-p1')}>
-        {defused ? 'DEFUSED!' : 'BOOM'}
+        {cleared ? 'MODE CLEARED' : defused ? 'DEFUSED!' : 'BOOM'}
       </p>
+      {cleared && (
+        <p className="font-pixel text-[10px] text-retro-win tracking-wider">
+          {modeName} CLEARED · {formatClock(run.ms)} · {plural(run.booms, 'BOOM')}
+          {record?.bestMs != null ? ` · BEST ${formatClock(record.bestMs)}` : ''}
+        </p>
+      )}
       <p className="font-mono text-[11px] text-retro-text">
         {defused
           ? `Cleared with ${result.left != null ? `${formatClock(result.left)} left` : `a ${formatClock(result.took || 0)} run`} and ${strikesOf(wire)} strike${strikesOf(wire) === 1 ? '' : 's'}.`
           : `${reason || 'The bomb went off'}.`}
       </p>
       <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
-        STREAK {stats.streak} · BEST {stats.best} · BOOMS {stats.booms}
+        {mode
+          ? `${modeName} CLEARS ${record.clears} · BEST ${record.bestMs != null ? formatClock(record.bestMs) : '—'} · BOOMS ${stats.booms}`
+          : `DEFUSED ${stats.defused} · BOOMS ${stats.booms}`}
       </p>
-      <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
-        {defused ? 'NEXT BOMB IS ONE LEVEL HARDER.' : 'NEXT BOMB STAYS AT THIS LEVEL.'} ROLES SWAP.
-      </p>
+      <p className="font-pixel text-[8px] text-retro-dim tracking-widest">{next} ROLES SWAP.</p>
     </div>
   )
 }
@@ -182,15 +204,16 @@ export default function WireCrossedGame({
 }) {
   const wire = game?.wire?.seed ? game.wire : null
   const bomb = useMemo(
-    () => (wire ? generateBomb(wire.seed, wire.level) : null),
-    [wire?.seed, wire?.level], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (wire ? generateBomb(wire.seed, wire.level, wire.mode) : null),
+    [wire?.seed, wire?.level, wire?.mode], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const phase = wire?.phase || 'ready'
   const armed = phase === 'armed'
   const { now } = useServerClock({ tickMs: 250 })
-  const tech = wire?.tech === 'O' ? 'O' : 'X'
   const isSpectator = !mySymbol
-  const role = isSpectator ? 'spectator' : mySymbol === tech ? 'tech' : 'handbook'
+  // roleOf, not wire.tech: Swap trades the two roles at half time.
+  const role = roleOf(wire, mySymbol, now)
+  const seatRole = (symbol) => (roleOf(wire, symbol, now) === 'tech' ? 'TECH' : 'HANDBOOK')
   const partnerOffline = !isSpectator && opponentOnline === false
   const score = Math.min(game?.scores?.X || 0, game?.scores?.O || 0)
   const noClock = timersOff(game?.timerScale)
@@ -200,7 +223,11 @@ export default function WireCrossedGame({
   const [pinging, runPing] = useBusy()
   const [playAgainBusy, runPlayAgain] = useBusy()
   const [newMatchBusy, runNewMatch] = useBusy()
+  const [proposing, runPropose] = useBusy()
+  const [accepting, runAccept] = useBusy()
+  const [cancelling, runCancel] = useBusy()
   const [tab, setTab] = useState(0)
+  const [changing, setChanging] = useState(false)
   const wireRef = useRef(wire)
   useEffect(() => { wireRef.current = wire })
 
@@ -209,6 +236,7 @@ export default function WireCrossedGame({
   if (trackedSeed !== wire?.seed) {
     setTrackedSeed(wire?.seed)
     setTab(0)
+    setChanging(false)
   }
 
   // Safety net: a room without a bomb node (created before this game, or a
@@ -226,16 +254,50 @@ export default function WireCrossedGame({
   const endsAt = armed ? wire?.endsAt : null
   useEffect(() => {
     if (!endsAt || isSpectator) return undefined
-    const t = setTimeout(() => {
+    let timer
+    let active = true
+    const checkTimeout = () => {
+      if (!active) return
+      const wait = timeoutCheckDelay(endsAt, getServerNow())
+      if (wait > 0) {
+        timer = setTimeout(checkTimeout, wait)
+        return
+      }
       runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || current.gameType !== 'wirecrossed') return
         const next = applyTimeout(current.wire, getServerNow())
         if (!next) return
         return withWire(current, next)
-      }).catch(() => {})
-    }, Math.max(0, endsAt - getServerNow()) + 60)
-    return () => clearTimeout(t)
+      }).catch(() => {}).finally(() => {
+        // Offset updates can move the server-corrected clock backwards, and a
+        // transient transaction failure must not strand the bomb at 0:00.
+        if (active) timer = setTimeout(checkTimeout, TIMEOUT_RETRY_MS)
+      })
+    }
+    checkTimeout()
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
   }, [endsAt, gameId, isSpectator])
+
+  // The Gauge reached 100%: whichever seated client notices first writes the
+  // burst. applyGaugeBurst is idempotent (null unless due for the current
+  // gauge.at), so both clients racing is safe; the write moves gauge.at, which
+  // re-arms this effect for the next burst.
+  const burstAt = armed && bomb && gaugeIndex(bomb) >= 0 ? gaugeBurstAt(wire, bomb) : null
+  useEffect(() => {
+    if (burstAt == null || isSpectator || !bomb) return undefined
+    const t = setTimeout(() => {
+      runTransaction(ref(db, `games/${gameId}`), current => {
+        if (!current || current.gameType !== 'wirecrossed' || current.wire?.seed !== bomb.seed) return
+        const next = applyGaugeBurst(current.wire, bomb, getServerNow())
+        if (!next) return
+        return withWire(current, next)
+      }).catch(() => {})
+    }, Math.max(0, burstAt - getServerNow()) + 60)
+    return () => clearTimeout(t)
+  }, [burstAt, bomb, gameId, isSpectator])
 
   // Sounds for both screens, driven by the synced node.
   const prevWire = useRef(wire)
@@ -278,7 +340,7 @@ export default function WireCrossedGame({
       // Hop to the next unsolved module once this one clears.
       const live = tx.committed ? tx.snapshot.val()?.wire : null
       if (live?.phase === 'armed' && isSolved(live, action.mod)) {
-        const next = bomb.modules.findIndex((_, i) => !isSolved(live, i))
+        const next = bomb.modules.findIndex((m, i) => m.type !== 'gauge' && !isSolved(live, i))
         if (next >= 0) setTab(next)
       }
     }, () => toast.error('ACTION FAILED — CHECK CONNECTION'))
@@ -288,12 +350,37 @@ export default function WireCrossedGame({
     const seed = wire?.seed
     await runTransaction(ref(db, `games/${gameId}`), current => {
       if (!current || current.gameType !== 'wirecrossed' || current.wire?.seed !== seed) return
-      const liveBomb = generateBomb(current.wire.seed, current.wire.level)
-      const next = armWire(current.wire, getServerNow(), scaledMs(liveBomb.durationMs, current.timerScale))
+      const liveBomb = generateBomb(current.wire.seed, current.wire.level, current.wire.mode)
+      const next = armWire(current.wire, getServerNow(), scaledMs(liveBomb.durationMs, current.timerScale), liveBomb, current.timerScale)
       if (!next) return
       return withWire(current, next)
     })
   }, () => toast.error('ARM FAILED — CHECK CONNECTION'))
+
+  // Mode proposal (either seat proposes, the other answers). Each write is a
+  // transaction on the room that checks the bomb seed, like arm().
+  const modeTx = (change, failText) => async () => {
+    const seed = wire?.seed
+    const tx = await runTransaction(ref(db, `games/${gameId}`), current => {
+      if (!current || current.gameType !== 'wirecrossed' || current.wire?.seed !== seed) return
+      const next = change(current.wire)
+      if (!next) return
+      return withWire(current, next)
+    })
+    if (!tx.committed) toast.error(failText)
+  }
+  const proposeTo = (mode) => runPropose(
+    modeTx(w => proposeMode(w, mode, mySymbol, getServerNow()), 'MODE CHANGED — TRY AGAIN'),
+    () => toast.error('PROPOSE FAILED — CHECK CONNECTION'),
+  )
+  const acceptProposal = () => runAccept(
+    modeTx(w => acceptMode(w, mySymbol, generateSeed()), 'NO PROPOSAL TO ACCEPT'),
+    () => toast.error('ACCEPT FAILED — CHECK CONNECTION'),
+  )
+  const cancelProposal = () => runCancel(
+    modeTx(w => cancelMode(w, mySymbol), 'NO PROPOSAL TO CANCEL'),
+    () => toast.error('CANCEL FAILED — CHECK CONNECTION'),
+  )
 
   const ping = (p) => runPing(async () => {
     const seed = wire?.seed
@@ -318,22 +405,53 @@ export default function WireCrossedGame({
   const pingMsg = wire.ping && now - wire.ping.at < PING_SHOW_MS && QUICK_PHRASES[wire.ping.p]
     ? { mine: wire.ping.by === mySymbol, text: QUICK_PHRASES[wire.ping.p], who: players?.[wire.ping.by]?.name || wire.ping.by }
     : null
+  const slotTotal = bomb.modules.filter(m => m.type !== 'gauge').length
+  const hasGauge = gaugeIndex(bomb) >= 0
   const solvedCount = bomb.modules.filter((_, i) => isSolved(wire, i)).length
   const activeTab = Math.min(tab, bomb.modules.length - 1)
   const module = bomb.modules[activeTab]
   const durationText = noClock ? 'NO CLOCK' : formatClock(scaledMs(bomb.durationMs, game.timerScale))
+  const legacy = isLegacyWire(wire)
+  // Blackout only dims the panel; the clock, strike lights, tabs and colour letters live outside or stay legible.
+  const dark = armed && bomb.modifiers.includes('blackout') && isBlackout(wire, now)
+  const mode = wire.mode && MODE_LEVELS[wire.mode] ? wire.mode : null
+  const modeName = mode ? modeSummary(mode).name : null
+  const showPicker = !legacy && (!mode || changing || !!wire.modeProposal)
+  const picker = showPicker && (
+    <ModePicker
+      wire={wire}
+      mySymbol={mySymbol}
+      players={players}
+      onPropose={proposeTo}
+      onAccept={acceptProposal}
+      onCancel={cancelProposal}
+      proposing={proposing}
+      accepting={accepting}
+      cancelling={cancelling}
+    />
+  )
+  const changeModeButton = mode && !isSpectator && (
+    <button
+      type="button"
+      onClick={() => setChanging(c => !c)}
+      aria-expanded={showPicker}
+      className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border text-retro-text font-pixel text-[10px] hover:border-retro-cta"
+    >{changing ? 'KEEP MODE' : 'CHANGE MODE'}</button>
+  )
 
   return (
     <div className="flex flex-col items-center gap-3 py-2 max-w-md mx-auto w-full">
       {/* Seats + roles + team score */}
       <div className="w-full flex items-center justify-between gap-2">
-        <Seat symbol="X" player={players?.X} role={tech === 'X' ? 'TECH' : 'HANDBOOK'} me={mySymbol === 'X'}
+        <Seat symbol="X" player={players?.X} role={seatRole('X')} me={mySymbol === 'X'}
           online={isSpectator ? undefined : (mySymbol === 'X' ? true : opponentOnline)} />
         <div className="flex flex-col items-center shrink-0">
           <span className="font-pixel text-[9px] text-retro-win tracking-widest">TEAM ★ {score}</span>
-          <span className="font-pixel text-[7px] text-retro-dim tracking-widest">BOMB {wire.bombNo || 1} · LVL {bomb.level}</span>
+          <span className="font-pixel text-[7px] text-retro-dim tracking-widest">
+            BOMB {wire.bombNo || 1} · {mode ? `${modeName} ${bomb.level}/${MODE_LEVELS[mode]}` : `LVL ${bomb.level}`}
+          </span>
         </div>
-        <Seat symbol="O" player={players?.O} role={tech === 'O' ? 'TECH' : 'HANDBOOK'} me={mySymbol === 'O'}
+        <Seat symbol="O" player={players?.O} role={seatRole('O')} me={mySymbol === 'O'}
           online={isSpectator ? undefined : (mySymbol === 'O' ? true : opponentOnline)} />
       </div>
 
@@ -347,6 +465,16 @@ export default function WireCrossedGame({
         >{pingMsg.mine ? 'YOU: ' : `${pingMsg.who}: `}{pingMsg.text}</p>
       )}
 
+      {armed && bomb.modifiers.includes('swap') && (
+        <div className="w-full" role="status" aria-live="assertive">
+          {isSwapBanner(wire, now) && (
+            <p className="w-full text-center rounded border-2 border-retro-cta bg-retro-tint-cta px-2 py-3 font-pixel text-[11px] text-retro-cta text-glow-cta tracking-widest">
+              {isSpectator ? 'SWAP! THE ROLES CHANGED' : `SWAP! YOU ARE NOW THE ${role.toUpperCase()}`}
+            </p>
+          )}
+        </div>
+      )}
+
       {partnerOffline && phase !== 'over' && (
         <p className="w-full text-center font-pixel text-[9px] text-retro-p2 tracking-wider" role="status">
           PARTNER OFFLINE — THE CLOCK KEEPS RUNNING
@@ -356,15 +484,22 @@ export default function WireCrossedGame({
       {phase === 'ready' && (
         <div className="w-full rounded-lg border-2 border-retro-border bg-retro-card p-4 space-y-3 text-center">
           <p className="font-pixel text-[12px] text-retro-cta tracking-widest">BOMB {wire.bombNo || 1}</p>
-          <p className="font-mono text-[11px] text-retro-text">
-            Level {bomb.level} · {bomb.modules.length} modules · {durationText} · {MAX_STRIKES} strikes
-          </p>
-          {role === 'tech' && (
+          {mode || legacy ? (
+            <p className="font-mono text-[11px] text-retro-text">
+              {mode ? `${modeName} · Level ${bomb.level} of ${MODE_LEVELS[mode]}` : `Level ${bomb.level}`} · {slotTotal} modules{hasGauge ? ' + GAUGE' : ''} · {durationText} · {MAX_STRIKES} strikes
+            </p>
+          ) : (
+            <p className="font-mono text-[11px] text-retro-text">Choose a mode to deal the first bomb.</p>
+          )}
+          {mode && <ModifierChips modifiers={bomb.modifiers} detail />}
+          {changeModeButton}
+          {picker}
+          {role === 'tech' && (mode || legacy) && (
             <p className="font-mono text-[11px] text-retro-text leading-relaxed">
               You are the <b className="text-retro-cta">TECH</b>. You see the device but not the rules. Describe what you see; your partner reads you the manual. Voice chat works best.
             </p>
           )}
-          {role === 'handbook' && (
+          {role === 'handbook' && (mode || legacy) && (
             <p className="font-mono text-[11px] text-retro-text leading-relaxed">
               You are the <b className="text-retro-cta">HANDBOOK</b>. You hold the only manual for this bomb, but you can't see it. Ask the Tech what they see and read them the rules. Voice chat works best.
             </p>
@@ -374,41 +509,55 @@ export default function WireCrossedGame({
             <button
               type="button"
               onClick={arm}
-              disabled={arming || partnerOffline}
+              disabled={arming || partnerOffline || (!mode && !legacy) || !!wire.modeProposal}
               className="w-full min-h-11 rounded bg-retro-cta text-retro-bg font-pixel text-[11px] tracking-widest hover:shadow-neon-cta disabled:opacity-40"
-            >{arming ? 'ARMING…' : partnerOffline ? 'WAITING FOR PARTNER' : 'ARM THE BOMB'}</button>
+            >{arming ? 'ARMING…' : partnerOffline ? 'WAITING FOR PARTNER' : !mode && !legacy ? 'PICK A MODE FIRST' : wire.modeProposal ? 'MODE PENDING' : 'ARM THE BOMB'}</button>
           ) : role === 'handbook' && (
-            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">WAITING FOR THE TECH TO ARM IT…</p>
+            <p className="font-pixel text-[9px] text-retro-dim arcade-blink">{mode || legacy ? 'WAITING FOR THE TECH TO ARM IT…' : 'PICK A MODE, THEN THE TECH ARMS IT…'}</p>
           )}
         </div>
       )}
 
       {phase !== 'ready' && <BombStrip bomb={bomb} wire={wire} now={phase === 'over' ? (wire.result?.at ?? now) : now} />}
+      {armed && <ModifierChips modifiers={bomb.modifiers} />}
 
       {armed && (role === 'tech' || isSpectator) && (
         <>
-          <div className="w-full grid gap-1.5" style={{ gridTemplateColumns: `repeat(${bomb.modules.length}, minmax(0, 1fr))` }} role="tablist" aria-label="Modules">
-            {bomb.modules.map((m, i) => (
-              <button
-                key={m.type}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === i}
-                onClick={() => setTab(i)}
-                className={cn(
-                  'min-h-11 rounded border-2 font-pixel text-[8px] tracking-wider flex items-center justify-center gap-1',
-                  activeTab === i ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim',
-                )}
-              >
-                <span
-                  className={cn('w-2 h-2 rounded-full', isSolved(wire, i) ? 'bg-retro-win shadow-glow-dot' : 'bg-retro-structure')}
-                  aria-label={isSolved(wire, i) ? 'solved' : 'live'}
-                />
-                {MODULE_NAMES[m.type]}
-              </button>
-            ))}
+          <div className="w-full grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.min(3, bomb.modules.length)}, minmax(0, 1fr))` }} role="tablist" aria-label="Modules">
+            {bomb.modules.map((m, i) => {
+              const isGauge = m.type === 'gauge'
+              // The Gauge tab blinks (and says GAUGE!) from AMBER, so it is never colour-only.
+              const hot = isGauge && gaugeZone(gaugePressure(wire, bomb, now)) !== 'green'
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === i}
+                  onClick={() => setTab(i)}
+                  className={cn(
+                    'min-h-11 rounded border-2 font-pixel text-[8px] tracking-wider flex items-center justify-center gap-1',
+                    activeTab === i ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim',
+                    hot && 'arcade-blink',
+                  )}
+                >
+                  {!isGauge && (
+                    <span
+                      className={cn('w-2 h-2 rounded-full', isSolved(wire, i) ? 'bg-retro-win shadow-glow-dot' : 'bg-retro-structure')}
+                      aria-label={isSolved(wire, i) ? 'solved' : 'live'}
+                    />
+                  )}
+                  {hot ? 'GAUGE!' : MODULE_NAMES[m.type]}
+                </button>
+              )
+            })}
           </div>
-          <div className="w-full rounded-lg border-2 border-retro-border bg-retro-card p-3 min-h-[16rem] flex flex-col justify-center">
+          <p className="sr-only" role="status" aria-live="polite">{dark ? 'Blackout: the panel is dark. You can still act.' : ''}</p>
+          {dark && <p className="w-full text-center font-pixel text-[8px] text-retro-danger tracking-widest">BLACKOUT — PANEL DARK · YOU CAN STILL ACT</p>}
+          <div
+            data-blackout={dark ? 'on' : 'off'}
+            className={cn('w-full rounded-lg border-2 border-retro-border bg-retro-card p-3 min-h-[16rem] flex flex-col justify-center', dark && 'wire-blackout')}
+          >
             {isSolved(wire, activeTab) ? (
               <p className="text-center font-pixel text-[11px] text-retro-win tracking-widest">MODULE CLEAR ✓</p>
             ) : (
@@ -420,6 +569,8 @@ export default function WireCrossedGame({
                 onAction={act}
                 disabled={isSpectator || acting}
                 busy={acting}
+                bomb={bomb}
+                now={now}
                 clock={() => clockText(wireRef.current, getServerNow())}
               />
             )}
@@ -430,7 +581,7 @@ export default function WireCrossedGame({
       {armed && role === 'handbook' && (
         <>
           <p className="w-full text-center font-pixel text-[8px] text-retro-dim tracking-widest">
-            RULESET {bomb.ruleset} · MODULES DONE {solvedCount}/{bomb.modules.length}
+            RULESET {bomb.ruleset} · MODULES DONE {solvedCount}/{slotTotal}
           </p>
           <WireManual bomb={bomb} tab={activeTab} onTab={setTab} solved={i => isSolved(wire, i)} />
         </>
@@ -443,6 +594,7 @@ export default function WireCrossedGame({
       {phase === 'over' && (
         <>
           <ResultCard wire={wire} />
+          {picker}
           {!proposal && !isSpectator && (
             <div className="w-full flex flex-wrap justify-center gap-2">
               <button
@@ -450,7 +602,8 @@ export default function WireCrossedGame({
                 onClick={requestPlayAgain}
                 disabled={playAgainBusy || !onPlayAgain}
                 className="min-h-11 px-4 py-2.5 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] hover:shadow-neon-cta disabled:opacity-50"
-              >{playAgainBusy ? 'LOADING…' : 'NEXT BOMB'}</button>
+              >{playAgainBusy ? 'LOADING…' : wire.result?.cleared ? 'RUN AGAIN' : 'NEXT BOMB'}</button>
+              {changeModeButton}
               <button
                 type="button"
                 onClick={requestNewMatch}

@@ -48,6 +48,12 @@ export function isReducedMotion() {
   return snap === 'reduced' || snap === 'os-reduced'
 }
 
+// `behavior` for scrollIntoView / scrollTo: an instant jump under reduced
+// motion (CSS scroll-behavior does not reach an explicit 'smooth' in JS).
+export function scrollBehavior() {
+  return isReducedMotion() ? 'auto' : 'smooth'
+}
+
 // → { reduced: boolean, setting: 'reduced' | 'full' | null }
 // `setting` is the explicit in-app choice (null = following the OS).
 export default function useMotionPref() {

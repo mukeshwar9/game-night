@@ -9,9 +9,14 @@ export const PAIRS_SIZE = 6
 export const PAIRS_CELL_COUNT = 36
 export const PAIRS_TOTAL_PAIRS = 18
 export const PAIRS_CLINCH = 10
+// PAIRS 4×4 (`pairs4`): 8 pairs drawn from the faces, first to 5 clinches.
+export const PAIRS_QUICK_SIZE = 4
+export const PAIRS_QUICK_CELL_COUNT = 16
 
+// 'sword' replaced 'ninja', whose silhouette was nearly the ghost's (decks dealt
+// before the swap still name 'ninja'; pairsFaces.js keeps its colour and name).
 export const PAIRS_FACES = [
-  'invader', 'robot', 'ghost', 'alien', 'skull', 'cat', 'ufo', 'wizard', 'ninja',
+  'invader', 'robot', 'ghost', 'alien', 'skull', 'cat', 'ufo', 'wizard', 'sword',
   'crown', 'dino', 'heart', 'frog', 'star', 'mushroom', 'bolt', 'moon', 'fish',
 ]
 
@@ -30,8 +35,14 @@ function shuffle(arr) {
 // or server-verifiable RNG (contrast with Pig's diceSeed commit-reveal, which exists
 // because Pig rolls are asymmetric turn-by-turn stakes). Not reproducible/testable by
 // exact output — tests assert structure (counts), not a specific shuffle.
-export function generatePairsDeck() {
-  return shuffle([...PAIRS_FACES, ...PAIRS_FACES])
+export function generatePairsDeck(pairCount = PAIRS_TOTAL_PAIRS) {
+  const faces = pairCount >= PAIRS_FACES.length ? PAIRS_FACES : shuffle(PAIRS_FACES).slice(0, pairCount)
+  return shuffle([...faces, ...faces])
+}
+
+// Pairs needed to clinch: a strict majority of the board's pairs (10 of 18, 5 of 8).
+export function pairsClinch(cellCount) {
+  return Math.floor(cellCount / 4) + 1
 }
 
 // Array-or-Firebase-numeric-object tolerance, same shape as normalizeVmArray /
@@ -53,9 +64,10 @@ export function normalizePairsFlipped(raw) {
 export function getPairsWinner(board) {
   const xCells = board.filter(c => c === 'X').length
   const oCells = board.filter(c => c === 'O').length
-  if (xCells / 2 >= PAIRS_CLINCH) return { winner: 'X' }
-  if (oCells / 2 >= PAIRS_CLINCH) return { winner: 'O' }
-  if (xCells + oCells === PAIRS_CELL_COUNT) return { winner: 'draw' } // always 9–9 here
+  const clinch = pairsClinch(board.length)
+  if (xCells / 2 >= clinch) return { winner: 'X' }
+  if (oCells / 2 >= clinch) return { winner: 'O' }
+  if (xCells + oCells === board.length) return { winner: 'draw' } // 9–9 (6×6) or 4–4 (4×4)
   return null
 }
 
@@ -84,7 +96,7 @@ export function getPairsWinner(board) {
 //       match    → { board: <both cells set to symbol>, flipped: null, turnStays: true, matched: true }
 //       mismatch → { board (unchanged), flipped: [j, index], turnStays: false, matched: false }
 export function applyPairsMove(board, deck, flipped, index, symbol) {
-  if (index < 0 || index >= PAIRS_CELL_COUNT) return null
+  if (index < 0 || index >= board.length) return null
   if (board[index]) return null
   if (flipped.length === 1 && flipped[0] === index) return null
 
@@ -104,66 +116,77 @@ export function applyPairsMove(board, deck, flipped, index, symbol) {
 }
 
 // ---------------------------------------------------------------------------
-// Bot (used only by the local /demo harness — see Demo.jsx wiring below).
+// Bot (used only by the local /demo harness — BotBoardDemo + demoBots.js).
 // ---------------------------------------------------------------------------
-
-const RECALL_P = 0.45          // 2nd-flip: chance the bot correctly plays the known twin
-const FIRST_FLIP_SETUP_P = 0.15 // 1st-flip: see implementation note below
-
-function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)] }
-
-function legalCellsExcluding(board, exclude) {
-  const out = []
-  for (let i = 0; i < PAIRS_CELL_COUNT; i++) {
-    if (board[i] === '' && !exclude.includes(i)) out.push(i)
-  }
-  return out
+//
+// The bot plays from memory, like a person: it only knows faces that have been
+// turned face up, remembers each one with probability `recall`, and forgets it
+// after `forgetAfter` flips. The old bot read the whole deck — 45% of its second
+// flips went straight to a twin it had never seen, so a player with perfect
+// memory still lost 4–10 and the CPU felt like it was cheating.
+//
+// Measured (posture C, 400 simulated games per level, 2026-10-02) against a
+// scripted player with perfect memory: that player wins 100% vs EASY, 74% vs
+// NORMAL and 50% vs HARD (HARD never forgets, so it plays the same strategy).
+// Real players forget, so every level plays harder than these numbers suggest.
+// pairsLogic.test.js re-runs a smaller version of the simulation. Tune `recall` first.
+export const PAIRS_BOT_LEVELS = {
+  easy:   { recall: 0.7,  forgetAfter: 12 },
+  normal: { recall: 0.95, forgetAfter: 40 },
+  hard:   { recall: 1,    forgetAfter: Infinity },
 }
 
-function pickFirstFlip(board, deck, flipped) {
-  const legal = legalCellsExcluding(board, flipped)
-  if (!legal.length) return null
-  if (Math.random() < FIRST_FLIP_SETUP_P) {
-    // "Deliberate" first flip: pick a still-unclaimed face and flip one of its two
-    // copies. IMPLEMENTATION NOTE: because Pairs always claims both copies of a face
-    // in the same instant (never one-claimed/one-not), every legal cell's twin is,
-    // by construction, always also legal. So this branch and the plain-random branch
-    // below are currently statistically indistinguishable — grouping by face first
-    // doesn't change the distribution. Implemented as two distinct code paths anyway
-    // for spec fidelity and because a future variant (e.g. odd face counts, a "burn a
-    // card" power-up) could break that invariant and make this branch meaningful.
-    const faces = [...new Set(legal.map(i => deck[i]))]
-    const face = pickRandom(faces)
-    const cells = legal.filter(i => deck[i] === face)
-    return pickRandom(cells)
-  }
-  return pickRandom(legal)
+const levelOf = d => PAIRS_BOT_LEVELS[d] ?? PAIRS_BOT_LEVELS.normal
+
+// The bot's notes after a card at `index` is turned face up (by anyone), at flip
+// number `at`. Pure: returns a new memory object (or the same one when the bot
+// failed to take it in).
+export function observePairsFlip(memory, index, face, at, difficulty = 'normal', rand = Math.random) {
+  if (face == null || rand() >= levelOf(difficulty).recall) return memory ?? {}
+  return { ...(memory ?? {}), [index]: { face, at } }
 }
 
-function pickSecondFlip(board, deck, flipped) {
-  const held = flipped[0]
-  const legal = legalCellsExcluding(board, [held])
-  if (!legal.length) return null // defensive; can't happen mid-game (see Logic details)
-  if (Math.random() < RECALL_P) {
-    const heldFace = deck[held]
-    const twin = legal.find(i => deck[i] === heldFace)
-    if (twin !== undefined) return twin
+// Unclaimed cards the bot still remembers at flip number `now`, as index → face.
+function knownCards(memory, board, now, difficulty) {
+  const { forgetAfter } = levelOf(difficulty)
+  const known = {}
+  for (const [k, v] of Object.entries(memory ?? {})) {
+    const i = Number(k)
+    if (board[i] === '' && now - v.at <= forgetAfter) known[i] = v.face
   }
-  return pickRandom(legal)
+  return known
 }
 
-// gameView: the demo harness's local game-state object (already has real arrays for
-// board/pairsDeck/pairsFlipped, never raw Firebase snapshot shape — see Demo.jsx wiring).
-// symbol is accepted for call-site parity with pickBotMove(type, game, botSymbol) →
-// demoBots.js's `case 'pairs': return computePairsBotMove(game, botSymbol)` dispatch, but
-// unused by the algorithm itself (Pairs' flip legality is symmetric for both players).
-// `void symbol` below is a deliberate no-op so ESLint's no-unused-vars (args: 'after-used'
-// in this repo's eslint.config.js) doesn't flag the final parameter.
-export function computePairsBotMove(gameView, symbol) {
-  void symbol
+function pickFrom(arr, rand) { return arr[Math.floor(rand() * arr.length)] }
+
+// gameView: the demo harness's local game state (board, pairsDeck, pairsFlipped,
+// plus the bot's own pairsBotMemory and pairsFlipCount). Returns a cell index or null.
+export function computePairsBotMove(gameView, symbol, difficulty = 'normal', rand = Math.random) {
+  void symbol // flip legality is the same for both seats
   const board = gameView.board || []
-  const deck = normalizePairsDeck(gameView.pairsDeck)
   const flipped = normalizePairsFlipped(gameView.pairsFlipped)
-  if (flipped.length === 1) return pickSecondFlip(board, deck, flipped)
-  return pickFirstFlip(board, deck, flipped)
+  const now = gameView.pairsFlipCount ?? 0
+  const known = knownCards(gameView.pairsBotMemory, board, now, difficulty)
+  const legal = []
+  for (let i = 0; i < board.length; i++) if (board[i] === '' && !flipped.includes(i)) legal.push(i)
+  if (!legal.length) return null
+  const unknown = legal.filter(i => known[i] === undefined)
+
+  if (flipped.length === 1) {
+    // Second flip: the held card's face is on the table for everyone to see.
+    const face = normalizePairsDeck(gameView.pairsDeck)[flipped[0]]
+    const twin = legal.find(i => known[i] === face)
+    if (twin !== undefined) return twin
+    return pickFrom(unknown.length ? unknown : legal, rand)
+  }
+
+  // First flip: cash in a remembered pair, otherwise turn up something new.
+  const seen = {}
+  for (const i of legal) {
+    const f = known[i]
+    if (f === undefined) continue
+    if (seen[f] !== undefined) return seen[f]
+    seen[f] = i
+  }
+  return pickFrom(unknown.length ? unknown : legal, rand)
 }

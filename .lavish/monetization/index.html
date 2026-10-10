@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Night monetization, Phase 1</title>
+<style>
+:root{--bg:#eef0e2;--card:#fcfdf6;--ink:#2d3723;--dim:#5f6b51;--line:#b9c3a5;--cta:#8a5a10;--win:#2f7a3a;--warn:#a2331f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.9rem;line-height:1.2;margin:.2em 0}h2{font-size:1.3rem;margin:2.2rem 0 .6rem;border-bottom:2px solid var(--line);padding-bottom:.3rem}
+.meta{color:var(--dim);font-size:.9rem}.lead{font-size:1.05rem;max-width:68ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:16px;margin-top:12px}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;min-width:0}
+figure img{width:100%;height:auto;display:block;border-radius:4px;border:1px solid var(--line)}
+figcaption{font-size:.85rem;color:var(--dim);padding-top:8px}figcaption b{color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+table{border-collapse:collapse;width:100%;font-size:.92rem}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:#e3e8d2}
+code{background:#e3e8d2;padding:1px 5px;border-radius:3px;font-size:.88em;overflow-wrap:anywhere}
+.ok{color:var(--win);font-weight:600}.no{color:var(--warn);font-weight:600}
+ol li,ul li{margin:.3rem 0}
+pre{background:#232b1c;color:#e6efd3;padding:12px;border-radius:6px;overflow:auto;font-size:.82rem}
+</style></head><body><main>
+<h1>Game Night monetization, Phase 1 (web)</h1>
+<p class="meta">Branch <code>fm/games-monetization-build-s1</code>, head <code>1d64132</code>. Not deployed. Paddle sandbox only, placeholder keys, no live charges.</p>
+<p class="lead">Game Night Pass (.99 a month or .99 a year, the host buys it), cosmetic packs (.99 to .99) and Supporter (.99). Every free game stays free, nothing sold changes who wins, and there are no random paid rewards. Premium themes, the premium font, every pass or pack avatar item and the pixel emote pack all go through one entitlement check.</p>
+
+<h2>Launch switch (added after approval of option A)</h2>
+<p class="card">Everything below sits behind <code>VITE_MONETIZATION_ENABLED</code> (client) and <code>MONETIZATION_ENABLED</code> (functions), <b>both off by default</b>. Off: every premium theme, font, avatar item, buddy and emote is open to everyone, no locks, paywall or pass badges, <code>/shop</code> and <code>/pass</code> are not routed and not linked, and the billing functions refuse. On: the gating shown here applies, with admin emails and the local dev bypass. Tested in both states (unit, functions, e2e). The screenshots were taken with the switch on.</p>
+<h2>Shop, Pass and paywall</h2>
+<div class="grid">
+<figure><img src="shop-locked-themes.png" alt="Shop themes tab"><figcaption><b>Shop, themes.</b> Pass banner, tabs, pack section with BUY price, Supporter card.</figcaption></figure>
+<figure><img src="shop-locked-avatars.png" alt="Shop avatars tab, locked"><figcaption><b>Shop, avatars.</b> Royal pack items with locks, rendered on the new avatar kit.</figcaption></figure>
+<figure><img src="shop-locked-emotes.png" alt="Shop emotes tab"><figcaption><b>Shop, emotes.</b> The new pixel emote pack.</figcaption></figure>
+<figure><img src="paywall.png" alt="Paywall sheet"><figcaption><b>Paywall sheet</b> after tapping a locked item: get the Pass, or buy just that pack.</figcaption></figure>
+<figure><img src="purchase-signin.png" alt="Sign in before buying"><figcaption><b>Guests sign in with Google first</b> so the purchase follows the account. Then the neutral birth-year question (13+), then checkout.</figcaption></figure>
+<figure><img src="pass-page.png" alt="Pass page"><figcaption><b>Pass page.</b> Perks (host perks marked coming), yearly and monthly plans, auto-renew and cancel fine print.</figcaption></figure>
+</div>
+
+<h2>Locks in the pickers</h2>
+<div class="grid">
+<figure><img src="settings-theme-lock.png" alt="Theme picker with locks"><figcaption><b>Settings, theme.</b> PUMPKIN NIGHT and CAMPFIRE show a lock; tapping one closes settings and opens the paywall.</figcaption></figure>
+<figure><img src="avatar-picker-lock.png" alt="Avatar picker with locks"><figcaption><b>Avatar picker.</b> Locked backdrops cannot be picked; earned items (check mark) stay open.</figcaption></figure>
+</div>
+
+<h2>Bypass proof</h2>
+<div class="two">
+<div class="card"><h3>1. Local development and emulators</h3>
+<p>Every premium item is open on a dev server and in emulator mode, never in a production build (<code>bypassActive</code>, unit-tested). <code>localStorage['gn-premium-bypass']='off'</code> turns it off to inspect the locked UI; it can only turn it off.</p>
+<figure><img src="shop-dev.png" alt="Dev mode banner"><figcaption>Dev mode: everything unlocked, labelled so it is not mistaken for a purchase.</figcaption></figure></div>
+<div class="card"><h3>2. Admin emails, in production</h3>
+<p><code>ADMIN_EMAILS</code> lives in the functions config, not the client bundle. <code>syncAdminAccess</code> (callable) checks the verified Google email, or the existing <code>users/{uid}/admin</code> flag, then writes <code>entitlements/{uid}/admin</code> and a <code>premiumAdmin</code> custom claim. Clients cannot write that record (rules tests). Removing an email revokes it on next sign-in.</p>
+<figure><img src="admin-bypass.png" alt="Admin access banner, bypass off"><figcaption>Bypass switched off, server-set admin flag present: ADMIN ACCESS, every item unlocked.</figcaption></figure></div>
+</div>
+<p>Also covered end to end (<code>tests/e2e/premium.spec.js</code>): bypass open, locked with bypass off, pack unlocks live, refund re-locks, active Pass unlocks, lapsed Pass locks, admin flag unlocks, locked theme and avatar open the paywall.</p>
+
+<h2>What was built</h2>
+<table><tr><th>Area</th><th>What</th></tr>
+<tr><td>Data and rules</td><td><code>entitlements/{uid}</code> owner-read, never client-writable; <code>entitlementsPublic/{uid}</code> badge copy; <code>ageGate/{uid}</code> write-once birth year. Rules tests added.</td></tr>
+<tr><td>Cloud Functions</td><td><code>createCheckout</code> (Google account + 13+), <code>createPortalSession</code>, <code>paddleWebhook</code> (HMAC signature, 5-minute window, idempotent event claim, subscription, pack, Supporter and refund handling, no revival of deleted accounts), <code>syncAdminAccess</code>. Account deletion cancels the subscription and clears purchase records.</td></tr>
+<tr><td>One config</td><td><code>src/lib/premiumCatalog.js</code>: prices, products, packs. One check: <code>isUnlocked</code> in <code>premium.js</code>; <code>useAccess()</code> in React.</td></tr>
+<tr><td>Merged branches</td><td>Themes and fonts (CAMPFIRE, PUMPKIN NIGHT, TILT WARP gated), avatar B+C (pass and pack parts and ramps gated via <code>avatarGate.js</code>), then main <code>984b737</code>.</td></tr>
+<tr><td>Legal</td><td>Terms: purchases, subscriptions, refunds, deletion. Privacy: Paddle, purchase records, birth year, deletion cancels the subscription.</td></tr>
+<tr><td>Docs</td><td><code>docs/MONETIZATION.md</code>, <code>functions/README.md</code>, <code>functions/.env.example</code>.</td></tr></table>
+
+<h2>Checks</h2>
+<table><tr><th>Check</th><th>Result</th></tr>
+<tr><td>lint, typecheck, build</td><td class="ok">pass (lint: 0 errors, 10 existing warnings)</td></tr>
+<tr><td>unit (vitest)</td><td class="ok">pass; 1 earlier rule-media hash failure fixed (my firebase.js edit is gone)</td></tr>
+<tr><td>functions tests</td><td class="ok">64 pass</td></tr>
+<tr><td>rules tests</td><td class="ok">15 files, 302 tests pass</td></tr>
+<tr><td>e2e, full suite</td><td>137 pass, 3 skipped. Terms-page failure from my wording fixed and re-run green. <span class="no">1 failing: <code>pulprush.spec.js</code> co-op harvest</span>, a game I did not touch (round ends "HARVEST FAILED" before the test looks); fails the same on retry, likely pre-existing or timing-bound.</td></tr></table>
+
+<h2>Not built, and limits</h2>
+<ul>
+<li>Host perks (room banner, room theme, playlists, bigger rooms) are listed as "coming" on the Pass page; the Pass today unlocks cosmetics, the monthly-drop promise and the star badge data only. The <code>entitlementsPublic</code> badge is written but not yet drawn next to names.</li>
+<li>Avatar and emote gates are client-side: no database rule yet stops a modified client saving a premium avatar string. Fine for now, worth a rule before packs sell heavily.</li>
+<li>"Earned" avatar items (play-unlocked) stay open: no earn tracker exists yet.</li>
+<li>Free week for the Pass is configured on the Paddle price, not in code. Restore Purchases and the phone apps are Phase 2.</li>
+<li>No live checkout was exercised: it needs the Paddle sandbox account and a deployed function. Webhook, grants, refunds and signatures are covered by unit tests with a fake database.</li>
+</ul>
+
+<h2>Captain steps</h2>
+<ol>
+<li>Create a Paddle account (sandbox first), create prices for every key in <code>PRODUCTS</code> (<code>pass-monthly</code>, <code>pass-yearly</code>, <code>supporter</code>, and one per pack), 7-day trial on both Pass prices, default payment link <code>/shop</code>.</li>
+<li>Fill <code>functions/.env</code> from <code>.env.example</code>: <code>PADDLE_PRICES</code> and <code>ADMIN_EMAILS</code> (your verified Google emails).</li>
+<li><code>firebase functions:secrets:set PADDLE_API_KEY</code> and <code>PADDLE_WEBHOOK_SECRET</code> (sandbox values).</li>
+<li>Add a Paddle notification destination to the deployed <code>paddleWebhook</code> URL for <code>subscription.*</code>, <code>transaction.completed</code>, <code>adjustment.updated</code>.</li>
+<li>Deploy rules, functions and hosting together; test a sandbox purchase, cancel and refund.</li>
+<li>Have the Terms and Privacy edits reviewed, then switch <code>PADDLE_ENV=production</code> with live keys only when ready.</li>
+</ol>
+</main></body></html>

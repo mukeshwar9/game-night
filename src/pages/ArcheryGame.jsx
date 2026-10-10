@@ -178,9 +178,9 @@ export default function ArcheryGame(props) {
           })}
         </div>
         {isCoordinator && (
-          <label className="flex items-center justify-between rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
+          <label className="flex items-center justify-between gap-2 rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
             RANGE FORMAT
-            <select value={format} onChange={e => setFormat(e.target.value)} disabled={busy} className="min-h-9 bg-retro-deep px-2 text-retro-cta">
+            <select value={format} onChange={e => setFormat(e.target.value)} disabled={busy} className="min-h-11 min-w-0 max-w-[62%] bg-retro-deep px-2 text-retro-cta">
               {Object.entries(ARCHERY_FORMATS).map(([id, item]) => <option key={id} value={id}>{item.label} · {item.ends} ENDS</option>)}
             </select>
           </label>
@@ -228,6 +228,9 @@ export default function ArcheryGame(props) {
         disabled={!myTurn}
         pointerProps={drawHook.pointerProps}
       />
+      {status === 'playing' && !isSpectator && myTurn && (
+        <p className="text-center font-mono text-[9px] text-retro-dim">DRAG FROM BOW GRIP · PULL DOWN FOR POWER · SLIDE BACK TO CANCEL</p>
+      )}
       {status === 'playing' && !isSpectator && (
         <>
           <label className="flex items-center justify-between rounded border border-retro-border bg-retro-card px-3 py-2 font-mono text-[11px] text-retro-text">
@@ -243,7 +246,7 @@ export default function ArcheryGame(props) {
             </label>
           </div>
           <button onClick={() => shoot(manualAim())} disabled={!myTurn || busy}
-            className="min-h-12 w-full rounded bg-retro-cta py-3 font-pixel text-xs text-retro-bg hover:shadow-neon-cta active:scale-[0.98] disabled:opacity-40">
+            className="min-h-12 w-full rounded bg-retro-cta py-3 font-pixel text-xs text-retro-bg hover:shadow-neon-cta press-card disabled:opacity-40">
             {busy ? 'RELEASING…' : 'LOOSE ARROW'}
           </button>
           <p className="text-center font-mono text-[9px] text-retro-dim"><span className="kbd-hint">SPACE / ENTER · </span>DRAG FROM GRIP TO DRAW · 30S PER ARROW</p>

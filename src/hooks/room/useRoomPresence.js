@@ -15,6 +15,11 @@ import { presenceHeal } from '../../lib/presenceLogic'
 // player offline. Seats also keep the legacy `online` flag for old clients:
 // set true on connect, false by onDisconnect, and put back by any other
 // still-connected tab of the same seat (presenceHeal).
+//
+// Native shell: before the app goes to the background (and shell.js drops the
+// connection), seats stamp `awayAt` so the others read STEPPED AWAY instead of
+// OFFLINE. The shell waits for that write (event.detail.waitUntil); the next
+// register() clears it.
 export default function useRoomPresence({ gameId, kind, seat, uid, name }) {
   useEffect(() => {
     if (!db || !kind || !gameId) return
@@ -41,11 +46,11 @@ export default function useRoomPresence({ gameId, kind, seat, uid, name }) {
       onDisconnect(ref(db, `${base}/online`)).set(false).catch(() => {})
       if (kind === 'party') {
         onDisconnect(ref(db, `${base}/offlineAt`)).set(serverTimestamp()).catch(() => {})
-        patchPartySeat(seatNode => ({ ...seatNode, online: true, offlineAt: null, conns: { ...(seatNode.conns || {}), [key]: Date.now() } }))
+        patchPartySeat(seatNode => ({ ...seatNode, online: true, offlineAt: null, awayAt: null, conns: { ...(seatNode.conns || {}), [key]: Date.now() } }))
         return
       }
       // back after a LEAVE: the seat is live again
-      update(baseRef, { online: true, leftAt: null, [`conns/${key}`]: Date.now() }).catch(() => {})
+      update(baseRef, { online: true, leftAt: null, awayAt: null, [`conns/${key}`]: Date.now() }).catch(() => {})
     }
 
     // Party seats live inside `players`, which a game switch or a latecomer's
@@ -55,6 +60,16 @@ export default function useRoomPresence({ gameId, kind, seat, uid, name }) {
     const patchPartySeat = (fn) => {
       runTransaction(baseRef, cur => (cur && cur.playerId ? fn(cur) : (cur ?? null))).catch(() => {})
     }
+
+    // Native shell going to the background: stamp awayAt while the socket is
+    // still up. A missing party seat makes the write fail its rules (a seat
+    // needs a playerId), so it never creates a partial seat.
+    const onPause = (event) => {
+      if (cancelled || !connKey || kind === 'spectator') return
+      const write = dbSet(ref(db, `${base}/awayAt`), serverTimestamp()).catch(() => {})
+      event?.detail?.waitUntil?.(write)
+    }
+    window.addEventListener('native-pause', onPause)
 
     const unsubConnected = onValue(ref(db, '.info/connected'), snap => {
       if (cancelled) return
@@ -80,6 +95,7 @@ export default function useRoomPresence({ gameId, kind, seat, uid, name }) {
 
     return () => {
       cancelled = true
+      window.removeEventListener('native-pause', onPause)
       unsubConnected()
       if (unsubSelf) unsubSelf()
       if (!connKey) return

@@ -37,8 +37,8 @@ import { cn } from '@/lib/utils'
 // drops for them — a second miss while offline knocks them out.
 
 const TEXT_TOK = { p1: 'text-retro-p1', p2: 'text-retro-p2', p3: 'text-retro-p3', p4: 'text-retro-p4' }
-const CTA = 'min-h-11 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50'
-const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition-all active:scale-95 hover:border-retro-p1/50 hover:text-retro-p1 disabled:opacity-50'
+const CTA = 'min-h-11 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50'
+const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition press hover:border-retro-p1/50 hover:text-retro-p1 disabled:opacity-50'
 
 function lobbySeats(players) {
   return Object.values(players || {})
@@ -325,7 +325,7 @@ function Match({ game, stack, players, mySeat, roomRef, amCoordinator, onStart, 
       />
 
       {stack.phase === 'roundover' && toppler && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-3 text-center space-y-1" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-3 text-center space-y-1">
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest">TOWER {stack.round} TOPPLED BY</p>
           <p className={cn('font-pixel text-sm', TEXT_TOK[PLAYER_TOKENS[stack.order.indexOf(toppler)]])}>
             {PLAYER_GLYPHS[stack.order.indexOf(toppler)]} {toppler === mySeat ? 'YOU' : nameOf(toppler)}{' '}
@@ -336,7 +336,7 @@ function Match({ game, stack, players, mySeat, roomRef, amCoordinator, onStart, 
       )}
 
       {status === 'finished' && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3">
           <p className="font-pixel text-[10px] text-retro-dim tracking-widest">MATCH OVER</p>
           <p className={cn('font-pixel text-base', stack.winner === mySeat ? 'text-retro-cta text-glow-cta' : TEXT_TOK[PLAYER_TOKENS[Math.max(0, stack.order.indexOf(stack.winner))]])}>
             {stack.winner === mySeat ? 'YOU WIN!' : stack.winner ? `${nameOf(stack.winner)} WINS!` : 'MATCH OVER'}
@@ -362,7 +362,7 @@ function Match({ game, stack, players, mySeat, roomRef, amCoordinator, onStart, 
       )}
 
       <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
-        DRAG TO AIM · ⟲ ROTATES 15° · DROP LETS GO · ANY ANIMAL IN THE WATER = TOPPLE
+        DRAG TO AIM · ⟲ ⟳ TURN 15° · DROP LETS GO · ANY ANIMAL IN THE WATER = TOPPLE
       </p>
       <GameSwitcher currentType="animalstack" onSwitch={onSwitchGame} />
     </div>

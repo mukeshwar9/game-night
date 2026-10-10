@@ -481,3 +481,13 @@ export function codeWordsPlacements(round) {
 export function rosters(round, order) {
   return Object.fromEntries(TEAM_IDS.map(t => [t, teamMembers(round?.teams || {}, t, order)]))
 }
+
+/**
+ * Font size (px) that fits a board word on one line inside a card of `boxPx`
+ * usable width, for a monospace face (~0.6em per glyph). Capped at 11px and
+ * floored at 8px; anything longer than the floor allows wraps instead.
+ */
+export function cardFontPx(word, boxPx = 58) {
+  const len = Math.max(1, String(word ?? '').length)
+  return Math.max(8, Math.min(11, Math.round((boxPx / (len * 0.6)) * 10) / 10))
+}

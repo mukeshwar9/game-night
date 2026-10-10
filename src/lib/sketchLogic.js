@@ -361,3 +361,13 @@ export function entryForWord(deckWords, options, word) {
   const idx = (options || []).find(i => deckWords[i]?.word === word)
   return idx == null ? null : deckWords[idx]
 }
+
+/** Room chat lock for Sketch (registry `chatLocked`): the artist cannot type
+ * in room chat while choosing or drawing, so the secret word cannot be typed
+ * out to the guessers. Guesses have their own filtered feed. Returns the
+ * reason to show in place of the chat input, or null when chat is open. */
+export function sketchChatLock(round, uid) {
+  if (!round || !uid || round.artist !== uid) return null
+  if (round.phase !== 'choosing' && round.phase !== 'drawing') return null
+  return "YOU'RE DRAWING — TYPING IS OFF UNTIL THE ROUND ENDS. REACT INSTEAD."
+}

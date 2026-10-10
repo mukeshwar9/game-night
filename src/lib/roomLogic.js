@@ -147,24 +147,32 @@ export function isMyTurn(game, me) {
   return !!me && game?.status === 'playing' && game.currentTurn != null && game.currentTurn === me
 }
 
+// The waiting-room line while the second seat is empty: co-op games
+// (registry `coop: true`) wait for a partner, not an opponent.
+export function waitingForLabel(coop = false) {
+  return coop ? 'WAITING FOR PARTNER' : 'WAITING FOR OPPONENT'
+}
+
 // The one-line turn/result text for the room's live region (null = silent).
 // Worded as a sentence, not a copy of the on-screen status ("YOUR TURN",
 // "YOU WIN!"): the live region is real DOM text, and duplicating the visible
 // label would make text lookups ambiguous for tests and assistive-tech
 // "find" alike.
-export function roomAnnouncement(game, { me, party = false } = {}) {
+// `coop` (registry `coop: true`) speaks of a partner, and a co-op match ends
+// with no draw to announce.
+export function roomAnnouncement(game, { me, party = false, coop = false } = {}) {
   if (!game) return null
   const players = game.players || {}
   const nameOf = (id) => players[id]?.name || (party ? 'Someone' : id) || ''
   if (game.status === 'finished') {
     const w = game.winner
     if (!w) return party ? 'Round over.' : null
-    if (w === 'draw') return "It's a draw."
+    if (w === 'draw') return coop ? 'Your team finished the match.' : "It's a draw."
     if (me && w === me) return 'You won.'
     return `${nameOf(w)} won.`
   }
   if (game.status !== 'playing' || game.currentTurn == null) return null
   if (me && game.currentTurn === me) return "It's your move."
-  if (me && !party) return "Waiting for your opponent's move."
+  if (me && !party) return `Waiting for your ${coop ? 'partner' : 'opponent'}'s move.`
   return `${nameOf(game.currentTurn)} to move.`
 }

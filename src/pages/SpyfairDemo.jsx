@@ -3,7 +3,7 @@ import Avatar from '../components/Avatar'
 import PartyBotSetup from '../components/PartyBotSetup'
 import { sounds } from '../lib/sounds'
 import { getPlayerId } from '../lib/playerId'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { SPY_REPLY_STYLES } from '../lib/decks/spyfairChat'
 import {
@@ -11,6 +11,7 @@ import {
   generateBotStatement,
   generateQuestionPrompt,
   pickBotSpyVote,
+  spySuspicion,
   renderSpyReply,
 } from '../lib/partyBots'
 import {
@@ -335,13 +336,13 @@ export default function SpyfairDemo() {
         // Human spy got put on the spot — pause the ticker for a reply choice.
         dispatch({
           type: 'ASK_HUMAN_SPY',
-          entries: [{ speakerId: speaker.id, text: question }],
+          entries: [{ speakerId: speaker.id, text: question, ask: true }],
           pendingAsk: { askerName: speaker.name, roleWord: state.lastRoleWordSeen },
         })
         return
       }
 
-      const entries = [{ speakerId: speaker.id, text: question }]
+      const entries = [{ speakerId: speaker.id, text: question, ask: true }]
       let lastRoleWordSeen
       if (targetBot) {
         const targetIsSpy = targetBot.id === state.spyId
@@ -376,8 +377,10 @@ export default function SpyfairDemo() {
   useEffect(() => {
     if (state.phase !== 'vote') return
     const allIds = allParticipantIds(state)
+    // Bots judge from the chat feed, never from state.spyId (see spySuspicion).
+    const suspicion = spySuspicion(state.feed, state.locationIndex)
     const timers = state.roster.map((bot, i) => setTimeout(() => {
-      const accusedId = pickBotSpyVote(bot.id, allIds, state.spyId, bot.persona)
+      const accusedId = pickBotSpyVote(bot.id, allIds, { selfIsSpy: bot.id === state.spyId, suspicion }, bot.persona)
       dispatch({ type: 'CAST_VOTE', voterId: bot.id, accusedId })
     }, 600 + i * 450 + Math.random() * 300))
     return () => timers.forEach(clearTimeout)
@@ -486,7 +489,7 @@ export default function SpyfairDemo() {
             {!state.secretRevealed ? (
               <button
                 onClick={handlePeek}
-                className="px-5 py-3 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+                className="px-5 py-3 border-2 border-retro-p1 text-retro-p1 font-pixel text-[10px] rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press"
               >
                 TAP TO SEE YOUR SECRET
               </button>
@@ -516,7 +519,7 @@ export default function SpyfairDemo() {
             <button
               onClick={handleBeginQuestioning}
               disabled={!state.secretRevealed}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-40"
             >
               START QUESTIONING
             </button>
@@ -569,7 +572,7 @@ export default function SpyfairDemo() {
                   <button
                     key={style.id}
                     onClick={() => handleSpyReply(style.id)}
-                    className="px-3 py-1.5 border-2 border-retro-p2 text-retro-p2 font-pixel text-[8px] rounded hover:shadow-neon-p2 hover:bg-retro-tint-p2 transition-all active:scale-95"
+                    className="px-3 py-1.5 border-2 border-retro-p2 text-retro-p2 font-pixel text-[8px] rounded hover:shadow-neon-p2 hover:bg-retro-tint-p2 transition press"
                   >
                     {style.label}
                   </button>
@@ -592,7 +595,7 @@ export default function SpyfairDemo() {
             <button
               onClick={handleCallVote}
               disabled={state.paused}
-              className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+              className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition press disabled:opacity-40"
             >
               CALL THE VOTE NOW
             </button>
@@ -615,7 +618,7 @@ export default function SpyfairDemo() {
                   onClick={() => handleCastVote(p.id)}
                   disabled={myVoteCast}
                   className={cn(
-                    'w-full min-h-11 flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition-all active:scale-[0.98]',
+                    'w-full min-h-11 flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition press-card',
                     picked
                       ? 'border-retro-p2 text-retro-p2 shadow-neon-p2 bg-retro-tint-p2'
                       : 'border-retro-border text-retro-text hover:border-retro-p2/60',
@@ -671,7 +674,7 @@ function LocationGuess({ open, disabled = false, onOpen, onClose, onGuess }) {
         <button
           onClick={onOpen}
           disabled={disabled}
-          className="px-4 py-2 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+          className="px-4 py-2 border-2 border-retro-cta text-retro-cta font-pixel text-[9px] rounded hover:shadow-neon-cta transition press disabled:opacity-40"
         >
           GUESS THE LOCATION
         </button>
@@ -686,7 +689,7 @@ function LocationGuess({ open, disabled = false, onOpen, onClose, onGuess }) {
           <button
             key={loc.name}
             onClick={() => onGuess(i)}
-            className="px-2 py-1.5 border border-retro-border rounded font-mono text-[9px] text-retro-text hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95"
+            className="px-2 py-1.5 border border-retro-border rounded font-mono text-[9px] text-retro-text hover:border-retro-cta hover:text-retro-cta transition press"
           >
             {loc.name}
           </button>
@@ -694,7 +697,7 @@ function LocationGuess({ open, disabled = false, onOpen, onClose, onGuess }) {
       </div>
       <button
         onClick={onClose}
-        className="w-full px-3 py-1.5 font-pixel text-[9px] text-retro-dim hover:text-retro-text transition-all"
+        className="w-full px-3 py-1.5 font-pixel text-[9px] text-retro-dim hover:text-retro-text transition"
       >
         CANCEL
       </button>
@@ -757,7 +760,7 @@ function ResultPanel({ state, participants, onNextRound }) {
 
       <button
         onClick={onNextRound}
-        className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+        className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press"
       >
         NEXT ROUND
       </button>
@@ -782,7 +785,7 @@ function MatchOverPanel({ state, participants, onPlayAgain }) {
       <ScoreRow state={state} participants={participants} />
       <button
         onClick={onPlayAgain}
-        className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+        className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
       >
         PLAY AGAIN
       </button>

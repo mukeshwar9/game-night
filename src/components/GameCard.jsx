@@ -1,4 +1,5 @@
 import { getPlayerTag, getGameConfig } from '../lib/games'
+import { GameArt } from './GameArt'
 import { cn } from '@/lib/utils'
 import PixelDots from './loading/PixelDots'
 
@@ -13,15 +14,128 @@ import PixelDots from './loading/PixelDots'
 // switch, and `onModes` (optional) adds a MODES button for games with
 // variants so those stay reachable there. New games are surfaced by the
 // catalog's NEW THIS MONTH rail, not a per-row tag.
-export default function GameCard({ game, onTap, onModes, loadingType, disabled, isFav, onToggleFav }) {
+export default function GameCard({ game, onTap, onModes, loadingType, disabled, isFav, onToggleFav, layout = 'row' }) {
   const { type, variantOf } = game
   const base = variantOf ? getGameConfig(variantOf) : null
   const label = variantOf ? (game.variantLabel || game.label) : game.label
   const desc = variantOf ? (game.variantBlurb || game.desc) : game.desc
   const Icon = variantOf ? (base?.Icon || game.Icon) : game.Icon
+  const artType = variantOf || type
+  // Settings → LOOK & FEEL → GAME ART (PIXEL SCENE default, OBJECT, CAST, ICONS).
   const isBusy = disabled ?? !!loadingType
   const isLoading = loadingType === type
   const showModes = !!onModes && game.hasVariants
+
+  // Detailed tile: big art on top, name + meta at the bottom (Games screen
+  // detailed view). The mono icon sits behind as fallback — art covers it
+  // when the game has art (GameArt* returns null otherwise).
+
+  // On phones the grid is two tiles per row, so each tile fills its column
+  // (art stays big); from sm up it caps at 160px.
+  if (layout === 'tile') {
+    return (
+      <div className={'group relative w-full mx-auto sm:max-w-[160px]'}>
+        <button
+          onClick={() => onTap(game)}
+          disabled={isBusy}
+          title={desc}
+          className={cn(
+            'glass glass-tx w-full text-left border rounded-2xl overflow-hidden bg-retro-card transition press-card p-2',
+            isLoading
+              ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
+              : 'border-retro-border hover:border-retro-cta/50',
+            loadingType && !isLoading && 'opacity-40',
+          )}
+        >
+          <span aria-hidden="true" className="relative block w-full aspect-square overflow-hidden rounded-xl bg-retro-surface">
+            <span className={'absolute inset-0 flex items-center justify-center text-retro-text [&_svg]:w-1/2 [&_svg]:h-1/2 sm:[&_svg]:w-2/3 sm:[&_svg]:h-2/3'}>
+              {Icon && <Icon />}
+            </span>
+            <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
+          </span>
+          <span className="block px-1 pt-2 pb-1">
+            {isLoading ? (
+              <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
+            ) : (
+              <>
+                <span className={'block font-pixel text-retro-text leading-snug line-clamp-2 [overflow-wrap:anywhere] text-[11px] sm:text-[9px] sm:min-h-[26px]'}>{label}</span>
+                <span className="block font-mono text-[10px] text-retro-dim mt-1 truncate">
+                  <span className={game.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(game)}</span>
+                  {game.durationMin != null && ` · ~${game.durationMin} min`}
+                </span>
+              </>
+            )}
+          </span>
+        </button>
+        {onToggleFav && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFav(type) }}
+            title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+            aria-pressed={!!isFav}
+            className={cn(
+              'absolute top-2 right-2 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-retro-bg/60 transition-[color,opacity]',
+              // A heart on every tile was 71 extra marks over the art. With a
+              // pointer, an unset heart waits for hover/focus; touch keeps it.
+              isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+            )}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill={isFav ? 'currentColor' : 'none'}
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+            </svg>
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (layout === 'mini') {
+    return (
+      <div className="relative">
+        <button
+          onClick={() => onTap(game)}
+          disabled={isBusy}
+          title={desc}
+          className={cn(
+            'glass glass-tx w-full min-h-10 flex items-center gap-2 pl-3 py-1.5 text-left border rounded-lg transition press-card',
+            onToggleFav ? 'pr-9' : 'pr-3',
+            isLoading
+              ? 'border-retro-cta bg-retro-tint-cta'
+              : 'border-retro-border bg-retro-card hover:border-retro-cta/50',
+            loadingType && !isLoading && 'opacity-40',
+          )}
+        >
+          <span className="flex-1 min-w-0 font-pixel text-[9px] text-retro-text truncate">{label}</span>
+          {isLoading ? (
+            <span className="shrink-0"><PixelDots size="sm" tone="cta" /></span>
+          ) : (
+            <span className="shrink-0 font-mono text-[10px] text-retro-dim">
+              <span className={game.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(game)}</span>
+              {game.durationMin != null && ` · ~${game.durationMin} min`}
+            </span>
+          )}
+        </button>
+        {onToggleFav && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFav(type) }}
+            title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'}
+            aria-pressed={!!isFav}
+            className={cn(
+              'absolute inset-y-0 right-0 z-10 w-9 flex items-center justify-center transition-colors',
+              isFav ? 'text-retro-p2' : 'text-retro-dim hover:text-retro-text',
+            )}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill={isFav ? 'currentColor' : 'none'}
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
+            </svg>
+          </button>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="relative">
@@ -30,8 +144,8 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
         disabled={isBusy}
         title={desc}
         className={cn(
-          'w-full h-full min-h-14 flex items-center gap-2.5 pl-2.5 py-2 text-left border rounded',
-          'transition-all active:scale-[0.98]',
+          'glass glass-tx w-full h-full min-h-14 flex items-center gap-2.5 pl-2.5 py-2 text-left border rounded',
+          'transition press-card',
           onToggleFav ? 'pr-9' : showModes ? 'pr-14' : 'pr-2.5',
           isLoading
             ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
@@ -42,11 +156,14 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
         <span
           aria-hidden="true"
           className={cn(
-            'w-8 h-8 shrink-0 rounded flex items-center justify-center',
-            isLoading ? 'text-retro-cta' : 'text-retro-dim',
+            'relative w-8 h-8 shrink-0 rounded-lg overflow-hidden flex items-center justify-center border border-retro-border',
+            isLoading ? 'text-retro-cta' : 'text-retro-text',
           )}
         >
+          {/* Mono icon underneath; the illustrated art tile covers it when
+              this game has one (GameArt returns null otherwise). */}
           {Icon && <Icon />}
+          <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
         </span>
         <span className="flex-1 min-w-0">
           <span className="block font-pixel text-[9px] text-retro-text leading-snug line-clamp-2 [overflow-wrap:anywhere]">{label}</span>

@@ -8,6 +8,7 @@
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from './anagramsConfig'
 import { TARGET_SCORE as PASSWORD_TARGET } from './passwordLogic'
 import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from './arrowsLogic'
+import { MATCH_TARGET as UPDRAFT_MATCH_TARGET } from './updraftConfig'
 
 /**
  * @typedef {{ gameType?: string, status?: string, matchLength?: number | null,
@@ -17,14 +18,14 @@ import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from './arrowsLogic'
 // Real-time games where one round decides the match (page-level `matchWinner`
 // already uses scores ≥ 1; the parent's matchTarget must agree so the
 // "New Match" button supersedes "Play Again" once the round resolves).
-export const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel'])
+export const SINGLE_ROUND_GAMES = new Set(['tron', 'sumo', 'spaceduel', 'bonkbuggies'])
 
 // 2P co-op games: both seats share the result, so there is no winner/loser —
 // no DRAW overlay or win effect, no W/L stats, no night standings, no
 // leaderboard credit, and partners never CLAIM WIN from each other. Mirrors
 // the registry's `coop: true` flags (src/lib/games.js; matchRules.test.js
 // keeps the two in sync — the registry itself can't be bundled into functions/).
-export const COOP_GAMES = new Set(['wordcoop', 'password', 'hunch', 'converge', 'wirecrossed', 'lanterns', 'docking'])
+export const COOP_GAMES = new Set(['wordcoop', 'password', 'hunch', 'converge', 'wirecrossed', 'lanterns', 'docking', 'updraftduo', 'pulpharvest', 'splitsignal'])
 
 /**
  * @param {string | undefined} gameType
@@ -42,6 +43,7 @@ export function matchTargetFor(game) {
   return game.gameType === 'password' ? PASSWORD_TARGET : game.gameType === 'pong' ? (game.matchLength ?? 3)
     : game.gameType === 'anagrams' ? ANAGRAMS_MATCH_TARGET
     : game.gameType === 'arrows' ? ARROWS_MATCH_TARGET
+    : game.gameType === 'updraft' ? UPDRAFT_MATCH_TARGET
     : SINGLE_ROUND_GAMES.has(game.gameType) ? 1 : 3
 }
 

@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scene Theme Proposals</title>
+<style>
+/* Fonts are inlined (the board runs at origin null). All five are SIL OFL 1.1. */
+@font-face { font-family: 'Griffy'; font-weight: 400; src: url(data:font/woff2;base64,__GRIFFY__) format('woff2'); }
+@font-face { font-family: 'Mountains of Christmas'; font-weight: 700; src: url(data:font/woff2;base64,__MOC__) format('woff2'); }
+@font-face { font-family: 'Bungee'; font-weight: 400; src: url(data:font/woff2;base64,__BUNGEE__) format('woff2'); }
+@font-face { font-family: 'Yatra One'; font-weight: 400; src: url(data:font/woff2;base64,__YATRA__) format('woff2'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 500 800; src: url(data:font/woff2;base64,__BALOO__) format('woff2'); }
+
+/* ───────── Board chrome (not part of any theme) ───────── */
+:root {
+  --ink: #1d232b; --ink-dim: #5b6470; --paper: #f4f5f7; --panel: #ffffff; --line: #dfe3e8; --accent: #8a3fb8;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --ink: #e8ecf1; --ink-dim: #9aa4b1; --paper: #12161b; --panel: #1a2027; --line: #2b333d; --accent: #c99cf0; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --ink: #e8ecf1; --ink-dim: #9aa4b1; --paper: #12161b; --panel: #1a2027; --line: #2b333d; --accent: #c99cf0; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 28px 16px 64px; }
+h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.01em; }
+h2 { font-size: 21px; margin: 0 0 4px; }
+h3 { font-size: 16px; margin: 0 0 6px; }
+.lede { color: var(--ink-dim); max-width: 820px; margin: 0 0 14px; }
+.bar { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 0; background: var(--paper); border-bottom: 1px solid var(--line); }
+.bar a { color: var(--ink); text-decoration: none; border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 5px 12px; font-size: 13px; }
+.btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 10px; padding: 7px 13px; font: inherit; font-size: 14px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.btn.snd[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.vol { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-dim); }
+.note { font-size: 13px; color: var(--ink-dim); }
+.theme-sec { padding-top: 34px; scroll-margin-top: 56px; }
+.sec-head { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 4px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim); }
+.tag.season { border-color: var(--accent); color: var(--accent); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.cap { margin-top: 8px; font-size: 13px; color: var(--ink-dim); max-width: 260px; }
+.cap b { color: var(--ink); font-weight: 600; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; }
+.card p, .card li { font-size: 14px; color: var(--ink-dim); margin: 4px 0; }
+.card ul { padding-left: 18px; margin: 4px 0 0; }
+.card b { color: var(--ink); font-weight: 600; }
+.sw { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.sw span { display: inline-flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--ink-dim); width: 48px; text-align: center; line-height: 1.2; }
+.sw i { display: block; width: 40px; height: 26px; border-radius: 7px; border: 1px solid var(--line); margin-bottom: 3px; }
+.rec { border: 2px solid var(--accent); }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent); color: var(--panel); vertical-align: middle; margin-left: 6px; }
+code { font-size: 12.5px; background: color-mix(in srgb, var(--line) 60%, transparent); padding: 1px 5px; border-radius: 5px; }
+table.sum { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+table.sum th, table.sum td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.sum th { font-size: 12px; color: var(--ink-dim); font-weight: 600; }
+.tablewrap { overflow-x: auto; margin-top: 12px; }
+form.pick fieldset { border: 1px solid var(--line); border-radius: 10px; margin: 0 0 10px; padding: 8px 12px; }
+form.pick legend { font-weight: 600; padding: 0 4px; }
+form.pick label { display: inline-flex; gap: 6px; align-items: center; margin: 3px 14px 3px 0; font-size: 14px; }
+form.pick textarea { width: 100%; margin-top: 4px; font: inherit; font-size: 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); padding: 8px; }
+
+/* Phone frame: a real 390×844 screen scaled down. */
+.phone { --s: .6; width: calc(390px * var(--s) + 16px); }
+.phone .bezel { width: calc(390px * var(--s) + 16px); height: calc(844px * var(--s) + 16px); padding: 8px; border-radius: 34px; background: #0d0f12; box-shadow: 0 10px 30px rgb(0 0 0 / .18); }
+.phone .clip { width: calc(390px * var(--s)); height: calc(844px * var(--s)); border-radius: 27px; overflow: hidden; position: relative; }
+.phone .screen { width: 390px; height: 844px; transform: scale(var(--s)); transform-origin: 0 0; }
+@media (max-width: 560px) { .phone { --s: .78; } }
+
+/* ───────── THEME TOKENS (what would go in src/index.css) ─────────
+   Same RGB-triplet convention as the app's --c-* tokens, plus scene-only
+   tokens (sky, moon, snow, …) read only by the backdrop layers, the way
+   SHORELINE adds sea / shallow / foam / wet. */
+.screen[data-t="haunted"] {
+  --c-bg: 22 14 32; --c-surface: 30 20 44; --c-card: 40 27 58; --c-border: 74 54 100;
+  --c-text: 255 241 224; --c-dim: 192 170 208;
+  --c-p1: 255 145 36; --c-p2: 111 208 255; --c-cta: 255 95 162; --c-cta-ink: 34 8 26; --c-win: 182 242 74;
+  --c-tint-p1: 68 40 30; --c-tint-p2: 39 53 74; --c-tint-cta: 68 30 56; --c-structure: 90 63 117; --c-deep: 16 10 23;
+  --c-sky: 14 8 28; --c-sky2: 56 32 88; --c-moon: 255 238 196; --c-hill: 9 5 16; --c-glow: 255 150 40; --c-fog: 206 196 240;
+  --font: 'Griffy', system-ui, sans-serif; --fw: 400; --track: .03em; --hero: 33px; --radius: 14px;
+}
+.screen[data-t="winter"] {
+  --c-bg: 234 241 248; --c-surface: 243 247 251; --c-card: 255 255 255; --c-border: 196 211 228;
+  --c-text: 20 36 60; --c-dim: 78 94 118;
+  --c-p1: 20 112 76; --c-p2: 30 86 160; --c-cta: 196 40 48; --c-cta-ink: 255 250 246; --c-win: 16 128 90;
+  --c-tint-p1: 214 238 226; --c-tint-p2: 216 228 246; --c-tint-cta: 250 222 222; --c-structure: 40 72 120; --c-deep: 222 232 242;
+  --c-sky: 12 24 56; --c-sky2: 44 70 122; --c-snow: 255 255 255; --c-flake: 140 164 200; --c-pine: 20 66 52;
+  --c-bulb1: 255 72 72; --c-bulb2: 255 202 64; --c-bulb3: 70 214 124; --c-bulb4: 96 176 255; --c-wire: 16 24 34;
+  --font: 'Mountains of Christmas', Georgia, serif; --fw: 700; --track: .02em; --hero: 34px; --radius: 16px;
+}
+.screen[data-t="fireworks"] {
+  --c-bg: 10 16 38; --c-surface: 16 24 52; --c-card: 22 32 66; --c-border: 50 66 118;
+  --c-text: 244 246 255; --c-dim: 164 178 216;
+  --c-p1: 255 86 98; --c-p2: 108 170 255; --c-cta: 255 210 80; --c-cta-ink: 26 20 6; --c-win: 120 232 156;
+  --c-tint-p1: 70 24 40; --c-tint-p2: 24 44 86; --c-tint-cta: 66 54 24; --c-structure: 36 52 104; --c-deep: 6 10 26;
+  --c-sky: 3 6 20; --c-sky2: 22 32 78; --c-city: 3 5 16; --c-lit: 255 214 120; --c-smoke: 170 180 220;
+  --c-fw1: 255 86 98; --c-fw2: 255 255 255; --c-fw3: 108 170 255; --c-fw4: 255 210 80;
+  --font: 'Bungee', system-ui, sans-serif; --fw: 400; --track: .01em; --hero: 27px; --radius: 10px;
+}
+.screen[data-t="diwali"] {
+  --c-bg: 40 14 34; --c-surface: 52 20 44; --c-card: 66 26 56; --c-border: 110 50 82;
+  --c-text: 255 240 222; --c-dim: 224 186 174;
+  --c-p1: 255 168 38; --c-p2: 64 206 196; --c-cta: 255 86 128; --c-cta-ink: 40 6 20; --c-win: 150 230 110;
+  --c-tint-p1: 80 44 24; --c-tint-p2: 24 64 70; --c-tint-cta: 86 26 52; --c-structure: 96 38 72; --c-deep: 28 8 24;
+  --c-sky: 24 14 62; --c-sky2: 104 30 82; --c-clay: 186 92 52; --c-flame: 255 220 120; --c-flame2: 255 128 40;
+  --c-marigold: 255 160 30; --c-marigold2: 255 212 60; --c-leaf: 64 150 72; --c-lantern: 255 186 96;
+  --font: 'Yatra One', system-ui, sans-serif; --fw: 400; --track: .02em; --hero: 31px; --radius: 14px;
+}
+.screen[data-t="canopy"] {
+  --c-bg: 228 238 222; --c-surface: 238 244 232; --c-card: 251 253 247; --c-border: 186 206 178;
+  --c-text: 22 46 34; --c-dim: 66 90 74;
+  --c-p1: 0 112 92; --c-p2: 184 48 112; --c-cta: 190 82 8; --c-cta-ink: 255 250 242; --c-win: 30 120 60;
+  --c-tint-p1: 208 236 226; --c-tint-p2: 246 220 234; --c-tint-cta: 250 226 206; --c-structure: 40 100 70; --c-deep: 214 228 208;
+  --c-canopy: 12 46 30; --c-leaf: 40 120 66; --c-leaf2: 22 82 50; --c-leaf3: 104 168 86; --c-rain: 64 104 96; --c-drop: 120 170 190;
+  --font: 'Baloo 2', system-ui, sans-serif; --fw: 700; --track: .01em; --hero: 33px; --radius: 18px;
+}
+
+/* ───────── App chrome rebuilt with the tokens (from the Shoreline board) ───────── */
+.screen { position: relative; overflow: hidden; background-color: rgb(var(--c-bg)); color: rgb(var(--c-text)); font-family: var(--font); }
+.ui { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; }
+.hdr { height: 58px; flex: none; display: flex; align-items: center; padding: 0 18px; gap: 10px; color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .35); }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: var(--fw); letter-spacing: var(--track); font-size: 18px; }
+.logo .mk { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; border: 2px solid currentColor; }
+.hdr .sp { flex: 1; }
+.ico { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; border: 0; background: none; color: inherit; cursor: pointer; padding: 0; }
+.ico svg { width: 20px; height: 20px; }
+.ico.on { background: rgb(255 255 255 / .2); }
+.body { flex: 1; overflow: hidden; padding: 0 18px; }
+.lbl { font-weight: var(--fw); letter-spacing: var(--track); text-transform: uppercase; }
+.kicker { font-size: 13px; color: rgb(var(--c-dim)); margin: 0 0 4px; }
+.hero { font-size: var(--hero); line-height: 1.08; margin: 0 0 14px; }
+.cta { display: block; width: 100%; border: 0; border-radius: var(--radius); padding: 13px; background: rgb(var(--c-cta)); color: rgb(var(--c-cta-ink)); text-align: center; box-shadow: 0 4px 0 rgb(0 0 0 / .28); }
+.cta .t { font-size: 18px; display: block; }
+.cta .s { font-family: ui-monospace, Menlo, monospace; font-size: 11px; opacity: .9; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 16px; }
+.ghost { border: 2px solid rgb(var(--c-border)); background: rgb(var(--c-card)); border-radius: var(--radius); padding: 11px; text-align: center; font-size: 15px; box-shadow: 0 3px 0 rgb(var(--c-border)); }
+.sec { font-size: 13px; color: rgb(var(--c-dim)); margin: 0 0 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gcard { background: rgb(var(--c-card)); border: 1.5px solid rgb(var(--c-border)); border-radius: var(--radius); padding: 11px; box-shadow: 0 3px 0 rgb(var(--c-border)); min-width: 0; }
+.gcard .art { width: 34px; height: 34px; border-radius: 9px; margin-bottom: 8px; display: grid; place-items: center; }
+.gcard .n { font-size: 15px; }
+.gcard .d, .mini .d, .big .d { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: rgb(var(--c-dim)); margin-top: 3px; line-height: 1.35; }
+.daily { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; background: rgb(var(--c-card)); border: 1.5px solid rgb(var(--c-border)); border-radius: var(--radius); padding: 12px 14px; }
+.daily .go { color: rgb(var(--c-cta)); font-size: 15px; }
+.nav { position: relative; z-index: 3; height: 64px; flex: none; display: grid; grid-template-columns: repeat(4, 1fr); background: rgb(var(--c-surface) / .95); border-top: 1.5px solid rgb(var(--c-border)); }
+.nav div { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: rgb(var(--c-dim)); }
+.nav div.on { color: rgb(var(--c-cta)); }
+.screen[data-t="fireworks"] .nav div.on, .screen[data-t="fireworks"] .daily .go { color: rgb(var(--c-cta)); }
+.nav svg { width: 18px; height: 18px; }
+.search { border: 2px solid rgb(var(--c-border)); background: rgb(var(--c-card)); border-radius: var(--radius); padding: 11px 14px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; color: rgb(var(--c-dim)); margin-bottom: 10px; }
+.chips { display: flex; gap: 8px; margin-bottom: 12px; white-space: nowrap; }
+.chip { border: 1.5px solid rgb(var(--c-border)); background: rgb(var(--c-card)); border-radius: 99px; padding: 6px 12px; font-size: 13px; }
+.chip.on { background: rgb(var(--c-tint-cta)); border-color: rgb(var(--c-cta)); color: rgb(var(--c-cta)); }
+.chip small { opacity: .7; margin-left: 3px; }
+.newrow { display: flex; gap: 10px; margin-bottom: 14px; }
+.mini { flex: none; width: 112px; background: rgb(var(--c-card)); border: 1.5px solid rgb(var(--c-border)); border-radius: var(--radius); padding: 10px; }
+.mini .n { font-size: 13.5px; line-height: 1.15; min-height: 30px; }
+.big { background: rgb(var(--c-card)); border: 1.5px solid rgb(var(--c-border)); border-radius: calc(var(--radius) + 2px); padding: 8px; box-shadow: 0 3px 0 rgb(var(--c-border)); }
+.big .pic { aspect-ratio: 1; border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; }
+.big .pic svg { width: 100%; height: 100%; display: block; }
+.big .n { font-size: 16px; margin: 8px 2px 0; }
+.players { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.pc { border: 2px solid rgb(var(--c-border)); background: rgb(var(--c-card)); border-radius: var(--radius); padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+.pc.x { border-color: rgb(var(--c-p1)); background: rgb(var(--c-tint-p1)); }
+.av { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 15px; }
+.pc .nm { font-size: 13px; }
+.pc .sc { font-size: 24px; line-height: 1; margin-top: 2px; }
+.turn { text-align: center; margin: 6px 0 12px; }
+.turn span { display: inline-block; padding: 6px 14px; border-radius: 99px; background: rgb(var(--c-tint-p1)); color: rgb(var(--c-p1)); border: 1.5px solid rgb(var(--c-p1)); font-size: 14px; }
+.board { position: relative; background: rgb(var(--c-structure)); border-radius: calc(var(--radius) + 2px); padding: 8px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; box-shadow: 0 5px 0 rgb(0 0 0 / .3); }
+.board i { aspect-ratio: 1; border-radius: 50%; background: rgb(var(--c-bg)); box-shadow: inset 0 3px 0 rgb(0 0 0 / .2); }
+.board i.x { background: rgb(var(--c-p1)); }
+.board i.o { background: rgb(var(--c-p2)); }
+.emotes { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+.emotes span { border: 1.5px solid rgb(var(--c-border)); background: rgb(var(--c-card)); border-radius: 99px; padding: 6px 12px; font-size: 13px; }
+.foot { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: rgb(var(--c-dim)); text-align: center; margin-top: 12px; }
+
+/* ───────── SCENES ─────────
+   Everything that moves is transform or opacity on its own layer (the
+   compositor animates it, nothing repaints). Scene parts marked .gnd are
+   ground-level dressing: the in-game room drops them so nothing moves
+   anywhere near the board, keeping only the sky band behind the header. */
+.fx { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.fx > *, .fx .abs, .snow, .snow-sway, .rain { position: absolute; }
+.fx svg { display: block; overflow: visible; }
+.screen[data-k="room"] .gnd { display: none; }
+.screen[data-k="room"] .band-clip { height: 130px !important; }
+.paused .fx, .paused .fx * { animation-play-state: paused !important; }
+@keyframes tw { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
+.tw { will-change: opacity; animation: tw var(--d, 3s) ease-in-out infinite; animation-delay: var(--dl, 0s); }
+@keyframes drift-x { from { transform: translateX(0); } to { transform: translateX(var(--dx, -390px)); } }
+@keyframes sway { 0%, 100% { transform: rotate(calc(var(--a, 2deg) * -1)); } 50% { transform: rotate(var(--a, 2deg)); } }
+
+/* HAUNTED HOLLOW */
+@keyframes bat-fly {
+  0% { transform: translate(-60px, 0); }
+  15% { transform: translate(40px, -18px); }
+  30% { transform: translate(150px, 10px); }
+  45% { transform: translate(270px, -14px); }
+  60%, 100% { transform: translate(460px, -36px); }
+}
+@keyframes flap { 0% { transform: scaleY(1); } 100% { transform: scaleY(-.35); } }
+.bat { will-change: transform; animation: bat-fly var(--d, 11s) linear infinite; animation-delay: var(--dl, 0s); }
+.bat .w { transform-origin: 50% 55%; will-change: transform; animation: flap .16s ease-in-out infinite alternate; }
+@keyframes flicker { 0%, 100% { opacity: 1; } 18% { opacity: .62; } 33% { opacity: .9; } 52% { opacity: .55; } 70% { opacity: .95; } 86% { opacity: .7; } }
+.flick { will-change: opacity; animation: flicker var(--d, 1.9s) steps(1, end) infinite; animation-delay: var(--dl, 0s); }
+.fog { will-change: transform; animation: drift-x var(--d, 40s) linear infinite; }
+
+/* WINTER LIGHTS */
+@keyframes fall { from { transform: translateY(0); } to { transform: translateY(var(--h)); } }
+.snow { left: 0; width: 100%; will-change: transform; animation: fall var(--d, 14s) linear infinite; }
+.snow-sway { inset: 0; will-change: transform; animation: sway 6s ease-in-out infinite; --a: 1.2deg; transform-origin: 50% 0; }
+@keyframes bulb { 0%, 100% { opacity: 1; } 45% { opacity: 1; } 55% { opacity: .25; } 70% { opacity: .9; } }
+.bulb { will-change: opacity; animation: bulb var(--d, 3s) steps(1, end) infinite; animation-delay: var(--dl, 0s); }
+
+/* STARS & STRIPES (fireworks). One 8 s show, four shells; the audio
+   schedules launch, boom and crackle from the same clock (--t0). */
+@keyframes shell { 0% { transform: translateY(var(--rise, 150px)); opacity: 0; } 1% { opacity: 1; } 11% { transform: translateY(0); opacity: 1; } 11.5%, 100% { transform: translateY(0); opacity: 0; } }
+@keyframes burst { 0%, 11% { transform: scale(.1); opacity: 0; } 12% { transform: scale(.45); opacity: 1; } 24% { opacity: .9; } 34% { transform: scale(1.06) translateY(6px); opacity: 0; } 100% { transform: scale(1.06) translateY(6px); opacity: 0; } }
+@keyframes glow { 0%, 11% { opacity: 0; } 12.5% { opacity: .55; } 30%, 100% { opacity: 0; } }
+.shell { will-change: transform, opacity; animation: shell 8s linear infinite; animation-delay: var(--dl); }
+.burst { will-change: transform, opacity; animation: burst 8s cubic-bezier(.15,.7,.3,1) infinite; animation-delay: var(--dl); }
+.fwglow { will-change: opacity; animation: glow 8s ease-out infinite; animation-delay: var(--dl); }
+
+/* FESTIVAL OF LIGHTS (Diwali) */
+@keyframes rise { 0% { transform: translateY(0); opacity: 0; } 8% { opacity: 1; } 85% { opacity: .9; } 100% { transform: translateY(var(--h, -900px)); opacity: 0; } }
+.lantern { will-change: transform, opacity; animation: rise var(--d, 26s) linear infinite; animation-delay: var(--dl, 0s); }
+.lantern .in { will-change: transform; animation: sway 5s ease-in-out infinite; --a: 6deg; transform-origin: 50% 0; }
+@keyframes flame { 0%, 100% { transform: scale(1, 1); } 25% { transform: scale(.9, 1.12); } 50% { transform: scale(1.05, .92); } 75% { transform: scale(.94, 1.06); } }
+.flame { transform-origin: 50% 100%; will-change: transform; animation: flame var(--d, 1.4s) ease-in-out infinite; animation-delay: var(--dl, 0s); }
+.toran { will-change: transform; animation: sway var(--d, 5s) ease-in-out infinite; --a: 2.5deg; transform-origin: 50% 0; animation-delay: var(--dl, 0s); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.rangoli { will-change: transform; animation: spin 140s linear infinite; }
+
+/* MONSOON CANOPY */
+.leaves { will-change: transform; animation: sway var(--d, 7s) ease-in-out infinite; transform-origin: 50% 0; animation-delay: var(--dl, 0s); }
+.rain { left: -40px; right: -40px; will-change: transform; animation: fall var(--d, .9s) linear infinite; background: rgb(var(--c-rain) / var(--o, .35));
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='96'%3E%3Cpath d='M8 4l-3 16M30 40l-3 18M19 70l-3 14M41 14l-3 12' stroke='black' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E") 0 0 / 46px 96px;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='96'%3E%3Cpath d='M8 4l-3 16M30 40l-3 18M19 70l-3 14M41 14l-3 12' stroke='black' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E") 0 0 / 46px 96px; }
+@keyframes ripple { 0% { transform: scale(.15); opacity: 0; } 8% { opacity: .8; } 60%, 100% { transform: scale(1); opacity: 0; } }
+.ripple { will-change: transform, opacity; animation: ripple var(--d, 2.6s) ease-out infinite; animation-delay: var(--dl, 0s); }
+@keyframes drip { 0%, 70% { transform: translateY(0) scale(.4); opacity: 0; } 76% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(90px) scale(1); opacity: 0; } }
+.drip { will-change: transform, opacity; animation: drip var(--d, 3.4s) ease-in infinite; animation-delay: var(--dl, 0s); }
+
+/* Reduced motion (the board toggle, and the OS setting): the scene stays,
+   frozen at a pleasant frame; nothing moves. */
+.rm .fx, .rm .fx * { animation: none !important; }
+.rm .burst { opacity: .8; transform: scale(.9); }
+.rm .shell, .rm .fwglow { opacity: 0; }
+.rm .lantern { transform: translateY(var(--rest, -300px)); opacity: .9; }
+.rm .ripple, .rm .drip { opacity: 0; }
+.rm .bat { transform: translate(var(--rx, 120px), 0); }
+@media (prefers-reduced-motion: reduce) {
+  .fx, .fx * { animation: none !important; }
+  .burst { opacity: .8; transform: scale(.9); }
+  .shell, .fwglow { opacity: 0; }
+  .lantern { transform: translateY(var(--rest, -300px)); opacity: .9; }
+  .ripple, .drip { opacity: 0; }
+  .bat { transform: translate(var(--rx, 120px), 0); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Game Night: five scene themes in Shoreline's spirit</h1>
+  <p class="lede">Each theme is a <b>living scene</b> like Shoreline: a sky band the header floats on, a little world that moves (transform and opacity only), a matching palette and font, and its own procedural soundscape. Three are seasonal (Halloween, Christmas, 4th of July) and two suit a global audience (Diwali, and an evergreen rainforest). The phones are the app's real Home, Game picker and a Connect Four room at 390×844, scaled. In a game the scene shrinks to the header band so nothing moves near the board, which stays opaque. Turn on a theme's sound to hear it; only one plays at a time, the way the app plays one ambience. The volume slider sets that theme's level.</p>
+
+  <div class="bar" role="toolbar" aria-label="Board controls">
+    <a href="#haunted">Haunted Hollow</a><a href="#winter">Winter Lights</a><a href="#fireworks">Stars &amp; Stripes</a><a href="#diwali">Festival of Lights</a><a href="#canopy">Monsoon Canopy</a><a href="#decide">Decide</a>
+    <span style="flex:1"></span>
+    <button class="btn" id="rm" aria-pressed="false">Reduce motion: off</button>
+    <button class="btn" id="stop">Stop sound</button>
+  </div>
+
+  <div id="themes"></div>
+
+  <section class="theme-sec" id="summary">
+    <h2>At a glance</h2>
+    <div class="tablewrap"><table class="sum" id="sumtable"></table></div>
+  </section>
+
+  <section class="theme-sec">
+    <h2>Recommendation</h2>
+    <div class="cards">
+      <div class="card rec">
+        <h3>Build Haunted Hollow now, then Winter Lights <span class="pill">recommended</span></h3>
+        <p>Halloween is three weeks away (window opens Oct 1, it is Oct 6 today), so Haunted Hollow is the only one that can ship inside its season this year. It upgrades the existing <b>PUMPKIN NIGHT</b> theme in place: same id and palette, so players who own the Seasonal pack get the scene for free. Winter Lights next, to land by Dec 1.</p>
+        <ul>
+          <li><b>Festival of Lights</b> is worth building this month too if India is a big share of players (the store already prices in INR). Diwali 2026 is Nov 8.</li>
+          <li><b>Stars &amp; Stripes</b> can wait until June. Its fireworks engine also covers New Year's Eve, so it is worth building once for both.</li>
+          <li><b>Monsoon Canopy</b> is the evergreen pick: the calmest soundscape of the five and a light daytime partner for Shoreline.</li>
+          <li>Build the shared pieces first (half a day): a <code>SCENES</code> map in ThemeBackdrop instead of the beach-only check, an <code>AMBIENCES</code> entry per theme, and a <code>seasonal</code> date window in THEMES so Settings can offer the theme in season.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="theme-sec" id="decide">
+    <h2>Your pick</h2>
+    <form class="card pick" data-lavish-question="games-scene-themes-pick" id="pick">
+      <p style="margin-top:0">For each theme: build it now, build it ahead of its season, or skip it. You can change the answers until you queue them.</p>
+      <div id="pick-rows"></div>
+      <label style="display:block">Notes, optional (palette, font, sound, a different theme idea)
+        <textarea name="note" maxlength="800" rows="3"></textarea></label>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button class="btn" type="submit">Queue my picks</button>
+        <span class="note" id="pick-state">Nothing selected yet.</span>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script>
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const c = (n, a = 1) => `rgb(var(--c-${n}) / ${a})`;
+const I = {
+  music: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l11-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='17' cy='16' r='3'/></svg>`,
+  musicOff: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18V5l11-2v13'/><circle cx='6' cy='18' r='3'/><circle cx='17' cy='16' r='3'/><path d='M3 3l18 18'/></svg>`,
+  gear: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'><path d='M4 7h10M18 7h2M4 17h4M12 17h8'/><circle cx='16' cy='7' r='2'/><circle cx='10' cy='17' r='2'/></svg>`,
+  back: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M15 18l-6-6 6-6'/></svg>`,
+  home: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M8 3v18M16 3v18M3 8h18M3 16h18'/></svg>`,
+  games: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='4' y='4' width='6' height='6' rx='1'/><rect x='14' y='4' width='6' height='6' rx='1'/><rect x='4' y='14' width='6' height='6' rx='1'/><rect x='14' y='14' width='6' height='6' rx='1'/></svg>`,
+  friends: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='9' cy='8' r='3.5'/><path d='M2.5 20c.8-3.5 3.3-5.5 6.5-5.5s5.7 2 6.5 5.5'/><path d='M16 4.6a3.5 3.5 0 010 6.8M18 14.8c1.8.7 3 2.5 3.5 5.2'/></svg>`,
+  profile: `<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='8' r='4'/><path d='M4 21c1-4 4-6 8-6s7 2 8 6'/></svg>`,
+};
+const art = {
+  c4: () => `<svg viewBox='0 0 34 34'><rect width='34' height='34' rx='8' fill='${c('structure')}'/>${[0,1,2].map(r=>[0,1,2].map(q=>`<circle cx='${8+q*9}' cy='${8+r*9}' r='3.4' fill='${r===2&&q<2?c('p2'):r===1&&q===1?c('p1'):c('bg')}'/>`).join('')).join('')}</svg>`,
+  dots: () => `<svg viewBox='0 0 34 34'><rect width='34' height='34' rx='8' fill='${c('tint-p2')}'/>${[0,1,2].map(r=>[0,1,2].map(q=>`<circle cx='${8+q*9}' cy='${8+r*9}' r='1.8' fill='${c('text')}'/>`).join('')).join('')}<rect x='9' y='9' width='7' height='7' fill='${c('p2', .7)}'/><path d='M8 8h18M8 8v9' stroke='${c('p1')}' stroke-width='2'/></svg>`,
+  ship: () => `<svg viewBox='0 0 34 34'><rect width='34' height='34' rx='8' fill='${c('tint-p1')}'/><path d='M6 21h22l-3 5H9z' fill='${c('text', .8)}'/><path d='M12 21v-6h8v6' fill='${c('card')}'/><path d='M5 28c3-2 5 2 8 0s5 2 8 0 5 2 8 0' stroke='${c('p1')}' stroke-width='1.6' fill='none'/></svg>`,
+  word: () => `<svg viewBox='0 0 34 34'><rect width='34' height='34' rx='8' fill='${c('tint-cta')}'/>${[0,1,2,3].map(i=>`<rect x='${5+i*6.4}' y='12' width='5' height='10' rx='1' fill='${i===1?c('win'):i===3?c('cta'):c('border')}'/>`).join('')}</svg>`,
+  ttt: () => `<svg viewBox='0 0 100 100'><rect width='100' height='100' fill='${c('tint-cta')}'/><path d='M38 18v64M62 18v64M18 38h64M18 62h64' stroke='${c('text', .75)}' stroke-width='5' stroke-linecap='round'/><path d='M21 21l12 12M33 21L21 33M45 45l10 10M55 45L45 55' stroke='${c('p1')}' stroke-width='5' stroke-linecap='round'/><circle cx='73' cy='27' r='7' stroke='${c('p2')}' stroke-width='5' fill='none'/><circle cx='27' cy='73' r='7' stroke='${c('p2')}' stroke-width='5' fill='none'/></svg>`,
+  sim: () => `<svg viewBox='0 0 100 100'><rect width='100' height='100' fill='${c('tint-p1')}'/>${(() => { const P=[[50,16],[82,38],[70,78],[30,78],[18,38]]; let o=''; [[0,1,'p2'],[1,2,'p1'],[2,3,'p2'],[3,4,'p1'],[4,0,'p1'],[0,2,'p2'],[1,3,'p1'],[2,4,'border']].forEach(([a,b,k])=>o+=`<line x1='${P[a][0]}' y1='${P[a][1]}' x2='${P[b][0]}' y2='${P[b][1]}' stroke='${c(k)}' stroke-width='4' stroke-linecap='round'/>`); P.forEach(([x,y])=>o+=`<circle cx='${x}' cy='${y}' r='7' fill='${c('card')}' stroke='${c('text', .7)}' stroke-width='3'/>`); return o; })()}</svg>`,
+  c4big: () => `<svg viewBox='0 0 100 100'><rect width='100' height='100' fill='${c('tint-p2')}'/><rect x='12' y='20' width='76' height='64' rx='8' fill='${c('structure')}'/>${[0,1,2,3].map(r=>[0,1,2,3,4].map(q=>{const k=(r===3&&(q===1||q===2))?'p1':(r===3&&q===3)||(r===2&&q===2)?'p2':(r===2&&q===1)?'p1':'bg';return `<circle cx='${22+q*14}' cy='${31+r*14}' r='5.2' fill='${c(k)}'/>`}).join('')).join('')}</svg>`,
+  chk: () => `<svg viewBox='0 0 100 100'><rect width='100' height='100' fill='${c('tint-cta')}'/>${[0,1,2,3].map(r=>[0,1,2,3].map(q=>(r+q)%2?`<rect x='${18+q*16}' y='${18+r*16}' width='16' height='16' fill='${c('text', .75)}'/>`:`<rect x='${18+q*16}' y='${18+r*16}' width='16' height='16' fill='${c('card')}'/>`).join('')).join('')}<circle cx='42' cy='42' r='6' fill='${c('p2')}'/><circle cx='58' cy='58' r='6' fill='${c('p1')}'/><circle cx='26' cy='74' r='6' fill='${c('p1')}'/></svg>`,
+};
+let seed = 11;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+// ─── Scenes ─────────────────────────────────────────────────────────────────
+function stars(n, maxY, color = 'rgb(255 255 255)') {
+  let o = '';
+  for (let i = 0; i < n; i++) {
+    const x = Math.round(rnd() * 380), y = Math.round(6 + rnd() * maxY), r = rnd() < .2 ? 2 : 1.4;
+    o += `<span class='tw' style='left:${x}px;top:${y}px;width:${r}px;height:${r}px;border-radius:50%;background:${color};--d:${(2.2 + rnd() * 3).toFixed(1)}s;--dl:${(-rnd() * 4).toFixed(1)}s'></span>`;
+  }
+  return o;
+}
+
+const SCENES = {
+  haunted() {
+    const bat = (x, y, s, d, dl, rx) => `<div class='bat abs' style='left:${x}px;top:${y}px;--d:${d}s;--dl:${dl}s;--rx:${rx}px'><svg width='${30 * s}' height='${16 * s}' viewBox='0 0 30 16'><g class='w'><path d='M15 6 C12 1 7 1 1 3 C4 5 5 8 4 11 C7 9 10 10 12 12 Z M15 6 C18 1 23 1 29 3 C26 5 25 8 26 11 C23 9 20 10 18 12 Z' fill='${c('hill')}'/></g><ellipse cx='15' cy='9' rx='3' ry='4' fill='${c('hill')}'/><path d='M13 5.5l.8-2 .9 1.6M17 5.5l-.8-2-.9 1.6' fill='${c('hill')}'/></svg></div>`;
+    const pumpkin = (x, y, s, d, dl) => `<g transform='translate(${x} ${y}) scale(${s})'><ellipse cx='0' cy='0' rx='11' ry='9' fill='${c('glow')}'/><ellipse cx='-5' cy='0' rx='5' ry='9' fill='rgb(0 0 0 / .14)'/><path d='M-1 -9 q1 -4 4 -5' stroke-width='2' fill='none' style='stroke:rgb(70 110 40)'/><path class='flick' style='--d:${d}s;--dl:${dl}s' d='M-6 -3 l2.5 -3 2.5 3 z M1 -3 l2.5 -3 2.5 3 z M-6 3 q6 4 12 0 l-2 1 -2 -1.5 -2 1.5 -2 -1.5 -2 1.5 z' fill='rgb(255 236 150)'/></g>`;
+    return `
+      <div style='left:0;top:0;width:100%;height:200px;background:linear-gradient(${c('sky')}, ${c('sky2')} 72%, ${c('sky2', 0)})'></div>
+      ${stars(22, 110)}
+      <div style='left:286px;top:66px;width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 42% 40%, ${c('moon')} 0 58%, ${c('moon', .9)} 66%, ${c('moon', 0)} 72%);box-shadow:0 0 46px 14px ${c('moon', .22)}'></div>
+      <div class='fog' style='left:0;top:84px;--d:58s;--dx:-480px'><div style='display:flex;gap:120px'>${[0,1,2,3].map(() => `<div style='width:150px;height:16px;border-radius:20px;background:${c('fog', .16)}'></div>`).join('')}</div></div>
+      ${bat(-40, 46, 1.1, 10, -2, 90)}${bat(-40, 80, .8, 14, -9, 200)}${bat(-40, 104, .65, 19, -4, 300)}
+      <svg style='left:0;top:94px' width='390' height='72' viewBox='0 0 390 72'>
+        <path d='M0 42 C40 30 80 26 120 34 C170 44 200 18 250 20 C300 22 330 40 390 30 V72 H0 Z' fill='${c('hill')}'/>
+        <path d='M52 34 V8 M52 20 L40 6 M52 16 L62 4 M52 26 L66 18 M40 6 L34 2 M62 4 L66 0' stroke='${c('hill')}' stroke-width='3' stroke-linecap='round' fill='none'/>
+        <path d='M300 22 v-16 h3 v-4 h4 v4 h3 v16' fill='${c('hill')}'/><rect x='303' y='10' width='4' height='5' class='flick' style='--d:3.2s' fill='${c('glow', .9)}'/>
+        ${pumpkin(118, 32, 1, 1.9, -.4)}${pumpkin(146, 34, .7, 2.3, -1.1)}${pumpkin(232, 22, .85, 1.7, -.8)}
+      </svg>
+      <div class='gnd fog' style='left:0;bottom:40px;--d:46s;--dx:-390px;width:780px;height:220px;background:radial-gradient(60px 40px at 60px 150px, ${c('fog', .14)}, transparent), radial-gradient(160px 50px at 230px 170px, ${c('fog', .12)}, transparent), radial-gradient(120px 40px at 420px 150px, ${c('fog', .14)}, transparent), radial-gradient(160px 50px at 620px 170px, ${c('fog', .12)}, transparent)'></div>
+      <div class='gnd fog' style='left:0;bottom:200px;--d:70s;--dx:-390px;width:780px;height:200px;opacity:.8;background:radial-gradient(140px 36px at 120px 100px, ${c('fog', .1)}, transparent), radial-gradient(140px 36px at 510px 100px, ${c('fog', .1)}, transparent)'></div>`;
+  },
+  winter() {
+    const N = 15, bulbs = Array.from({ length: N }, (_, i) => {
+      const x = 12 + i * 26, y = 6 + Math.sin((i % 5) / 4 * Math.PI) * 10;
+      const k = ['bulb1', 'bulb2', 'bulb3', 'bulb4'][i % 4];
+      return `<g transform='translate(${x} ${y})'><rect x='-2' y='-1' width='4' height='4' fill='${c('wire')}'/><ellipse cx='0' cy='8' rx='4' ry='6' fill='${c(k)}' class='bulb' style='--d:${(2.4 + (i % 3) * .7).toFixed(1)}s;--dl:${(-i * .37).toFixed(2)}s'/><ellipse cx='0' cy='8' rx='9' ry='11' fill='${c(k, .22)}' class='bulb' style='--d:${(2.4 + (i % 3) * .7).toFixed(1)}s;--dl:${(-i * .37).toFixed(2)}s'/></g>`;
+    }).join('');
+    const wire = Array.from({ length: 3 }, (_, j) => `M${j * 130} 4 Q${j * 130 + 65} 26 ${j * 130 + 130} 4`).join(' ');
+    const pine = (x, y, s) => `<g transform='translate(${x} ${y}) scale(${s})'><path d='M0 -34 L12 -14 H6 L16 0 H-16 L-6 -14 H-12 Z' fill='${c('pine')}'/><path d='M0 -34 L6 -24 L0 -26 L-6 -24 Z M-12 -14 l4 -1 4 2 5 -2 4 2 5 -1 L6 -14 H-6Z' fill='${c('snow', .9)}'/><rect x='-2' y='0' width='4' height='5' fill='${c('pine')}'/></g>`;
+    const flakes = (tile, r, n) => {
+      let g = [];
+      for (let i = 0; i < n; i++) { const x = Math.round(rnd() * tile[0]), y = Math.round(rnd() * tile[1]); g.push(`radial-gradient(circle at ${x}px ${y}px, ${c('snow')} ${r * .55}px, ${c('flake', .7)} ${r * .8}px, transparent ${r}px)`); }
+      return `background-image:${g.join(',')};background-size:${tile[0]}px ${tile[1]}px`;
+    };
+    return `
+      <div style='left:0;top:0;width:100%;height:150px;background:linear-gradient(${c('sky')}, ${c('sky2')})'></div>
+      ${stars(16, 70)}
+      <svg style='left:0;top:96px' width='390' height='70' viewBox='0 0 390 70'>
+        <path d='M0 34 C60 18 110 22 170 32 C230 42 300 16 390 26 V70 H0 Z' fill='${c('bg')}'/>
+        <path d='M0 34 C60 18 110 22 170 32 C230 42 300 16 390 26' stroke='${c('flake', .5)}' stroke-width='1.5' fill='none'/>
+        ${pine(34, 30, .9)}${pine(60, 27, .6)}${pine(312, 24, 1)}${pine(344, 22, .7)}
+        <g transform='translate(222 36)'><path d='M-16 0 V-14 L0 -26 L16 -14 V0 Z' fill='rgb(120 70 50)'/><path d='M-19 -13 L0 -29 L19 -13' stroke='${c('snow')}' stroke-width='4' fill='none' stroke-linecap='round'/><rect x='-8' y='-11' width='7' height='6' fill='${c('bulb2')}' class='bulb' style='--d:4.2s'/></g>
+      </svg>
+      <svg style='left:0;top:44px' width='390' height='34' viewBox='0 0 390 34'><path d='${wire}' stroke='${c('wire')}' stroke-width='1.6' fill='none'/>${bulbs}</svg>
+      <div class='abs band-clip' style='left:0;top:0;width:100%;height:100%;overflow:hidden'>
+        <div class='snow-sway'><div class='snow' style='top:-130px;height:1104px;--h:130px;--d:6.5s;${flakes([110, 130], 3.2, 5)}'></div></div>
+        <div class='snow gnd' style='top:-220px;height:1284px;--h:220px;--d:14s;opacity:.85;${flakes([180, 220], 4.6, 4)}'></div>
+      </div>`;
+  },
+  fireworks() {
+    // Four shells per 8 s show; the audio reads the same table.
+    const show = FIREWORKS_SHOW.map((b, i) => {
+      const n = 18, rays = Array.from({ length: n }, (_, k) => {
+        const a = (k / n) * Math.PI * 2, r1 = 26, r2 = 46;
+        return `<line x1='${(Math.cos(a) * r1).toFixed(1)}' y1='${(Math.sin(a) * r1).toFixed(1)}' x2='${(Math.cos(a) * r2).toFixed(1)}' y2='${(Math.sin(a) * r2).toFixed(1)}' stroke='${c(b.c)}' stroke-width='2.4' stroke-linecap='round'/><circle cx='${(Math.cos(a) * (r2 + 5)).toFixed(1)}' cy='${(Math.sin(a) * (r2 + 5)).toFixed(1)}' r='2' fill='${c(b.c2)}'/>`;
+      }).join('');
+      const dl = `${(-((((performance.now() / 1000 - SHOW_EPOCH - b.at) % FIREWORKS_PERIOD) + FIREWORKS_PERIOD) % FIREWORKS_PERIOD)).toFixed(3)}s`;
+      return `<div class='abs' style='left:${b.x}px;top:${b.y}px'>
+        <div class='fwglow abs' style='left:-70px;top:-70px;width:140px;height:140px;border-radius:50%;background:radial-gradient(${c(b.c, .35)}, transparent 70%);--dl:${dl}'></div>
+        <div class='shell abs' style='left:-2px;top:-2px;width:4px;height:12px;border-radius:2px;background:${c('lit')};--rise:${b.rise}px;--dl:${dl}'></div>
+        <svg class='burst abs' style='left:-${52 * b.s}px;top:-${52 * b.s}px;--dl:${dl}' width='${104 * b.s}' height='${104 * b.s}' viewBox='-52 -52 104 104'>${rays}<circle r='5' fill='${c('fw2')}'/></svg>
+      </div>`;
+    }).join('');
+    const sky = [[0, 30], [26, 52], [40, 36], [62, 58], [84, 40], [104, 48], [120, 26], [134, 44], [160, 54], [176, 34], [196, 40], [212, 60], [236, 30], [250, 46], [272, 38], [292, 56], [310, 28], [330, 44], [352, 36], [372, 52], [390, 40]];
+    let d = 'M0 70 ', lit = '';
+    sky.forEach(([x, h], i) => { const nx = sky[i + 1] ? sky[i + 1][0] : 390; d += `L${x} ${70 - h} L${nx} ${70 - h} `; for (let k = 0; k < 3; k++) if (rnd() < .5) lit += `<rect x='${x + 3 + k * 5}' y='${70 - h + 6 + Math.floor(rnd() * (h - 12))}' width='2' height='3' fill='${c('lit', .8)}'/>`; });
+    d += 'L390 70 Z';
+    return `
+      <div style='left:0;top:0;width:100%;height:240px;background:linear-gradient(${c('sky')}, ${c('sky2')} 75%, ${c('sky2', 0)})'></div>
+      ${stars(28, 150)}
+      ${show}
+      <svg style='left:0;top:92px' width='390' height='70' viewBox='0 0 390 70'><path d='${d}' fill='${c('city')}'/>${lit}</svg>
+      <div class='gnd fog' style='left:0;top:200px;--d:80s;--dx:-390px;width:780px;height:240px;background:radial-gradient(150px 60px at 90px 60px, ${c('smoke', .07)}, transparent), radial-gradient(150px 60px at 480px 60px, ${c('smoke', .07)}, transparent)'></div>`;
+  },
+  diwali() {
+    const strand = (x, n, dl) => `<g class='toran' style='--dl:${dl}s;transform-box:fill-box'>${Array.from({ length: n }, (_, i) => `<circle cx='${x}' cy='${6 + i * 7}' r='3.6' fill='${c(i % 2 ? 'marigold2' : 'marigold')}'/>`).join('')}</g>`;
+    const leaf = (x) => `<path d='M${x} 2 q6 7 0 15 q-6 -8 0 -15z' fill='${c('leaf')}'/>`;
+    let toran = '';
+    for (let i = 0; i < 14; i++) { const x = 14 + i * 28; toran += strand(x, i % 2 ? 4 : 6, -(i * .4).toFixed(1)) + leaf(x + 14); }
+    const diya = (x, y, s, d, dl) => `<g transform='translate(${x} ${y}) scale(${s})'>
+        <ellipse cx='0' cy='-10' rx='16' ry='16' fill='${c('flame', .16)}' class='flick' style='--d:${d * 1.4}s;--dl:${dl}s'/>
+        <path d='M-13 0 Q0 13 13 0 Q6 3 0 3 Q-6 3 -13 0Z' fill='${c('clay')}'/><path d='M-13 0 Q0 4 13 0' stroke='rgb(0 0 0 / .25)' stroke-width='1' fill='none'/>
+        <g class='flame' style='--d:${d}s;--dl:${dl}s;transform-box:fill-box'><path d='M0 -1 C-4 -5 -3 -10 0 -15 C3 -10 4 -5 0 -1Z' fill='${c('flame2')}'/><path d='M0 -2 C-2 -5 -1.6 -8 0 -11 C1.6 -8 2 -5 0 -2Z' fill='${c('flame')}'/></g></g>`;
+    const lantern = (x, d, dl, s, rest) => `<div class='gnd lantern abs' style='left:${x}px;top:820px;--d:${d}s;--dl:${dl}s;--h:-920px;--rest:${rest}px'><div class='in'><svg width='${24 * s}' height='${32 * s}' viewBox='0 0 24 32'><ellipse cx='12' cy='16' rx='18' ry='20' fill='${c('lantern', .18)}'/><path d='M5 4 H19 L22 26 Q12 30 2 26 Z' fill='${c('lantern')}'/><path d='M5 4 H19 L21 12 H3Z' fill='rgb(255 255 255 / .25)'/><ellipse cx='12' cy='27' rx='4' ry='2' fill='${c('flame')}'/></svg></div></div>`;
+    const petals = Array.from({ length: 8 }, (_, i) => `<path transform='rotate(${i * 45})' d='M0 -18 C10 -40 10 -62 0 -84 C-10 -62 -10 -40 0 -18Z' fill='none' stroke='${c('marigold')}' stroke-width='3'/><circle transform='rotate(${i * 45 + 22.5})' cx='0' cy='-60' r='7' fill='${c('p2')}'/>`).join('');
+    return `
+      <div style='left:0;top:0;width:100%;height:190px;background:linear-gradient(${c('sky')}, ${c('sky2')} 70%, ${c('sky2', 0)})'></div>
+      ${stars(14, 90, 'rgb(255 230 180)')}
+      <svg class='gnd rangoli abs' style='left:230px;top:560px;opacity:.16' width='220' height='220' viewBox='-110 -110 220 220'>${petals}<circle r='14' fill='${c('cta')}'/><circle r='96' fill='none' stroke='${c('marigold2')}' stroke-width='2' stroke-dasharray='4 8'/></svg>
+      ${lantern(36, 30, -4, 1, -560)}${lantern(150, 24, -15, .75, -640)}${lantern(286, 34, -22, 1.1, -600)}${lantern(338, 27, -9, .7, -680)}
+      <svg style='left:0;top:52px' width='390' height='44' viewBox='0 0 390 44'><path d='M0 3 H390' stroke='${c('marigold2')}' stroke-width='2'/>${toran}</svg>
+      <svg style='left:0;top:110px' width='390' height='44' viewBox='0 0 390 44'><rect x='0' y='30' width='390' height='14' fill='${c('deep', .7)}'/>
+        ${diya(40, 30, 1, 1.3, -.2)}${diya(110, 30, .8, 1.6, -.9)}${diya(195, 30, 1.05, 1.2, -.5)}${diya(280, 30, .8, 1.5, -1.2)}${diya(350, 30, 1, 1.4, -.7)}
+      </svg>`;
+  },
+  canopy() {
+    const leafRow = (y, n, k, sz, off) => Array.from({ length: n }, (_, i) => {
+      const x = off + i * (390 / n) + (rnd() - .5) * 14, r = 150 + rnd() * 60 - 90, s = sz * (.8 + rnd() * .5);
+      return `<path transform='translate(${x.toFixed(1)} ${y + rnd() * 10}) rotate(${r.toFixed(0)}) scale(${s.toFixed(2)})' d='M0 0 C8 -6 18 -6 28 0 C18 6 8 6 0 0Z' fill='${c(k)}'/><path transform='translate(${x.toFixed(1)} ${y}) rotate(${r.toFixed(0)}) scale(${s.toFixed(2)})' d='M2 0 H24' stroke='rgb(0 0 0 / .18)' stroke-width='.8'/>`;
+    }).join('');
+    const drips = [[40, 92], [128, 98], [214, 90], [300, 96], [360, 88]].map(([x, y], i) => `<div class='drip abs' style='left:${x}px;top:${y}px;width:5px;height:7px;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;background:${c('drop')};--d:${(3 + i * .7).toFixed(1)}s;--dl:${(-i * 1.1).toFixed(1)}s'></div>`).join('');
+    const ripples = [[60, 560], [300, 470], [190, 760], [330, 690], [40, 380], [250, 610]].map(([x, y], i) => `<div class='gnd ripple abs' style='left:${x - 22}px;top:${y - 7}px;width:44px;height:14px;border-radius:50%;border:1.5px solid ${c('rain', .55)};--d:${(2.4 + (i % 3) * .5).toFixed(1)}s;--dl:${(-i * .9).toFixed(1)}s'></div>`).join('');
+    return `
+      <div style='left:0;top:0;width:100%;height:76px;background:${c('canopy')}'></div>
+      <svg class='leaves' style='left:-20px;top:40px;--d:8s' width='430' height='80' viewBox='-20 0 430 80'>${leafRow(18, 16, 'leaf2', 1.4, -10)}${leafRow(34, 18, 'leaf', 1.2, 0)}</svg>
+      <svg class='leaves' style='left:-20px;top:54px;--d:6s;--a:1.4deg;--dl:-2s' width='430' height='80' viewBox='-20 0 430 80'>${leafRow(26, 14, 'leaf3', 1.1, 8)}</svg>
+      ${drips}
+      ${ripples}
+      <div class='abs band-clip' style='left:0;top:0;width:100%;height:100%;overflow:hidden'>
+        <div class='rain' style='top:-96px;height:940px;--h:96px;--d:.75s;--o:.3'></div>
+        <div class='rain gnd' style='top:-192px;height:1036px;--h:192px;--d:1.25s;--o:.18;-webkit-mask-size:92px 192px;mask-size:92px 192px'></div>
+      </div>`;
+  },
+};
+const FIREWORKS_PERIOD = 8;
+// Each shell: when its burst lands in the 8 s show (launch is 0.88 s before),
+// where, colours, size, rise height. The CSS keyframes put the burst at 11 %.
+const FIREWORKS_SHOW = [
+  { at: 0, x: 80, y: 70, c: 'fw1', c2: 'fw2', s: 1, rise: 90 },
+  { at: 1.9, x: 300, y: 54, c: 'fw3', c2: 'fw2', s: 1.15, rise: 110 },
+  { at: 3.6, x: 200, y: 92, c: 'fw4', c2: 'fw1', s: .8, rise: 70 },
+  { at: 5.7, x: 336, y: 120, c: 'fw2', c2: 'fw3', s: .9, rise: 60 },
+];
+const FW_LAUNCH = 0.88; // 11 % of 8 s
+
+function backdrop(t) { seed = 7 + t.length; return `<div class='fx'>${SCENES[t]()}</div>`; }
+
+// ─── Screens ────────────────────────────────────────────────────────────────
+const THEMES = {
+  haunted: { name: 'Haunted Hollow', mk: '☾', top: 160, player: 'Spooky Pickle', rival: 'Night Owl', emoji: '🎃' },
+  winter: { name: 'Winter Lights', mk: '❄', top: 136, player: 'Frosty Pickle', rival: 'Jolly Elf', emoji: '⛄' },
+  fireworks: { name: 'Stars & Stripes', mk: '★', top: 160, player: 'Neon Pickle', rival: 'Sparkler', emoji: '🎆' },
+  diwali: { name: 'Festival of Lights', mk: '✺', top: 158, player: 'Neon Pickle', rival: 'Rangoli Rani', emoji: '🪔' },
+  canopy: { name: 'Monsoon Canopy', mk: '❦', top: 124, player: 'Neon Pickle', rival: 'Tree Frog', emoji: '🐸' },
+};
+
+function header(t, { back = false, title = 'GAME NIGHT' } = {}) {
+  const on = audio.playing === t;
+  return `<div class='hdr'>
+    ${back ? `<button class='ico' tabindex='-1'>${I.back}</button>` : ''}
+    <div class='logo lbl'>${back ? '' : `<span class='mk'>${THEMES[t].mk}</span>`}${title}</div>
+    <span class='sp'></span>
+    <button class='ico js-snd ${on ? 'on' : ''}' data-t='${t}' aria-label='${THEMES[t].name} sounds' title='Theme sounds (the app’s music button)'>${on ? I.music : I.musicOff}</button>
+    <button class='ico' tabindex='-1' aria-hidden='true'>${I.gear}</button>
+  </div>`;
+}
+function nav(active) {
+  return `<div class='nav lbl'>${[['home', 'HOME'], ['games', 'GAMES'], ['friends', 'FRIENDS'], ['profile', 'PROFILE']].map(([k, n]) => `<div class='${k === active ? 'on' : ''}'>${I[k]}${n}</div>`).join('')}</div>`;
+}
+function homeScreen(t) {
+  const T = THEMES[t];
+  return `${backdrop(t)}<div class='ui'>${header(t)}
+    <div class='body' style='padding-top:${T.top - 58}px'>
+      <p class='kicker lbl'>Welcome back, ${T.player}</p>
+      <h1 class='hero lbl'>Ready for another round?</h1>
+      <div class='cta lbl'><span class='t'>Start a party</span><span class='s'>invite up to 3 friends, then pick a game</span></div>
+      <div class='two'><div class='ghost lbl'>Play solo</div><div class='ghost lbl'>Join room</div></div>
+      <p class='sec lbl'>Start with one of these</p>
+      <div class='grid2'>
+        ${[['c4', 'Connect Four', 'Drop discs, get four in a row'], ['dots', 'Dots & Boxes', 'Close boxes, take extra turns'], ['ship', 'Battleship', 'Sink the hidden fleet'], ['word', 'Word Duel', 'Guess the word before the CPU']]
+          .map(([a, n, d]) => `<div class='gcard'><div class='art'>${art[a]()}</div><div class='n lbl'>${n}</div><div class='d'>${d}</div></div>`).join('')}
+      </div>
+      <div class='daily'><div><div class='lbl' style='font-size:15px'>Daily puzzle</div><div class='d' style='font-family:ui-monospace,Menlo,monospace;font-size:11px;color:${c('dim')}'>Mental math · 60s</div></div><div class='go lbl'>Play →</div></div>
+    </div>${nav('home')}</div>`;
+}
+function pickerScreen(t) {
+  const T = THEMES[t];
+  return `${backdrop(t)}<div class='ui'>${header(t)}
+    <div class='body' style='padding-top:${T.top - 58}px'>
+      <h1 class='hero lbl' style='font-size:calc(var(--hero) * .85);margin-bottom:12px'>Choose your game</h1>
+      <div class='search'>Search 82 games…</div>
+      <div class='chips lbl'><span class='chip on'>All<small>82</small></span><span class='chip'>Board<small>26</small></span><span class='chip'>Reflex<small>22</small></span><span class='chip'>Memory<small>12</small></span></div>
+      <p class='sec lbl' style='color:${c('win')}'>New this month</p>
+      <div class='newrow'>${[['Verbal memory', '2P · ~3 min'], ['N-back', '2P · ~3 min'], ['Cup shuffle', '2P · ~2 min']].map(([n, d]) => `<div class='mini'><div class='n lbl'>${n}</div><div class='d'>${d}</div></div>`).join('')}</div>
+      <p class='sec lbl' style='color:${c('cta')}'>Board games</p>
+      <div class='grid2'>${[['ttt', 'Tic Tac Toe', '2P · ~1 min'], ['sim', 'Sim', '2P · ~3 min'], ['c4big', 'Connect Four', '2P · ~4 min'], ['chk', 'Checkers', '2P · ~10 min']].map(([a, n, d]) => `<div class='big'><div class='pic'>${art[a]()}</div><div class='n lbl'>${n}</div><div class='d'>${d}</div></div>`).join('')}</div>
+    </div>${nav('games')}</div>`;
+}
+function roomScreen(t) {
+  const T = THEMES[t];
+  const B = ['.......', '.......', '...o...', '..xo...', '..xxo..', '.oxxox.'];
+  return `${backdrop(t)}<div class='ui'>${header(t, { back: true, title: 'Room K7Q2' })}
+    <div class='body' style='padding-top:${T.top - 46}px'>
+      <div class='players'>
+        <div class='pc x'><div class='av' style='background:${c('p1')};color:${c('card')}'>☺</div><div><div class='nm lbl' style='color:${c('p1')}'>X · ${T.player}</div><div class='sc lbl' style='color:${c('p1')}'>2</div></div></div>
+        <div class='pc'><div class='av' style='background:${c('p2')};color:${c('card')}'>☻</div><div><div class='nm lbl' style='color:${c('p2')}'>O · ${T.rival}</div><div class='sc lbl' style='color:${c('p2')}'>1</div></div></div>
+      </div>
+      <div class='turn lbl'><span>Your turn</span></div>
+      <div class='board'>${B.join('').split('').map(ch => `<i class='${ch === 'x' ? 'x' : ch === 'o' ? 'o' : ''}'></i>`).join('')}</div>
+      <div class='emotes'><span>👏</span><span>🔥</span><span>${T.emoji}</span><span class='lbl' style='font-size:12px'>GG</span><span class='lbl' style='font-size:12px'>Chat</span></div>
+      <p class='foot'>In a game only the header band moves. The board is an opaque card.</p>
+    </div></div>`;
+}
+const SCREENS = [['home', 'Home', homeScreen], ['picker', 'Game picker', pickerScreen], ['room', 'Connect Four room', roomScreen]];
+
+// ─── Specs ──────────────────────────────────────────────────────────────────
+const SPECS = {
+  haunted: {
+    tag: 'Seasonal · Oct 1 – Nov 2', season: true,
+    pitch: 'A moonlit hill at the top of the screen: a crooked tree, a little chapel, three jack-o\'-lanterns flickering, bats flapping across the moon, and low fog rolling along the ground. It upgrades the existing PUMPKIN NIGHT theme in place (same id, palette and Seasonal pack), so it ships as a free upgrade for owners.',
+    font: '<b>Griffy</b> (SIL OFL 1.1): a spooky storybook hand, still readable in short labels. Latin subset 68 KB, the heaviest of the five; a subset to the app\'s glyphs would bring it near 30 KB. Safer alternative: keep Fredoka and use Griffy only for the logo.',
+    scene: 'Sky band with moon and a drifting cloud; a hill silhouette whose lantern faces flicker (opacity, stepped); three bats on staggered 10–19 s flights (translate) with wing flaps (scaleY); two fog layers drifting across the ground (translateX). Reduced motion: moon, hill and lit pumpkins stay, bats parked, fog still.',
+    game: 'Header band only: moon, hill and flickering pumpkins. Bats and fog stop at the menus.',
+    sound: 'Night wind (brown noise through a wandering band-pass), a tawny owl\'s "hoo … hoo-hoo" every 9–20 s, and now and then a distant wavering whistle like wind across a bottle. All Web Audio, no files.',
+    effort: '1.5–2 days (palette exists; scene, sound, tests).',
+    risks: 'Spooky must stay friendly: no skulls or blood, so it suits kids. Griffy\'s size is the main cost. Fog over cards is kept faint so text contrast holds.',
+    sw: [['bg', '22 14 32'], ['card', '40 27 58'], ['text', '255 241 224'], ['p1 X', '255 145 36'], ['p2 O', '111 208 255'], ['cta', '255 95 162'], ['sky', '56 32 88'], ['moon', '255 238 196'], ['fog', '206 196 240']],
+  },
+  winter: {
+    tag: 'Seasonal · Dec 1 – Jan 6', season: true,
+    pitch: 'A snowy night village up top: a string of coloured bulbs twinkles along the header, pines and a cabin with a lit window sit on a snowdrift, and snow falls over a light, frosty ground. A light theme, so it is the holiday pick for players who dislike dark screens.',
+    font: '<b>Mountains of Christmas</b> Bold (SIL OFL 1.1): a festive storybook face. Latin subset 54 KB. It is narrow and decorative, so body copy keeps the app\'s mono face as it does today.',
+    scene: 'Two snow layers (one painted tile each, falling by translateY, the near one swaying), 15 bulbs blinking on stepped opacity at different rates, a cabin window that glows. Reduced motion: snow hangs mid-air, bulbs stay lit.',
+    game: 'Header band with the lights and the near snow layer only, inside the band. No snow falls over the board.',
+    sound: 'A soft wind, a fireplace crackling close by (random filtered clicks and pops), and sleigh bells jingling past every 12–24 s (inharmonic metal partials, panned). Optionally a music-box line from a public-domain carol (Jingle Bells, 1857) on the lobby only.',
+    effort: '2–2.5 days.',
+    risks: 'Snow on a light ground needs the faint blue rim on each flake or it vanishes. Christmas is not universal: the scene is "winter lights" with no religious symbols, so it reads as a general holiday.',
+    sw: [['bg', '234 241 248'], ['card', '255 255 255'], ['text', '20 36 60'], ['p1 X', '20 112 76'], ['p2 O', '30 86 160'], ['cta', '196 40 48'], ['sky', '12 24 56'], ['pine', '20 66 52'], ['bulb', '255 202 64']],
+  },
+  fireworks: {
+    tag: 'Seasonal · Jun 28 – Jul 6 (and Dec 31 – Jan 1)', season: true,
+    pitch: 'A night skyline under a fireworks show: four shells per 8-second show rise, burst in red, white, blue and gold, and fade over the city, with smoke drifting low. The same engine serves New Year\'s Eve with a gold-and-silver palette.',
+    font: '<b>Bungee</b> (SIL OFL 1.1): bold, signage-like, very legible. Already self-hosted in the app (public/fonts/bungee.woff2, 14 KB), so it costs no new download.',
+    scene: 'Each shell: a rising spark (translateY), a radial burst that scales up and fades (scale + opacity), and a soft glow (opacity). Shells run from one shared clock, like Shoreline\'s wash clock, so the booms land on the bursts. Reduced motion: four bursts frozen open, no flashing.',
+    game: 'Header band only, with smaller, rarer bursts so they never pull the eye from the board.',
+    sound: 'A rising launch whistle, a deep boom on the burst (filtered noise plus a 55 Hz thump), then a crackle of sparks, panned to where the burst is on screen; a low city murmur underneath. Synced to the bursts.',
+    effort: '2 days (plus half a day for a New Year palette).',
+    risks: 'Booms are loud: cap the level well under the music bus and keep them off game screens. Flashes stay small and well under 3 per second (WCAG 2.3.1). US-specific framing, so it pairs with New Year to earn its keep.',
+    sw: [['bg', '10 16 38'], ['card', '22 32 66'], ['text', '244 246 255'], ['p1 X', '255 86 98'], ['p2 O', '108 170 255'], ['cta', '255 210 80'], ['sky', '22 32 78'], ['lit', '255 214 120'], ['smoke', '170 180 220']],
+  },
+  diwali: {
+    tag: 'Seasonal · ~10 days around Diwali (2026: Oct 29 – Nov 11)', season: true,
+    pitch: 'Dusk over a terrace: a marigold toran sways along the header, a row of clay diyas flickers on the ledge, sky lanterns drift up behind the cards, and a rangoli turns slowly in the corner. Picked because the store already prices in INR, so India is a real audience, and Diwali is the biggest festival of lights.',
+    font: '<b>Yatra One</b> (SIL OFL 1.1): a warm display face from the Devanagari tradition; it also covers Hindi if the app is ever localised. Latin subset 11 KB, the lightest of the new fonts.',
+    scene: 'Toran strands swaying (rotate), diya flames flickering (scale) with glow halos (opacity), four sky lanterns rising on 24–34 s loops (translateY + sway), a rangoli rotating once every 140 s. Reduced motion: lanterns hang mid-sky, flames still and lit.',
+    game: 'Header band only: the toran and the diyas.',
+    sound: 'A tanpura drone (Pa–Sa–Sa–Sa, plucked sawtooth strings with a slow filter swell), a temple bell every 15–30 s (inharmonic partials, long decay), and soft distant crackers now and then.',
+    effort: '2–2.5 days.',
+    risks: 'The date moves every year (lunar calendar), so the window needs a small date table: Diwali 2026-11-08, 2027-10-29, 2028-10-17; check each against an Indian calendar before shipping. Keep it festive rather than devotional (no deity imagery).',
+    sw: [['bg', '40 14 34'], ['card', '66 26 56'], ['text', '255 240 222'], ['p1 X', '255 168 38'], ['p2 O', '64 206 196'], ['cta', '255 86 128'], ['sky', '104 30 82'], ['flame', '255 220 120'], ['marigold', '255 160 30']],
+  },
+  canopy: {
+    tag: 'Evergreen (promote Jun – Sep, monsoon)', season: false,
+    pitch: 'Under a rainforest canopy in the rain: leaves sway along the header, drops fall from the leaf tips, rain streaks down, and ripples open in puddles on the mossy ground. Picked as the evergreen: calm, global, and the best-sounding of the five; a light daytime partner for Shoreline.',
+    font: '<b>Baloo 2</b> (SIL OFL 1.1): soft and round like Fredoka but taller and warmer; variable 500–800. Latin subset 32 KB.',
+    scene: 'Two leaf layers swaying at different rates (rotate), five drips (translateY + opacity), two rain layers (a masked streak tile falling by translateY, tinted by a token), ripples (scale + opacity). Reduced motion: leaves and rain still, no ripples.',
+    game: 'Header band only: the canopy and the near rain inside the band.',
+    sound: 'Steady rain (filtered white and pink noise), drips plinking (falling sine blips), tree frogs chirping in short trills every 6–14 s, a two-note bird call, and far thunder every 35–70 s.',
+    effort: '2 days.',
+    risks: 'Rain noise is close to white noise, so it is kept dark and quiet to avoid fatigue over long sessions. The rain layer covers the full screen; on low-end phones keep only the near layer.',
+    sw: [['bg', '228 238 222'], ['card', '251 253 247'], ['text', '22 46 34'], ['p1 X', '0 112 92'], ['p2 O', '184 48 112'], ['cta', '190 82 8'], ['canopy', '12 46 30'], ['leaf', '40 120 66'], ['rain', '64 104 96']],
+  },
+};
+
+// ─── Sound: one AudioContext, one ambience at a time ────────────────────────
+const audio = { ctx: null, playing: null, node: null, master: null, vol: {} };
+function noiseBuffer(ctx, seconds, kind) {
+  const n = Math.floor(ctx.sampleRate * seconds), buf = ctx.createBuffer(2, n, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch); let last = 0, b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < n; i++) {
+      const w = Math.random() * 2 - 1;
+      if (kind === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+      else if (kind === 'pink') { b0 = 0.997 * b0 + w * 0.029591; b1 = 0.985 * b1 + w * 0.032534; b2 = 0.95 * b2 + w * 0.048056; d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.9; }
+      else d[i] = w;
+    }
+  }
+  return buf;
+}
+const bufs = {};
+function noise(ctx, kind, sec = 4) { const key = kind + sec; return bufs[key] || (bufs[key] = noiseBuffer(ctx, sec, kind)); }
+function loopNoise(ctx, kind, sec) { const s = ctx.createBufferSource(); s.buffer = noise(ctx, kind, sec); s.loop = true; s.start(); return s; }
+function filt(ctx, type, f, q = 0.7) { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; }
+function gainNode(ctx, v) { const g = ctx.createGain(); g.gain.value = v; return g; }
+function panner(ctx, p, out) { if (!ctx.createStereoPanner) return out; const s = ctx.createStereoPanner(); s.pan.value = p; s.connect(out); return s; }
+// A one-shot noise burst: kind, start, filter, peak, attack, decay.
+function burstNoise(ctx, out, { kind = 'white', t, type = 'lowpass', f = 1000, q = .7, peak = .3, a = .005, d = .3 }) {
+  const s = ctx.createBufferSource(); s.buffer = noise(ctx, kind, 2);
+  const b = filt(ctx, type, f, q), g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+  s.connect(b); b.connect(g); g.connect(out);
+  s.start(t, Math.random() * 1.5); s.stop(t + a + d + .05);
+}
+function tone(ctx, out, { t, f, f2, type = 'sine', peak = .1, a = .01, d = .3, glide }) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + (glide || a + d));
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + a + d + .05);
+  return o;
+}
+// Repeat fn() after a random delay in [lo, hi] seconds until stopped.
+function every(timers, lo, hi, fn, first) {
+  const go = (ms) => timers.push(setTimeout(() => { fn(); go((lo + Math.random() * (hi - lo)) * 1000); }, ms));
+  go(first != null ? first * 1000 : (lo + Math.random() * (hi - lo)) * 1000);
+}
+
+const AMBIENCES = {
+  haunted(ctx, out) {
+    const timers = [], src = [loopNoise(ctx, 'brown', 6)];
+    const bp = filt(ctx, 'bandpass', 500, 1.4), wg = gainNode(ctx, .25);
+    src[0].connect(bp); bp.connect(wg); wg.connect(out);
+    every(timers, 1.5, 3.5, () => { const t = ctx.currentTime; bp.frequency.setTargetAtTime(260 + Math.random() * 700, t, 1.2); wg.gain.setTargetAtTime(.12 + Math.random() * .4, t, 1.4); }, 0);
+    // Tawny owl: hoo … hoo-hoo-hoo, a soft sine with a small vibrato.
+    const owl = () => {
+      const t = ctx.currentTime + .05, p = panner(ctx, Math.random() * 1.2 - .6, out), lp = filt(ctx, 'lowpass', 1100); lp.connect(p);
+      const hoo = (s, d, f) => { const o = tone(ctx, lp, { t: s, f: f * 1.04, f2: f * .94, peak: .16, a: .05, d, glide: d }); const v = ctx.createOscillator(), vg = gainNode(ctx, 6); v.frequency.value = 7; v.connect(vg); vg.connect(o.frequency); v.start(s); v.stop(s + d + .1); };
+      hoo(t, .55, 410); hoo(t + 1.3, .14, 420); hoo(t + 1.55, .14, 420); hoo(t + 1.8, .6, 400);
+    };
+    every(timers, 9, 20, owl, 2.5);
+    // Wind across a bottle: a wavering sine that swells and fades.
+    every(timers, 18, 34, () => {
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), v = ctx.createOscillator(), vg = gainNode(ctx, 14);
+      o.frequency.value = 620 + Math.random() * 200; v.frequency.value = 4.5; v.connect(vg); vg.connect(o.frequency);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(.035, t + 2); g.gain.linearRampToValueAtTime(0.0001, t + 4.5);
+      o.connect(g); g.connect(out); o.start(t); v.start(t); o.stop(t + 4.6); v.stop(t + 4.6);
+    }, 7);
+    return () => { timers.forEach(clearTimeout); src.forEach(s => s.stop()); wg.disconnect(); };
+  },
+  winter(ctx, out) {
+    const timers = [], src = [loopNoise(ctx, 'pink', 5)];
+    const lp = filt(ctx, 'lowpass', 600, .5), wg = gainNode(ctx, .14);
+    src[0].connect(lp); lp.connect(wg); wg.connect(out);
+    every(timers, 2, 4, () => { const t = ctx.currentTime; lp.frequency.setTargetAtTime(380 + Math.random() * 500, t, 1.5); wg.gain.setTargetAtTime(.08 + Math.random() * .14, t, 1.5); }, 0);
+    // Fireplace: random crackles and the odd pop, scheduled 200 ms ahead.
+    const fire = panner(ctx, -.35, out);
+    timers.push(setInterval(() => {
+      const t0 = ctx.currentTime + .05;
+      const n = Math.random() < .5 ? 1 : 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) burstNoise(ctx, fire, { t: t0 + Math.random() * .2, type: 'highpass', f: 1500 + Math.random() * 2500, peak: .04 + Math.random() * .09, a: .001, d: .012 + Math.random() * .03 });
+      if (Math.random() < .06) burstNoise(ctx, fire, { t: t0 + .1, type: 'bandpass', f: 900, q: 1.5, peak: .22, a: .001, d: .06 });
+    }, 200));
+    // Sleigh bells: a burst of jingles with inharmonic partials, passing by.
+    const bells = () => {
+      const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null, t = ctx.currentTime + .05, dur = 1.8;
+      if (p) { p.pan.setValueAtTime(-.8, t); p.pan.linearRampToValueAtTime(.8, t + dur); p.connect(out); }
+      const dst = p || out, hp = filt(ctx, 'highpass', 1800); hp.connect(dst);
+      const hits = 12 + Math.floor(Math.random() * 6);
+      for (let i = 0; i < hits; i++) {
+        const s = t + (i / hits) * dur + Math.random() * .04, r = .96 + Math.random() * .08, swell = Math.sin((i / hits) * Math.PI);
+        [2400, 3720, 5150, 6900].forEach((f, k) => tone(ctx, hp, { t: s, f: f * r, peak: (.035 - k * .006) * (.4 + swell), a: .002, d: .12 + Math.random() * .08 }));
+      }
+    };
+    every(timers, 12, 24, bells, 3);
+    return () => { timers.forEach(x => { clearTimeout(x); clearInterval(x); }); src.forEach(s => s.stop()); wg.disconnect(); };
+  },
+  fireworks(ctx, out) {
+    const timers = [], src = [loopNoise(ctx, 'brown', 5)];
+    const lp = filt(ctx, 'lowpass', 260), mg = gainNode(ctx, .12);
+    src[0].connect(lp); lp.connect(mg); mg.connect(out);
+    // Schedule every shell of every show from the page clock the CSS uses.
+    let next = 0;
+    const pump = () => {
+      const now = ctx.currentTime, ahead = 1.5;
+      const perfNow = performance.now() / 1000, ctxAtPerf = (p) => now + (p - perfNow);
+      while (true) {
+        const showIndex = Math.floor(next / FIREWORKS_SHOW.length), b = FIREWORKS_SHOW[next % FIREWORKS_SHOW.length];
+        const burstPerf = SHOW_EPOCH + showIndex * FIREWORKS_PERIOD + b.at + FW_LAUNCH;
+        const tb = ctxAtPerf(burstPerf);
+        if (tb - FW_LAUNCH > now + ahead) break;
+        next++;
+        if (tb - FW_LAUNCH < now) continue;
+        const pan = panner(ctx, (b.x / 390) * 1.6 - .8, out);
+        // Launch whistle.
+        tone(ctx, pan, { t: tb - FW_LAUNCH, f: 500, f2: 1700, type: 'triangle', peak: .028, a: .15, d: FW_LAUNCH - .2, glide: FW_LAUNCH - .1 });
+        burstNoise(ctx, pan, { t: tb - FW_LAUNCH, type: 'highpass', f: 3000, peak: .03, a: .05, d: FW_LAUNCH - .1 });
+        // Boom: filtered noise plus a low thump.
+        burstNoise(ctx, pan, { kind: 'brown', t: tb, type: 'lowpass', f: 380 * b.s, peak: .9, a: .004, d: 1.4 });
+        tone(ctx, pan, { t: tb, f: 70, f2: 38, peak: .5, a: .004, d: .5 });
+        // Crackle: a scatter of sparks after the burst.
+        for (let i = 0; i < 26; i++) burstNoise(ctx, pan, { t: tb + .35 + Math.random() * 1.3, type: 'highpass', f: 2500 + Math.random() * 3000, peak: .03 + Math.random() * .05, a: .001, d: .015 });
+      }
+    };
+    // Start at the shell now in flight or next.
+    const perfNow = performance.now() / 1000, sinceEpoch = perfNow - SHOW_EPOCH;
+    next = Math.max(0, Math.floor(sinceEpoch / FIREWORKS_PERIOD) * FIREWORKS_SHOW.length);
+    pump(); timers.push(setInterval(pump, 400));
+    return () => { timers.forEach(clearInterval); src.forEach(s => s.stop()); mg.disconnect(); };
+  },
+  diwali(ctx, out) {
+    const timers = [];
+    // Tanpura: Pa, Sa', Sa', Sa, one string every 1.15 s; each a sawtooth
+    // with a filter that opens and closes slowly (the jawari buzz).
+    const SA = 130.81, strings = [SA * 0.75, SA * 2, SA * 2, SA];
+    const bus = filt(ctx, 'lowpass', 2400, .3), tg = gainNode(ctx, .9); bus.connect(tg); tg.connect(out);
+    let k = 0, nextT = ctx.currentTime + .1;
+    const pluck = (t, f) => {
+      [0, 1].forEach(det => {
+        const o = ctx.createOscillator(), b = filt(ctx, 'bandpass', f * 4, 1.2), g = ctx.createGain();
+        o.type = 'sawtooth'; o.frequency.value = f * (det ? 1.003 : 1);
+        b.frequency.setValueAtTime(f * 2, t); b.frequency.linearRampToValueAtTime(f * 7, t + 1.6); b.frequency.linearRampToValueAtTime(f * 3, t + 4.2);
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(.05, t + .03); g.gain.exponentialRampToValueAtTime(0.0001, t + 4.6);
+        o.connect(b); b.connect(g); g.connect(bus); o.start(t); o.stop(t + 4.7);
+      });
+    };
+    timers.push(setInterval(() => { while (nextT < ctx.currentTime + 1.5) { pluck(nextT, strings[k % 4]); nextT += 1.15; k++; } }, 300));
+    // Temple bell: inharmonic partials, long ring.
+    every(timers, 15, 30, () => {
+      const t = ctx.currentTime + .05, p = panner(ctx, Math.random() * 1.2 - .6, out), f = 560 + Math.random() * 60;
+      [[1, .07, 4.5], [2.01, .04, 3.4], [2.76, .035, 2.6], [5.4, .02, 1.6], [8.93, .01, 1]].forEach(([m, v, d]) => tone(ctx, p, { t, f: f * m, peak: v, a: .003, d }));
+    }, 4);
+    // Distant crackers: a soft pop and a short crackle.
+    every(timers, 20, 40, () => {
+      const t = ctx.currentTime + .05, p = panner(ctx, Math.random() * 1.6 - .8, out);
+      burstNoise(ctx, p, { kind: 'brown', t, type: 'lowpass', f: 300, peak: .25, a: .004, d: .8 });
+      for (let i = 0; i < 14; i++) burstNoise(ctx, p, { t: t + .2 + Math.random() * .9, type: 'highpass', f: 2500, peak: .02, a: .001, d: .02 });
+    }, 11);
+    return () => { timers.forEach(x => { clearTimeout(x); clearInterval(x); }); tg.disconnect(); };
+  },
+  canopy(ctx, out) {
+    const timers = [], src = [loopNoise(ctx, 'white', 4), loopNoise(ctx, 'pink', 5)];
+    const hiss = filt(ctx, 'bandpass', 2800, .35), hg = gainNode(ctx, .11);
+    const body = filt(ctx, 'lowpass', 700, .4), bg = gainNode(ctx, .28);
+    src[0].connect(hiss); hiss.connect(hg); hg.connect(out);
+    src[1].connect(body); body.connect(bg); bg.connect(out);
+    every(timers, 3, 6, () => { const t = ctx.currentTime; hg.gain.setTargetAtTime(.07 + Math.random() * .08, t, 2); }, 0);
+    // Drips: falling sine blips on leaves and puddles.
+    timers.push(setInterval(() => {
+      if (Math.random() < .55) return;
+      const t = ctx.currentTime + Math.random() * .3, f = 900 + Math.random() * 1500;
+      tone(ctx, panner(ctx, Math.random() * 1.6 - .8, out), { t, f, f2: f * .55, peak: .03 + Math.random() * .04, a: .002, d: .09, glide: .06 });
+    }, 300));
+    // Tree frogs: short trills of a buzzy band-passed sawtooth.
+    every(timers, 6, 14, () => {
+      const t = ctx.currentTime + .05, p = panner(ctx, Math.random() * 1.4 - .7, out), bp = filt(ctx, 'bandpass', 1900 + Math.random() * 600, 6); bp.connect(p);
+      const n = 3 + Math.floor(Math.random() * 5), f = 260 + Math.random() * 60;
+      for (let rep = 0; rep < 2; rep++) for (let i = 0; i < n; i++) tone(ctx, bp, { t: t + rep * .6 + i * .05, f, type: 'sawtooth', peak: .25, a: .004, d: .03 });
+    }, 2);
+    // A bird: two falling whistles.
+    every(timers, 10, 20, () => {
+      const t = ctx.currentTime + .05, p = panner(ctx, Math.random() * 1.4 - .7, out);
+      tone(ctx, p, { t, f: 2600, f2: 2100, peak: .035, a: .02, d: .22 }); tone(ctx, p, { t: t + .32, f: 2300, f2: 1600, peak: .03, a: .02, d: .3 });
+    }, 6);
+    // Far thunder: a slow low rumble.
+    every(timers, 35, 70, () => {
+      const t = ctx.currentTime + .05, s = ctx.createBufferSource(), lp = filt(ctx, 'lowpass', 140, .5), g = ctx.createGain();
+      s.buffer = noise(ctx, 'brown', 6); lp.frequency.setValueAtTime(240, t); lp.frequency.linearRampToValueAtTime(90, t + 5);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(.7, t + .6); g.gain.linearRampToValueAtTime(.35, t + 1.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 5.5);
+      s.connect(lp); lp.connect(g); g.connect(out); s.start(t); s.stop(t + 5.6);
+    }, 12);
+    return () => { timers.forEach(x => { clearTimeout(x); clearInterval(x); }); src.forEach(s => s.stop()); hg.disconnect(); bg.disconnect(); };
+  },
+};
+
+// The fireworks' shared clock: shows start at SHOW_EPOCH on the page clock.
+const SHOW_EPOCH = 0;
+
+function level(t) { const v = audio.vol[t] ?? 0.6; return v * v; }
+function setSound(t) {
+  const want = audio.playing === t ? null : t;
+  if (audio.node) { const { stop, master } = audio.node; master.gain.setTargetAtTime(0, audio.ctx.currentTime, .15); setTimeout(() => { try { stop(); } catch (e) {} master.disconnect(); }, 600); audio.node = null; }
+  audio.playing = want;
+  if (want) {
+    if (!audio.ctx) audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    audio.ctx.resume();
+    const master = audio.ctx.createGain(); master.gain.value = 0; master.connect(audio.ctx.destination);
+    master.gain.setTargetAtTime(level(want), audio.ctx.currentTime, .3);
+    audio.node = { master, stop: AMBIENCES[want](audio.ctx, master) };
+  }
+  syncSoundUI();
+}
+function syncSoundUI() {
+  document.querySelectorAll('.snd').forEach(b => { const on = audio.playing === b.dataset.t; b.setAttribute('aria-pressed', on); b.textContent = on ? `🔊 ${THEMES[b.dataset.t].name} sound: on` : `🔈 ${THEMES[b.dataset.t].name} sound: off`; });
+  document.querySelectorAll('.js-snd').forEach(b => { const on = audio.playing === b.dataset.t; b.classList.toggle('on', on); b.innerHTML = on ? I.music : I.musicOff; });
+}
+
+// ─── Render ─────────────────────────────────────────────────────────────────
+function rgb(s) { return `rgb(${s.split(' ').join(',')})`; }
+function renderThemes() {
+  const host = document.getElementById('themes');
+  host.innerHTML = Object.keys(THEMES).map((t, i) => {
+    const S = SPECS[t], T = THEMES[t];
+    return `<section class='theme-sec' id='${t}'>
+      <div class='sec-head'><h2>${i + 1} · ${T.name}</h2><span class='tag ${S.season ? 'season' : ''}'>${S.tag}</span></div>
+      <p class='lede' style='margin-bottom:4px'>${S.pitch}</p>
+      <div class='controls'>
+        <button class='btn snd' data-t='${t}' aria-pressed='false'></button>
+        <label class='vol'>Volume <input type='range' min='0' max='100' value='60' data-vol='${t}' aria-label='${T.name} volume'></label>
+      </div>
+      <div class='row'>${SCREENS.map(([k, label, fn]) => `<div><div class='phone'><div class='bezel'><div class='clip'><div class='screen' data-t='${t}' data-k='${k}'>${fn(t)}</div></div></div></div><div class='cap'><b>${label}</b></div></div>`).join('')}</div>
+      <div class='cards'>
+        <div class='card'><h3>Palette</h3><div class='sw'>${S.sw.map(([n, v]) => `<span><i style='background:${rgb(v)}'></i>${n}</span>`).join('')}</div><p><b>Font:</b> ${S.font}</p></div>
+        <div class='card'><h3>Scene and motion</h3><p>${S.scene}</p><p><b>In a game:</b> ${S.game}</p></div>
+        <div class='card'><h3>Sound (procedural Web Audio)</h3><p>${S.sound}</p><p><b>Effort:</b> ${S.effort}</p><p><b>Risks:</b> ${S.risks}</p></div>
+      </div>
+    </section>`;
+  }).join('');
+  document.querySelectorAll('.snd').forEach(b => b.addEventListener('click', () => setSound(b.dataset.t)));
+  document.querySelectorAll('[data-vol]').forEach(r => r.addEventListener('input', () => {
+    const t = r.dataset.vol; audio.vol[t] = r.value / 100;
+    if (audio.playing === t && audio.node) audio.node.master.gain.setTargetAtTime(level(t), audio.ctx.currentTime, .1);
+  }));
+  host.addEventListener('click', e => { const b = e.target.closest('.js-snd'); if (b) setSound(b.dataset.t); });
+  // Pause the scenes that are off screen. Fireworks keep running: their
+  // bursts are pinned to the audio clock and a pause would knock them out of step.
+  const io = new IntersectionObserver(es => es.forEach(e => e.target.classList.toggle('paused', !e.isIntersecting)), { rootMargin: '200px' });
+  document.querySelectorAll('.phone').forEach(p => { if (!p.querySelector('[data-t="fireworks"]')) io.observe(p); });
+  syncSoundUI();
+}
+function renderSummary() {
+  const rows = [
+    ['Haunted Hollow', 'Oct 1 – Nov 2', 'Griffy · 68 KB (subset ~30 KB)', 'Moon, bats, flickering pumpkins, fog', 'Wind, owl, bottle whistle', '1.5–2 d', 'Upgrades PUMPKIN NIGHT; font weight'],
+    ['Winter Lights', 'Dec 1 – Jan 6', 'Mountains of Christmas · 54 KB', 'Snowfall, twinkling bulbs, pines, cabin', 'Wind, fireplace, sleigh bells', '2–2.5 d', 'Snow on light ground; keep it secular'],
+    ['Stars & Stripes', 'Jun 28 – Jul 6, Dec 31 – Jan 1', 'Bungee · 0 KB (bundled)', 'Synced fireworks over a skyline', 'Whistle, boom, crackle', '2 d', 'Loudness; flashing limits'],
+    ['Festival of Lights', '~10 days around Diwali', 'Yatra One · 11 KB', 'Toran, diyas, sky lanterns, rangoli', 'Tanpura, temple bell, crackers', '2–2.5 d', 'Lunar date table'],
+    ['Monsoon Canopy', 'Evergreen', 'Baloo 2 · 32 KB', 'Swaying leaves, rain, drips, ripples', 'Rain, drips, frogs, bird, thunder', '2 d', 'Noise fatigue; low-end phones'],
+  ];
+  document.getElementById('sumtable').innerHTML = `<tr><th>Theme</th><th>When</th><th>Font · cost</th><th>Scene</th><th>Sound</th><th>Effort</th><th>Main risk</th></tr>` + rows.map(r => `<tr>${r.map((x, i) => i ? `<td>${x}</td>` : `<td><b>${x}</b></td>`).join('')}</tr>`).join('');
+}
+function renderPick() {
+  const opts = [['now', 'Build now'], ['seasonal', 'Build before its season'], ['later', 'Later'], ['skip', 'Skip']];
+  document.getElementById('pick-rows').innerHTML = Object.keys(THEMES).map(t => `<fieldset><legend>${THEMES[t].name}</legend>${opts.map(([v, l]) => `<label><input type='radio' name='${t}' value='${v}'> ${l}</label>`).join('')}</fieldset>`).join('');
+  const pick = document.getElementById('pick'), state = document.getElementById('pick-state');
+  const read = () => Object.keys(THEMES).map(t => { const r = pick.querySelector(`input[name="${t}"]:checked`); return r ? [t, r.value] : null; }).filter(Boolean);
+  pick.addEventListener('change', () => { const r = read(); state.textContent = r.length ? `Selected ${r.length} of 5 (not queued yet)` : 'Nothing selected yet.'; });
+  pick.addEventListener('submit', e => {
+    e.preventDefault();
+    const r = read(), note = pick.elements.note.value.trim().slice(0, 800);
+    if (!r.length && !note) { state.textContent = 'Pick at least one theme or write a note first.'; return; }
+    const label = r.map(([t, v]) => `${THEMES[t].name}: ${opts.find(o => o[0] === v)[1]}`).join('; ') || 'Note only';
+    if (window.lavish && window.lavish.queuePrompt) {
+      window.lavish.queuePrompt(`Scene themes: ${label}${note ? ' (note: ' + note + ')' : ''}`, {
+        tag: 'choice', text: `Scene themes: ${label}`, element: pick,
+        data: { schema: 'fm-bearings-answer.v1', question: 'games-scene-themes-pick', selection: r.map(([t, v]) => `${t}=${v}`).join(','), note, close: 'done' },
+      });
+      state.textContent = 'Queued. Press Send to Agent to send it.';
+    } else state.textContent = `Selected: ${label}. Open this page in Lavish to send it.`;
+  });
+}
+
+document.getElementById('rm').addEventListener('click', e => {
+  const on = document.body.classList.toggle('rm');
+  e.currentTarget.setAttribute('aria-pressed', on); e.currentTarget.textContent = `Reduce motion: ${on ? 'on' : 'off'}`;
+});
+document.getElementById('stop').addEventListener('click', () => { if (audio.playing) setSound(audio.playing); });
+document.addEventListener('visibilitychange', () => { if (!audio.ctx) return; document.hidden ? audio.ctx.suspend() : audio.ctx.resume(); });
+renderThemes(); renderSummary(); renderPick();
+</script>
+</body>
+</html>

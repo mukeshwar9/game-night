@@ -23,6 +23,7 @@
 
 import { normalizeText } from './textMatchLogic'
 import { isBannedWord } from './wordDenylist'
+import { hashString } from './fibbageLogic'
 
 export const STATEMENT_COUNT = 3
 export const MIN_STATEMENT_LENGTH = 3
@@ -486,4 +487,46 @@ export function advanceGame(game, expectedRoundNum, now) {
   const round = normalizeRound(game.round)
   if (round.phase !== 'done' || round.roundNum !== expectedRoundNum) return null
   return { ...game, round: freshRound(round.roundNum + 1, now), proposal: null }
+}
+
+// --- Writing prompts (word games audit: three blank boxes and a 3-minute
+// clock left most players stalled) ---------------------------------------
+//
+// Each round shows both players the same topic card, and INSPIRE ME drops a
+// sentence starter for it into the next empty statement. The topic is only a
+// nudge: any statement about yourself still counts.
+export const TOPICS = [
+  { id: 'food', label: 'FOOD', starters: ['I have eaten', 'My favourite snack is', 'I once cooked', 'I can\'t stand the taste of'] },
+  { id: 'travel', label: 'TRAVEL', starters: ['I have been to', 'The longest trip I took was', 'I once got lost in', 'I have never been on a'] },
+  { id: 'childhood', label: 'CHILDHOOD', starters: ['As a kid I wanted to be', 'My first pet was', 'I was once scared of', 'My favourite toy was'] },
+  { id: 'school', label: 'SCHOOL', starters: ['At school I was best at', 'I once got in trouble for', 'My favourite teacher taught', 'I won a prize for'] },
+  { id: 'family', label: 'FAMILY', starters: ['My family always', 'I am the only one in my family who', 'I have cousins', 'Every holiday we'] },
+  { id: 'skills', label: 'HIDDEN SKILLS', starters: ['I can', 'I taught myself to', 'I am secretly good at', 'I have never learned to'] },
+  { id: 'music', label: 'MUSIC & MOVIES', starters: ['I have seen', 'I know every word of', 'I once sang', 'The film I have watched most is'] },
+  { id: 'sports', label: 'SPORTS & GAMES', starters: ['I have played', 'I once won a', 'I have never watched a full', 'I am terrible at'] },
+  { id: 'firsts', label: 'FIRSTS', starters: ['The first thing I bought with my own money was', 'My first job was', 'My first phone was', 'I first rode a bike at'] },
+  { id: 'weekends', label: 'WEEKENDS', starters: ['On Sundays I usually', 'I have woken up at', 'My perfect weekend is', 'I once spent a whole weekend'] },
+  { id: 'animals', label: 'ANIMALS', starters: ['I have held a', 'I am afraid of', 'I once fed a', 'I have a pet'] },
+  { id: 'weird', label: 'SURPRISES', starters: ['I have met', 'I was once on', 'I collect', 'Nobody believes that I'] },
+]
+
+/** The round's topic card — the same on both phones (seeded by room + round). */
+export function topicForRound(gameId, roundNum) {
+  return TOPICS[hashString(`${gameId ?? ''}:${Number(roundNum) || 1}`) % TOPICS.length]
+}
+
+/**
+ * INSPIRE ME: the next starter for `topic`, skipping any already used in
+ * `statements` (so three taps give three different starters). Ends with a
+ * space so the player types straight on. Null when the topic is unknown.
+ */
+export function nextStarter(topic, statements = [], tap = 0) {
+  const starters = topic?.starters || []
+  if (!starters.length) return null
+  const used = new Set(statements.map(s => String(s ?? '').trim()).filter(Boolean))
+  for (let k = 0; k < starters.length; k++) {
+    const pick = starters[(tap + k) % starters.length]
+    if (![...used].some(u => u.startsWith(pick))) return `${pick} `
+  }
+  return `${starters[tap % starters.length]} `
 }

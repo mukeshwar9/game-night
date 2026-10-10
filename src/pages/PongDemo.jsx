@@ -8,6 +8,7 @@ import {
 } from '../lib/pongLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { readBotRecord, recordBotResult, formatLevelRecord } from '../lib/botRecordLogic'
 
 // Solo Pong: pick a mode (and bot skill), then play full-screen against a
 // reaction-handicapped bot — or, in SURVIVAL, against a wall. Runs the pure
@@ -37,7 +38,7 @@ function Choice({ active, onClick, children, sub }) {
     <button
       onClick={onClick}
       className={cn(
-        'min-h-11 px-2 py-2 rounded border-2 font-pixel text-[9px] transition-all active:scale-95 text-center',
+        'min-h-11 px-2 py-2 rounded border-2 font-pixel text-[9px] transition press text-center',
         active
           ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
           : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
@@ -51,6 +52,9 @@ function Choice({ active, onClick, children, sub }) {
 
 function Setup({ setup, setSetup, best, onPlay }) {
   const mode = getMode(setup.mode)
+  // Your W–L against each bot level in this mode (re-read on every render, so
+  // it is fresh when a match closes).
+  const record = readBotRecord(`pong-${setup.mode}`)
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -68,7 +72,7 @@ function Setup({ setup, setSetup, best, onPlay }) {
           <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">BOT</p>
           <div className="grid grid-cols-3 gap-2">
             {Object.entries(AI_LEVELS).map(([id, lvl]) => (
-              <Choice key={id} active={setup.level === id} onClick={() => setSetup({ ...setup, level: id })}>
+              <Choice key={id} active={setup.level === id} onClick={() => setSetup({ ...setup, level: id })} sub={formatLevelRecord(record[id])}>
                 {lvl.label}
               </Choice>
             ))}
@@ -89,7 +93,7 @@ function Setup({ setup, setSetup, best, onPlay }) {
       )}
       <button
         onClick={onPlay}
-        className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 transition-all"
+        className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta press transition"
       >
         PLAY FULL SCREEN
       </button>
@@ -169,8 +173,11 @@ function Match({ setup, onExit, onBest }) {
         if (survival) {
           onBest(s.score.X)
           sounds.lose()
-        } else if (w === 'X') sounds.win()
-        else sounds.lose()
+        } else {
+          if (w === 'X') sounds.win()
+          else sounds.lose()
+          recordBotResult(`pong-${setup.mode}`, setup.level, w === 'X' ? 'win' : 'loss')
+        }
         setResult({ winner: w, score: s.score })
       }
     }
@@ -188,7 +195,7 @@ function Match({ setup, onExit, onBest }) {
     setRunKey(k => k + 1)
   }
 
-  const iconBtn = 'min-h-10 min-w-10 px-2 font-pixel text-[9px] text-retro-dim hover:text-retro-text border border-retro-border rounded bg-retro-card active:scale-95'
+  const iconBtn = 'min-h-10 min-w-10 px-2 font-pixel text-[9px] text-retro-dim hover:text-retro-text border border-retro-border rounded bg-retro-card press'
   const actions = (
     <>
       {!result && (
@@ -213,10 +220,10 @@ function Match({ setup, onExit, onBest }) {
         </p>
         {survival && <p className="font-pixel text-[8px] text-retro-dim">BEST {setup.best}</p>}
         <div className="flex gap-2 justify-center pt-1">
-          <button onClick={restart} className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+          <button onClick={restart} className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press">
             PLAY AGAIN
           </button>
-          <button onClick={onExit} className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:text-retro-text active:scale-95">
+          <button onClick={onExit} className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:text-retro-text press">
             MENU
           </button>
         </div>
@@ -226,7 +233,7 @@ function Match({ setup, onExit, onBest }) {
     overlay = (
       <div className="space-y-3">
         <p className="font-pixel text-base text-retro-cta text-glow-cta">PAUSED</p>
-        <button onClick={() => setPaused(false)} className="min-h-11 px-5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded active:scale-95">
+        <button onClick={() => setPaused(false)} className="min-h-11 px-5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded press">
           RESUME
         </button>
       </div>

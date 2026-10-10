@@ -582,7 +582,7 @@ export default function FibbageGame({
               <button
                 onClick={() => runStart(() => onStart())}
                 disabled={starting}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
               >
                 {starting ? 'STARTING…' : 'START ROUND'}
               </button>
@@ -674,7 +674,7 @@ export default function FibbageGame({
     <button
       onClick={() => runClose(action, () => toast.error('CLOSE FAILED — CHECK CONNECTION'))}
       disabled={closing}
-      className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-50"
+      className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press disabled:opacity-50"
     >
       {closing ? busyLabel : label}
     </button>
@@ -705,27 +705,32 @@ export default function FibbageGame({
         <div className="space-y-3">
           {isPlayer && !iCommitted && !lyingClosed ? (
             <div className="space-y-2">
-              <input
-                type="text"
-                value={lieInput}
-                maxLength={LIE_MAX_LENGTH}
-                aria-label="Your fake answer"
-                onChange={e => { setLieInput(e.target.value); setInputError('') }}
-                onKeyDown={e => e.key === 'Enter' && handleSubmitLie()}
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                placeholder="YOUR FAKE ANSWER"
-                className="w-full bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center uppercase rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
-              />
+              {/* Input and button share a row so SUBMIT LIE stays beside the
+                  field when the phone keyboard covers the lower screen. */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={lieInput}
+                  maxLength={LIE_MAX_LENGTH}
+                  aria-label="Your fake answer"
+                  onChange={e => { setLieInput(e.target.value); setInputError('') }}
+                  onKeyDown={e => e.key === 'Enter' && handleSubmitLie()}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  enterKeyHint="send"
+                  placeholder="YOUR FAKE ANSWER"
+                  className="min-w-0 flex-1 bg-retro-surface border-2 border-retro-border text-retro-text font-pixel text-[11px] text-center uppercase rounded px-3 py-2.5 focus:outline-none focus:border-retro-p1 disabled:opacity-40"
+                />
+                <button
+                  onClick={handleSubmitLie}
+                  disabled={submitting}
+                  className="min-h-11 shrink-0 px-4 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
+                >
+                  {submitting ? 'LOCKING…' : 'SUBMIT LIE'}
+                </button>
+              </div>
               <WordFeedback message={inputError} tone="bad" id={inputErrorId} />
-              <button
-                onClick={handleSubmitLie}
-                disabled={submitting}
-                className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
-              >
-                {submitting ? 'LOCKING…' : 'SUBMIT LIE'}
-              </button>
             </div>
           ) : (
             <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center arcade-blink">
@@ -752,7 +757,7 @@ export default function FibbageGame({
                 onClick={() => handleVote(opt.id)}
                 disabled={iVoted || isMine || !isPlayer}
                 className={cn(
-                  'w-full min-h-11 px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition-all active:scale-[0.98]',
+                  'w-full min-h-11 px-3 py-2.5 font-mono text-[12px] text-left rounded border-2 transition press-card',
                   picked
                     ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                     : 'border-retro-border text-retro-text hover:border-retro-p1/50',
@@ -858,7 +863,7 @@ export default function FibbageGame({
                   <button
                     onClick={handleReady}
                     disabled={iReady || readying}
-                    className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-60"
+                    className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition press disabled:opacity-60"
                   >
                     {iReady ? `READY ✓ ${readyCount}/${seats.length}` : readying ? 'SENDING…' : 'READY'}
                   </button>

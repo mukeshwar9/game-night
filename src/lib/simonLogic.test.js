@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeSimonSequence, applySimonMove, SIMON_PADS } from './simonLogic'
+import { normalizeSimonSequence, applySimonMove, SIMON_PADS, simonFlashTiming } from './simonLogic'
 
 describe('normalizeSimonSequence', () => {
   it('returns [] for null', () => expect(normalizeSimonSequence(null)).toEqual([]))
@@ -89,5 +89,18 @@ describe('applySimonMove — invalid', () => {
   })
   it('returns null for negative pad index', () => {
     expect(applySimonMove(game, -1, 'X')).toBeNull()
+  })
+})
+
+describe('simonFlashTiming', () => {
+  it('keeps the classic pace for short sequences and speeds up at 5, 9 and 13 pads', () => {
+    expect(simonFlashTiming(1)).toEqual({ on: 480, gap: 240 })
+    expect(simonFlashTiming(4)).toEqual({ on: 480, gap: 240 })
+    expect(simonFlashTiming(5).on).toBe(432)
+    expect(simonFlashTiming(9).on).toBeLessThan(simonFlashTiming(8).on)
+    expect(simonFlashTiming(13).on).toBeLessThan(simonFlashTiming(12).on)
+  })
+  it('never flashes faster than 300 ms', () => {
+    expect(simonFlashTiming(100).on).toBeGreaterThanOrEqual(300)
   })
 })

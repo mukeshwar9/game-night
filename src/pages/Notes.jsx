@@ -11,14 +11,16 @@ import {
   countFeedback,
   readFeedbackDraft,
   submitFeedback,
+  sortReports,
   subscribeFeedback,
   updateFeedbackStatus,
 } from '../lib/feedback'
 import { fetchRecentErrors, summarizeErrors } from '../lib/telemetry'
-import { fetchRecentPlays, summarizePlays } from '../lib/analytics'
+import { fetchRecentFunnel, fetchRecentPlays, FUNNEL_STEPS, summarizeFunnel, summarizePlays } from '../lib/analytics'
 import { getGameConfig } from '../lib/games'
 import useBusy from '../hooks/useBusy'
 import { cn } from '@/lib/utils'
+import LegalLinks from '../components/LegalLinks'
 
 const TYPE_OPTIONS = [
   { id: 'bug', label: 'BUG' },
@@ -41,6 +43,7 @@ const ADMIN_TABS = [
   { id: 'notes', label: 'NOTES' },
   { id: 'errors', label: 'ERRORS' },
   { id: 'plays', label: 'PLAYS' },
+  { id: 'funnel', label: 'FUNNEL' },
 ]
 
 export default function Notes() {
@@ -96,7 +99,7 @@ export default function Notes() {
                   onClick={() => setType(option.id)}
                   aria-pressed={type === option.id}
                   className={cn(
-                    'flex-1 min-h-10 rounded border font-pixel text-[9px] transition-all active:scale-95',
+                    'flex-1 min-h-10 rounded border font-pixel text-[9px] transition press',
                     type === option.id
                       ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
                       : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text hover:border-retro-p1',
@@ -126,7 +129,7 @@ export default function Notes() {
                 onClick={handleSubmit}
                 disabled={!canSubmit}
                 className="min-h-11 px-5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-                  hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  hover:shadow-neon-cta transition press disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? 'SENDING…' : 'SEND'}
               </button>
@@ -134,6 +137,8 @@ export default function Notes() {
           </section>
 
           {isAdmin && <AdminView />}
+
+          <LegalLinks contact />
         </div>
       </div>
     </div>
@@ -157,7 +162,7 @@ function AdminView() {
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                'min-h-9 px-3 rounded border font-pixel text-[8px] transition-all active:scale-95',
+                'min-h-9 px-3 rounded border font-pixel text-[8px] transition press',
                 tab === t.id
                   ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
                   : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text',
@@ -171,6 +176,7 @@ function AdminView() {
       {tab === 'notes' && <FeedbackAdmin />}
       {tab === 'errors' && <ErrorsAdmin />}
       {tab === 'plays' && <PlaysAdmin />}
+      {tab === 'funnel' && <FunnelAdmin />}
     </section>
   )
 }
@@ -206,7 +212,9 @@ function FeedbackAdmin() {
   if (items === null) return <EmptyState>ADMIN ACCESS REQUIRED</EmptyState>
 
   const counts = countFeedback(items)
-  const visible = filter === 'all' ? items : items.filter(i => i.type === filter)
+  const visible = filter === 'all' ? items
+    : filter === 'report' ? sortReports(items.filter(i => i.type === 'report'))
+    : items.filter(i => i.type === filter)
 
   return (
     <div className="space-y-3">
@@ -218,7 +226,7 @@ function FeedbackAdmin() {
             onClick={() => setFilter(f.id)}
             aria-pressed={filter === f.id}
             className={cn(
-              'min-h-9 px-3 rounded border font-pixel text-[8px] transition-all active:scale-95',
+              'min-h-9 px-3 rounded border font-pixel text-[8px] transition press',
               filter === f.id
                 ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
                 : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text',
@@ -274,7 +282,7 @@ function RefreshBar({ label, refreshing, onRefresh }) {
         onClick={onRefresh}
         disabled={refreshing}
         className="min-h-9 px-3 rounded border border-retro-border bg-retro-bg font-pixel text-[8px] text-retro-dim
-          hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+          hover:text-retro-text hover:border-retro-p1 transition press disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {refreshing ? 'REFRESHING…' : 'REFRESH'}
       </button>
@@ -374,6 +382,53 @@ function PlaysAdmin() {
   )
 }
 
+const FUNNEL_LABELS = { landed: 'LANDED', named: 'NAMED', started: 'STARTED', finished: 'FINISHED', shared: 'SHARED', saved: 'SAVED' }
+const percent = (n, of) => (of > 0 ? `${Math.round((n / of) * 100)}%` : '–')
+
+// Ad funnel by first-touch source and campaign (analytics.js funnelDaily). Each
+// account counts once per step; the percentage is that step over LANDED.
+function FunnelAdmin() {
+  const { data, refreshing, refresh } = useAdminFetch(() => fetchRecentFunnel(ADMIN_DAYS))
+  const rows = data ? summarizeFunnel(data) : null
+
+  return (
+    <div className="space-y-3">
+      <RefreshBar label={`LAST ${ADMIN_DAYS} DAYS (UTC) · BY SOURCE`} refreshing={refreshing} onRefresh={refresh} />
+      {data === undefined ? (
+        <EmptyState>LOADING…</EmptyState>
+      ) : data === null ? (
+        <EmptyState>COULDN&apos;T LOAD FUNNEL</EmptyState>
+      ) : rows.length === 0 ? (
+        <EmptyState>NO VISITS RECORDED</EmptyState>
+      ) : (
+        <div className="bg-retro-card border border-retro-border rounded overflow-x-auto">
+          <table className="w-full font-mono text-[11px]">
+            <thead>
+              <tr className="text-retro-dim font-pixel text-[8px] tracking-wider">
+                <th scope="col" className="text-left p-2">SOURCE / CAMPAIGN</th>
+                {FUNNEL_STEPS.map(step => <th key={step} scope="col" className="text-right p-2">{FUNNEL_LABELS[step]}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={`${r.source}/${r.campaign}`} className="border-t border-retro-border">
+                  <th scope="row" className="text-left p-2 font-normal text-retro-text">{r.source}{r.campaign ? ` / ${r.campaign}` : ''}</th>
+                  {FUNNEL_STEPS.map(step => (
+                    <td key={step} className="text-right p-2 text-retro-text">
+                      {r[step]}
+                      {step !== 'landed' && <span className="block text-[9px] text-retro-dim">{percent(r[step], r.landed)}</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function gameLabel(type) {
   const cfg = getGameConfig(type)
   return cfg?.type === type ? cfg.label : type
@@ -398,6 +453,15 @@ function FeedbackCard({ item, updatingStatus, onStatus }) {
 
       <p className="font-mono text-sm leading-relaxed text-retro-text whitespace-pre-wrap break-words">{item.message}</p>
 
+      {item.type === 'report' && item.triage && (
+        <p className="font-pixel text-[8px] tracking-wider text-retro-cta">
+          JEV TRIAGE: {item.triage.category.replace(/_/g, ' ').toUpperCase()} · SEVERITY {item.triage.severity.toFixed(1)}/3 · SUPPORTED {Math.round(item.triage.supported * 100)}%
+        </p>
+      )}
+      {item.type === 'report' && item.chatContext && (
+        <pre className="font-mono text-[11px] leading-snug text-retro-dim whitespace-pre-wrap break-words border-l-2 border-retro-border pl-2">{item.chatContext}</pre>
+      )}
+
       {item.type === 'report' ? (
         <p className="font-mono text-[10px] text-retro-dim break-all">
           REPORTED: {item.targetName || 'Player'} ({item.targetUid}) · ROOM {item.gameId} · BY {item.by}
@@ -414,7 +478,7 @@ function FeedbackCard({ item, updatingStatus, onStatus }) {
             onClick={() => onStatus(item.id, status)}
             disabled={!!updatingStatus || item.status === status}
             className={cn(
-              'min-h-9 px-3 rounded border font-pixel text-[8px] transition-all active:scale-95 disabled:cursor-not-allowed',
+              'min-h-9 px-3 rounded border font-pixel text-[8px] transition press disabled:cursor-not-allowed',
               item.status === status
                 ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
                 : 'border-retro-border bg-retro-bg text-retro-dim hover:text-retro-text hover:border-retro-p1 disabled:opacity-40',

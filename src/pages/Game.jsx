@@ -1,32 +1,34 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ref, update, set as dbSet, runTransaction } from 'firebase/database'
+import { ref, update, set as dbSet, runTransaction, serverTimestamp } from 'firebase/database'
+import { pendingRoll, lastRollMatches } from '../lib/diceLogic'
 import { db } from '../lib/firebase'
 import { normalizeBoard, generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig, lobbySwitchOverrides, withFirstMover } from '../lib/games'
+import { chatLockFor, freshGameState, getGameConfig, resultMarginFor, isKnownGameType, isQuietRoom, lobbySwitchOverrides, withFirstMover, PARTY_LOBBY, buildPartyRoom } from '../lib/games'
 import { importWithRetry, lazyWithRetry } from '../lib/lazyWithRetry'
 import { getPlayerId } from '../lib/playerId'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { recordRoom, recordMatch } from '../lib/profile'
 import { recordPlay, recordRoundEnd } from '../lib/analytics'
+import { trackGameFinished } from '../lib/track'
 import { setTelemetryContext } from '../lib/telemetry'
 import { isSeatOnline } from '../lib/presenceLogic'
+import { resultRole, showsWinBurst } from '../lib/resultMoodLogic'
 import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
 import WaitingRoom from '../components/WaitingRoom'
 import InviteFriendModal from '../components/InviteFriendModal'
 import WinEffect from '../components/WinEffect'
+import SaveCard from '../components/SaveCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
 import ProposalBanner from '../components/ProposalBanner'
 import DeadEnd, { deadEndPrimaryClass } from '../components/DeadEnd'
 import GameSwitcher from '../components/GameSwitcher'
 import SettingsButton from '../components/SettingsButton'
-import MusicToggle from '../components/MusicToggle'
 import { useMusicScene } from '../lib/music'
 import { roomMusicScene } from '../lib/musicLogic'
-import ChatLog from '../components/ChatLog'
-import { isQuickChat } from '../lib/emotes'
+import ReactionFloats from '../components/ReactionFloats'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -37,33 +39,49 @@ import Onboarding from '../components/LazyOnboarding'
 import WatchingChip from '../components/WatchingChip'
 import SeatOffer from '../components/SeatOffer'
 import { isMyTurn, roomAnnouncement, seatedIds, spectatorCount } from '../lib/roomLogic'
-import useRoomSession from '../hooks/room/useRoomSession'
+import useRoomSession, { UPDATE_NEEDED_ERROR } from '../hooks/room/useRoomSession'
+import UpdateNeeded from '../components/UpdateNeeded'
+import PartyAccessNotice from '../components/PartyAccessNotice'
+import { VoiceProvider } from '../components/voice/VoiceProvider'
+import VoicePanel from '../components/voice/VoicePanel'
 import useProposal from '../hooks/room/useProposal'
 import useAbandonRecovery from '../hooks/room/useAbandonRecovery'
 import useBackGuard from '../hooks/room/useBackGuard'
 import useFloats from '../hooks/room/useFloats'
 import useRoomEffect from '../hooks/room/useRoomEffect'
+import useArrival from '../hooks/room/useArrival'
+import ArrivalMoment from '../components/ArrivalMoment'
+import { arrivingCount, countdownEligible, movesBlocked } from '../lib/arrivalLogic'
+import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import useTurnTitle from '../hooks/room/useTurnTitle'
+import useScreenWakeLock from '../hooks/room/useScreenWakeLock'
 import { buildSwitchUpdates, nextStarter } from '../hooks/room/roomUpdates'
 // Game-night mode: night scoreboard, winner-stays seating, host controls.
 import NightPanel from '../components/NightPanel'
+import BottomSheet from '../components/BottomSheet'
 import { RoomSwitchContext } from '../lib/roomSwitchContext'
 import { recordNightMatch, nightSwitchUpdates, hostUidOf } from '../lib/night'
+import { effectiveCap, partyMembers } from '../lib/partyLogic'
 import { rotateWinnerStays } from '../lib/nightLogic'
 import { getArrowsMatchEnd } from '../lib/arrowsLogic'
 // Match-end rule, shared with the results Cloud Function (functions/).
 import { matchTargetFor, isMatchFinish, isCoopGame } from '../lib/matchRules'
+import { LEADERBOARD_ENABLED } from '../lib/features'
+import { haptic, hapticNotify } from '../lib/haptics'
+import { moveFeedbackPlan } from '../lib/motion'
+import { canFocus, canFocusPage } from '../lib/focusLogic'
+import useFocusMode from '../hooks/useFocusMode'
+import FocusStage, { FocusButton, FocusFrame, FocusSeat } from '../components/FocusStage'
 
 // The reaction bar and animated emoji pull in framer-motion (~120 KB). Load
 // them only when a room first shows the bar or floats a reaction, not with
 // the room page itself.
 const EmoteBar = lazyWithRetry(() => import('../components/EmoteBar'))
-const AnimatedEmoji = lazyWithRetry(() => import('../components/AnimatedEmoji'))
 
 // Real-time custom arenas (M-05/M-24) — physics-driven games with their own
 // dedicated page component, square/wide viewport-hungry courts, and a live
 // score that keeps changing even while a modal hides the board.
-const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint'])
+const REALTIME_CUSTOM_GAMES = new Set(['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'pacmac', 'airhockey', 'paint', 'puckrush', 'stickyfingers', 'fenderbender', 'bonkbuggies', 'quiver'])
 
 function toArray(val) {
   if (!val) return []
@@ -103,105 +121,67 @@ function GameAreaFallback() {
   return <LoadingLine className="py-12" />
 }
 
-// Floating emoji reactions — one per sender/glyph/burst, positioned on the
-// sender's side of the screen (X left, O right) so simultaneous reactions
-// from both players never collide.
-function EmoteFloats({ floats }) {
-  return (
-    <div className="fixed inset-x-0 top-1/3 z-[90] pointer-events-none flex justify-center">
-      {floats.map(f => (
-        <div
-          // re-keyed on count so a combo bump restarts the float animation —
-          // otherwise the `forwards` fill leaves the element invisible while
-          // its re-armed removal timer keeps it alive
-          key={`${f.id}-${f.count}`}
-          className={cn(
-            'absolute flex flex-col items-center gap-1',
-            f.kind === 'chat'
-              ? (f.seat === 'X' ? 'left-[16%]' : f.seat === 'O' ? 'right-[16%]' : 'left-1/2 -translate-x-1/2')
-              : f.spectator ? 'left-1/2 -translate-x-1/2'
-                : (f.by === 'X' ? 'left-[16%]' : 'right-[16%]')
-          )}
-          style={{ animation: 'emote-float 2s ease-out forwards' }}
-        >
-          {f.kind === 'chat' ? (
-            <div className="flex flex-col items-center gap-0.5 max-w-[60vw]">
-              <span className="font-pixel text-[8px] text-retro-dim">{f.name}</span>
-              <span className="font-pixel text-sm text-retro-cta text-glow-cta break-words">{f.text}</span>
-            </div>
-          ) : (
-            <>
-              <div
-                className="flex items-center gap-1"
-                style={{ transform: `translateX(${f.dx}px) rotate(${f.rot}deg)` }}
-              >
-                {isQuickChat(f.glyph) ? (
-                  <span className="font-pixel text-xl text-retro-cta text-glow-cta whitespace-nowrap">{f.glyph}</span>
-                ) : (
-                  <Suspense fallback={<span className="w-20 h-20" aria-hidden="true" />}>
-                    <AnimatedEmoji glyph={f.glyph} className="w-20 h-20 object-contain" />
-                  </Suspense>
-                )}
-                {f.count > 1 && (
-                  <span
-                    key={f.count}
-                    className="font-pixel text-sm text-retro-cta text-glow-cta"
-                    style={{ animation: 'emote-pop 0.15s ease-out' }}
-                  >
-                    ×{f.count}
-                  </span>
-                )}
-              </div>
-              {f.name && (
-                <span className={cn(
-                  'font-pixel text-[8px]',
-                  f.spectator ? 'text-retro-dim' : f.by === 'X' ? 'text-retro-p1 text-glow-p1' : 'text-retro-p2 text-glow-p2'
-                )}>
-                  {f.name}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // M-22: lightweight in-app confirm for an intercepted back-gesture / "← HOME"
 // tap during an active match — full-screen so a fast edge-swipe can't miss
 // it, same danger-toned vocabulary as the rest of the app's destructive
 // confirmations. Rendered above everything else, including modal backdrops.
+// A centred BottomSheet without its own history marker: the back gesture that
+// opened it is already being guarded (useBackGuard).
 function LeaveMatchConfirm({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4">
-      <div className="w-full max-w-xs bg-retro-card border-2 border-retro-danger/60 rounded p-5 text-center space-y-4">
-        <p className="font-pixel text-[11px] text-retro-danger text-glow-danger tracking-widest">LEAVE MATCH?</p>
-        <p className="font-mono text-[11px] text-retro-dim leading-relaxed">YOU&apos;LL LEAVE THE ROUND MID-PLAY.</p>
-        <div className="flex gap-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-all active:scale-95"
-          >
-            STAY
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-4 py-2.5 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-danger transition-all active:scale-95"
-          >
-            LEAVE
-          </button>
-        </div>
+    <BottomSheet glass
+      centered
+      history={false}
+      onClose={onCancel}
+      ariaLabel="Leave match?"
+      layerClassName="z-[70]"
+      className="border-retro-danger/60 text-center space-y-4"
+    >
+      <p className="font-pixel text-[11px] text-retro-danger text-glow-danger tracking-widest">LEAVE MATCH?</p>
+      <p className="font-mono text-[11px] text-retro-dim leading-relaxed">YOU&apos;LL LEAVE THE ROUND MID-PLAY.</p>
+      <div className="flex gap-2">
+        <button
+          onClick={onCancel}
+          className="flex-1 px-4 py-2.5 border border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition press"
+        >
+          STAY
+        </button>
+        <button
+          onClick={onConfirm}
+          className="flex-1 px-4 py-2.5 bg-retro-danger text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-danger transition press"
+        >
+          LEAVE
+        </button>
       </div>
-    </div>
+    </BottomSheet>
   )
 }
+
+// A move's sound and haptic, timed to the piece: at once for pieces that
+// appear in place, when the disc lands for boards that drop it (registry
+// `landMs`). The mover's own finger gets a light tick at the touch.
+function playLanded(cfg, symbol, { touch = false } = {}) {
+  for (const { at, kind } of moveFeedbackPlan(cfg?.landMs ?? 0, { touch })) {
+    const play = kind === 'touch' ? () => sounds.touch() : () => sounds.move(symbol)
+    if (at) setTimeout(play, at)
+    else play()
+  }
+}
+
+// The invite sheet's party mode: head-count and cap of a party-first room.
+function partyInviteInfo(game, cfg) {
+  if (!game?.partyRoom) return null
+  return { size: partyMembers(game, !!cfg?.nPlayer).length, cap: effectiveCap(game, cfg) }
+}
+
+// The result screen's one-tap GG goes out as an ordinary room reaction.
+const GG_GLYPH = '🤝'
 
 export default function Game() {
   const { gameId } = useParams()
   const navigate = useNavigate()
   const {
-    game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft,
+    game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft, opponentAway,
     mySeat, mySymbol, connected, seatOffer, takeSeat,
   } = useRoomSession(gameId)
   const [creatingRoom, setCreatingRoom] = useState(false)
@@ -210,6 +190,9 @@ export default function Game() {
   const [winEffectIntensity, setWinEffectIntensity] = useState('round')
   const [showRules, setShowRules] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
+  // Focus mode (registry `focus`): the board alone, full screen.
+  const focusMode = useFocusMode()
+  const [focusChat, setFocusChat] = useState(false)
   const prevStatus = useRef(null)
   const prevTurn = useRef(null)
   const prevFilledCount = useRef(0)
@@ -230,7 +213,7 @@ export default function Game() {
   const prevLobbyGameType = useRef(null)
   const prevLobbyHasOpponent = useRef(false)
 
-  const { floats, sendEmote, sendChat, emoteCooldown, chatCooldown } = useFloats({ game, gameId, mySymbol })
+  const { floats, sendEmote, sendChat, emoteCooldown, chatCooldown, announcement: chatAnnouncement } = useFloats({ game, gameId, mySymbol })
   // Error reports (telemetry.js) carry the current gameType.
   useEffect(() => {
     setTelemetryContext({ gameType: game?.gameType ?? null })
@@ -242,13 +225,20 @@ export default function Game() {
     useBackGuard({ game, gameId, mySeat })
   // Per-game background protocols (registry `roomEffect`, e.g. Pig's seed).
   useRoomEffect({ game, gameId, mySymbol })
+  // The friend-arrival beat: "NAME IS HERE!" and a 3·2·1 from the room's
+  // server timestamp before a duel's first move (arrivalLogic.js).
+  const arrival = useArrival(game)
+  const { now: clockNow } = useServerClock({ tickMs: 30_000 })
 
   // Turn/result line for screen readers (<LiveAnnouncer>) and the background
   // tab title — 2P rooms speak for the seat, party rooms for the uid.
   const isPartyRoom = !!(game && getGameConfig(game.gameType).nPlayer)
   const turnMe = isPartyRoom ? getPlayerId() : mySeat
-  const announcement = roomAnnouncement(game, { me: turnMe, party: isPartyRoom })
+  const announcement = roomAnnouncement(game, { me: turnMe, party: isPartyRoom, coop: !!(game && getGameConfig(game.gameType).coop) })
   useTurnTitle(isMyTurn(game, turnMe))
+  // A live match keeps the phone awake: auto-lock would background the app
+  // and take the player offline while they wait out an opponent's turn.
+  useScreenWakeLock(game?.status === 'playing')
   // Background music follows the room: waiting loop, the game's genre loop
   // while playing, the results loop once a round ends.
   useMusicScene(roomMusicScene(game), game?.gameType ?? null)
@@ -272,12 +262,20 @@ export default function Game() {
       if (prevStatus.current === 'playing' && game.status === 'finished' && hostUidOf(game) === getPlayerId()) {
         recordRoundEnd(game.gameType, 'multi', 'finished')
       }
+      if (prevStatus.current === 'playing' && game.status === 'finished' && game.players?.[getPlayerId()]) {
+        trackGameFinished(game.gameType, 'multi', 'finished')
+      }
       prevStatus.current = game.status
       return
     }
 
     if (prevStatus.current === 'waiting' && game.status === 'playing') {
       sounds.join()
+      // Games without the countdown (real-time, custom pages) still greet the
+      // waiting host; the countdown games do it with the arrival banner.
+      if (mySymbol.current === 'X' && game.players?.O && !countdownEligible(cfg, game)) {
+        toast(`${(game.players.O.name || 'YOUR FRIEND').toUpperCase()} IS HERE!`)
+      }
     }
 
     if (prevStatus.current === 'playing' && game.status === 'finished') {
@@ -289,6 +287,12 @@ export default function Game() {
         const loser = w === 'X' ? 'O' : w === 'O' ? 'X' : null
         const outcome = loser && !isSeatOnline(game.presence?.[loser]) ? 'abandoned' : 'finished'
         recordRoundEnd(game.gameType, 'multi', outcome)
+      }
+      // Product analytics (track.js): every seated client reports its own result.
+      if (mySymbol.current) {
+        const abandoned = w !== 'draw' && w === mySymbol.current && !isSeatOnline(game.presence?.[w === 'X' ? 'O' : 'X'])
+        trackGameFinished(game.gameType, 'multi', isCoopGame(game.gameType) ? 'finished'
+          : abandoned ? 'abandoned' : w === 'draw' ? 'draw' : w === mySymbol.current ? 'win' : 'loss')
       }
       // Round wins reached the target (or Password / Arrows' final round) —
       // the same rule the results function credits the leaderboard on.
@@ -303,7 +307,8 @@ export default function Game() {
       else if (mySymbol.current) sounds.lose()
       setWinEffectWinner(w)
       setWinEffectIntensity(isMatch ? 'match' : 'round')
-      setShowWinEffect(!coopFinish)
+      // The burst is the winner's: a loser or a spectator gets the calm screen.
+      setShowWinEffect(!coopFinish && showsWinBurst(resultRole({ winner: w, mySymbol: mySymbol.current })))
       // Game night: count the decided match into tonight's standings
       // (idempotent across every client that sees the finish — see night.js).
       if (isMatch && !coopFinish) recordNightMatch(gameId, game.gameType)
@@ -336,19 +341,16 @@ export default function Game() {
         const isBust = Array.isArray(game.diceLast)
           ? game.diceLast[0] === 1 && game.diceLast[1] === 1
           : game.diceLast === 1
-        if (game.status === 'playing' && opp && (rolled || bankedOrBust)) {
+        // A roll lands when its request is resolved (by either client), so
+        // the roller hears it then too; a bank is heard by the opponent.
+        if (game.status === 'playing' && (rolled || (opp && bankedOrBust))) {
           if (isBust) sounds.bust()
           else sounds.move(prevTurn.current)
         }
-        // Verify a deterministic roll (only meaningful once diceSeed is set).
-        if (rolled && game.diceSeed && game.diceLast != null) {
-          const idx = (game.diceRollIndex ?? 0) - 1
-          // JSON compare covers both a single face and PIG BIG's pair.
-          const verify = cfg.rollFace(game.diceSeed, idx)
-            .then(expected => JSON.stringify(expected) !== JSON.stringify(game.diceLast))
-          verify.then(mismatch => {
-            if (mismatch) toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
-          }).catch(() => {})
+        // Verify every resolved roll against the seed and its request's
+        // server time (anti-cheat, see diceLogic.js).
+        if (rolled && lastRollMatches(game, { isBig: !!cfg.bigDice }) === false) {
+          toast.error('ROLL MISMATCH — TAMPERING SUSPECTED')
         }
       } else if (cfg.moveCountKey) {
         // Moves that don't always touch `board` (Blockade's pawn moves), so
@@ -359,7 +361,7 @@ export default function Game() {
           prevTurn.current &&
           prevTurn.current !== mySymbol.current
         ) {
-          sounds.move(prevTurn.current)
+          playLanded(cfg, prevTurn.current)
         }
       } else {
         // Other applyMove games: detect opponent moves by filled count increase
@@ -369,7 +371,7 @@ export default function Game() {
           prevTurn.current &&
           prevTurn.current !== mySymbol.current
         ) {
-          sounds.move(prevTurn.current)
+          playLanded(cfg, prevTurn.current)
         }
       }
     } else {
@@ -380,7 +382,7 @@ export default function Game() {
         game.currentTurn !== prevTurn.current &&
         game.currentTurn === mySymbol.current
       ) {
-        sounds.move(prevTurn.current)
+        playLanded(cfg, prevTurn.current)
       }
     }
 
@@ -427,6 +429,7 @@ export default function Game() {
     const hasOpponent = !!(game.players?.X && game.players?.O)
     if (hasOpponent && !prevLobbyHasOpponent.current) {
       sounds.join()
+      if (mySymbol.current === 'X') toast(`${(game.players.O.name || 'YOUR FRIEND').toUpperCase()} IS HERE!`)
     }
     prevLobbyHasOpponent.current = hasOpponent
   }, [game, mySymbol])
@@ -440,7 +443,7 @@ export default function Game() {
     if (now - blockedMoveFeedbackAt.current < 1000) return
     blockedMoveFeedbackAt.current = now
     toast.error('NOT YOUR TURN')
-    navigator.vibrate?.(30)
+    hapticNotify('WARNING')
   }
 
   // F-48: a move is PENDING from the tap until Firebase acknowledges the write.
@@ -454,19 +457,24 @@ export default function Game() {
     if (!game || !mySymbol.current) return
     if (pendingMoveRef.current) return // a write is pending — ignore rapid re-taps
     if (game.status !== 'playing') { blockedMoveFeedback(); return }
+    // The 3·2·1 after a friend arrives: the banner says why, so no toast.
+    // Client-side only; turn and win rules are untouched.
+    if (countdownEligible(getGameConfig(game.gameType), game) && movesBlocked({ startsAt: game.startsAt, now: getServerNow() })) return
     if (game.currentTurn !== mySymbol.current) { blockedMoveFeedback(); return }
 
     const cfg = getGameConfig(game.gameType)
     if (cfg.custom) return
     if (connected === false) {
       toast.error("YOU'RE OFFLINE — MOVE NOT SENT")
-      navigator.vibrate?.(30)
+      haptic(30)
       return
     }
     // Seeded dice (Pig): the deterministic roll seed must be established
     // before any roll so no client can fall back to insecure Math.random().
     // Banks are seedless.
     if (cfg.rollFace && colOrIndex === 'roll' && !game.diceSeed) return
+    // A roll already waiting on the server must resolve before anything else.
+    if (cfg.rollFace && pendingRoll(game)) return
     const board = normalizeBoard(game.board, cfg.boardSize)
     const index = cfg.getMoveIndex(board, colOrIndex)
     if (index === -1) return
@@ -483,17 +491,24 @@ export default function Game() {
     }
 
     try {
-      // For Pig, precompute the deterministic die face (async) from the shared
-      // seed so applyDiceMove can stay synchronous (the demo/bot harness calls
-      // it without a face, falling back to Math.random which is fine vs a bot).
-      let movePayload = colOrIndex
-      if (cfg.rollFace) {
-        let face
-        if (colOrIndex === 'roll' && game.diceSeed) {
-          face = await cfg.rollFace(game.diceSeed, game.diceRollIndex ?? 0)
+      // Pig: a roll is a request stamped with the server's time; its faces
+      // don't exist until it is on the server, and either client resolves it
+      // (useRoomEffect → runPigRollResolver). See diceLogic.js.
+      if (cfg.rollFace && colOrIndex === 'roll') {
+        setMovePending(true)
+        try {
+          await update(ref(db, `games/${gameId}`), {
+            diceRoll: { i: game.diceRollIndex ?? 0, by: mySymbol.current, at: serverTimestamp() },
+            lastActivityAt: Date.now(),
+          })
+        } catch {
+          toast.error('ROLL NOT SENT — CHECK CONNECTION')
+        } finally {
+          release()
         }
-        movePayload = { action: colOrIndex, face }
+        return
       }
+      const movePayload = cfg.rollFace ? { action: colOrIndex } : colOrIndex
 
       let updates, result
       if (cfg.applyMove) {
@@ -517,8 +532,6 @@ export default function Game() {
       // A hook that already set its own lastMove wins.
       if (cfg.boardSize > 0 && updates.lastMove === undefined) updates.lastMove = index
 
-      const isBustMove = !!cfg.rollFace && (Array.isArray(updates.diceLast) ? updates.diceLast[0] === 1 && updates.diceLast[1] === 1 : updates.diceLast === 1)
-
       if (result) {
         updates.winner = result.winner
         updates.status = 'finished'
@@ -530,13 +543,15 @@ export default function Game() {
 
       updates.lastActivityAt = Date.now()
       setMovePending(true)
-      // A slow ack gets a visible "SAVING MOVE…" line (the sound alone would
-      // otherwise just be missing).
+      // Feedback is for the touch and the piece landing, not the network: the
+      // optimistic echo draws the piece now, so its sound and haptic play now
+      // (or when it lands, for dropped discs) rather than one round trip
+      // later. A slow ack gets a visible "SAVING MOVE…" line; a failed one a
+      // toast, and Firebase rolls the piece back.
+      if (!cfg.quietMoves) playLanded(cfg, mySymbol.current, { touch: true })
       const slowTimer = setTimeout(() => { if (pendingMoveRef.current === token) setMoveSlow(true) }, 1200)
       try {
         await update(ref(db, `games/${gameId}`), updates)
-        if (isBustMove) sounds.bust()
-        else if (!cfg.quietMoves) sounds.move(mySymbol.current)
       } catch {
         // Firebase rolls the optimistic echo back to the server's state.
         toast.error('MOVE NOT SAVED — CHECK CONNECTION')
@@ -635,6 +650,8 @@ export default function Game() {
     }
     // Pong: a new match keeps the host's lobby picks (mode, match length).
     if (game.gameType === 'pong') Object.assign(fresh, { matchLength: game.matchLength ?? 3, pongMode: game.pongMode ?? 'classic' })
+    // Arrows: a new match keeps the host's difficulty.
+    if (game.gameType === 'arrows') fresh.arrowsDifficulty = game.arrowsDifficulty ?? null
     try {
       await update(ref(db, `games/${gameId}`), {
         ...withFirstMover(fresh, game.gameType, starter),
@@ -683,14 +700,15 @@ export default function Game() {
   // only starts a room that isn't already playing, so two clients who both
   // believe they're the host during a handover can't double-start (the round
   // is built from the server's copy of the room). startRound gets the room
-  // too, for its timer scale and presence.
+  // too, for its timer scale and presence, and the server clock for rounds
+  // that start together on a shared countdown.
   const handleNStart = async () => {
     const cfg = getGameConfig(game.gameType)
     if (!cfg.startRound) return // spyfair & co. drive their own start
     try {
       await runTransaction(ref(db, `games/${gameId}`), cur => {
         if (!cur || cur.status === 'playing' || cur.gameType !== game.gameType) return
-        const sr = cfg.startRound(cur.players || {}, cur)
+        const sr = cfg.startRound(cur.players || {}, cur, { now: getServerNow() })
         if (!sr) return
         return { ...cur, status: 'playing', winner: null, ...sr, proposal: null, lastActivityAt: Date.now() }
       })
@@ -700,7 +718,7 @@ export default function Game() {
   const applyNNewMatch = async () => {
     try {
       await update(ref(db, `games/${gameId}`), {
-        ...freshGameState(game.gameType),
+        ...freshGameState(game.gameType, game),
         status: 'waiting', winner: null, scores: {}, proposal: null, lastActivityAt: Date.now(),
       })
     } catch { toast.error('NEW MATCH FAILED — CHECK CONNECTION') }
@@ -709,6 +727,8 @@ export default function Game() {
   // Create a fresh room of the given type (used by dead-end error screens and
   // the spectator "start your own room" CTA) — a trimmed replica of Home.jsx's
   // createGame, since Home.jsx is off-limits to import from here.
+  // PARTY FULL / removed: start a party of your own instead.
+  const startOwnParty = () => createNewRoom(PARTY_LOBBY.type)
   const createNewRoom = async (gameType) => {
     const playerName = localStorage.getItem('playerName')
     if (!playerName) { navigate('/'); return }
@@ -719,7 +739,9 @@ export default function Game() {
       const myId = getPlayerId()
       const cfg = getGameConfig(gameType)
       const now = Date.now()
-      const gameData = cfg.nPlayer
+      const gameData = gameType === PARTY_LOBBY.type
+        ? buildPartyRoom({ name: playerName, avatar: playerAvatar, playerId: myId, now })
+        : cfg.nPlayer
         ? {
           gameType,
           status: 'waiting',
@@ -767,6 +789,10 @@ export default function Game() {
 
   if (loading) return <LoadingScreen />
 
+  if (error === UPDATE_NEEDED_ERROR || (game && !isKnownGameType(game.gameType))) {
+    return <UpdateNeeded />
+  }
+
   if (error) {
     const errorCfg = errorGameType ? getGameConfig(errorGameType) : null
     const notFound = /NOT FOUND/.test(error)
@@ -789,6 +815,10 @@ export default function Game() {
 
   const cfg = getGameConfig(game.gameType)
   const isCustom = !!cfg.custom
+  const quietRoom = isQuietRoom(cfg, game)
+  // Party voice lives above both render branches (keyed only by gameId), so a
+  // game switch, BACK TO PARTY or a 2P reseat never drops the call.
+  const withVoice = (node) => <VoiceProvider gameId={gameId} game={game}>{node}</VoiceProvider>
 
   // Family-mismatch guard — a cross-family switch (party ⇄ 2P) reshapes the
   // players node (uid keys vs 'X'/'O'), leaving every client seatless. The
@@ -820,14 +850,18 @@ export default function Game() {
     const isHost = hostUidOf(game) === myUid
     const amSeated = !!nplayers[myUid]
     const watching = spectatorCount(game.spectators, seatedIds(nplayers))
+    const chatLock = chatLockFor(game, myUid)
     const nProps = {
       gameId, game, mySeat: myUid, players: nplayers, isHost,
       onStart: handleNStart,
       onSwitchGame: (t) => applySwitchGame(t),
       onNewMatch: applyNNewMatch,
+      onInvite: amSeated ? () => setShowInvite(true) : null,
       proposal: null,
     }
-    return (
+    const inLobby = game.gameType === PARTY_LOBBY.type
+    const pageFocusable = !inLobby && canFocusPage(cfg)
+    return withVoice(
       <RoomSwitchContext.Provider value={true}>
       <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         {showLeaveConfirm && (
@@ -836,16 +870,17 @@ export default function Game() {
         {showRules && (
           <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
         )}
-        {floats.length > 0 && <EmoteFloats floats={floats} />}
+        <ReactionFloats floats={floats} />
         <LiveAnnouncer message={announcement} />
+        <LiveAnnouncer message={chatAnnouncement} />
         <div className={cn('w-full space-y-4', cfg.maxWidth)} key={game.gameType}>
           <div className="game-header flex items-start justify-between gap-2">
-            <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">← HOME</Link>
+            <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-flex items-center min-h-11 p-3 -m-3">← HOME</Link>
             <div className="game-header-actions flex items-center justify-end gap-3">
-              <MusicToggle />
+              {pageFocusable && <FocusButton onClick={focusMode.enter} />}
               <SettingsButton />
-              <RulesButton onClick={() => setShowRules(true)} />
-              {amSeated && game.status !== 'waiting' && (
+              {!inLobby && <RulesButton onClick={() => setShowRules(true)} />}
+              {amSeated && game.status !== 'waiting' && !inLobby && (!game.partyRoom || isHost) && (
                 <GameSwitcher variant="icon" currentType={game.gameType} onSwitch={(t) => applySwitchGame(t)} />
               )}
               {amSeated && (
@@ -865,29 +900,33 @@ export default function Game() {
                 <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
               )}
               <WatchingChip count={watching} />
-              <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
             </div>
           </div>
           <p className="game-room-meta font-pixel text-[9px] text-retro-dim tracking-widest text-center -mt-2">
             {cfg.label} <span aria-hidden="true">·</span> ROOM <span className="text-retro-p1">{gameId}</span>
           </p>
 
-          <Suspense fallback={<GameAreaFallback />}>
-            <cfg.Page {...nProps} />
-          </Suspense>
+          <PartyAccessNotice game={game} cfg={cfg} onStartOwn={startOwnParty} busy={creatingRoom} />
+
+          <FocusFrame label={cfg.label} mode={pageFocusable ? focusMode : null}>
+            <Suspense fallback={<GameAreaFallback />}>
+              <cfg.Page {...nProps} />
+            </Suspense>
+          </FocusFrame>
+
+          {game.partyRoom && !inLobby && amSeated && <VoicePanel game={game} gameId={gameId} compact />}
 
           {/* Game night: kicked notice, lobby timers, tonight's scoreboard, host controls */}
-          <NightPanel game={game} gameId={gameId} nPlayer />
+          <NightPanel game={game} gameId={gameId} nPlayer onBackToParty={game.partyRoom && !inLobby ? () => applySwitchGame(PARTY_LOBBY.type) : null} />
 
-          <ChatLog chatLog={game.chatLog} myUid={myUid} />
-
-          {/* Seated players and spectators alike can react once a round is on. */}
-          {game.status !== 'waiting' && (
-            <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={sendChat} textCooldown={chatCooldown} /></Suspense></VideoCallReactionDock>
+          {/* Seated players and spectators alike can react and chat once a
+              round is on — and in the lobby as soon as two players are in. */}
+          {(game.status !== 'waiting' || seatedIds(nplayers).length >= 2) && (
+            <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} chatLog={game.chatLog} myUid={myUid} chatLock={chatLock} /></Suspense></VideoCallReactionDock>
           )}
         </div>
         {showInvite && (
-          <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={seatedIds(nplayers)} onClose={() => setShowInvite(false)} />
+          <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={partyMembers(game, true).map(m => m.uid)} party={partyInviteInfo(game, cfg)} onClose={() => setShowInvite(false)} />
         )}
       </div></VideoCallShell>
       </RoomSwitchContext.Provider>
@@ -904,6 +943,11 @@ export default function Game() {
   // score that keeps changing even while a modal covers the board.
   const isRealtimeCustom = REALTIME_CUSTOM_GAMES.has(game.gameType)
   const matchStillRunning = isRealtimeCustom && game.status === 'playing' && (showRules || showInvite)
+
+  // Someone has the invite open on the join screen (the host's open seat says so).
+  const arrivingN = mySeat === 'X' && !game.players?.O
+    ? arrivingCount(game.arriving, { now: clockNow, selfUid: getPlayerId(), seatedUids: seatedIds(game.players) })
+    : 0
 
   const scoreX = game.scores?.X || 0
   const scoreO = game.scores?.O || 0
@@ -925,7 +969,127 @@ export default function Game() {
   // matching space at the bottom of the page so it never covers content.
   const reservesStickyBar = !isCustom && game.status === 'finished'
 
-  return (
+  // Party rooms (party-first, or a party that dropped into this 2P game): the
+  // host decides what is next, with no proposal handshake — SWITCH and NEW
+  // MATCH (winner stays) are theirs, even from the line. The two players can
+  // still run the next round of the match themselves (PLAY AGAIN).
+  const partyMode = !!game.partyRoom
+  const amPartyHost = partyMode && hostUidOf(game) === getPlayerId()
+  const canDecide = partyMode ? amPartyHost : !isSpectator
+  const doSwitch = partyMode ? (t) => applySwitchGame(t) : (t) => propose('switch', t)
+  const doPlayAgain = partyMode ? () => applyPlayAgain() : () => propose('playAgain')
+  const doNewMatch = partyMode ? () => applyNewMatch() : () => propose('newMatch')
+
+  const focusable = canFocus(cfg, { custom: isCustom, status: game.status })
+  const focusOn = focusMode.on && focusable
+  // A custom page (arena, table) goes full screen in place, via FocusFrame.
+  const pageFocusable = isCustom && canFocusPage(cfg) && game.status !== 'waiting'
+
+  // The opponent's offline / abandoned notices: in the page, or under the
+  // board in focus mode.
+  const opponentNotices = (
+    <>
+      {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
+      {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && !showAbandonBanner && (
+        <OfflineNotice away={opponentAway} />
+      )}
+
+      {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline
+          (60s for custom real-time games, where a vanished peer hard-freezes
+          the round and forfeit would be the only other exit) */}
+      {!isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
+        <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
+          <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
+            {opponentLeft ? 'OPPONENT LEFT THE MATCH' : 'OPPONENT\'S BEEN GONE A WHILE'}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              onClick={claimAbandonedWin}
+              disabled={claimingWin}
+              className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
+            >
+              {claimingWin ? 'CLAIMING…' : 'CLAIM WIN'}
+            </button>
+            <button
+              onClick={() => setShowInvite(true)}
+              className="border border-retro-border text-retro-text font-pixel text-[10px] px-4 py-2 rounded hover:border-retro-p1/50 transition press"
+            >
+              INVITE A FRIEND
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded hover:text-retro-text transition press"
+            >
+              SAVE & GO HOME
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  // The standard board and its status line: in the page, or split between the
+  // focus stage (board) and its footer (status, round-end actions).
+  const boardEl = !isCustom && (
+    <cfg.BoardComponent
+      board={board}
+      onMove={handleMove}
+      disabled={!canMove || movePending || !!arrival || (!!cfg.rollFace && (!game.diceSeed || !!pendingRoll(game)))}
+      winningLine={winningLine}
+      currentTurn={game.currentTurn}
+      lastMove={game.lastMove ?? null}
+      mySymbol={mySeat}
+      {...(cfg.boardProps ? cfg.boardProps(game) : {})}
+      {...(cfg.rollFace ? { diceSeedPending: !game.diceSeed, rollPending: !!pendingRoll(game) } : {})}
+    />
+  )
+  const statusEl = !isCustom && (
+    <>
+      <GameStatus
+        status={game.status}
+        winner={game.winner}
+        currentTurn={game.currentTurn}
+        mySymbol={mySeat}
+        scores={game.scores}
+        players={game.players}
+        gameType={game.gameType}
+        extraTurn={!!game.extraTurn}
+        passNote={game.passNote ?? null}
+        onPlayAgain={game.status === 'finished' && (!isSpectator || amPartyHost) && !matchWinner && !activeProposal && !movePending ? doPlayAgain : null}
+        onNewMatch={matchWinner && canDecide && !activeProposal && !movePending ? doNewMatch : null}
+        onSwitchGame={canDecide && !activeProposal && !movePending ? doSwitch : null}
+        onGG={!isSpectator ? () => sendEmote(GG_GLYPH) : null}
+        gameId={gameId}
+        margin={game.status === 'finished' && !isSpectator ? resultMarginFor(game, mySeat) : null}
+      />
+      {/* F-48: an unacknowledged move, once it's taking a while. */}
+      {movePending && (moveSlow || connected === false) && (
+        <p role="status" className="text-center font-pixel text-[9px] text-retro-dim tracking-wider">
+          {connected === false ? 'MOVE PENDING — WAITING FOR CONNECTION' : 'SAVING MOVE…'}
+        </p>
+      )}
+      {game.status === 'finished' && matchWinner && !isSpectator && <div className="mx-auto w-full max-w-sm empty:hidden"><SaveCard surface="match-end" compact /></div>}
+      {LEADERBOARD_ENABLED && game.status === 'finished' && (
+        <Link
+          to="/leaderboard"
+          className="mx-auto flex min-h-11 w-fit items-center justify-center px-3 font-pixel text-[9px] tracking-widest text-retro-p1 hover:text-retro-text transition-colors"
+        >
+          SEE WHERE YOU RANK →
+        </Link>
+      )}
+    </>
+  )
+  const showDock = (!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))
+  const dock = <Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} chatLog={game.chatLog} myUid={getPlayerId()} chatLock={chatLockFor(game, getPlayerId())} /></Suspense>
+
+  const boardArea = !isCustom && (
+    <Suspense fallback={<GameAreaFallback />}>
+      {boardEl}
+      {statusEl}
+    </Suspense>
+  )
+
+  return withVoice(
     // Game night: a 2P game a party room switched into may switch back to party games.
     <RoomSwitchContext.Provider value={!!game.partyRoom}>
     <VideoCallShell><div className={cn(
@@ -950,6 +1114,8 @@ export default function Game() {
         </div>
       )}
 
+      {!isSpectator && <ArrivalMoment state={arrival} mySeat={mySeat} players={game.players} currentTurn={game.currentTurn} />}
+
       {showWinEffect && (
         <WinEffect winner={winEffectWinner} intensity={winEffectIntensity} onDone={() => setShowWinEffect(false)} />
       )}
@@ -958,8 +1124,52 @@ export default function Game() {
         <RulesModal gameType={game.gameType} onClose={() => setShowRules(false)} />
       )}
 
-      {floats.length > 0 && <EmoteFloats floats={floats} />}
+      <ReactionFloats floats={floats} />
       <LiveAnnouncer message={announcement} />
+      <LiveAnnouncer message={chatAnnouncement} />
+
+      {focusOn && (
+        <FocusStage
+          label={cfg.label}
+          onExit={focusMode.exit}
+          hud={(
+            <div className="flex items-center gap-1.5">
+              {['X', 'O'].map(sym => (
+                <FocusSeat
+                  key={sym}
+                  symbol={sym}
+                  name={game.players?.[sym]?.name}
+                  score={sym === 'X' ? scoreX : scoreO}
+                  active={game.status === 'playing' && game.currentTurn === sym}
+                  isMe={mySeat === sym}
+                />
+              ))}
+              {showDock && (
+                <button
+                  type="button"
+                  onClick={() => setFocusChat(v => !v)}
+                  aria-pressed={focusChat}
+                  aria-label={focusChat ? 'Hide chat and reactions' : 'Show chat and reactions'}
+                  className={cn('shrink-0 min-h-11 min-w-11 inline-flex items-center justify-center rounded transition-colors press', focusChat ? 'text-retro-cta' : 'text-retro-dim hover:text-retro-text')}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+          footer={(
+            <>
+              {opponentNotices}
+              <Suspense fallback={null}>{statusEl}</Suspense>
+              {showDock && focusChat && dock}
+            </>
+          )}
+        >
+          <Suspense fallback={<GameAreaFallback />}>{boardEl}</Suspense>
+        </FocusStage>
+      )}
 
       <div className={cn(
         'w-full',
@@ -972,11 +1182,12 @@ export default function Game() {
       )} key={game.gameType}>
         {/* Header */}
         <div className="game-header flex items-start justify-between gap-2">
-          <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-block p-3 -m-3">
+          <Link to="/" onClick={handleHomeLinkClick} className="font-pixel text-[10px] text-retro-dim hover:text-retro-p1 transition-colors inline-flex items-center min-h-11 p-3 -m-3">
             ← HOME
           </Link>
           <div className={cn('game-header-actions flex items-center justify-end gap-3', isRealtimeCustom && '[@media(max-height:420px)]:gap-1.5')}>
-            <MusicToggle />
+            {(focusable || pageFocusable) && <FocusButton onClick={focusMode.enter} />}
+            {/* Music lives in SETTINGS; the room header keeps only room actions. */}
             <SettingsButton />
             <RulesButton onClick={() => setShowRules(true)} />
             {/* M-24: GameSwitcher opens its own full-screen sheet whose open
@@ -984,14 +1195,15 @@ export default function Game() {
                 banner can't cover it — gate the trigger itself instead so a
                 real-time match's physics/score can never keep changing
                 invisibly behind an opened switcher. */}
-            {!isSpectator && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
+            {canDecide && !activeProposal && !(isRealtimeCustom && game.status === 'playing') && (
               <GameSwitcher
                 variant="icon"
                 currentType={game.gameType}
-                onSwitch={(t) => (game.status === 'waiting' ? applySwitchGame(t) : propose('switch', t))}
+                onSwitch={(t) => (game.status === 'waiting' ? applySwitchGame(t) : doSwitch(t))}
               />
             )}
-            {!isSpectator && (
+            {/* The waiting room has its own FRIENDS invite right under SHARE. */}
+            {!isSpectator && game.status !== 'waiting' && (
               <button
                 onClick={() => setShowInvite(true)}
                 title="Invite a friend"
@@ -1008,22 +1220,23 @@ export default function Game() {
               <span className="game-header-meta font-pixel text-[8px] text-retro-dim border border-retro-border px-2 py-0.5 rounded">{cfg.badge}</span>
             )}
             <WatchingChip count={watching} />
-            <span className="game-header-meta font-pixel text-[10px] text-retro-p1 text-glow-p1 tracking-widest">{gameId}</span>
           </div>
         </div>
-        {/* Mobile: the header icons crowd out the game name and room code, so
-            they get their own quiet line — you always know what you're
-            playing and which room you're in. */}
+        {/* The game name and room code get their own quiet line at every
+            width — you always know what you're playing and which room you're
+            in, and the code is never printed twice in the header. */}
         <p className="game-room-meta font-pixel text-[9px] text-retro-dim tracking-widest text-center -mt-2">
           {cfg.label} <span aria-hidden="true">·</span> ROOM <span className="text-retro-p1">{gameId}</span>
         </p>
+
+        {partyMode && isSpectator && <PartyAccessNotice game={game} cfg={cfg} onStartOwn={startOwnParty} busy={creatingRoom} />}
 
         {/* Players — hidden on short/landscape real-time viewports (M-05):
             every real-time arena page already renders its own compact
             name/score readout above the court. Also hidden for custom games
             that render their own name/score UI (M-26, e.g. MathGame's
             ScoreBar) so the two readouts don't duplicate. */}
-        {!cfg.hidePlayerCards && (
+        {!cfg.hidePlayerCards && !focusOn && (
           <div className={cn('grid grid-cols-2 gap-2', isRealtimeCustom && '[@media(max-height:420px)]:hidden')}>
             <PlayerCard
               name={game.players?.X?.name}
@@ -1033,55 +1246,24 @@ export default function Game() {
               isMe={mySeat === 'X'}
               score={scoreX}
               online={getPresence('X')}
+              away={!isSpectator && mySeat !== 'X' && opponentAway}
             />
             <PlayerCard
               name={game.players?.O?.name}
               symbol="O"
               avatar={game.players?.O?.avatar}
+              popIn={!!arrival}
+              arriving={arrivingN > 0}
               isActive={game.status === 'playing' && game.currentTurn === 'O'}
               isMe={mySeat === 'O'}
               score={scoreO}
               online={getPresence('O')}
+              away={!isSpectator && mySeat !== 'O' && opponentAway}
             />
           </div>
         )}
 
-        {/* Disconnect warning (non-custom — hangwoman handles this inline) */}
-        {!isCustom && !isSpectator && !opponentOnline && game.status === 'playing' && !showAbandonBanner && (
-          <OfflineNotice />
-        )}
-
-        {/* Abandoned-opponent recovery (F-23) — after 120s continuously offline
-            (60s for custom real-time games, where a vanished peer hard-freezes
-            the round and forfeit would be the only other exit) */}
-        {!isSpectator && game.status === 'playing' && game.players?.[opSym] && showAbandonBanner && (
-          <div className="border-2 border-retro-p2/50 bg-retro-card rounded p-3 text-center space-y-2">
-            <p className="font-pixel text-[10px] text-retro-p2 leading-relaxed">
-              {opponentLeft ? 'OPPONENT LEFT THE MATCH' : 'OPPONENT\'S BEEN GONE A WHILE'}
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={claimAbandonedWin}
-                disabled={claimingWin}
-                className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
-              >
-                {claimingWin ? 'CLAIMING…' : 'CLAIM WIN'}
-              </button>
-              <button
-                onClick={() => setShowInvite(true)}
-                className="border border-retro-border text-retro-text font-pixel text-[10px] px-4 py-2 rounded hover:border-retro-p1/50 transition-all active:scale-95"
-              >
-                INVITE A FRIEND
-              </button>
-              <button
-                onClick={() => navigate('/')}
-                className="border border-retro-border text-retro-dim font-pixel text-[10px] px-4 py-2 rounded hover:text-retro-text transition-all active:scale-95"
-              >
-                SAVE & GO HOME
-              </button>
-            </div>
-          </div>
-        )}
+        {!focusOn && opponentNotices}
 
         {/* Proposal banner — shown for both standard and custom branches.
             M-45: rendered as a fixed overlay (mirroring WinEffect's pattern
@@ -1099,6 +1281,7 @@ export default function Game() {
                 proposal={activeProposal}
                 mySymbol={mySeat}
                 players={game.players}
+                opponentOnline={opponentOnline}
                 onAccept={acceptProposal}
                 onDecline={declineProposal}
                 onCancel={cancelProposal}
@@ -1114,64 +1297,28 @@ export default function Game() {
         {game.status === 'waiting' ? (
           <WaitingRoom gameId={gameId} gameType={game.gameType} game={game} mySymbol={mySeat} onSwitch={applySwitchGame} opponentOnline={opponentOnline} />
         ) : isCustom ? (
+          <FocusFrame label={cfg.label} mode={pageFocusable ? focusMode : null}>
           <Suspense fallback={<GameAreaFallback />}>
             <cfg.Page
               gameId={gameId}
               game={game}
               mySymbol={mySeat}
               opponentOnline={opponentOnline}
-              onSwitchGame={activeProposal ? null : (t) => propose('switch', t)}
-              onPlayAgain={activeProposal ? null : () => propose('playAgain')}
-              onNewMatch={activeProposal ? null : () => propose('newMatch')}
+              onSwitchGame={activeProposal || (partyMode && !amPartyHost) ? null : doSwitch}
+              onPlayAgain={activeProposal || (partyMode && isSpectator && !amPartyHost) ? null : doPlayAgain}
+              onNewMatch={activeProposal || (partyMode && !amPartyHost) ? null : doNewMatch}
               proposal={activeProposal}
             />
           </Suspense>
+          </FocusFrame>
         ) : (
-          <Suspense fallback={<GameAreaFallback />}>
-            <cfg.BoardComponent
-              board={board}
-              onMove={handleMove}
-              disabled={!canMove || movePending || (!!cfg.rollFace && !game.diceSeed)}
-              winningLine={winningLine}
-              currentTurn={game.currentTurn}
-              lastMove={game.lastMove ?? null}
-              mySymbol={mySeat}
-              {...(cfg.boardProps ? cfg.boardProps(game) : {})}
-              {...(cfg.rollFace ? { diceSeedPending: !game.diceSeed } : {})}
-            />
-            <GameStatus
-              status={game.status}
-              winner={game.winner}
-              currentTurn={game.currentTurn}
-              mySymbol={mySeat}
-              scores={game.scores}
-              players={game.players}
-              gameType={game.gameType}
-              extraTurn={!!game.extraTurn}
-              passNote={game.passNote ?? null}
-              onPlayAgain={game.status === 'finished' && !isSpectator && !matchWinner && !activeProposal && !movePending ? () => propose('playAgain') : null}
-              onNewMatch={matchWinner && !isSpectator && !activeProposal && !movePending ? () => propose('newMatch') : null}
-              onSwitchGame={!isSpectator && !activeProposal && !movePending ? (t) => propose('switch', t) : null}
-            />
-            {/* F-48: an unacknowledged move, once it's taking a while. */}
-            {movePending && (moveSlow || connected === false) && (
-              <p role="status" className="text-center font-pixel text-[9px] text-retro-dim tracking-wider">
-                {connected === false ? 'MOVE PENDING — WAITING FOR CONNECTION' : 'SAVING MOVE…'}
-              </p>
-            )}
-            {game.status === 'finished' && (
-              <Link
-                to="/leaderboard"
-                className="mx-auto flex min-h-11 w-fit items-center justify-center px-3 font-pixel text-[9px] tracking-widest text-retro-p1 hover:text-retro-text transition-colors"
-              >
-                SEE WHERE YOU RANK →
-              </Link>
-            )}
-          </Suspense>
+          !focusOn && boardArea
         )}
 
+        {partyMode && (!isSpectator || !!game.queue?.[getPlayerId()]) && <VoicePanel game={game} gameId={gameId} compact />}
+
         {/* Game night: winner-stays line, kicked notice, tonight's scoreboard between games, host controls */}
-        <NightPanel game={game} gameId={gameId} nPlayer={false} />
+        <NightPanel game={game} gameId={gameId} nPlayer={false} onBackToParty={partyMode ? () => applySwitchGame(PARTY_LOBBY.type) : null} />
 
         {!isCustom && isSpectator && (game.status === 'playing' || game.status === 'finished') && (
           <div className="flex flex-col items-center gap-2">
@@ -1182,26 +1329,20 @@ export default function Game() {
             <button
               onClick={() => createNewRoom(game.gameType)}
               disabled={creatingRoom}
-              className="px-4 py-2 border-2 border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 border-2 border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-p1/50 hover:text-retro-p1 transition press disabled:opacity-50"
             >
               {creatingRoom ? 'CREATING…' : `START YOUR OWN ${cfg.label} ROOM`}
             </button>
           </div>
         )}
 
-        {/* Free-text chat log — visible to spectators too; self-hides when empty.
-            Silent games (registry `quiet`, e.g. HUNCH) hide typed chat; emotes stay. */}
-        {!cfg.quiet && <ChatLog chatLog={game.chatLog} myUid={getPlayerId()} />}
-
         {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
-        {((!isSpectator && !!game.players?.O) || (isSpectator && (game.status === 'playing' || game.status === 'finished'))) && (
-          <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={cfg.quiet ? undefined : sendChat} textCooldown={chatCooldown} quiet={!!cfg.quiet} /></Suspense></VideoCallReactionDock>
-        )}
+        {showDock && !focusOn && <VideoCallReactionDock>{dock}</VideoCallReactionDock>}
       </div>
       {showInvite && (
-        <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={seatedIds(game.players)} onClose={() => setShowInvite(false)} />
+        <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={partyMode ? partyMembers(game, false).map(m => m.uid) : seatedIds(game.players)} party={partyInviteInfo(game, cfg)} onClose={() => setShowInvite(false)} />
       )}
     </div></VideoCallShell>
     </RoomSwitchContext.Provider>

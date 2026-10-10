@@ -33,6 +33,25 @@ describe('pairs card faces', () => {
     }
   })
 
+  // Ghost and ninja differed in 4 of 64 cells and read as the same card at a glance;
+  // 'sword' replaced 'ninja'. Keep every pair of silhouettes clearly apart.
+  it('no two silhouettes are near-copies (>= 10 differing cells)', () => {
+    const ink = f => pairsFaceGlyph(f).join('').split('').map(c => c === '#')
+    for (let i = 0; i < PAIRS_FACES.length; i++) {
+      for (let j = i + 1; j < PAIRS_FACES.length; j++) {
+        const a = ink(PAIRS_FACES[i]), b = ink(PAIRS_FACES[j])
+        const diff = a.filter((v, k) => v !== b[k]).length
+        expect(diff, `${PAIRS_FACES[i]} / ${PAIRS_FACES[j]}`).toBeGreaterThanOrEqual(10)
+      }
+    }
+  })
+
+  it('a room dealt before the ninja → sword swap still shows its ninja cards', () => {
+    expect(pairsFaceColor('ninja')).toBe('rgb(var(--pair-ninja))')
+    expect(pairsFaceName('ninja')).toBe('ninja')
+    expect(token('pair-ninja')).not.toBeNull()
+  })
+
   it('every face has its own colour token in index.css', () => {
     const colours = PAIRS_FACES.map(f => token(`pair-${f}`))
     expect(colours.every(Boolean)).toBe(true)

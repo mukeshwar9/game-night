@@ -21,12 +21,14 @@ const DASH_COOLDOWN = 60
 const HIT_INV = 90
 const HIT_KNOCK = 3
 const CONTINUE_INV = 120
-const MAX_HP = 3
+export const MAX_HP = 3
+// Every this many pearls collected restores one heart (up to MAX_HP).
+export const PEARLS_PER_HEART = 50
 const VIEW_W = 160
 const VIEW_H = 128
 const SCROLL_EDGE = 4 // fish sprite x never goes below scrollX + this
 const CHASER_OFFSET = 26 // chaser sprite x = scrollX - this (hitbox then overlaps the edge-hugging fish)
-const SCORE = { pearl: 10, shell: 50, star: 100, heartFull: 200 }
+export const SCORE = { pearl: 10, shell: 50, star: 100, heartFull: 200 }
 
 const overlap = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3]
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
@@ -194,7 +196,7 @@ export function stepRun(run, level, input = {}) {
       gain(SCORE.pearl)
       run.pearls++
       events.push('pearl')
-      if (run.pearls % 50 === 0 && N.hp < MAX_HP) { N.hp++; events.push('heart') }
+      if (run.pearls % PEARLS_PER_HEART === 0 && N.hp < MAX_HP) { N.hp++; events.push('heart') }
     } else if (e.k === 'shell') {
       e.gone = true
       gain(SCORE.shell)

@@ -93,14 +93,14 @@ export default function NightScoreboard({ game, gameId, myUid, isHost }) {
         <button
           onClick={share}
           disabled={shareBusy}
-          className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+          className="min-h-11 px-4 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
         >
           {shareBusy ? 'SHARING…' : 'SHARE RECAP'}
         </button>
         {isHost && (
           <button
             onClick={() => setConfirmNew(true)}
-            className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text hover:border-retro-p1/50 transition-all active:scale-95"
+            className="min-h-11 px-4 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:text-retro-text hover:border-retro-p1/50 transition press"
           >
             START A NEW NIGHT
           </button>

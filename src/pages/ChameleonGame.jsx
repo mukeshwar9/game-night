@@ -444,7 +444,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
               <button
                 onClick={() => startRound(false)}
                 disabled={dealing}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-40"
               >
                 {dealing ? 'DEALING…' : 'START ROUND'}
               </button>
@@ -544,7 +544,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
                   key={w}
                   onClick={() => submitGuess(i)}
                   disabled={guessing}
-                  className={cn(cls, 'hover:border-retro-p2 hover:text-retro-p2 active:scale-95 transition-all disabled:opacity-50')}
+                  className={cn(cls, 'hover:border-retro-p2 hover:text-retro-p2 press transition disabled:opacity-50')}
                 >
                   {w}
                 </button>
@@ -593,13 +593,17 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
                   placeholder="ONE WORD CLUE"
                   aria-label="Your clue"
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  enterKeyHint="send"
                   className="flex-1 min-w-0 bg-retro-surface border-2 border-retro-border rounded px-3 py-2 font-mono text-sm text-retro-text focus:border-retro-cta outline-none"
                 />
                 <button
                   type="submit"
                   aria-label="Send clue"
                   disabled={sending || !clueInput.trim()}
-                  className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                  className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-40"
                 >
                   {sending ? 'SENDING…' : 'SEND'}
                 </button>
@@ -616,7 +620,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
               <button
                 onClick={() => skipClue(giver)}
                 disabled={skipping}
-                className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-40"
+                className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-40"
               >
                 {skipping ? 'SKIPPING…' : `SKIP ${nameOf(giver)}`}
               </button>
@@ -637,7 +641,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
                 onClick={() => castVote(uid)}
                 disabled={!!myVote || isMe || voting}
                 className={cn(
-                  'w-full min-h-11 flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition-all active:scale-[0.98]',
+                  'w-full min-h-11 flex items-center justify-between px-4 py-2.5 rounded border-2 font-mono text-[11px] transition press-card',
                   picked ? 'border-retro-p2 text-retro-p2 shadow-neon-p2 bg-retro-tint-p2' : 'border-retro-border text-retro-text hover:border-retro-p2/60',
                   (!!myVote || isMe) && !picked ? 'opacity-50' : '',
                 )}
@@ -659,7 +663,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
               <button
                 onClick={forceResolve}
                 disabled={resolving}
-                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-40"
+                className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 transition press disabled:opacity-40"
               >
                 {resolving ? 'RESOLVING…' : 'RESOLVE VOTE NOW'}
               </button>
@@ -676,7 +680,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
             <button
               onClick={() => skipStuck('reveal')}
               disabled={resolving}
-              className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-40"
+              className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-40"
             >
               {resolving ? 'SKIPPING…' : 'SKIP TO REVEAL'}
             </button>
@@ -700,7 +704,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
             <button
               onClick={() => skipStuck('reveal')}
               disabled={resolving}
-              className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-40"
+              className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-40"
             >
               {resolving ? 'SKIPPING…' : 'SKIP GUESS'}
             </button>
@@ -715,7 +719,7 @@ export default function ChameleonGame({ gameId, game, mySeat, players, onSwitchG
             <button
               onClick={voidRound}
               disabled={resolving}
-              className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-40"
+              className="px-4 py-1.5 border border-retro-border text-retro-dim font-pixel text-[9px] rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-40"
             >
               {resolving ? 'ENDING…' : 'END ROUND WITHOUT SCORING'}
             </button>
@@ -811,7 +815,7 @@ function ResultPanel({
         <button
           onClick={onNext}
           disabled={dealing}
-          className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-40"
+          className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press disabled:opacity-40"
         >
           {dealing ? 'DEALING…' : 'NEXT ROUND'}
         </button>

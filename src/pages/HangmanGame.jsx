@@ -46,6 +46,28 @@ function dictionaryForCheck() {
   ])
 }
 
+// The word-keeper's own word while the guesser plays: hidden behind a blur
+// until tapped (someone may be looking over their shoulder), like solo's
+// "Your word: CRORE".
+function KeeperWord({ word }) {
+  const [shown, setShown] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={() => setShown(v => !v)}
+      aria-pressed={shown}
+      aria-label={shown ? `Your word: ${word}. Tap to hide` : 'Show your word'}
+      className="min-h-11 px-3 font-mono text-[10px] text-retro-dim rounded hover:text-retro-text"
+    >
+      Your word:{' '}
+      <span aria-hidden="true" className={cn('text-retro-cta tracking-widest transition-[filter]', !shown && 'blur-sm select-none')}>
+        {shown ? word : word.replace(/[A-Z]/g, 'X')}
+      </span>
+      <span aria-hidden="true" className="ml-2 font-pixel text-[8px]">{shown ? 'HIDE' : 'TAP TO SHOW'}</span>
+    </button>
+  )
+}
+
 const CLAIM_WINDOW_MS = {
   'no-word': SETTING_DEADLINE_MS,
   grading: GRADING_STALL_MS,
@@ -53,8 +75,8 @@ const CLAIM_WINDOW_MS = {
   offline: PRESENCE_GRACE_MS,
 }
 
-const PRIMARY_BTN = 'px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed'
-const SECONDARY_BTN = 'px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed'
+const PRIMARY_BTN = 'px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50 disabled:cursor-not-allowed'
+const SECONDARY_BTN = 'px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition press disabled:opacity-50 disabled:cursor-not-allowed'
 
 function normalizeGuess(val) {
   if (val === false || val === null || val === undefined) return false
@@ -231,7 +253,7 @@ function AnyWordToggle({ anyWord, onToggle, busy }) {
           disabled={busy}
           aria-pressed={anyWord}
           className={cn(
-            'px-3 py-1.5 font-pixel text-[9px] rounded border transition-all active:scale-95 disabled:opacity-50',
+            'px-3 py-1.5 font-pixel text-[9px] rounded border transition press disabled:opacity-50',
             anyWord
               ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
               : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text',
@@ -425,8 +447,11 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
       }).catch(() => toast.error('WORD CHECK NOT SAVED — CHECK CONNECTION'))
 
       if (ok && claimedResult === 'guessed') {
-        setWinEffectFor(guesser)
-        setShowWinEffect(true)
+        // The burst is the guesser's; the setter who lost the word gets calm.
+        if (guesser === mySymbol) {
+          setWinEffectFor(guesser)
+          setShowWinEffect(true)
+        }
         if (guesser === mySymbol) sounds.win()
         else if (mySymbol) sounds.lose()
       }
@@ -852,6 +877,9 @@ export default function HangmanGame({ gameId, game, mySymbol, opponentOnline, on
                   ? `CHECKING ${waitingLetter}…`
                   : 'WAITING FOR WORD-KEEPER…'}
           </p>
+        )}
+        {isSetter && phase === 'guessing' && !setterMissingWord && storedWord?.word && (
+          <KeeperWord word={storedWord.word} />
         )}
         {isReveal && roundResult === 'hanged' && (
           <div className="space-y-2">

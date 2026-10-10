@@ -91,7 +91,7 @@ function AimRacer({ round, myStats, statsPath, now }) {
               width: AIM_RADIUS_PX * 2,
               height: AIM_RADIUS_PX * 2,
             }}
-            className="rounded-full bg-retro-p1 shadow-neon-p1 hover:brightness-110 active:scale-90 transition-transform duration-75 flex items-center justify-center"
+            className="rounded-full bg-retro-p1 shadow-neon-p1 hover:brightness-110 press transition-transform duration-75 flex items-center justify-center"
             aria-label={`Target ${stats.hits + 1}`}
           >
             <span className="font-pixel text-[10px] text-retro-bg leading-none select-none" aria-hidden="true">●</span>

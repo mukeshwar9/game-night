@@ -1,7 +1,13 @@
 import path from 'path'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'node:fs'
+import { execSync } from 'node:child_process'
+import { buildIdFromFiles } from './src/lib/sourcemapLogic.js'
+import { renderContactTokens } from './src/lib/contactLogic.js'
+import { readHostingCsp, withEmulatorOrigins } from './scripts/csp.mjs'
+import { parseAppStoreId, smartBannerContent } from './src/lib/storeLinks.js'
 
 // Vite writes the entry <script> and its ~18 <link rel="modulepreload">s
 // before the stylesheet. The stylesheet is the only render-blocking request
@@ -26,13 +32,115 @@ function stylesheetFirst() {
   }
 }
 
+// Safari's Smart App Banner, once the App Store listing exists
+// (VITE_APPSTORE_ID). main.jsx adds the page URL as app-argument at runtime.
+function smartAppBanner() {
+  let id = null
+  return {
+    name: 'smart-app-banner',
+    configResolved(config) {
+      id = parseAppStoreId(loadEnv(config.mode, config.root, 'VITE_').VITE_APPSTORE_ID)
+    },
+    transformIndexHtml(html) {
+      if (!id) return html
+      return html.replace('</head>', `  <meta name="apple-itunes-app" content="${smartBannerContent(id)}" />\n  </head>`)
+    },
+  }
+}
+
+// The static legal pages and security.txt live in public/ (crawlers and ad
+// reviewers read them without running the app) and carry %CONTACT% tokens for
+// the support address, VITE_CONTACT_EMAIL. Filled in at build time, and by the
+// dev/preview server for the same three URLs.
+const CONTACT_FILES = ['privacy.html', 'terms.html', 'support.html', '.well-known/security.txt']
+function contactEmail() {
+  let email = ''
+  let root = process.cwd()
+  let outDir = 'dist'
+  return {
+    name: 'contact-email',
+    configResolved(config) {
+      root = config.root
+      outDir = path.resolve(config.root, config.build.outDir)
+      email = loadEnv(config.mode, config.root, 'VITE_').VITE_CONTACT_EMAIL || ''
+    },
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = (req.url || '').split('?')[0].replace(/^\//, '')
+        if (!CONTACT_FILES.includes(url)) return next()
+        const file = path.join(root, 'public', url)
+        if (!fs.existsSync(file)) return next()
+        res.setHeader('Content-Type', url.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8')
+        res.end(renderContactTokens(fs.readFileSync(file, 'utf8'), email))
+      })
+    },
+    closeBundle: {
+      order: 'post',
+      sequential: true,
+      handler() {
+        for (const name of CONTACT_FILES) {
+          const file = path.join(outDir, name)
+          if (fs.existsSync(file)) fs.writeFileSync(file, renderContactTokens(fs.readFileSync(file, 'utf8'), email))
+        }
+      },
+    },
+  }
+}
+
+// Source maps are for us, not for visitors: `build.sourcemap: 'hidden'` writes
+// them without a sourceMappingURL in the bundles, and this moves every .map out
+// of the deploy directory into sourcemaps/<build id>/ (git-ignored), the id
+// being the one error reports carry (src/lib/sourcemapLogic.js). Keep that
+// folder per release; scripts/symbolicate.mjs reads it. firebase.json also
+// ignores **/*.map, so a map can never reach Hosting even if this is skipped.
+function privateSourcemaps() {
+  let outDir = 'dist'
+  let root = process.cwd()
+  return {
+    name: 'private-sourcemaps',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir)
+      root = config.root
+    },
+    // After the PWA plugin has written the service worker, so nothing it emits
+    // is left behind.
+    closeBundle: {
+      order: 'post',
+      sequential: true,
+      handler() {
+        const maps = []
+        const walk = (dir) => {
+          for (const entry of fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }) : []) {
+            const full = path.join(dir, entry.name)
+            if (entry.isDirectory()) walk(full)
+            else if (entry.name.endsWith('.map')) maps.push(full)
+          }
+        }
+        walk(outDir)
+        if (!maps.length) return
+        const rels = maps.map(f => path.relative(outDir, f).split(path.sep).join('/'))
+        const buildId = buildIdFromFiles(rels) || 'unknown'
+        const target = path.join(root, 'sourcemaps', buildId)
+        fs.rmSync(target, { recursive: true, force: true })
+        maps.forEach((file, i) => {
+          const dest = path.join(target, rels[i])
+          fs.mkdirSync(path.dirname(dest), { recursive: true })
+          fs.renameSync(file, dest)
+        })
+      },
+    },
+  }
+}
+
 // The service worker precaches the app shell only: the entry, its CSS and
-// every route page in App.jsx (plus first-run onboarding), each with its
-// static-import closure. Per-game pages, boards and decks (~2.4 MB across
+// every route page in App.jsx (plus first-run onboarding) and the lazily
+// imported music engine (so a stale shell never points at a deleted chunk),
+// each with its static-import closure. Per-game pages, boards and decks (~2.4 MB across
 // ~180 chunks) are cached at runtime the first time they load instead of all
 // being downloaded in the background on the first visit and after every
 // deploy. Filled in generateBundle, read by workbox's manifestTransforms.
-const SHELL_CHUNKS = /^(index|Games|OnlineLobby|Game|Demo|DailyGame|Profile|Friends|Notes|EmojiLab|Leaderboard|Playground|Onboarding)$/
+const SHELL_CHUNKS = /^(index|Games|OnlineLobby|Game|Demo|DailyGame|Profile|Friends|Notes|EmojiLab|Leaderboard|Playground|Onboarding|musicEngine)$/
 const shellFiles = new Set()
 
 function collectShell() {
@@ -55,11 +163,29 @@ function collectShell() {
   }
 }
 
+// E2E_CSP=1 (with the production preview, E2E_PREVIEW=1) serves the same
+// Content-Security-Policy Hosting sends, so the e2e run fails on anything the
+// policy would block. The emulator origins are added for that run only.
+const previewHeaders = process.env.E2E_CSP === '1'
+  ? { 'Content-Security-Policy': withEmulatorOrigins(readHostingCsp().value) }
+  : undefined
+
+// Sentry release = the commit being built (VITE_SENTRY_RELEASE overrides it, e.g.
+// when CI builds from a tarball). scripts/upload-sourcemaps.mjs uses the same
+// value, so uploaded maps and reported errors line up. Empty without git.
+function gitRelease() {
+  if (process.env.VITE_SENTRY_RELEASE) return process.env.VITE_SENTRY_RELEASE
+  try { return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { return '' }
+}
+
 export default defineConfig({
+  define: { 'import.meta.env.VITE_SENTRY_RELEASE': JSON.stringify(gitRelease()) },
+  preview: { headers: previewHeaders },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
   build: {
+    sourcemap: 'hidden',
     rolldownOptions: {
       output: {
         // Modules the entry imports statically are needed before first render
@@ -81,28 +207,41 @@ export default defineConfig({
     react(),
     stylesheetFirst(),
     collectShell(),
+    contactEmail(),
+    smartAppBanner(),
+    privateSourcemaps(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
       manifest: {
         name: 'Game Night',
         short_name: 'Game Night',
-        description: 'Play games with friends online — no account needed',
+        description: '70+ quick games for 2–8 friends, or play the CPU. No account needed.',
         // Mirror the default theme (MATCHA): theme_color matches --c-cta and the
         // index.html theme-color meta, background_color matches --c-bg, so an
         // installed app's splash is the same light ground the app paints.
-        theme_color: '#8b6612',
+        theme_color: '#825f0e',
         background_color: '#eef0e2',
         display: 'standalone',
+        // Every arena is laid out for portrait; only the installed app needs the
+        // lock (a browser tab rotates freely).
+        orientation: 'portrait',
         start_url: '/',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },
       workbox: {
+        // The static legal pages (public/privacy.html, terms.html, support.html) are served by
+        // Hosting via redirects; without this the worker answers /privacy and
+        // /terms navigations with the app shell, which shows NOT FOUND. The same
+        // goes for /.well-known/ (security.txt, the app-link association files).
+        // No public map for the worker either (nothing to symbolicate there).
+        sourcemap: false,
+        navigateFallbackDenylist: [/^\/(privacy|terms|support)(\.html)?$/, /^\/__\//, /^\/\.well-known\//],
         // No Firebase runtime rule: RTDB/Auth traffic is live and has its own
         // offline handling; caching it here only stored opaque responses with
         // no expiry.
@@ -132,6 +271,16 @@ export default defineConfig({
             options: {
               cacheName: 'wordhunt-dict',
               expiration: { maxEntries: 1 },
+            },
+          },
+          {
+            // HOW TO PLAY carousel stills (scripts/rule-media.mjs): not
+            // precached, fetched when a rules sheet opens, then kept.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.includes('/rule-media/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'rule-media',
+              expiration: { maxEntries: 512 },
             },
           },
         ],

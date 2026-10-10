@@ -44,6 +44,9 @@ jobs:
       - name: Entry bundle size budget
         run: node scripts/check-bundle-size.mjs
 
+      - name: Content-Security-Policy covers the build
+        run: node scripts/check-csp.mjs
+
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
@@ -91,6 +94,8 @@ jobs:
         run: npm run test:e2e
         env:
           E2E_PREVIEW: '1'
+          # Serve the production Content-Security-Policy so a blocked request fails a spec.
+          E2E_CSP: '1'
 
       - name: Upload Playwright traces
         if: failure()

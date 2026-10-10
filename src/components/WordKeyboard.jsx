@@ -13,6 +13,8 @@ import { MarkGlyph, markLabelFor } from './MarkTile'
 //     becomes a guess and Cmd/Ctrl/Alt shortcuts are left alone.
 //
 // onKey receives 'A'–'Z', 'ENTER' or 'BACK'.
+// `glow` ({ letter, label }) rings one key — Word Co-op's partner suggestion
+// — and adds `label` to its aria-label.
 const ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
@@ -31,7 +33,7 @@ const SLOP = "relative before:content-[''] before:absolute before:-inset-x-0.5 b
 
 export default function WordKeyboard({
   keyState = {}, onKey, disabled = false, enterDisabled = false, physical = true,
-  enterLabel = 'Enter guess', className,
+  enterLabel = 'Enter guess', className, glow = null,
 }) {
   useGameKeys((e) => {
     if (e.key === 'Enter') {
@@ -46,7 +48,7 @@ export default function WordKeyboard({
 
   const special = 'flex-[1.5] min-w-0 h-11 flex items-center justify-center rounded border font-bold text-sm ' +
     'bg-retro-structure border-retro-structure text-retro-text hover:bg-retro-border transition-colors ' +
-    'disabled:opacity-30 disabled:cursor-default active:scale-95'
+    'disabled:opacity-30 disabled:cursor-default press'
 
   return (
     <div className={cn('flex flex-col gap-1.5 w-full max-w-md mx-auto select-none', className)} role="group" aria-label="Keyboard">
@@ -65,7 +67,8 @@ export default function WordKeyboard({
           )}
           {row.map(letter => {
             const state = keyState[letter]
-            const label = markLabelFor(state)
+            const glowing = glow?.letter === letter
+            const label = [markLabelFor(state), glowing ? glow.label : ''].filter(Boolean).join(', ')
             return (
               <button
                 key={letter}
@@ -76,8 +79,9 @@ export default function WordKeyboard({
                 className={cn(
                   SLOP,
                   'flex-1 min-w-0 h-11 flex items-center justify-center rounded border font-bold text-xs sm:text-sm uppercase',
-                  'transition-colors active:scale-95 disabled:opacity-30 disabled:cursor-default',
+                  'transition-colors press disabled:opacity-30 disabled:cursor-default',
                   KEY_TONE[state] || 'bg-retro-structure border-retro-structure text-retro-text hover:bg-retro-border',
+                  glowing && 'ring-2 ring-retro-p2 shadow-neon-p2 z-10',
                 )}
               >
                 <span aria-hidden="true">{letter}</span>

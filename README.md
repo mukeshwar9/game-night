@@ -6,9 +6,9 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 
 ## Games
 
-**64 games** (72 counting modes) across six categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo` with EASY / NORMAL / HARD bots for the board games. This list is generated from the `GAME_TYPES` registry (`src/lib/games.js`), which is the source of truth.
+**70 games** (78 counting modes) across six categories, plus a daily solo puzzle. Every multiplayer game runs in a shareable room; most also have a solo vs-AI practice mode at `/demo` with EASY / NORMAL / HARD bots for the board games. This list is generated from the `GAME_TYPES` registry (`src/lib/games.js`), which is the source of truth.
 
-### Board games (24)
+### Board games (25)
 - **Tic Tac Toe** — three in a row wins — modes: Ultimate TTT, TTT 4×4
 - **Sim** — color an edge, don't close a triangle
 - **Chomp** — eat the bar, dodge the poison
@@ -33,13 +33,15 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Battleship** — sink the hidden fleet
 - **Mancala** — sow & capture
 - **Checkers** — jumps forced, kings crown
+- **Face Off** — ask, flip, name the hidden face
 
-### Reflex & skill (15)
+### Reflex & skill (20)
 - **Reaction Time** — fastest reflexes win *(2–8 players)*
 - **Aim Trainer** — click targets fast *(2–8 players)*
 - **Typing Race** — outtype the whole room *(2–8 players)*
 - **Mental Math** — solve fastest under pressure *(2–8 players)*
 - **Arrows Puzzle** — race to clear the arrows
+- **Updraft** — race up the same sky tower — modes: Updraft Co-op (twin towers)
 - **Pong** — first to five points
 - **Snake Battle** — outlast the other snake
 - **Tron** — don't crash first
@@ -49,6 +51,17 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Pac Mac** — eat more pellets than they do
 - **Mine Race** — clear the same minefield faster *(2–8 players)*
 - **Air Hockey** — flick the puck, score 7
+- **Puck Rush** — sling every puck through the gap
+- **Sticky Fingers** — grab the loot, rip the bills, stash it first *(online duel; 2–4 on one phone)*
+- **Bonk Buggies** — bonk their helmet, save your own
+- **Quiver** — a limited quiver, one spinning wheel, everyone shoots at once *(online duel; 2–4 on one phone; team up against the wheel)*
+- **Fender Bender** — shove rivals off the road *(2–4 on one phone, 2 online)*
+- **Side Kick** — race bikes and kick rivals off the road *(2–4 players, bots fill the grid)*
+- **Chop Chop** — knock out crates, dodge the beams *(2–8 players)*
+- **Steady Hand** — hold, aim, let go: race to zero or own the board *(2–4 players, solo vs a bot)*
+- **Lazy Susan** — tap when the food reaches your gate *(2–4 players)*
+- **First Cut** — cut the fruit, leave the lookalikes *(2–8 players, 2–4 on one phone)*
+- **Bamboozle** — hide behind the boulders, dodge the poles *(2–8 players)*
 - **Artillery** — angle, power, bracket
 
 ### Memory (5)
@@ -68,8 +81,9 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Password** — give clues, guess the word
 - **Anagrams** — race to find words
 
-### Dice & bluff (2)
+### Dice & bluff (3)
 - **Pig** — push your luck, bank often — modes: Pig Big
+- **Yacht** — five dice, three rolls, thirteen boxes *(2–4 players)*
 - **Bluff Battle** — outroll the liar
 
 ### Party · 2–8 players (10)
@@ -154,7 +168,7 @@ Firebase Realtime Database holds every room at `games/{gameId}`; security rules 
 - **Code-split** — every route except Home, every game page and board, the Wordle dictionary, framer-motion and qrcode load on demand; `lazyWithRetry` reloads once when an old tab asks for a chunk a newer deploy removed. CI enforces an entry-bundle budget.
 - **Hidden information** never sits in the room in plaintext. Two primitives: salted SHA-256 commit–reveal (`src/lib/commit.js`: Hangwoman, Two Truths, Bluff Battle, Wavelength, Herd Mind, Code Words) and per-player sealing (`src/lib/sealed.js`, Web Crypto ECDH + AES-GCM: Spyfair, Chameleon, Heads Up, Code Words, Just One), where each player publishes a public key and the dealer encrypts one entry per recipient.
 - **Party games** use an N-player room model: `players` keyed by uid, an online-aware coordinator (`src/lib/coordinator.js`) that hands host duties to the next online player, per-player scores, and phase machines whose steps are transactions. The five races (`race: true`) share `raceLogic.js` and `RaceShell`.
-- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Paint, Pac Mac) run peer-to-peer: Firebase is only the WebRTC signaling channel. Each connection attempt has an id, so RETRY works from either side and after reloads; a heartbeat pauses play while a peer is away and offers WAIT / CLAIM WIN when they're gone; the host can equalize its own input delay to half the RTT. Public STUN by default; set `VITE_TURN_URLS` / `VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL` to add TURN, and public rooms then relay so strangers never see each other's IP.
+- **Real-time games** (Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Sticky Fingers, Quiver, Fender Bender, Bonk Buggies, Paint, Pac Mac) run peer-to-peer: Firebase is only the WebRTC signaling channel. Each connection attempt has an id, so RETRY works from either side and after reloads; a heartbeat pauses play while a peer is away and offers WAIT / CLAIM WIN when they're gone; the host can equalize its own input delay to half the RTT. Public STUN by default; set `VITE_TURN_URLS` / `VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL` to add TURN, and public rooms then relay so strangers never see each other's IP.
 - **Telemetry (in-house)** — errors go to `errors/{day}` (deduped, capped), started/finished/abandoned counts to `playsDaily/{day}`; admins see both at `/notes`.
 
 ## Features
@@ -241,6 +255,7 @@ npm run test:rules # security rules tests on the Database emulator
 npm run test:e2e   # Playwright end-to-end tests on the emulators (npm run test:e2e -- tests/e2e/<spec>.js)
 npm --prefix functions test   # Cloud Functions tests
 npm run deploy     # guarded manual deploy (see Deploy)
+npm run sourcemaps:sentry  # after a build: upload source maps to Sentry (opt-in, see docs/ANALYTICS.md)
 ```
 
 ## Deploy
@@ -256,6 +271,10 @@ Preview-channel domains must be added to Firebase Auth's authorized domains for 
 npm run deploy -- --only hosting,database   # guarded manual deploy: refuses a dirty tree or a build without the Firebase config
 firebase deploy --only functions            # room cleanup + verified results (Blaze plan; builds the bundle first)
 ```
+
+### Monitoring (optional)
+
+`VITE_SENTRY_DSN` turns on Sentry (JS errors, native iOS/Android crashes, performance); `VITE_POSTHOG_KEY` (+ `VITE_POSTHOG_HOST`) turns on PostHog (event funnels, retention, masked session replay). Both are no-ops and load no code while empty, and both honour Do Not Track and the in-app SHARE USAGE DATA switch. Setup, the event list, privacy defaults and source-map upload (`npm run build && npm run sourcemaps:sentry`): [`docs/ANALYTICS.md`](docs/ANALYTICS.md).
 
 Hosting sends immutable caching for hashed assets, `no-cache` for `index.html`/`sw.js`, security headers and a report-only CSP (`firebase.json`); missing files return 404.
 

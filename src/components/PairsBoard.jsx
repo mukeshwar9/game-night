@@ -6,10 +6,11 @@ import { db } from '../lib/firebase'
 import { sounds } from '../lib/sounds'
 import { serverNow } from '../lib/serverClock'
 import useTurnDeadlineEnforcer from '../hooks/useTurnDeadlineEnforcer'
-import { PAIRS_SIZE, PAIRS_TOTAL_PAIRS } from '../lib/pairsLogic'
+// The board's side comes from its length: 6×6 (pairs) or 4×4 (pairs4).
 import {
-  pairsFaceColor, pairsFaceGlyph, pairsFaceName, pairsCellPosition,
+  pairsFaceColor, pairsFaceName, pairsCellPosition,
 } from '../lib/pairsFaces'
+import { FaceSprite } from './FaceSprite'
 
 // How long a mismatched pair stays visibly face-up before this client hides it again.
 // Purely a display timer — the underlying `flipped` state (and its legality: either
@@ -38,28 +39,9 @@ function CardBackEmblem() {
   )
 }
 
-// The face's pixel silhouette in card ink; 'o' cells are left open so the card colour
-// shows through as eyes/windows.
-function FaceSprite({ face }) {
-  const grid = pairsFaceGlyph(face)
-  return (
-    <svg
-      viewBox="0 0 8 8"
-      className="w-[66%] h-[66%]"
-      shapeRendering="crispEdges"
-      aria-hidden="true"
-    >
-      {grid.flatMap((row, y) =>
-        row.split('').map((ch, x) => (ch === '#'
-          ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" style={{ fill: 'rgb(var(--pair-ink))' }} />
-          : null)),
-      )}
-    </svg>
-  )
-}
 
-function cellLabel({ index, face, owner, held, mismatched }) {
-  const where = pairsCellPosition(index, PAIRS_SIZE)
+function cellLabel({ index, face, owner, held, mismatched, side }) {
+  const where = pairsCellPosition(index, side)
   const name = pairsFaceName(face)
   if (owner) return `${where}: ${name}, claimed by ${owner}`
   if (held) return `${where}: ${name}, first pick`
@@ -72,11 +54,12 @@ export default function PairsBoard({
   board, deck, flipped, onMove, disabled, currentTurn, finished = false, pairsDeadline = null,
 }) {
   const { gameId } = useParams() // present under /game/:gameId; undefined in demo/solo — deadline writes no-op there
-  useTurnDeadlineEnforcer(gameId, 'pairs', 'pairsDeadline')
+  useTurnDeadlineEnforcer(gameId, board.length === 16 ? 'pairs4' : 'pairs', 'pairsDeadline')
   const flippedList = flipped || []
+  const side = Math.round(Math.sqrt(board.length))
   const xPairs = board.filter(c => c === 'X').length / 2
   const oPairs = board.filter(c => c === 'O').length / 2
-  const pairsLeft = PAIRS_TOTAL_PAIRS - xPairs - oPairs
+  const pairsLeft = board.length / 2 - xPairs - oPairs
 
   // Mismatch auto-hide timer: a leftover mismatch pair (flipped.length === 2) stays
   // visibly face-up for a fixed window, then this client flips it back down on its own —
@@ -170,10 +153,10 @@ export default function PairsBoard({
         disabled={isDisabled}
         onClick={() => !isDisabled && onMove(i)}
         aria-pressed={isHeldFirstPick}
-        aria-label={cellLabel({ index: i, face, owner: claimed ? owner : null, held: isHeldFirstPick, mismatched: mismatchRevealed })}
+        aria-label={cellLabel({ index: i, face, owner: claimed ? owner : null, held: isHeldFirstPick, mismatched: mismatchRevealed, side })}
         className={cn(
           'relative aspect-square rounded-md select-none transition-transform duration-150',
-          !isDisabled && 'cursor-pointer active:scale-95',
+          !isDisabled && 'cursor-pointer press',
           isHeldFirstPick && '-translate-y-1',
           popping && 'pairs-match-pop',
           mismatchRevealed && 'pairs-mismatch-shake',
@@ -270,7 +253,7 @@ export default function PairsBoard({
           className="w-full"
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${PAIRS_SIZE}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${side}, minmax(0, 1fr))`,
             gap: '6px',
             touchAction: 'manipulation',
           }}

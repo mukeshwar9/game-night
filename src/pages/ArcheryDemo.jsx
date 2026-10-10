@@ -48,9 +48,9 @@ function Setup({ local, format, setFormat, onStart }) {
         <p className="relative font-pixel text-sm text-retro-p1 text-glow-p1">NEON RANGE</p>
         <p className="relative mt-2 font-mono text-[11px] leading-relaxed text-retro-dim">Three arrows per end · WA 10-ring + X · draw length is power.</p>
       </div>
-      <label className="flex items-center justify-between rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
+      <label className="flex items-center justify-between gap-2 rounded border border-retro-border bg-retro-card px-3 py-2 font-pixel text-[8px] text-retro-dim">
         RANGE FORMAT
-        <select value={format} onChange={e => setFormat(e.target.value)} className="min-h-10 bg-retro-deep px-2 text-retro-cta">
+        <select value={format} onChange={e => setFormat(e.target.value)} className="min-h-10 min-w-0 max-w-[62%] bg-retro-deep px-2 text-retro-cta">
           {Object.entries(ARCHERY_FORMATS).map(([id, item]) => <option key={id} value={id}>{item.label} · {item.ends} ENDS</option>)}
         </select>
       </label>
@@ -63,12 +63,12 @@ function Setup({ local, format, setFormat, onStart }) {
             ['pro', 'PRO', 'Tighter groups · watch the X ring.'],
             ['robin-hood', 'ROBIN HOOD', 'Elite accuracy · your impact reticle stays hidden.'],
           ].map(([id, title, blurb]) => (
-            <button key={id} onClick={() => onStart({ mode: 'cpu', level: id, format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-border bg-retro-card px-3 py-2 text-left hover:border-retro-cta/60 active:scale-[0.98]">
+            <button key={id} onClick={() => onStart({ mode: 'cpu', level: id, format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-border bg-retro-card px-3 py-2 text-left hover:border-retro-cta/60 press-card">
               <span className="w-24 font-pixel text-[9px] text-retro-cta">{title}</span>
               <span className="font-mono text-[10px] text-retro-dim">{blurb}</span>
             </button>
           ))}
-          <button onClick={() => onStart({ mode: 'score', level: 'rookie', format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-win/50 bg-retro-card px-3 py-2 text-left hover:shadow-neon-win active:scale-[0.98]">
+          <button onClick={() => onStart({ mode: 'score', level: 'rookie', format, steady })} className="flex min-h-14 w-full items-center gap-3 rounded border border-retro-win/50 bg-retro-card px-3 py-2 text-left hover:shadow-neon-win press-card">
             <span className="w-24 font-pixel text-[9px] text-retro-win">SCORE ATTACK</span>
             <span className="font-mono text-[10px] text-retro-dim">Solo run · personal best {readSoloBest(BEST_KEY) || '—'} · rank badge.</span>
           </button>
@@ -202,7 +202,7 @@ function OfflineMatch({ setup, onExit }) {
         <span className="font-pixel text-[9px] text-retro-cta">{ARCHERY_FORMATS[format].label} · {ARCHERY_FORMATS[format].ends} ENDS</span>
       </div>
       <ArcheryScorecard seats={seats} card={card} names={game.names} currentTurn={current} format={ARCHERY_FORMATS[format].label} />
-      <div className="flex items-center justify-between font-pixel text-[8px]">
+      <div className="flex items-center justify-between gap-2 font-pixel text-[8px]">
         <p className={cn('min-w-0 truncate', playerTurn ? 'text-retro-cta arcade-blink' : 'text-retro-dim')}>{statusText}</p>
         <span className="shrink-0 text-retro-cta">WIND {windNow < 0 ? '←' : '→'} {Math.abs(windNow)} MM</span>
       </div>
@@ -212,7 +212,7 @@ function OfflineMatch({ setup, onExit }) {
         disabled={!playerTurn || done} pointerProps={drawHook.pointerProps}
       />
       {handoff && !done && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-retro-bg/95 p-5 text-center" role="dialog" aria-modal="true" aria-label="Hand off to next archer">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-retro-bg/95 p-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center" role="dialog" aria-modal="true" aria-label="Hand off to next archer">
           <div className="w-full max-w-sm space-y-4 rounded border border-retro-cta/60 bg-retro-card p-6 shadow-neon-cta">
             <p className="font-pixel text-xs text-retro-cta">PASS THE DEVICE</p>
             <p className={cn('font-pixel text-sm', SEAT_COLOR[seats.indexOf(handoff)] || 'text-retro-text')}>{game.names[handoff]}</p>

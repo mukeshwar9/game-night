@@ -12,10 +12,11 @@
 // before the split migrate the first time they open the app.
 
 import {
-  ref, get, set, update, onValue, runTransaction, push, onDisconnect,
+  ref, get, set, update, remove, onValue, runTransaction, push, onDisconnect,
 } from 'firebase/database'
 import { db, auth } from './firebase'
-import { getUid } from './auth'
+import { getUid, deleteCurrentUser, prepareAccountDeletion } from './auth'
+import { deletionPatch } from './deleteAccountLogic'
 import { defaultAvatarForId } from './avatars'
 
 // ---- Friend codes (pure) ----
@@ -253,13 +254,50 @@ export async function sendFriendRequestByCode(code) {
   const already = await get(ref(db, `friends/${me}/${found.uid}`))
   if (already.exists()) return { ok: false, error: 'already' }
   const myProfile = await getProfile(me)
-  await set(ref(db, `friendRequests/${found.uid}/${me}`), {
-    name: myProfile?.displayName || guestName(me),
-    avatar: myProfile?.avatar || defaultAvatarForId(me),
-    code: myProfile?.code || null,
-    at: Date.now(),
-  })
+  try {
+    await set(ref(db, `friendRequests/${found.uid}/${me}`), {
+      name: myProfile?.displayName || guestName(me),
+      avatar: myProfile?.avatar || defaultAvatarForId(me),
+      code: myProfile?.code || null,
+      at: Date.now(),
+    })
+  } catch (e) {
+    // The rules refuse a request across a block, either way. The sender is not
+    // told they were blocked: it looks like any other request nobody answers.
+    if (e?.code !== 'PERMISSION_DENIED' && !/permission_denied/i.test(e?.message || '')) throw e
+  }
   return { ok: true, to: found.profile?.displayName || 'player' }
+}
+
+// Friend request by uid for someone you just played with. `gameId` is the room
+// you shared: the rules only take the request when both uids are seated in it
+// (database.rules.json, friendRequests). Same result shape as the code path:
+// { ok, to } or { ok:false, error } with error in 'invalid' | 'self' | 'already'.
+export async function sendFriendRequestToCoPlayer(otherUid, gameId) {
+  const me = getUid()
+  if (!db || !me || !otherUid || !gameId) return { ok: false, error: 'invalid' }
+  if (otherUid === me) return { ok: false, error: 'self' }
+  const already = await get(ref(db, `friends/${me}/${otherUid}`))
+  if (already.exists()) return { ok: false, error: 'already' }
+  const myProfile = await getProfile(me)
+  try {
+    await set(ref(db, `friendRequests/${otherUid}/${me}`), {
+      name: myProfile?.displayName || guestName(me),
+      avatar: myProfile?.avatar || defaultAvatarForId(me),
+      code: myProfile?.code || null,
+      viaGame: String(gameId).slice(0, 40),
+      at: Date.now(),
+    })
+  } catch (e) {
+    // A block in either direction is refused by the rules and stays invisible
+    // to the sender, like the code path. Any other refusal (the room is gone)
+    // is a real failure the button reports.
+    const denied = e?.code === 'PERMISSION_DENIED' || /permission_denied/i.test(e?.message || '')
+    if (!denied) throw e
+    const blocked = await get(ref(db, `blocks/${me}/${otherUid}`)).then(s => s.exists(), () => false)
+    if (!blocked) throw e
+  }
+  return { ok: true }
 }
 
 export async function acceptRequest(fromUid) {
@@ -315,24 +353,73 @@ export function subscribeRequests(cb) {
   })
 }
 
+// ---- Blocks ----
+// blocks/{me}/{uid} = { name, at }: the synced block list (owner-only). The
+// rules refuse friend requests and invites across a block in either direction
+// and the invite push never fires for a refused invite, so a blocked player
+// cannot reach this account through any of them. Chat hiding is local
+// (mute.js keeps a mirror of this list for synchronous reads).
+
+// Block `uid`: record it and drop the friendship and any pending requests, in
+// one multi-path update.
+export async function blockUser(uid, name = '') {
+  const me = getUid()
+  if (!db || !me || !uid || uid === me) return
+  await update(ref(db), {
+    [`blocks/${me}/${uid}`]: { name: String(name || '').slice(0, 40), at: Date.now() },
+    [`friends/${me}/${uid}`]: null,
+    [`friends/${uid}/${me}`]: null,
+    [`friendRequests/${me}/${uid}`]: null,
+    [`friendRequests/${uid}/${me}`]: null,
+  })
+}
+
+export async function unblockUser(uid) {
+  const me = getUid()
+  if (!db || !me || !uid) return
+  await set(ref(db, `blocks/${me}/${uid}`), null)
+}
+
+// cb(map) with the whole { uid: { name, at } } map, {} when empty. Returns the unsubscribe.
+export function subscribeBlocks(cb) {
+  const me = getUid()
+  if (!db || !me) { cb({}); return () => {} }
+  return onValue(ref(db, `blocks/${me}`), snap => cb(snap.val() || {}), () => cb({}))
+}
+
 // ---- Game invites ----
-export async function inviteFriendToGame(friendUid, { gameId, gameType } = {}) {
+// Writing invites/{uid}/{id} is the whole client side: the sendInvitePush Cloud
+// Function (functions/push.js) fires on the create and sends the push.
+// Party invites carry `kind: 'party'` and the head-count (size of cap) for the
+// banner and the push; game invites leave them out.
+function partyFields({ kind, size, cap } = {}) {
+  if (kind !== 'party') return {}
+  return {
+    kind: 'party',
+    ...(Number.isInteger(size) && size >= 1 && size <= 8 ? { size } : {}),
+    ...(Number.isInteger(cap) && cap >= 2 && cap <= 8 ? { cap } : {}),
+  }
+}
+
+export async function inviteFriendToGame(friendUid, { gameId, gameType, kind, size, cap } = {}) {
   const me = getUid()
   if (!db || !me || !friendUid || !gameId) return
   const myProfile = await getProfile(me)
-  await push(ref(db, `invites/${friendUid}`), {
+  const invite = {
     gameId,
     gameType: gameType || null,
     fromUid: me,
     fromName: myProfile?.displayName || guestName(me),
     fromAvatar: myProfile?.avatar || defaultAvatarForId(me),
     at: Date.now(),
-  })
+    ...partyFields({ kind, size, cap }),
+  }
+  await push(ref(db, `invites/${friendUid}`), invite)
 }
 
 // "Invite all online friends": one invite per uid, written as a single
 // multi-path update so the whole batch lands (or fails) together.
-export async function inviteFriendsToGame(friendUids, { gameId, gameType } = {}) {
+export async function inviteFriendsToGame(friendUids, { gameId, gameType, kind, size, cap } = {}) {
   const me = getUid()
   const uids = [...new Set((friendUids || []).filter(Boolean))].filter(uid => uid !== me)
   if (!db || !me || !gameId || uids.length === 0) return 0
@@ -344,6 +431,7 @@ export async function inviteFriendsToGame(friendUids, { gameId, gameType } = {})
     fromName: myProfile?.displayName || guestName(me),
     fromAvatar: myProfile?.avatar || defaultAvatarForId(me),
     at: Date.now(),
+    ...partyFields({ kind, size, cap }),
   }
   const updates = {}
   for (const uid of uids) updates[`invites/${uid}/${push(ref(db, `invites/${uid}`)).key}`] = invite
@@ -388,4 +476,36 @@ export function setupPresence(uid) {
     set(statusRef, true)
     set(seenRef, Date.now())
   })
+}
+
+// "Delete my data": removes every row the account owns, then the sign-in
+// account, then this device's Game Night state, and reloads to a clean start.
+// Rows only the server can write (the leaderboard row) are removed by the
+// cleanupDeletedAccount Cloud Function when the Auth user goes.
+export async function deleteMyData() {
+  const uid = getUid()
+  if (!db || !uid) throw new Error('not-signed-in')
+  // Native re-auth (Apple/Google sheet) first, so dismissing it aborts before
+  // any row is removed. No-op on the web and for guests.
+  await prepareAccountDeletion()
+  const [me, friends, requests, invites] = await Promise.all([
+    get(ref(db, `users/${uid}/code`)),
+    get(ref(db, `friends/${uid}`)),
+    get(ref(db, `friendRequests/${uid}`)),
+    get(ref(db, `invites/${uid}`)),
+  ])
+  const patch = deletionPatch(uid, {
+    friendUids: Object.keys(friends.val() || {}),
+    requestUids: Object.keys(requests.val() || {}),
+    inviteIds: Object.keys(invites.val() || {}),
+    code: me.val(),
+  })
+  // users/{uid} last and on its own: its rule only allows the delete when no
+  // feedback was sent in the last 30 s, and a refusal there must not undo the rest.
+  await update(ref(db), patch)
+  await remove(ref(db, `users/${uid}`))
+  await deleteCurrentUser()
+  try { localStorage.clear() } catch { /* blocked */ }
+  try { sessionStorage.clear() } catch { /* blocked */ }
+  window.location.assign('/')
 }

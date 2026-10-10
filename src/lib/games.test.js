@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { OFF_SHELF } from '../pages/demos/partyBlurbs'
 
 // games.js pulls in board components that touch `localStorage` at module
 // load time (src/lib/sounds.js) — stub it before the dynamic import since
@@ -9,12 +10,12 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 let isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay
-let lobbySwitchOverrides, buildChallengeRoom
+let lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig, resultMarginFor
 
 beforeAll(async () => {
   ;({
     isNewGame, getNewGames, usesFirstMover, resolveGoesFirst, firstMoverUpdates, withFirstMover, GAME_TYPES, freshGameState, supportsLocalPlay,
-    lobbySwitchOverrides, buildChallengeRoom,
+    lobbySwitchOverrides, buildChallengeRoom, isQuietRoom, getGameConfig, resultMarginFor,
   } = await import('./games'))
 })
 
@@ -87,6 +88,14 @@ describe('first mover', () => {
     expect(withFirstMover({ round: null }, 'hangwoman', 'X').round).toEqual({ setter: 'X' })
   })
 
+  it('a rematch or a switch drops the arrival countdown stamp and the "someone opened your link" signals', () => {
+    for (const type of ['tictactoe', 'connectfour', 'hangwoman']) {
+      const fresh = freshGameState(type)
+      expect(fresh).toHaveProperty('startsAt', null)
+      expect(fresh).toHaveProperty('arriving', null)
+    }
+  })
+
   it('writes the right Firebase patch for each family', () => {
     expect(firstMoverUpdates('tictactoe', 'O')).toEqual({ currentTurn: 'O' })
     expect(firstMoverUpdates('hangwoman', 'O')).toEqual({ 'round/setter': 'O' })
@@ -99,16 +108,27 @@ describe('first mover', () => {
 describe('supportsLocalPlay', () => {
   const LOCAL_TYPES = [
     'animalstack', // custom, but ships its own 2-4P LocalPage
+    'stickyfingers', // real-time duel online; its LocalPage seats 2-4 on one phone
+    'bamboozle', // 2-8P race, but ships its own 2-4P one-phone LocalPage
     'archery', // custom range with its own same-device LocalPage
+    'firstcut', // a 2-8P race that ships its own 2-4P one-phone LocalPage
     'tictactoe', 'ultimatettt', 'tictactoe4', 'connectfour', 'connectfour5', 'connectfourpop',
     'dotsandboxes', 'dotsandboxes4', 'sos', 'gomoku', 'gomokuswap', 'reversi', 'chainreaction', 'chainreaction6',
-    'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'visualmemory', 'pairs', 'dice', 'dice-big',
+    'blockade', 'orderchaos', 'hex', 'mancala', 'simon', 'pairs', 'pairs4', 'dice', 'dice-big',
     'sim', 'chomp', 'breakthrough', 'ataxx', 'kamisado',
     'onitama', 'quarto', 'santorini', 'loa', 'yavalath',
+    // custom, but ships its own offline page (registry LocalPage)
+    'minigolf', 'darts', 'lazysusan',
+    // realtime online duel whose LocalPage seats 2-4 people on one phone
+    'fenderbender',
+    // realtime online duel whose LocalPage seats 2-4 people on one phone
+    'quiver',
+    // custom online duel that keeps its turn-based board for pass-and-play (localBoard)
+    'visualmemory',
   ]
 
-  it('is true for all 35 eligible games (33 registry boards + two custom LocalPages)', () => {
-    expect(LOCAL_TYPES).toHaveLength(35)
+  it('is true for all 44 eligible games (33 registry boards + ten custom LocalPages + one localBoard)', () => {
+    expect(LOCAL_TYPES).toHaveLength(44)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }
@@ -132,6 +152,10 @@ describe('supportsLocalPlay', () => {
     expect(supportsLocalPlay('herd')).toBe(false)
   })
 
+  it('is true for a custom nPlayer game with its own LocalPage', () => {
+    expect(supportsLocalPlay('minigolf')).toBe(true)
+  })
+
   it('is false for an unknown type', () => {
     expect(supportsLocalPlay('nonexistent')).toBe(false)
   })
@@ -139,6 +163,23 @@ describe('supportsLocalPlay', () => {
   it('matches the exact registry predicate', () => {
     const derived = GAME_TYPES.filter(t => supportsLocalPlay(t.type)).map(t => t.type).sort()
     expect(derived).toEqual([...LOCAL_TYPES].sort())
+  })
+})
+
+describe('freshGameState: Arrows difficulty', () => {
+  it('carries the host difficulty into the next round and leaves new rooms unset', () => {
+    expect(freshGameState('arrows').arrowsDifficulty).toBeNull()
+    const next = freshGameState('arrows', { gameType: 'arrows', arrowsRound: 0, arrowsDifficulty: 'hard', scores: { X: 1, O: 0 } })
+    expect(next).toMatchObject({ arrowsRound: 1, arrowsDifficulty: 'hard', arrowsStartedAt: null })
+  })
+
+  it('a switch from another game starts at round 0 with no difficulty', () => {
+    const fresh = freshGameState('arrows', { gameType: 'pong', arrowsRound: 1, arrowsDifficulty: 'hard', scores: {} })
+    expect(fresh).toMatchObject({ arrowsRound: 0, arrowsDifficulty: null })
+  })
+
+  it('switching away clears the difficulty', () => {
+    expect(freshGameState('tictactoe').arrowsDifficulty).toBeNull()
   })
 })
 
@@ -177,10 +218,11 @@ describe('lobbySwitchOverrides', () => {
     expect(out.status).toBe('waiting')
   })
 
-  it('removes chatLog and emote keys entirely (not nulled)', () => {
-    const out = lobbySwitchOverrides({ gameType: 'connectfour', status: 'playing', chatLog: null, emote: null })
+  it('removes chatLog, emote and emotes keys entirely (not nulled)', () => {
+    const out = lobbySwitchOverrides({ gameType: 'connectfour', status: 'playing', chatLog: null, emote: null, emotes: null })
     expect('chatLog' in out).toBe(false)
     expect('emote' in out).toBe(false)
+    expect('emotes' in out).toBe(false)
   })
 
   it('preserves other keys untouched', () => {
@@ -262,5 +304,100 @@ describe('solo flag honesty', () => {
     const demoTypes = new Set([...block.slice(0, block.indexOf('\n]')).matchAll(/type: '([^']+)'/g)].map(m => m[1]))
     const missing = GAME_TYPES.filter(t => t.solo === true && !demoTypes.has(t.type)).map(t => t.type)
     expect(missing).toEqual([])
+  })
+
+  // The other direction (word games audit X5): a solo-shelf tile for a game
+  // the registry calls solo: false was either a dead party tile (TWO TRUTHS
+  // 2+ PLAYERS) or a demo the Games sheet would not offer (PASS WORD).
+  it('every solo-shelf tile is a solo:true game', () => {
+    const demo = readFileSync(new URL('../pages/Demo.jsx', import.meta.url), 'utf8')
+    const block = demo.slice(demo.indexOf('const DEMOS = ['))
+    const demoTypes = [...block.slice(0, block.indexOf('\n]')).matchAll(/type: '([^']+)'/g)].map(m => m[1])
+    const onShelfButNotSolo = demoTypes
+      .filter(type => !OFF_SHELF.has(type))
+      .filter(type => GAME_TYPES.find(t => t.type === type)?.solo !== true)
+    expect(onShelfButNotSolo).toEqual([])
+  })
+})
+
+describe('isQuietRoom', () => {
+  it('reads a flag or a function of the room', () => {
+    expect(isQuietRoom(getGameConfig('hunch'), {})).toBe(true)
+    expect(isQuietRoom(getGameConfig('tictactoe'), {})).toBe(false)
+  })
+
+  it('hides Converge chat only while words are written (audit: chat-agreed words farmed stars)', () => {
+    const cfg = getGameConfig('converge')
+    expect(isQuietRoom(cfg, { status: 'playing', round: { phase: 'write' } })).toBe(true)
+    expect(isQuietRoom(cfg, { status: 'playing', round: { phase: 'chainEnd' } })).toBe(false)
+    expect(isQuietRoom(cfg, { status: 'waiting' })).toBe(false)
+  })
+
+  it('hides Just One chat from the clues to the guess (audit X8)', () => {
+    const cfg = getGameConfig('justone')
+    for (const phase of ['clues', 'compare', 'guess', 'judging']) {
+      expect(isQuietRoom(cfg, { status: 'playing', round: { phase } }), phase).toBe(true)
+    }
+    for (const phase of ['dealing', 'result', 'over']) {
+      expect(isQuietRoom(cfg, { status: 'playing', round: { phase } }), phase).toBe(false)
+    }
+  })
+})
+
+describe('isKnownGameType', () => {
+  it('knows every registry type and nothing else', async () => {
+    const { isKnownGameType } = await import('./games')
+    for (const t of GAME_TYPES) expect(isKnownGameType(t.type), t.type).toBe(true)
+    expect(isKnownGameType('nope')).toBe(false)
+    expect(isKnownGameType('')).toBe(false)
+    expect(isKnownGameType(undefined)).toBe(false)
+  })
+
+  it('getGameConfig still falls back, which is why the room shell checks first', async () => {
+    const { getGameConfig } = await import('./games')
+    expect(getGameConfig('nope').type).toBe(GAME_TYPES[0].type)
+  })
+})
+
+describe('party lobby', () => {
+  it('resolves through getGameConfig and isKnownGameType, outside the catalogue', async () => {
+    const { getGameConfig, isKnownGameType, PARTY_LOBBY } = await import('./games')
+    expect(getGameConfig('party')).toBe(PARTY_LOBBY)
+    expect(PARTY_LOBBY).toMatchObject({ nPlayer: true, minPlayers: 1, maxPlayers: 4 })
+    expect(isKnownGameType('party')).toBe(true)
+    expect(GAME_TYPES.some(t => t.type === 'party')).toBe(false)
+  })
+
+  it('buildPartyRoom: the creator alone in the lobby, hosting, capped at 4', async () => {
+    const { buildPartyRoom } = await import('./games')
+    const room = buildPartyRoom({ name: 'Ann', avatar: 'K1x', playerId: 'a', now: 5 })
+    expect(room).toMatchObject({
+      gameType: 'party', status: 'waiting', partyRoom: true, partyCap: 4, hostUid: 'a', lobby: true,
+      players: { a: { name: 'Ann', playerId: 'a', joinedAt: 5, online: true, avatar: 'K1x' } },
+    })
+    expect(Object.keys(room.players)).toEqual(['a'])
+  })
+})
+
+describe('resultMarginFor (registry resultMargin hook)', () => {
+  it('reads Dots & Boxes boxes from the viewer\'s seat, on both board sizes', () => {
+    const boxes = Array(36).fill('')
+    for (let i = 0; i < 19; i++) boxes[i] = 'X'
+    for (let i = 19; i < 36; i++) boxes[i] = 'O'
+    expect(resultMarginFor({ gameType: 'dotsandboxes', boxes }, 'O')).toEqual({ mine: 17, theirs: 19, total: 36, unit: ['box', 'boxes'] })
+    const small = Array(16).fill('')
+    for (let i = 0; i < 9; i++) small[i] = 'X'
+    expect(resultMarginFor({ gameType: 'dotsandboxes4', boxes: small }, 'O')).toEqual({ mine: 0, theirs: 9, total: 16, unit: ['box', 'boxes'] })
+  })
+
+  it('reads SOS sequences', () => {
+    const sosLines = [{ cells: [0, 1, 2], by: 'X' }, { cells: [7, 8, 9], by: 'X' }, { cells: [14, 15, 16], by: 'O' }]
+    expect(resultMarginFor({ gameType: 'sos', sosLines }, 'O')).toMatchObject({ mine: 1, theirs: 2 })
+  })
+
+  it('is null when the game has no hook, the viewer is a spectator, or there is no game', () => {
+    expect(resultMarginFor({ gameType: 'tictactoe' }, 'X')).toBeNull()
+    expect(resultMarginFor({ gameType: 'sos', sosLines: [] }, null)).toBeNull()
+    expect(resultMarginFor(null, 'X')).toBeNull()
   })
 })

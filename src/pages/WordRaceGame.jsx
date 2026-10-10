@@ -268,25 +268,29 @@ export default function WordRaceGame({
   const seatTint = (sym) => (sym === 'X' ? 'border-retro-p1/30 bg-retro-tint-p1/10' : 'border-retro-p2/30 bg-retro-tint-p2/10')
   const nameOf = (sym) => game.players?.[sym]?.name || sym
 
+  // Mid-race on a phone the opponent's hidden summary sits beside your board
+  // instead of under it, so the keyboard stays on screen (390×664).
   const boards = (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
-      <div className={cn('order-1 rounded border p-3 sm:p-4', seatTint(viewSymbol))}>
+    <div className={cn('grid md:grid-cols-2 gap-2 md:gap-6 items-start', reveal ? 'grid-cols-1 gap-4' : 'grid-cols-[auto_minmax(0,1fr)]')}>
+      <div className={cn('order-1 rounded border p-2 sm:p-4', seatTint(viewSymbol))}>
         <WordRaceBoard
           guesses={myGuesses}
           currentGuess={!isSpectator && phase === 'playing' && !myDone && !matchOver ? currentGuess : ''}
           ghost={isSpectator}
           reveal={reveal}
           label={isSpectator ? `X · ${nameOf('X')}` : `YOU · ${nameOf(viewSymbol)}`}
+          seat={viewSymbol}
           solved={myDone?.solved}
         />
       </div>
-      <div className={cn('order-2 rounded border p-3 sm:p-4', seatTint(otherSymbol))}>
+      <div className={cn('order-2 rounded border p-2 sm:p-4', seatTint(otherSymbol))}>
         <WordRaceBoard
           guesses={opponentGuesses}
           ghost
           reveal={reveal}
           compact={!reveal}
           label={isSpectator ? `O · ${nameOf('O')}` : `OPPONENT · ${nameOf(otherSymbol)}`}
+          seat={otherSymbol}
           solved={opponentDone?.solved}
         />
       </div>
@@ -299,7 +303,6 @@ export default function WordRaceGame({
       mySymbol={mySymbol}
       isSpectator={isSpectator}
       matchTarget={RACE_TARGET}
-      title="WORD RACE"
       roundLabel={`ROUND ${roundNum}`}
       presence={presence}
     />
@@ -336,17 +339,11 @@ export default function WordRaceGame({
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-3 py-2">
+    <div className="w-full max-w-4xl mx-auto space-y-2 sm:space-y-3 py-2">
       {rail}
 
-      {phase === 'playing' && (
-        <div className="flex items-center justify-between gap-2 px-1">
-          <span className="font-pixel text-[9px] text-retro-dim">SAME WORD · {MAX_GUESSES} GUESSES</span>
-          <span className="font-mono text-xs tabular-nums text-retro-cta" aria-hidden="true">{timer}</span>
-        </div>
-      )}
-
       <WordRaceMeter
+        timer={phase === 'playing' ? timer : null}
         myGuesses={myGuesses}
         opponentGuesses={opponentGuesses}
         mySymbol={viewSymbol}
@@ -354,42 +351,7 @@ export default function WordRaceGame({
         opponentLabel={isSpectator ? 'O' : 'OPPONENT'}
       />
 
-      {boards}
-
-      {phase === 'playing' && (
-        <div className="space-y-2">
-          {graceEndsAt && (
-            <div className="space-y-1">
-              <p className={cn('text-center font-pixel text-[10px]', opponentDone && !myDone ? 'text-retro-p2' : 'text-retro-win')} aria-live="polite">
-                {isSpectator ? `${firstDone?.solved ? 'SOLVED' : 'OUT'} — THE OTHER PLAYER IS ON THE CLOCK`
-                  : myDone ? (myDone.solved ? 'YOU SOLVED — OPPONENT IS ON THE CLOCK' : "YOU'RE OUT — OPPONENT IS ON THE CLOCK")
-                  : (opponentDone.solved ? 'OPPONENT SOLVED — KEEP GOING' : 'OPPONENT IS OUT — SOLVE IT TO WIN')}
-              </p>
-              <RoundTimer endsAt={graceEndsAt} now={now} totalMs={graceTotal} label={myDone ? 'OPPONENT HAS' : 'TIME LEFT'} />
-            </div>
-          )}
-          {!isSpectator && !myDone && (
-            <>
-              <div className="flex items-center justify-center gap-2" aria-label={`Current guess: ${currentGuess || 'empty'}`}>
-                {Array.from({ length: WORD_LENGTH }, (_, index) => <span key={index} aria-hidden="true" className={cn('flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded border-2 font-pixel text-lg', currentGuess[index] ? 'border-retro-cta bg-retro-tint-cta text-retro-text' : 'border-retro-border bg-retro-card text-retro-dim')}>{currentGuess[index] || ''}</span>)}
-                <button type="button" onClick={submitGuess} disabled={guessBusy || currentGuess.length !== WORD_LENGTH} className="min-h-11 px-4 rounded bg-retro-cta text-retro-bg font-pixel text-[10px] disabled:opacity-40">{guessBusy ? 'SENDING…' : 'GUESS'}</button>
-              </div>
-              <WordFeedback message={feedback?.message} tone="bad" id={feedback?.id} />
-              <WordKeyboard keyState={keyboardState} onKey={handleKey} disabled={guessBusy} />
-            </>
-          )}
-          {isSpectator && <p className="text-center font-pixel text-[9px] text-retro-dim">SPECTATING · LETTERS HIDDEN UNTIL REVEAL</p>}
-          {!opponentOnline && !isSpectator && <OfflineNotice label="OPPONENT" />}
-          {canClaimIdle && (
-            <div className="text-center">
-              <button type="button" onClick={handleClaimIdle} disabled={actionBusy} className="min-h-10 px-4 rounded border-2 border-retro-border text-retro-dim font-pixel text-[9px] hover:border-retro-cta hover:text-retro-cta active:scale-95 disabled:opacity-50">
-                {actionBusy ? 'CLAIMING…' : 'OPPONENT GONE — END ROUND AS DRAW'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* The round result sits above the boards so it is never below the fold. */}
       {phase === 'reveal' && (
         <div className="modal-pop space-y-3 rounded border-2 border-retro-cta/50 bg-retro-card p-4 text-center" aria-live="polite">
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest">ANSWER</p>
@@ -411,6 +373,45 @@ export default function WordRaceGame({
           )}
         </div>
       )}
+
+      {boards}
+
+      {phase === 'playing' && (
+        <div className="space-y-1 sm:space-y-2">
+          {graceEndsAt && (
+            <div className="space-y-1">
+              <p className={cn('text-center font-pixel text-[10px]', opponentDone && !myDone ? 'text-retro-p2' : 'text-retro-win')} aria-live="polite">
+                {isSpectator ? `${firstDone?.solved ? 'SOLVED' : 'OUT'} — THE OTHER PLAYER IS ON THE CLOCK`
+                  : myDone ? (myDone.solved ? 'YOU SOLVED — OPPONENT IS ON THE CLOCK' : "YOU'RE OUT — OPPONENT IS ON THE CLOCK")
+                  : (opponentDone.solved ? 'OPPONENT SOLVED — KEEP GOING' : 'OPPONENT IS OUT — SOLVE IT TO WIN')}
+              </p>
+              <RoundTimer endsAt={graceEndsAt} now={now} totalMs={graceTotal} label={myDone ? 'OPPONENT HAS' : 'TIME LEFT'} />
+            </div>
+          )}
+          {!isSpectator && !myDone && (
+            <>
+              {/* You type straight into your board's active row; ↵ sends it. */}
+              <WordFeedback message={guessBusy ? 'SENDING…' : feedback?.message} tone={guessBusy ? 'info' : 'bad'} id={feedback?.id} />
+              <WordKeyboard
+                keyState={keyboardState}
+                onKey={handleKey}
+                disabled={guessBusy}
+                enterLabel={guessBusy ? 'Sending guess' : 'Enter guess'}
+              />
+            </>
+          )}
+          {isSpectator && <p className="text-center font-pixel text-[9px] text-retro-dim">SPECTATING · LETTERS HIDDEN UNTIL REVEAL</p>}
+          {!opponentOnline && !isSpectator && <OfflineNotice label="OPPONENT" />}
+          {canClaimIdle && (
+            <div className="text-center">
+              <button type="button" onClick={handleClaimIdle} disabled={actionBusy} className="min-h-10 px-4 rounded border-2 border-retro-border text-retro-dim font-pixel text-[9px] hover:border-retro-cta hover:text-retro-cta press disabled:opacity-50">
+                {actionBusy ? 'CLAIMING…' : 'OPPONENT GONE — END ROUND AS DRAW'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }

@@ -3,6 +3,22 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      // Motion tokens (src/index.css --dur-* / --ease-* / --spring-*, lib/motion.js).
+      // `transition` defaults to the Material 3 standard curve.
+      transitionDuration: {
+        press: 'var(--dur-press)',
+        fast: 'var(--dur-fast)',
+        base: 'var(--dur-base)',
+        page: 'var(--dur-page)',
+      },
+      transitionTimingFunction: {
+        DEFAULT: 'cubic-bezier(0.2, 0, 0, 1)',
+        standard: 'var(--ease-standard)',
+        enter: 'var(--ease-enter)',
+        exit: 'var(--ease-exit)',
+        'spring-ui': 'var(--spring-ui)',
+        'spring-pop': 'var(--spring-pop)',
+      },
       fontFamily: {
         pixel: ['var(--font-pixel)', 'system-ui'],
       },

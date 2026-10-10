@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   NAME_MAX, isGuestStyleName, validateName, suggestName, suggestNames, initialName,
+  homeGreeting,
 } from './onboardingLogic'
 import { NAME_REJECT_MESSAGES } from './moderationLogic'
 
@@ -90,5 +91,18 @@ describe('initialName', () => {
   })
   it('trims an over-long account name to NAME_MAX', () => {
     expect(initialName({ accountName: 'A Very Long Google Account Name', suggestion: 'x' })).toHaveLength(NAME_MAX)
+  })
+})
+
+describe('homeGreeting', () => {
+  it('meets a first-time player instead of welcoming them back', () => {
+    expect(homeGreeting({ name: 'Neon Dragon', firstVisit: true })).toBe('HI, NEON DRAGON!')
+  })
+  it('welcomes a returning player back', () => {
+    expect(homeGreeting({ name: 'Neon Dragon', firstVisit: false })).toBe('WELCOME BACK, NEON DRAGON')
+  })
+  it('falls back to the title without a name', () => {
+    expect(homeGreeting({ name: '', firstVisit: true })).toBe('GAME NIGHT')
+    expect(homeGreeting({ name: undefined, firstVisit: false })).toBe('GAME NIGHT')
   })
 })

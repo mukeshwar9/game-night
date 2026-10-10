@@ -33,8 +33,8 @@ function ActionButton({ children, busy, busyLabel = 'SENDING…', onClick, disab
       onClick={onClick}
       disabled={busy || disabled}
       className={secondary
-        ? 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50'
-        : 'min-h-11 px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50'}
+        ? 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1 hover:text-retro-p1 transition press disabled:opacity-50'
+        : 'min-h-11 px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-50'}
     >
       {busy ? busyLabel : children}
     </button>
@@ -347,6 +347,13 @@ export default function PasswordGame({
 
       {canSubmit && (phase === 'clue' || phase === 'guess') && (
         <form onSubmit={event => { event.preventDefault(); submit() }} className="space-y-2">
+          {phase === 'clue' && isClueGiver && word && (
+            // The secret card scrolls off-screen once the phone keyboard opens,
+            // so repeat the word right above the field you type the clue in.
+            <p aria-hidden="true" className="text-center font-pixel text-[10px] text-retro-dim tracking-widest">
+              YOUR WORD: <span className="text-retro-cta text-glow-cta">{String(word).toUpperCase()}</span>
+            </p>
+          )}
           <label htmlFor="password-entry" className="sr-only">
             {phase === 'clue' ? 'One-word clue' : 'Guess the password'}
           </label>

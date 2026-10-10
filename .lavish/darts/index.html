@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Steady Hand: darts for Game Night</title>
+<style>
+@font-face { font-family: 'Press Start 2P'; src: url('press-start-2p-latin.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Atkinson Next'; font-weight: 200 800; src: url('atkinson-next.woff2') format('woff2'); font-display: swap; }
+:root {
+  --bg: 238 240 226; --surface: 246 248 236; --card: 252 253 246; --line: 185 195 165; --ink: 45 55 35; --dim: 82 94 68;
+  --p1: 70 121 47; --p2: 129 89 180; --p3: 175 55 115; --p4: 25 100 150; --cta: 130 95 14; --win: 38 123 66; --danger: 190 30 50;
+  --tint-cta: 242 232 200; --tint-p1: 220 238 205; --deep: 228 232 214; --stage: 16 22 18;
+  --pix: 'Press Start 2P', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; color: rgb(var(--ink)); background: rgb(var(--bg)); font: 17px/1.55 'Atkinson Next', ui-sans-serif, system-ui, sans-serif;
+  background-image: linear-gradient(rgb(var(--line) / .2) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--line) / .2) 1px, transparent 1px); background-size: 3px 3px; }
+::selection { background: rgb(var(--cta)); color: rgb(var(--card)); }
+:focus-visible { outline: 3px solid rgb(var(--cta)); outline-offset: 2px; }
+main { max-width: 1120px; margin: 0 auto; padding: 36px 20px 96px; }
+h1 { font: 400 clamp(26px, 5.2vw, 46px)/1.15 var(--pix); margin: 0 0 18px; color: rgb(var(--cta)); text-shadow: 3px 3px 0 rgb(var(--tint-cta)), 4px 4px 0 rgb(var(--line)); text-wrap: balance; }
+h2 { font: 400 clamp(15px, 2.4vw, 19px)/1.4 var(--pix); margin: 84px 0 12px; text-wrap: balance; }
+h3 { font: 700 19px/1.3 inherit; margin: 0 0 6px; }
+p { margin: 0 0 12px; max-width: 68ch; }
+.lede { font-size: 20px; max-width: 34em; }
+.dim { color: rgb(var(--dim)); }
+b, strong { font-weight: 700; }
+a { color: rgb(var(--p4)); text-underline-offset: 3px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 44px; align-items: start; }
+.rules { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 14px; max-width: 34em; }
+.rules li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; align-items: baseline; border-top: 1px solid rgb(var(--line)); padding-top: 12px; }
+.rules li > span { color: rgb(var(--cta)); }
+.rules li > span, thead th, .twist dt, .setup legend, .tag, .rec { font: 700 12.5px/1.4 'Atkinson Next', sans-serif; letter-spacing: .07em; text-transform: uppercase; }
+.verdict { margin-top: 26px; padding: 16px 18px; background: rgb(var(--tint-p1)); border: 2px solid rgb(var(--win)); border-radius: 6px; box-shadow: 0 4px 0 rgb(var(--win) / .45); max-width: 34em; }
+.verdict p:last-child { margin: 0; }
+
+/* phone + stage */
+.playcol { position: sticky; top: 12px; }
+.phone { width: 360px; max-width: 100%; margin: 0 auto; border: 6px solid #20261d; border-radius: 30px; overflow: hidden; background: rgb(var(--bg)); box-shadow: 0 18px 40px -14px rgb(var(--ink) / .55), 0 4px 0 #20261d; }
+.screen { font: 8px/1.5 var(--pix); letter-spacing: .04em; text-transform: uppercase; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; transition: transform .55s cubic-bezier(.16, 1, .3, 1); }
+.screen.flip { transform: rotate(180deg); }
+.top { display: flex; align-items: center; gap: 8px; padding: 10px 12px 9px; color: rgb(var(--cta)); border-bottom: 1px solid rgb(var(--line)); }
+.top .logo { width: 17px; height: 17px; border: 2px solid rgb(var(--cta)); border-radius: 3px; display: grid; place-items: center; font-size: 6px; box-shadow: 0 2px 0 rgb(var(--cta) / .4); }
+.top button { margin-left: auto; font: inherit; letter-spacing: inherit; color: rgb(var(--dim)); background: none; border: 1px solid rgb(var(--line)); border-radius: 3px; padding: 5px 6px 4px; cursor: pointer; min-height: 24px; }
+.seats { display: grid; gap: 5px; padding: 7px 7px 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.seats.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .seats.n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.seat { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px; min-height: 40px; padding: 5px 7px; background: rgb(var(--card)); border: 1px solid rgb(var(--line)); border-radius: 4px; box-shadow: 0 3px 0 rgb(var(--line)); transition: transform .18s cubic-bezier(.16, 1, .3, 1); }
+.seat.on { border: 2px solid rgb(var(--sc)); padding: 4px 6px; box-shadow: 0 3px 0 rgb(var(--sc) / .5); transform: translateY(-2px); }
+.seat.won { background: rgb(var(--tint-cta)); }
+.seat b { font: 400 13px/1 var(--pix); color: rgb(var(--ink)); }
+.seat .nm { font-size: 7px; color: rgb(var(--dim)); display: grid; gap: 2px; min-width: 0; }
+.seat .nv { font-size: 5px; color: rgb(var(--sc)); filter: brightness(.75); }
+.seats.n3 .seat, .seats.n4 .seat { grid-template-columns: auto minmax(0, 1fr); row-gap: 3px; } .seats.n3 .seat b, .seats.n4 .seat b { grid-column: 1 / -1; font-size: 11px; }
+.gl { width: 11px; height: 11px; background: rgb(var(--sc)); flex: none; }
+.gl.g0 { border-radius: 50%; } .gl.g2 { clip-path: polygon(50% 0, 100% 100%, 0 100%); } .gl.g3 { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.pips { position: absolute; right: 6px; top: -7px; display: flex; gap: 2px; background: rgb(var(--sc)); padding: 2px 3px; border-radius: 2px; }
+.pips i { width: 4px; height: 7px; background: rgb(var(--card) / .35); } .pips i.on { background: rgb(var(--card)); }
+.stagewrap { position: relative; background: rgb(var(--deep)); border-block: 2px solid #20261d; }
+#stage { display: block; width: 100%; height: 440px; touch-action: none; cursor: crosshair; }
+#banner { position: absolute; left: 0; right: 0; top: 42%; text-align: center; font-size: 11px; padding: 12px 6px 10px; color: #fff; background: rgb(var(--sc, 70 121 47) / .92); transform: scaleY(0); transition: transform .16s steps(4); pointer-events: none; text-shadow: 2px 2px 0 rgb(0 0 0 / .35); }
+#banner.on { transform: scaleY(1); }
+#over { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 20px; text-align: center; background: rgb(8 12 9 / .78); backdrop-filter: blur(3px); }
+#over[hidden], #lobby[hidden] { display: none; }
+#lobby { position: absolute; inset: 0; z-index: 2; display: grid; align-content: center; gap: 9px; padding: 14px 12px; background: rgb(var(--bg) / .94); color: rgb(var(--ink)); }
+.lt { font-size: 9px; color: rgb(var(--cta)); margin-top: 4px; }
+.pick { position: relative; display: block; cursor: pointer; }
+.pick input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.pick > span { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 10px; row-gap: 5px; align-items: center; padding: 10px; min-height: 64px; background: rgb(var(--card)); border: 2px solid rgb(var(--line)); border-radius: 4px; box-shadow: 0 3px 0 rgb(var(--line)); color: rgb(var(--dim)); }
+.pick svg { width: 40px; height: 40px; grid-row: span 2; }
+.pick b { font: 400 10px/1.3 var(--pix); color: rgb(var(--ink)); align-self: end; }
+.pick i { font: 400 12.5px/1.35 'Atkinson Next', sans-serif; letter-spacing: 0; text-transform: none; font-style: normal; align-self: start; }
+.pick input:checked + span { border-color: rgb(var(--cta)); box-shadow: 0 3px 0 rgb(var(--cta) / .55); background: rgb(var(--tint-cta)); color: rgb(var(--cta)); }
+.pick input:focus-visible + span { outline: 3px solid rgb(var(--cta)); outline-offset: 2px; }
+.lrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pick.sm > span { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 44px; padding: 6px 4px; text-align: center; }
+.pick.sm b { align-self: center; font-size: 8px; }
+.pick.sm input:checked + span b::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 5px; background: rgb(var(--cta)); }
+#start { margin-top: 6px; min-height: 52px; font-size: 13px; }
+.ghost { font: 400 8px/1 var(--pix); letter-spacing: .04em; color: #e9ecdf; background: none; border: 1px solid rgb(255 255 255 / .4); border-radius: 4px; min-height: 44px; padding: 0 14px; cursor: pointer; }
+.setup select { font: inherit; color: inherit; padding: 7px 10px; border: 1px solid rgb(var(--line)); border-radius: 4px; background: rgb(var(--card)); box-shadow: 0 2px 0 rgb(var(--line)); min-height: 36px; max-width: 220px; }
+.phone { color: rgb(var(--ink)); }
+#overTitle { font-size: 15px; line-height: 1.5; text-shadow: 3px 3px 0 rgb(0 0 0 / .5); }
+#overSub { font-size: 7px; line-height: 2; color: #e9ecdf; max-width: 280px; }
+.btn { font: 400 10px/1 var(--pix); letter-spacing: .04em; text-transform: uppercase; min-height: 46px; padding: 0 18px; color: rgb(var(--card)); background: rgb(var(--cta)); border: 0; border-radius: 4px; box-shadow: 0 4px 0 rgb(var(--ink) / .55); cursor: pointer; transition: transform .08s, box-shadow .08s; }
+.btn:active { transform: translateY(3px) scale(.98); box-shadow: 0 1px 0 rgb(var(--ink) / .55); }
+.bar { padding: 8px 8px 10px; display: grid; gap: 7px; min-height: 76px; }
+#chips { display: flex; gap: 5px; align-items: center; }
+.chip { min-width: 44px; text-align: center; padding: 7px 4px 6px; border: 1px dashed rgb(var(--line)); border-radius: 3px; color: rgb(var(--dim)); font-size: 9px; }
+.chip.hit { border: 1px solid rgb(var(--ink)); background: rgb(var(--card)); color: rgb(var(--ink)); box-shadow: 0 2px 0 rgb(var(--line)); animation: chip .25s steps(3); }
+@keyframes chip { from { transform: translateY(-5px); } }
+.tot { margin-left: auto; font-size: 11px; color: rgb(var(--cta)); }
+#status { font-size: 7px; line-height: 1.7; color: rgb(var(--dim)); min-height: 24px; }
+#throwBtn { width: 100%; min-height: 54px; font-size: 13px; }
+#throwBtn[hidden] { display: none; }
+
+.setup { width: 360px; max-width: 100%; margin: 16px auto 0; display: grid; gap: 10px; font-size: 14px; }
+.setup fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.setup legend { float: left; width: 74px; padding: 0; color: rgb(var(--dim)); }
+.seg { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 7px 11px; border: 1px solid rgb(var(--line)); border-radius: 4px; background: rgb(var(--card)); box-shadow: 0 2px 0 rgb(var(--line)); }
+.seg input:checked + span { border-color: rgb(var(--ink)); background: rgb(var(--ink)); color: rgb(var(--card)); box-shadow: 0 2px 0 rgb(var(--ink) / .4); }
+.seg input:focus-visible + span { outline: 3px solid rgb(var(--cta)); outline-offset: 2px; }
+.linkbtn { font: inherit; color: rgb(var(--p4)); background: none; border: 0; padding: 6px 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; justify-self: start; }
+
+/* explainers */
+.split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-items: start; }
+.fig { margin: 0; }
+.fig svg { display: block; width: 100%; height: auto; border-radius: 8px; }
+.fig figcaption { font-size: 15px; color: rgb(var(--dim)); margin-top: 10px; max-width: 60ch; }
+.dark { background: rgb(var(--stage)); }
+.paper { background: rgb(var(--card)); border: 1px solid rgb(var(--line)); }
+svg text { font-family: 'Atkinson Next', sans-serif; }
+svg .px { font-family: 'Press Start 2P', monospace; }
+table { width: 100%; border-collapse: collapse; font-size: 15.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 10px 14px 10px 0; border-top: 1px solid rgb(var(--line)); vertical-align: top; }
+thead th { border-top: 0; color: rgb(var(--dim)); }
+.scroll { overflow-x: auto; }
+.tag { display: inline-block; padding: 2px 7px; border-radius: 3px; white-space: nowrap; }
+.tag.ok { background: rgb(var(--win)); color: rgb(var(--card)); } .tag.likely { background: rgb(var(--tint-cta)); color: rgb(var(--cta)); border: 1px solid rgb(var(--cta)); } .tag.guess { background: rgb(var(--card)); color: rgb(var(--danger)); border: 1px dashed rgb(var(--danger)); }
+.twists { display: grid; gap: 0; margin-top: 8px; }
+.twist { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 300px); gap: 28px; padding: 26px 0; border-top: 2px solid rgb(var(--ink)); align-items: start; }
+.twist svg { width: 150px; height: 150px; border-radius: 8px; display: block; }
+.twist h3 { font: 400 13px/1.5 var(--pix); margin-bottom: 8px; }
+.twist .first { color: rgb(var(--win)); }
+.twist dl { margin: 0; display: grid; gap: 8px; font-size: 15px; }
+.twist dt { color: rgb(var(--dim)); }
+.twist dd { margin: 0; }
+.try { margin-top: 12px; }
+.try.btn { background: rgb(var(--ink)); font-size: 11px; min-height: 44px; }
+.seatgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+.seatgrid figure { margin: 0; } .seatgrid svg { width: 100%; height: auto; display: block; }
+.seatgrid figcaption { font-size: 15px; margin-top: 8px; } .seatgrid b { display: block; }
+form.decide { margin-top: 18px; display: grid; gap: 26px; }
+form.decide fieldset { border: 0; border-top: 2px solid rgb(var(--ink)); margin: 0; padding: 16px 0 0; display: grid; gap: 8px; }
+form.decide legend { font: 400 11px/1.6 var(--pix); padding: 0 10px 0 0; float: left; width: 100%; margin-bottom: 8px; }
+form.decide label { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; max-width: 70ch; cursor: pointer; }
+form.decide input[type=radio], form.decide input[type=checkbox] { width: 20px; height: 20px; margin: 3px 0 0; accent-color: rgb(var(--win)); flex: none; }
+form.decide input[type=text], textarea { width: 100%; max-width: 560px; font: inherit; color: inherit; padding: 10px 12px; border: 1px solid rgb(var(--line)); border-radius: 4px; background: rgb(var(--card)); caret-color: rgb(var(--cta)); }
+.rec { color: rgb(var(--win)); margin-left: 6px; white-space: nowrap; }
+#queued { font-size: 15px; color: rgb(var(--win)); margin-left: 12px; }
+.sources { font-size: 15px; padding-left: 20px; } .sources li { margin-bottom: 6px; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .hero, .split { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .playcol { position: static; }
+  .twist { grid-template-columns: 96px minmax(0, 1fr); gap: 16px; } .twist svg { width: 96px; height: 96px; } .twist dl { grid-column: 1 / -1; }
+  .seatgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  main { padding: 24px 16px 72px; } h2 { margin-top: 60px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .screen, .seat, .chip.hit { transition: none; animation: none; } }
+</style>
+</head>
+<body>
+<main>
+
+<section class="hero" id="play">
+  <div>
+    <h1>Steady Hand</h1>
+    <p class="lede">Darts for two to four, on one phone or in a room. Your hand shakes in a slow rhythm; you pick a segment, wait for the shake to tighten, and let go. First to bring 301 down to exactly zero wins.</p>
+    <p class="dim">The game on this page is real. Pick how you throw on its setup screen, press START, then hold on the board, drag to move the aim, and release when the ring is small. It starts at 101 so a leg takes about a minute. The THEME menu under the phone restyles the whole game, board included.</p>
+    <ul class="rules">
+      <li><span>SETUP</span><div><b>Choose your throw before the leg.</b> Steady aim or one button, picked once for the whole room so every seat plays the same game.</div></li>
+      <li><span>THROW</span><div><b>Hold, drag, let go.</b> The crosshair appears near your finger but never exactly under it, a little off in a random direction, so every dart starts with a correction. From there it moves like a trackpad. The ring around the crosshair is your shake: it breathes in and out every second and a half.</div></li>
+      <li><span>SCORE</span><div><b>Three darts a visit, counted down from 301.</b> Outer ring doubles, inner ring trebles, bull is 50. Go below zero and the visit is wiped.</div></li>
+      <li><span>FINISH</span><div><b>Land on exactly zero.</b> When one dart can finish, every segment that does it glows gold.</div></li>
+      <li><span>SEATS</span><div><b>2 to 4, same rules everywhere:</b> pass the phone, sit face to face, or each on your own phone in a Game Night room. A bot fills in for solo.</div></li>
+    </ul>
+    <div class="verdict">
+      <p><b>Recommendation: build it, medium effort.</b> It can sit on Archery's room model almost unchanged, so the new work is the scoring logic, the stage and the throw feel.</p>
+      <p>Agreed so far: <b>Turf</b> and <b>Nerves</b> are in, the throw style is picked on the setup screen, and the board follows the player's theme. Still open: the name, player counts and leg length, at the bottom of this page.</p>
+    </div>
+  </div>
+
+  <div class="playcol">
+    <div class="phone">
+      <div class="screen" id="screen">
+        <div class="top"><span class="logo">GN</span><span>Steady Hand</span><button type="button" id="mute" aria-pressed="false">SOUND ON</button></div>
+        <div class="seats" id="seats"></div>
+        <div class="stagewrap">
+          <canvas id="stage" aria-label="Dartboard. Hold and drag to aim, release to throw."></canvas>
+          <div id="banner" role="status"></div>
+          <div id="lobby">
+            <div class="lt">How do you throw?</div>
+            <label class="pick"><input type="radio" name="lctrl" value="aim" data-opt="ctrl" checked><span><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="20" cy="20" r="5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/><path d="M20 3v8M20 29v8M3 20h8M29 20h8" stroke="currentColor" stroke-width="2"/></svg><b>Steady aim</b><i>Hold, drag to any segment, let go when the ring is tight.</i></span></label>
+            <label class="pick"><input type="radio" name="lctrl" value="one" data-opt="ctrl"><span><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="9" width="32" height="4" fill="currentColor" opacity=".4"/><rect x="22" y="5" width="4" height="12" fill="currentColor"/><circle cx="20" cy="29" r="8" fill="currentColor"/></svg><b>One button</b><i>Two taps stop two sweeping lines. Easiest for small hands.</i></span></label>
+            <div class="lt">Game</div>
+            <div class="lrow">
+              <label class="pick sm"><input type="radio" name="lmode" value="x01" data-opt="mode" checked><span><b>Countdown</b></span></label>
+              <label class="pick sm"><input type="radio" name="lmode" value="turf" data-opt="mode"><span><b>Turf</b></span></label>
+              <label class="pick sm"><input type="checkbox" data-opt="nerves" checked><span><b>Nerves</b></span></label>
+            </div>
+            <button type="button" class="btn" id="start">START</button>
+          </div>
+          <div id="over" hidden><div id="overTitle"></div><div id="overSub"></div><button type="button" class="btn" id="again">PLAY AGAIN</button><button type="button" class="ghost" id="setup">CHANGE SETUP</button></div>
+        </div>
+        <div class="bar"><div id="chips"></div><div id="status" role="status" aria-live="polite"></div><button type="button" class="btn" id="throwBtn" hidden>THROW</button></div>
+      </div>
+    </div>
+    <div class="setup" aria-label="Prototype settings">
+      <fieldset><legend>PLAYERS</legend>
+        <label class="seg"><input type="radio" name="n" value="2" data-opt="n" checked><span>2</span></label>
+        <label class="seg"><input type="radio" name="n" value="3" data-opt="n"><span>3</span></label>
+        <label class="seg"><input type="radio" name="n" value="4" data-opt="n"><span>4</span></label>
+        <label class="seg"><input type="checkbox" data-opt="bot"><span>P2 is a bot</span></label>
+      </fieldset>
+      <fieldset><legend>THEME</legend>
+        <select id="theme" data-opt="theme" aria-label="Game Night theme"></select>
+      </fieldset>
+      <fieldset><legend>LEG</legend>
+        <label class="seg"><input type="radio" name="start" value="101" data-opt="start" checked><span>101</span></label>
+        <label class="seg"><input type="radio" name="start" value="301" data-opt="start"><span>301</span></label>
+      </fieldset>
+      <fieldset><legend>TABLE</legend>
+        <label class="seg"><input type="radio" name="table" value="pass" data-opt="table" checked><span>Pass the phone</span></label>
+        <label class="seg"><input type="radio" name="table" value="f2f" data-opt="table"><span>Face to face</span></label>
+      </fieldset>
+      <fieldset><legend>TWISTS</legend>
+        <label class="seg"><input type="checkbox" data-opt="knock"><span>Knockback</span></label>
+        <label class="seg"><input type="checkbox" data-opt="balloon"><span>Balloons</span></label>
+      </fieldset>
+      <button type="button" class="linkbtn" id="restart">Back to the setup screen</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What the source game does</h2>
+  <div class="split">
+    <figure class="fig">
+      <svg viewBox="0 0 420 330" class="paper" role="img" aria-label="Schematic of the source app's darts screen: a board, one horizontal and one vertical timing meter, and a single corner button per player">
+        <rect x="140" y="14" width="150" height="302" rx="16" fill="rgb(228 232 214)" stroke="rgb(45 55 35)" stroke-width="3"/>
+        <circle cx="215" cy="120" r="50" fill="rgb(45 55 35)"/><circle cx="215" cy="120" r="38" fill="none" stroke="rgb(252 253 246)" stroke-width="2"/><circle cx="215" cy="120" r="22" fill="none" stroke="rgb(252 253 246)" stroke-width="2"/><circle cx="215" cy="120" r="5" fill="rgb(190 30 50)"/>
+        <rect x="170" y="190" width="90" height="7" rx="3" fill="rgb(185 195 165)"/><rect x="222" y="186" width="5" height="15" fill="rgb(45 55 35)"/>
+        <rect x="152" y="80" width="7" height="80" rx="3" fill="rgb(185 195 165)"/><rect x="148" y="104" width="15" height="5" fill="rgb(45 55 35)"/>
+        <circle cx="262" cy="288" r="20" fill="rgb(190 30 50)"/><rect x="204" y="278" width="38" height="20" rx="10" fill="rgb(45 55 35)"/><text x="223" y="292" text-anchor="middle" font-size="11" fill="rgb(252 253 246)" class="px" style="font-size:8px">301</text>
+        <circle cx="168" cy="40" r="14" fill="rgb(25 100 150)"/>
+        <g font-size="13.5" fill="rgb(45 55 35)"><text x="126" y="98" text-anchor="end">Meter 2 picks</text><text x="126" y="115" text-anchor="end">the height</text>
+        <text x="302" y="188" >Meter 1 picks</text><text x="302" y="205">left to right</text>
+        <text x="302" y="284">One button</text><text x="302" y="301">per player</text>
+        <text x="126" y="38" text-anchor="end">Rival sits</text><text x="126" y="55" text-anchor="end">opposite</text></g>
+        <g stroke="rgb(82 94 68)" stroke-width="1.5"><path d="M130 100h18M298 193h-34M298 288h-14M130 40h22"/></g>
+      </svg>
+      <figcaption>My own schematic of the screen, drawn from gameplay video frames. No art from the app is reused anywhere on this board.</figcaption>
+    </figure>
+    <div>
+      <p>The app is a one-device party collection (100M+ installs, 4.3 stars). Its darts is a <b>pure timing game</b>: a marker slides along a horizontal meter, a second along a vertical one, and one tap on your corner button stops each. You never choose where to aim; you only choose when.</p>
+      <p>It is a race from 301 to exactly zero, the view turns to face whoever is throwing, and the camera pushes in on every hit. That part works. What it lacks is any decision: no safe target, no reason to watch the other player, and near the end a single unlucky number can drag on.</p>
+      <p class="dim">So the design keeps the countdown, the timing and the hit moment, and adds the two things it is missing: a choice of target, and a reason to care about the other players' darts.</p>
+    </div>
+  </div>
+  <div class="scroll" style="margin-top:26px">
+  <table>
+    <thead><tr><th>Finding</th><th>Where it comes from</th><th>How sure</th></tr></thead>
+    <tbody>
+      <tr><td>Rule text: take turns, first to score 301, the last dart must hit the exact score.</td><td>In-app GAME INFO card, video <a href="https://www.youtube.com/watch?v=RBpvA_F-sQg">RBpvA_F-sQg</a> at 0:04 (low-resolution frame, wording approximate)</td><td><span class="tag ok">SEEN</span></td></tr>
+      <tr><td>Each player has a counter that starts at 301 and counts down (301 → 281 after a 20).</td><td>Same video, 0:08 to 0:20; also <a href="https://www.youtube.com/watch?v=8_abyg6A5xY">8_abyg6A5xY</a></td><td><span class="tag ok">SEEN</span></td></tr>
+      <tr><td>One round button per player in their corner; a horizontal and a vertical meter with a moving marker.</td><td>Both videos, most frames</td><td><span class="tag ok">SEEN</span></td></tr>
+      <tr><td>Two taps per dart, one per meter.</td><td>Inferred: the meters light up one after the other</td><td><span class="tag likely">LIKELY</span></td></tr>
+      <tr><td>One dart per turn, then the other player throws.</td><td>Inferred from frames two seconds apart: the score changes once, then the turn flag swaps</td><td><span class="tag likely">LIKELY</span></td></tr>
+      <tr><td>The view rotates 180° for the player sitting opposite; the camera zooms in on impact; pop-ups for trebles and the score.</td><td>Both videos</td><td><span class="tag ok">SEEN</span></td></tr>
+      <tr><td>Near the end, some sectors glow yellow.</td><td>Frames with 19 and 12 left. I read these as finishing hints</td><td><span class="tag likely">LIKELY</span></td></tr>
+      <tr><td>Bot opponent with a difficulty slider; medal podium at the end.</td><td>Video RBpvA_F-sQg, start and end frames</td><td><span class="tag ok">SEEN</span></td></tr>
+      <tr><td>Darts plays with three and four players.</td><td>Not seen in any video I sampled. The app has a 4-player menu with corner buttons for other games</td><td><span class="tag guess">ASSUMED</span></td></tr>
+      <tr><td>Players dislike frequent ads, games with no explanation, and a hard bot that feels unfair; they ask for tournaments and adjustable lengths.</td><td>Play Store reviews (about the app as a whole, not darts)</td><td><span class="tag ok">SEEN</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>How ours plays</h2>
+  <div class="split">
+    <figure class="fig">
+      <svg viewBox="0 0 520 250" class="dark" role="img" aria-label="Three steps of a throw: hold and the shake ring is wide, drag to the treble while it tightens, release and the dart sticks">
+        <g font-size="14" fill="#e9ecdf" text-anchor="middle"><text x="90" y="232">Hold: shake is wide</text><text x="260" y="232">Drag: pick a segment</text><text x="430" y="232">Let go when it is tight</text></g>
+        <g class="px" font-size="12" fill="#ffd65a" text-anchor="middle"><text x="90" y="26">1</text><text x="260" y="26">2</text><text x="430" y="26">3</text></g>
+        <g fill="none" stroke="#3b4a3a" stroke-width="2"><circle cx="90" cy="118" r="72"/><circle cx="260" cy="118" r="72"/><circle cx="430" cy="118" r="72"/></g>
+        <g fill="none" stroke="#56705a" stroke-width="7"><circle cx="90" cy="118" r="44"/><circle cx="260" cy="118" r="44"/><circle cx="430" cy="118" r="44"/></g>
+        <g fill="#bf342b"><circle cx="90" cy="118" r="6"/><circle cx="260" cy="118" r="6"/><circle cx="430" cy="118" r="6"/></g>
+        <circle cx="90" cy="118" r="30" fill="none" stroke="#8fd46f" stroke-width="2.5"/><path d="M79 126h8m6 0h8M90 115v8m0 6v8" stroke="#fff" stroke-width="2.5"/>
+        <path d="M100 124 Q170 150 246 84" fill="none" stroke="#e9ecdf" stroke-width="1.5" stroke-dasharray="4 5"/>
+        <circle cx="260" cy="74" r="17" fill="none" stroke="#8fd46f" stroke-width="2.5"/><path d="M252 70h6m6 0h6M262 62v6m0 6v6" stroke="#fff" stroke-width="2.5"/>
+        <circle cx="430" cy="74" r="7" fill="none" stroke="#8fd46f" stroke-width="2.5"/>
+        <path d="M430 74l9 30" stroke="#dfe4e8" stroke-width="2"/><path d="M436 95l5 17" stroke="#c79a3d" stroke-width="6"/><path d="M441 112l-9 12 14 7 8-13z" fill="#56a83e" stroke="#0c120e" stroke-width="1"/>
+      </svg>
+      <figcaption>One gesture per dart. The finger works anywhere on the stage, so nothing is hidden under a thumb.</figcaption>
+    </figure>
+    <figure class="fig">
+      <svg viewBox="0 0 520 250" class="paper" role="img" aria-label="Chart of shake radius over hold time: it pulses between wide and tight every 1.5 seconds and grows after 4.5 seconds">
+        <g stroke="rgb(185 195 165)" stroke-width="1" fill="none"><path d="M56 30v170h440"/><path d="M56 158h440" stroke-dasharray="3 5"/></g>
+        <g fill="rgb(38 123 66 / .16)"><rect x="110" y="30" width="38" height="170"/><rect x="240" y="30" width="38" height="170"/><rect x="370" y="30" width="38" height="170"/></g>
+        <path d="M56 60 C90 60 100 158 129 158 S170 60 194 60 S230 158 259 158 S300 60 324 60 S360 158 389 158 S420 70 446 52 L496 22" fill="none" stroke="rgb(130 95 14)" stroke-width="3.5" stroke-linecap="round"/>
+        <g font-size="13.5" fill="rgb(82 94 68)"><text x="62" y="26">shake</text><text x="496" y="240" text-anchor="end">seconds held</text>
+          <text x="129" y="220" text-anchor="middle">0.75</text><text x="259" y="220" text-anchor="middle">2.25</text><text x="389" y="220" text-anchor="middle">3.75</text><text x="446" y="220" text-anchor="middle">4.5</text></g>
+        <g font-size="13.5" fill="rgb(38 123 66)" font-weight="700"><text x="129" y="48" text-anchor="middle">tight</text><text x="259" y="48" text-anchor="middle">tight</text><text x="389" y="48" text-anchor="middle">tight</text></g>
+        <text x="492" y="46" text-anchor="end" font-size="13.5" fill="rgb(190 30 50)" font-weight="700">arm tires</text>
+      </svg>
+      <figcaption>The shake is a visible rhythm, not hidden randomness. Rush and the dart goes wide; dither past four and a half seconds and your arm tires. Both numbers are starting values to tune on real phones.</figcaption>
+    </figure>
+  </div>
+
+  <div class="split" style="margin-top:44px">
+    <div>
+      <h3>A leg, start to finish</h3>
+      <p>Everyone starts on 301. A visit is three darts. The top of the screen shows each player's remaining score, three pips for darts in hand, and the three chips under the board fill with what you just threw.</p>
+      <p><b>Bust:</b> drop below zero and the visit is wiped back to where it started. <b>Finish:</b> any segment that lands on exactly zero, with double-out as an optional house rule for players who know darts.</p>
+      <p><b>Fair seats:</b> throwing first is an edge, so the round always completes. If two players check out in the same round, fewer darts wins, then a one-dart nearest-the-bull shoot-off, which Archery already has.</p>
+      <p><b>Match:</b> two players play best of three legs with the first throw alternating; three or four play a single leg. At 301 a two-player leg should run about three minutes.</p>
+    </div>
+    <figure class="fig">
+      <svg viewBox="0 0 520 230" class="dark" role="img" aria-label="Comparison of ring widths on a real board and on the arcade board used here">
+        <g class="px" font-size="10" fill="#e9ecdf"><text x="24" y="30">REAL BOARD</text><text x="24" y="140">OURS</text></g>
+        <g transform="translate(24 46)"><rect width="472" height="40" fill="#e8dcba"/><rect x="0" width="18" height="40" fill="#bf342b"/><rect x="18" width="26" height="40" fill="#1d8548"/><rect x="275" width="22" height="40" fill="#bf342b"/><rect x="450" width="22" height="40" fill="#bf342b"/></g>
+        <g transform="translate(24 156)"><rect width="472" height="40" fill="#e8dcba"/><rect x="0" width="25" height="40" fill="#bf342b"/><rect x="25" width="36" height="40" fill="#1d8548"/><rect x="255" width="50" height="40" fill="#bf342b"/><rect x="428" width="44" height="40" fill="#bf342b"/></g>
+        <g font-size="13" fill="#e9ecdf" text-anchor="middle"><text x="46" y="104">bull</text><text x="310" y="104">treble 8 mm</text><text x="484" y="104" text-anchor="end">double 8 mm</text>
+          <text x="54" y="214">bull</text><text x="304" y="214">treble 18 mm</text><text x="494" y="214" text-anchor="end">double 16 mm</text></g>
+      </svg>
+      <figcaption>Same numbers in the same places as a real board. The scoring rings are about twice as wide, because a real treble is seven pixels on a phone.</figcaption>
+    </figure>
+  </div>
+
+  <h3 style="margin-top:48px">Who sits where</h3>
+  <div class="seatgrid">
+    <figure><svg viewBox="0 0 160 110" class="paper" role="img" aria-label="Pass the phone"><rect x="62" y="20" width="36" height="66" rx="5" fill="rgb(16 22 18)"/><circle cx="80" cy="46" r="11" fill="none" stroke="#e8dcba" stroke-width="2"/><circle cx="34" cy="76" r="9" fill="rgb(70 121 47)"/><rect x="118" y="67" width="18" height="18" fill="rgb(129 89 180)"/><path d="M48 60c14-18 50-18 64 0" fill="none" stroke="rgb(45 55 35)" stroke-width="2" stroke-dasharray="4 4"/><path d="M112 60l-2-9m2 9l-9-1" stroke="rgb(45 55 35)" stroke-width="2" fill="none"/></svg><figcaption><b>Pass the phone</b>2 to 4 players. A banner names the next thrower; the phone goes round.</figcaption></figure>
+    <figure><svg viewBox="0 0 160 110" class="paper" role="img" aria-label="Face to face"><rect x="62" y="22" width="36" height="66" rx="5" fill="rgb(16 22 18)"/><circle cx="80" cy="55" r="11" fill="none" stroke="#e8dcba" stroke-width="2"/><circle cx="80" cy="100" r="8" fill="rgb(70 121 47)"/><rect x="72" y="2" width="16" height="16" fill="rgb(129 89 180)"/><path d="M110 40a26 26 0 010 30" fill="none" stroke="rgb(45 55 35)" stroke-width="2"/><path d="M110 70l7-5m-7 5l-2-9" stroke="rgb(45 55 35)" stroke-width="2"/><path d="M50 70a26 26 0 010-30" fill="none" stroke="rgb(45 55 35)" stroke-width="2"/><path d="M50 40l-7 5m7-5l2 9" stroke="rgb(45 55 35)" stroke-width="2"/></svg><figcaption><b>Face to face</b>2 players, phone flat on the table. The whole screen turns to the thrower. Try it above.</figcaption></figure>
+    <figure><svg viewBox="0 0 160 110" class="paper" role="img" aria-label="Four corners on a tablet"><rect x="30" y="18" width="100" height="74" rx="6" fill="rgb(16 22 18)"/><circle cx="80" cy="55" r="17" fill="none" stroke="#e8dcba" stroke-width="2"/><circle cx="42" cy="30" r="8" fill="rgb(70 121 47)"/><rect x="110" y="22" width="15" height="15" fill="rgb(129 89 180)"/><path d="M42 72l9 16h-18z" fill="rgb(175 55 115)"/><path d="M118 70l9 10-9 10-9-10z" fill="rgb(25 100 150)"/></svg><figcaption><b>Four corners</b>3 or 4 on a tablet, one-button throw from each corner. Later, if wanted.</figcaption></figure>
+    <figure><svg viewBox="0 0 160 110" class="paper" role="img" aria-label="Online room"><rect x="20" y="24" width="30" height="56" rx="4" fill="rgb(16 22 18)"/><rect x="110" y="24" width="30" height="56" rx="4" fill="rgb(16 22 18)"/><circle cx="35" cy="48" r="8" fill="none" stroke="#e8dcba" stroke-width="2"/><circle cx="125" cy="48" r="8" fill="none" stroke="#e8dcba" stroke-width="2"/><path d="M56 52h48" stroke="rgb(45 55 35)" stroke-width="2" stroke-dasharray="3 4"/><text x="80" y="44" text-anchor="middle" font-size="11" fill="rgb(82 94 68)">3 numbers</text><text x="80" y="72" text-anchor="middle" font-size="11" fill="rgb(82 94 68)">per dart</text></svg><figcaption><b>Online room</b>2 to 4, each on their own phone. Only where each dart landed is stored; every phone replays the throw.</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>Five twists</h2>
+  <p class="dim">Each one answers a weakness of plain darts. Nerves and Turf are confirmed for the first build; the TRY IT buttons start a leg with that twist on.</p>
+  <div class="twists">
+    <article class="twist">
+      <svg viewBox="0 0 150 150" class="dark" aria-hidden="true"><circle cx="46" cy="76" r="30" fill="none" stroke="#8fd46f" stroke-width="3"/><circle cx="46" cy="76" r="3" fill="#fff"/><circle cx="112" cy="76" r="13" fill="none" stroke="#b991f0" stroke-width="3"/><circle cx="112" cy="76" r="3" fill="#fff"/><g class="px" font-size="7" fill="#e9ecdf" text-anchor="middle"><text x="46" y="130">LEADER</text><text x="112" y="130">LAST</text></g></svg>
+      <div><h3>Nerves <span class="first">· confirmed</span></h3>
+        <p>Whoever is leading shakes up to 25% more; whoever is last shakes 15% less. The seat card says SHAKY, EVEN or CALM, so nobody is surprised.</p>
+        <button type="button" class="btn try" data-try='{"mode":"x01","nerves":true,"knock":false,"balloon":false}'>TRY IT</button></div>
+      <dl><dt>WHY IT IS MORE FUN</dt><dd>Legs stay close without touching anyone's score, and it reads as a story: the leader choking on the finish.</dd><dt>RISK</dt><dd>A strong player may feel taxed. It is one visible switch in the lobby.</dd><dt>BUILD COST</dt><dd>Small. One multiplier in the logic module.</dd></dl>
+    </article>
+    <article class="twist">
+      <svg viewBox="0 0 150 150" class="dark" aria-hidden="true"><g transform="translate(75 75)"><path d="M0 0L-62 -20A65 65 0 01-40 -51z" fill="#56a83e" opacity=".8"/><path d="M0 0L-40 -51A65 65 0 01-10 -64z" fill="#56a83e" opacity=".8"/><path d="M0 0L-10 -64A65 65 0 0120 -62z" fill="#9e70de" opacity=".8"/><path d="M0 0L47 45A65 65 0 0120 62z" fill="#de5496" opacity=".8"/><circle r="65" fill="none" stroke="#cdd2d6" stroke-width="2"/><g stroke="#cdd2d6" stroke-width="1"><path d="M0 0L-62 -20M0 0L-40 -51M0 0L-10 -64M0 0L20 -62M0 0L47 45M0 0L20 62"/></g><circle r="8" fill="#bf342b"/></g></svg>
+      <div><h3>Turf <span class="first">· confirmed</span></h3>
+        <p>A second mode with no arithmetic. Hit a wedge to paint it your colour and shape. A double locks it for good; a treble takes both neighbours too; the bull is two bonus points. Most wedges after five rounds wins.</p>
+        <button type="button" class="btn try" data-try='{"mode":"turf","n":3,"bot":false,"knock":false}'>TRY IT WITH 3</button></div>
+      <dl><dt>WHY IT IS MORE FUN</dt><dd>Every dart can take something from someone, which is what three and four players need. Children can play it; nobody subtracts.</dd><dt>RISK</dt><dd>Two players may gang up on the leader. Locks are the counter.</dd><dt>BUILD COST</dt><dd>Small to medium. A second scoring function on the same throw and board.</dd></dl>
+    </article>
+    <article class="twist">
+      <svg viewBox="0 0 150 150" class="dark" aria-hidden="true"><rect x="50" y="24" width="50" height="34" fill="#bf342b"/><rect x="50" y="24" width="50" height="34" fill="none" stroke="#cdd2d6" stroke-width="2"/><circle cx="68" cy="41" r="8" fill="none" stroke="#b991f0" stroke-width="2" stroke-dasharray="4 3"/><path d="M82 42l8 26" stroke="#dfe4e8" stroke-width="2"/><path d="M90 68l-7 9 11 5 6-10z" fill="#56a83e"/><g class="px" fill="#ffd65a" font-size="8" text-anchor="middle"><text x="75" y="112">P2 +60</text></g><path d="M75 122v12m0 0l-5-5m5 5l5-5" stroke="#ffd65a" stroke-width="2" fill="none" transform="rotate(180 75 128)"/></svg>
+      <div><h3>Knockback</h3>
+        <p>Your last visit's darts stay in the board as ghosts until you throw again. A rival who lands in the same segment pushes your score back up by its value, and still scores it themselves.</p>
+        <button type="button" class="btn try" data-try='{"mode":"x01","knock":true,"n":2}'>TRY IT</button></div>
+      <dl><dt>WHY IT IS MORE FUN</dt><dd>Plain darts is two people playing alone. This makes a big treble a liability and gives a reason to watch the other turn.</dd><dt>RISK</dt><dd>Legs can run long. Capped: no score goes above its start, and ghosts last one round.</dd><dt>BUILD COST</dt><dd>Small. The landing points are already stored.</dd></dl>
+    </article>
+    <article class="twist">
+      <svg viewBox="0 0 150 150" class="dark" aria-hidden="true"><circle cx="75" cy="80" r="52" fill="none" stroke="#3b4a3a" stroke-width="3"/><ellipse cx="62" cy="58" rx="19" ry="22" fill="#f08a2c"/><ellipse cx="55" cy="50" rx="4" ry="7" fill="#ffd9a8"/><path d="M62 80q6 14-2 30" stroke="#e9ecdf" stroke-width="1.5" fill="none"/><path d="M92 46l14-10m-10 20l18 2m-22 8l12 12" stroke="#ffd65a" stroke-width="2.5"/></svg>
+      <div><h3>Balloons</h3>
+        <p>A balloon drifts across the board each visit. Pop it and your next dart has almost no shake. The dart still scores wherever it lands, so chasing the balloon costs you position.</p>
+        <button type="button" class="btn try" data-try='{"mode":"x01","balloon":true}'>TRY IT</button></div>
+      <dl><dt>WHY IT IS MORE FUN</dt><dd>A moving target on a still board, and a small gamble every visit. Room for more perks later: a shield against one bust, a doubled dart.</dd><dt>RISK</dt><dd>Clutter on a board that needs to stay readable. One balloon at a time.</dd><dt>BUILD COST</dt><dd>Medium. The balloon path must be seeded so every phone sees the same one.</dd></dl>
+    </article>
+    <article class="twist">
+      <svg viewBox="0 0 150 150" class="paper" aria-hidden="true"><rect x="26" y="26" width="98" height="98" rx="6" fill="rgb(242 232 200)" stroke="rgb(130 95 14)" stroke-width="2"/><g class="px" fill="rgb(45 55 35)" text-anchor="middle"><text x="75" y="66" font-size="20">127</text><text x="75" y="92" font-size="7">IN 3 DARTS?</text></g><g fill="rgb(130 95 14)"><rect x="46" y="102" width="14" height="8"/><rect x="68" y="102" width="14" height="8"/><rect x="90" y="102" width="14" height="8" opacity=".3"/></g></svg>
+      <div><h3>Daily checkout</h3>
+        <p>A solo puzzle on the existing daily page: everyone gets the same number, say 127, and the fewest darts to finish it wins the day.</p>
+        <p class="dim">Shown, not built: it needs the daily board, not the room.</p></div>
+      <dl><dt>WHY IT IS MORE FUN</dt><dd>A reason to open the game alone, and it teaches finishing, which makes the multiplayer game better.</dd><dt>RISK</dt><dd>Scores are reported by the player's own phone, as with the other daily games.</dd><dt>BUILD COST</dt><dd>Small to medium, after the main game exists.</dd></dl>
+    </article>
+  </div>
+</section>
+
+<section>
+  <h2>How it fits Game Night</h2>
+  <div class="split">
+    <div>
+      <h3>Closest games already in the catalogue</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>Game</th><th>Shares</th><th>Differs</th></tr></thead>
+        <tbody>
+          <tr><td><b>Archery</b></td><td>Aim at a ringed target under a sway; take turns; 2 to 4 seats; stores only each shot's numbers.</td><td>Highest total wins, so every arrow wants the middle. Darts is a countdown with busts, where the right target changes every dart.</td></tr>
+          <tr><td><b>Aim Trainer</b></td><td>Hitting targets.</td><td>A speed race on flat targets, everyone at once.</td></tr>
+          <tr><td><b>Artillery, Minigolf</b></td><td>Turn-based, stored inputs replayed on each phone.</td><td>Trajectory puzzles, not target choice.</td></tr>
+          <tr><td><b>Yacht</b></td><td>2 to 4 players taking turns on one score sheet.</td><td>Dice, no skill throw.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="dim" style="margin-top:14px">Archery is the one to watch. The throw here is deliberately in the same family as Archery's steady aim, so players learn it once; the game on top of it is different.</p>
+    </div>
+    <div>
+      <h3>What the build needs</h3>
+      <div class="scroll"><table>
+        <tbody>
+          <tr><td><b>Logic</b></td><td><code>dartsLogic.js</code> with tests: segment lookup, visit and bust rules, finishers, Turf, Nerves, turn order, bot aim, timeout. All pure.</td></tr>
+          <tr><td><b>Room</b></td><td>Firebase Realtime Database only, turn-based. No WebRTC. Two registry entries on Archery's pattern (duel, and 2 to 4), new per-match keys, rules and a rules test.</td></tr>
+          <tr><td><b>Pages</b></td><td>One room page, one solo and pass-and-play page, a canvas stage component, the icon, the how-to-play text.</td></tr>
+          <tr><td><b>Art and sound</b></td><td>None to buy. The board, darts and effects are drawn in code, as here; sounds go through the existing sound module.</td></tr>
+          <tr><td><b>Effort</b></td><td><b>Medium.</b> Countdown plus Nerves first; Turf adds a small step; Knockback is small; Balloons and Daily are their own steps.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Decisions I need</h2>
+  <p class="dim">Pick, then press the button once. Nothing is sent until you do.</p>
+  <form class="decide" data-lavish-question="games-jb-darts-s1" id="decide">
+    <fieldset><legend>Name</legend>
+      <label><input type="radio" name="name" value="STEADY HAND" checked><span><b>Steady Hand</b> <span class="rec">MY PICK</span><br><span class="dim">Names the thing you actually do.</span></span></label>
+      <label><input type="radio" name="name" value="OCHE"><span><b>Oche</b><br><span class="dim">The darts word for the throw line. Short, but most people will not know how to say it.</span></span></label>
+      <label><input type="radio" name="name" value="BULL RUN"><span><b>Bull Run</b><br><span class="dim">Sounds like a race; fits the countdown.</span></span></label>
+      <label><input type="radio" name="name" value="other"><span>Something else: <input type="text" name="nameOther" aria-label="Your name for the game"></span></label>
+    </fieldset>
+    <fieldset><legend>What goes in the first build</legend>
+      <label><input type="checkbox" name="v1" value="Nerves" checked><span><b>Nerves</b> comeback rule <span class="rec">MY PICK</span></span></label>
+      <label><input type="checkbox" name="v1" value="Turf" checked><span><b>Turf</b> as a second mode <span class="rec">MY PICK</span></span></label>
+      <label><input type="checkbox" name="v1" value="Knockback"><span><b>Knockback</b> as a house rule</span></label>
+      <label><input type="checkbox" name="v1" value="Balloons"><span><b>Balloons</b></span></label>
+      <label><input type="checkbox" name="v1" value="Daily checkout"><span><b>Daily checkout</b></span></label>
+    </fieldset>
+    <fieldset><legend>Player counts for the first build</legend>
+      <label><input type="radio" name="players" value="2-4 online and pass-and-play, plus vs bot" checked><span><b>2 to 4, online and on one phone, plus a bot</b> <span class="rec">MY PICK</span><br><span class="dim">Archery's pattern already covers all of it.</span></span></label>
+      <label><input type="radio" name="players" value="2 players only first, 3-4 later"><span><b>Two players first</b>, three and four later</span></label>
+    </fieldset>
+    <fieldset><legend>Who picks the throw style online</legend>
+      <label><input type="radio" name="ctrl" value="Host picks once for the room" checked><span><b>The host picks once for the room</b> <span class="rec">MY PICK</span><br><span class="dim">Both throws are in, chosen on the setup screen as you asked. One choice for everyone keeps the seats fair.</span></span></label>
+      <label><input type="radio" name="ctrl" value="Each player picks their own"><span><b>Each player picks their own</b><br><span class="dim">Friendlier for mixed ages, but the two throws are not equally hard.</span></span></label>
+    </fieldset>
+    <fieldset><legend>Leg length and finish</legend>
+      <label><input type="radio" name="leg" value="301 default, 101 quick and 501 long in the lobby" checked><span><b>301</b>, with 101 and 501 as lobby options <span class="rec">MY PICK</span></span></label>
+      <label><input type="radio" name="leg" value="101 default"><span><b>101</b> as the default: a one-minute leg</span></label>
+      <label><input type="checkbox" name="doubleOut" value="yes"><span>Also offer <b>double-out</b> as a house rule</span></label>
+    </fieldset>
+    <fieldset><legend>Anything else</legend>
+      <textarea name="note" rows="3" aria-label="Notes" placeholder="How the throw feels, what to change, what to drop"></textarea>
+    </fieldset>
+    <div><button type="submit" class="btn">QUEUE THESE ANSWERS</button><span id="queued" role="status"></span></div>
+  </form>
+</section>
+
+<section>
+  <h2>Sources</h2>
+  <ul class="sources">
+    <li>Play Store listing, "1 2 3 4 Player Games - Offline" by JindoBlu: description, rating, installs, update date, changelog, reviews. <a href="https://play.google.com/store/apps/details?id=com.JindoBlu.FourPlayers&hl=en_IN">play.google.com</a>, read 10 Oct 2026.</li>
+    <li>Gameplay video, darts against the medium bot, 3:11. <a href="https://www.youtube.com/watch?v=RBpvA_F-sQg">youtube.com/watch?v=RBpvA_F-sQg</a>. Frames every two seconds.</li>
+    <li>Gameplay video, darts with two players, 3:58. <a href="https://www.youtube.com/watch?v=8_abyg6A5xY">youtube.com/watch?v=8_abyg6A5xY</a>. Frames every two seconds.</li>
+    <li>Gameplay video, four-player games menu. <a href="https://www.youtube.com/watch?v=dQD9TsulABU">youtube.com/watch?v=dQD9TsulABU</a>.</li>
+    <li>Third-party changelog listing "New game: Darts" in version 2.15.5, 12 Mar 2025. <a href="https://playmods.net/game/1-2-3-4-player-games-offline-mod/com.JindoBlu.FourPlayers1">playmods.net</a> (unofficial; used only for the date).</li>
+    <li>This repository: <code>src/lib/archeryLogic.js</code>, <code>src/lib/games.js</code>, <code>docs/STATUS.md</code>, <code>PRODUCT.md</code>, <code>.claude/rules/</code>.</li>
+  </ul>
+  <p class="dim">I did not install or decompile the app. The full write-up with the frame-by-frame evidence is in the report.</p>
+</section>
+
+</main>
+<script src="themes.js"></script>
+<script src="game.js"></script>
+<script>
+document.getElementById('decide').addEventListener('submit', (e) => {
+  e.preventDefault()
+  const f = new FormData(e.currentTarget)
+  const name = f.get('name') === 'other' ? (f.get('nameOther') || '').trim() || 'other (not given)' : f.get('name')
+  const a = { name, firstBuild: f.getAll('v1'), players: f.get('players'), controls: f.get('ctrl'), leg: f.get('leg'), doubleOut: f.get('doubleOut') === 'yes', note: (f.get('note') || '').trim() }
+  const text = `Darts decisions. Name: ${a.name}. First build twists: ${a.firstBuild.join(', ') || 'none'}. Players: ${a.players}. Throw style chosen by: ${a.controls}. Leg: ${a.leg}. Double-out house rule: ${a.doubleOut ? 'yes' : 'no'}.${a.note ? ' Note: ' + a.note : ''}`
+  const q = document.getElementById('queued')
+  if (window.lavish && window.lavish.queuePrompt) {
+    window.lavish.queuePrompt(text, { tag: 'choice', text: 'Darts decisions', element: e.currentTarget, queueKey: 'games-jb-darts-s1', data: { question: 'games-jb-darts-s1', answer: a } })
+    q.textContent = 'Queued. Press Send to Agent in the top bar to send it.'
+  } else { q.textContent = 'Opened outside Lavish. Your answers: ' + text }
+})
+</script>
+</body>
+</html>

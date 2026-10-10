@@ -9,6 +9,8 @@ lerna-debug.log*
 
 node_modules
 dist
+# Private source maps kept per build by vite.config.js (never deployed)
+/sourcemaps/
 dist-ssr
 *.local
 
@@ -42,3 +44,4 @@ playwright/.cache/
 dev-dist/
 
 dist-e2e/
+dist-lh/

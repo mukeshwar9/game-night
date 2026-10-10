@@ -1,2 +1,8 @@
 # esbuild output (npm run build; firebase.json runs it before every deploy).
 lib/
+# Deploy-time config (admin emails, price ids): kept out of git. See .env.example.
+.env
+.env.*
+!.env.example
+# Local secrets for the Functions emulator.
+.secret.local

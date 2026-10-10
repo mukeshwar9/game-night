@@ -1,0 +1,234 @@
+// Client side of purchases: a live subscription to entitlements/{uid} (written
+// only by Cloud Functions), the one access check the UI uses, and the calls that
+// start a checkout. Pure rules are in premium.js; prices in premiumCatalog.js.
+import { ref, onValue, get, set } from 'firebase/database'
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions'
+import { getApps, getApp } from 'firebase/app'
+import { db, usingEmulators } from './firebase'
+import { getUid } from './auth'
+import { viewerAccess } from './premium'
+import { monetizationEnabled } from './monetizationState'
+import { isNative } from './platform'
+
+const OVERRIDE_KEY = 'gn-premium-bypass'
+const VIEW_AS_KEY = 'gn-view-as-player'
+
+function readKey(key) {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
+let ent = null
+let profileAdmin = false
+let loaded = false
+
+// The access snapshot (premium.js viewerAccess): bypass, "view as regular
+// player" and the production admin shop preview applied. `canViewAsPlayer` and
+// `viewAsPlayer` describe the real account so the switch stays reachable while
+// it hides the admin/dev privileges.
+function compute() {
+  return {
+    ...viewerAccess({
+      ent,
+      profileAdmin,
+      monetization: monetizationEnabled(),
+      native: isNative,
+      dev: import.meta.env.DEV,
+      emulator: usingEmulators,
+      bypassOverride: readKey(OVERRIDE_KEY),
+      viewAs: readKey(VIEW_AS_KEY),
+    }),
+    loaded,
+  }
+}
+
+let snapshot = compute()
+const listeners = new Set()
+let stop = () => {}
+let watching = null
+
+function publish() {
+  snapshot = compute()
+  listeners.forEach(l => l())
+}
+
+/** Subscribes to the signed-in account's entitlements. Safe to call repeatedly. */
+export function startEntitlements(uid) {
+  if (watching === uid) return
+  stop()
+  watching = uid
+  ent = null
+  loaded = false
+  publish()
+  if (!db || !uid) { loaded = true; publish(); return }
+  stop = onValue(ref(db, `entitlements/${uid}`), snap => {
+    ent = snap.val()
+    loaded = true
+    publish()
+  }, () => { loaded = true; publish() })
+}
+
+/** Mirrors users/{uid}/admin (AuthContext's profile), the platform admin flag. */
+export function setProfileAdmin(on) {
+  if (profileAdmin === (on === true)) return
+  profileAdmin = on === true
+  publish()
+}
+
+export function stopEntitlements() {
+  stop()
+  stop = () => {}
+  watching = null
+  ent = null
+  loaded = false
+  publish()
+}
+
+export function subscribeAccess(cb) {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
+
+/** Stable snapshot for useSyncExternalStore: { pass, supporter, admin, bypass, isUnlocked, loaded, … }. */
+export function getAccess() {
+  return snapshot
+}
+
+/** Non-React check, for code that runs outside a component. */
+export function isUnlockedNow(item) {
+  return snapshot.isUnlocked(item)
+}
+
+/** Re-reads the bypass (call after changing the override, dev only). */
+export function refreshAccess() {
+  publish()
+}
+
+/**
+ * Turns "view as regular player" on or off on this device. It only hides the
+ * admin/dev privileges; an account that is not eligible ignores the stored value.
+ */
+export function setViewAsPlayer(on) {
+  try {
+    if (on) localStorage.setItem(VIEW_AS_KEY, 'on')
+    else localStorage.removeItem(VIEW_AS_KEY)
+  } catch { /* blocked storage: the switch just stays off */ }
+  publish()
+}
+
+// ---- Admin allowlist --------------------------------------------------------
+
+let functions = null
+function fns() {
+  if (!getApps().length) throw new Error('Firebase is not configured')
+  if (!functions) {
+    functions = getFunctions(getApp())
+    if (usingEmulators) connectFunctionsEmulator(functions, '127.0.0.1', Number(import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT) || 5001)
+  }
+  return functions
+}
+
+/**
+ * Asks the server whether this Google account is on the admin allowlist; it sets
+ * entitlements/{uid}/admin, which the live subscription above picks up. Never
+ * throws: a missing function (emulators, undeployed) just means "not admin".
+ */
+export async function syncAdminAccess() {
+  if (usingEmulators) return false
+  try {
+    const res = await httpsCallable(fns(), 'syncAdminAccess')()
+    return res.data?.admin === true
+  } catch {
+    return false
+  }
+}
+
+// ---- Age question -----------------------------------------------------------
+
+export async function getBirthYear() {
+  const uid = getUid()
+  if (!db || !uid) return null
+  const year = (await get(ref(db, `ageGate/${uid}/year`))).val()
+  return Number.isInteger(year) ? year : null
+}
+
+/** Write-once (database rules): the first answer sticks. */
+export async function saveBirthYear(year) {
+  const uid = getUid()
+  if (!db || !uid) throw new Error('not-signed-in')
+  await set(ref(db, `ageGate/${uid}`), { year, at: Date.now() })
+}
+
+// ---- Checkout ---------------------------------------------------------------
+
+/** Creates a sandbox checkout for a product id and returns its URL. */
+export async function createCheckoutUrl(product) {
+  const res = await httpsCallable(fns(), 'createCheckout')({ product })
+  const url = res.data?.url
+  if (typeof url !== 'string') throw new Error('No checkout link')
+  return url
+}
+
+/** A link to Paddle's customer portal: cancel, change card, receipts. */
+export async function createPortalUrl() {
+  const res = await httpsCallable(fns(), 'createPortalSession')()
+  const url = res.data?.url
+  if (typeof url !== 'string') throw new Error('No portal link')
+  return url
+}
+
+// ---- Razorpay (Indian buyers, INR) -------------------------------------------
+
+const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js'
+let razorpayScript = null
+
+/** Loads Razorpay Checkout once (allowed by the CSP in firebase.json). */
+function loadRazorpay() {
+  if (typeof window !== 'undefined' && window.Razorpay) return Promise.resolve(window.Razorpay)
+  if (!razorpayScript) {
+    razorpayScript = new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = RAZORPAY_SCRIPT
+      s.async = true
+      s.onload = () => (window.Razorpay ? resolve(window.Razorpay) : reject(new Error('razorpay-unavailable')))
+      s.onerror = () => { razorpayScript = null; reject(new Error('razorpay-unavailable')) }
+      document.head.appendChild(s)
+    })
+  }
+  return razorpayScript
+}
+
+/**
+ * Pays for a product in rupees: the server creates the order, Razorpay Checkout
+ * (UPI, cards, netbanking) takes the payment on this page, and the server checks
+ * the signature and grants. Resolves 'granted', or 'pending' when the payment is
+ * still being captured (the webhook grants it shortly). Rejects with
+ * 'cancelled' when the buyer closes Checkout.
+ */
+export async function payWithRazorpay(product, { label, name, email } = {}) {
+  const [Razorpay, order] = await Promise.all([
+    loadRazorpay(),
+    httpsCallable(fns(), 'createRazorpayOrder')({ product }).then(r => r.data),
+  ])
+  if (!order?.orderId || !order?.keyId) throw new Error('No order')
+  const paid = await new Promise((resolve, reject) => {
+    const checkout = new Razorpay({
+      key: order.keyId,
+      order_id: order.orderId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'Game Night',
+      description: label || product,
+      prefill: { name: name || undefined, email: email || undefined },
+      notes: { product },
+      handler: resolve,
+      modal: { ondismiss: () => reject(new Error('cancelled')), confirm_close: true },
+    })
+    checkout.open()
+  })
+  const res = await httpsCallable(fns(), 'verifyRazorpayPayment')({
+    orderId: paid.razorpay_order_id,
+    paymentId: paid.razorpay_payment_id,
+    signature: paid.razorpay_signature,
+  })
+  return res.data?.status === 'granted' ? 'granted' : 'pending'
+}

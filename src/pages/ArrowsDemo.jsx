@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ArrowsBoard from '../components/ArrowsBoard'
-import { RaceRow } from '../components/ArrowsHud'
+import { Lives, RaceRow } from '../components/ArrowsHud'
 import {
   generateArrowsLevel,
   applyArrowTap,
@@ -12,6 +12,7 @@ import {
   ARROWS_TIERS,
 } from '../lib/arrowsLogic'
 import { sounds } from '../lib/sounds'
+import { melodicNote } from '../lib/arrowsSoundLogic'
 import { cn } from '@/lib/utils'
 
 // Practice race: you and a bot clear identical copies of the same board.
@@ -20,8 +21,10 @@ import { cn } from '@/lib/utils'
 const BOT_MS = { easy: 1700, medium: 1500, hard: 1300 }
 const BOT_FUMBLE = 0.08
 
-export default function ArrowsDemo() {
-  const [tier, setTier] = useState('easy')
+// `initialTier` seeds the board size and bot speed (the hub's race setting;
+// MIXED has no single tier here, so it starts at medium).
+export default function ArrowsDemo({ initialTier = 'easy' }) {
+  const [tier, setTier] = useState(ARROWS_TIERS.includes(initialTier) ? initialTier : 'medium')
   const [seed, setSeed] = useState(() => randomArrowsSeed())
   const level = useMemo(() => generateArrowsLevel(seed, tier), [seed, tier])
   const total = level.arrows.length
@@ -89,9 +92,27 @@ export default function ArrowsDemo() {
       return
     }
     setGone(applied.gone)
-    sounds.hit(Math.min(streak.current, 8))
+    sounds.hitNote(melodicNote(streak.current), streak.current)
     streak.current += 1
   }
+
+  // The end panel lies over the board, inline or in full screen.
+  const winnerPanel = winner && (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/80 rounded-lg">
+      <p className={cn(
+        'font-pixel text-sm',
+        winner === 'X' ? 'text-retro-win text-glow-win' : 'text-retro-dim',
+      )}>
+        {winner === 'X' ? 'BOARD CLEAR!' : lives <= 0 ? 'OUT OF LIVES' : winner === 'draw' ? 'DRAW' : 'BOT CLEARED FIRST'}
+      </p>
+      <button
+        onClick={() => reset()}
+        className="px-5 py-2.5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press"
+      >
+        NEW BOARD
+      </button>
+    </div>
+  )
 
   return (
     <div className="space-y-3">
@@ -101,7 +122,7 @@ export default function ArrowsDemo() {
             key={t}
             onClick={() => reset(t)}
             className={cn(
-              'px-3 py-2 font-pixel text-[9px] rounded border transition-all active:scale-95',
+              'px-3 py-2 font-pixel text-[9px] rounded border transition press',
               tier === t
                 ? 'border-retro-cta text-retro-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',
@@ -126,23 +147,17 @@ export default function ArrowsDemo() {
           onTap={handleTap}
           interactive={!winner}
           feedback={feedback}
+          focusable
+          focusHud={(
+            <div className="flex items-center gap-2 font-pixel text-[8px] text-retro-dim tabular-nums">
+              <span className="text-retro-p1">YOU {countGone(gone)}/{total}</span>
+              <Lives n={lives} size="sm" />
+              <span className="text-retro-p2">· BOT {countGone(bot.gone)}/{total}</span>
+            </div>
+          )}
+          focusOverlay={winnerPanel}
         />
-        {winner && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/80 rounded-lg">
-            <p className={cn(
-              'font-pixel text-sm',
-              winner === 'X' ? 'text-retro-win text-glow-win' : 'text-retro-dim',
-            )}>
-              {winner === 'X' ? 'BOARD CLEAR!' : lives <= 0 ? 'OUT OF LIVES' : winner === 'draw' ? 'DRAW' : 'BOT CLEARED FIRST'}
-            </p>
-            <button
-              onClick={() => reset()}
-              className="px-5 py-2.5 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta active:scale-95"
-            >
-              NEW BOARD
-            </button>
-          </div>
-        )}
+        {winnerPanel}
       </div>
     </div>
   )

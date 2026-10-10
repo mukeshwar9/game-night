@@ -7,7 +7,7 @@ import {
   normalizeWordList, nextWordIndex, verifyWords, compareHunt, finishHuntRound,
   roundDeadline, COUNTDOWN_MS, ROUND_MS,
   solveGrid, ensurePlayableGrid, wordhuntReadyUpdate, MIN_GRID_WORDS,
-  topMissedWords, TOP_MISSED_COUNT,
+  topMissedWords, TOP_MISSED_COUNT, scoreBarShares,
 } from './wordhuntLogic'
 
 // NOTE: this file must never import wordhuntDictionary.js (the lazy loader
@@ -472,5 +472,20 @@ describe('topMissedWords', () => {
     const grid = generateGrid(11)
     expect(topMissedWords(grid, dict, [])).toHaveLength(TOP_MISSED_COUNT)
     expect(topMissedWords(grid, dict, [], 3)).toHaveLength(3)
+  })
+})
+
+describe('scoreBarShares', () => {
+  it('shows an empty neutral track at 0–0, not the opponent leading 100%', () => {
+    expect(scoreBarShares(0, 0)).toEqual({ my: 0, opp: 0 })
+  })
+  it('splits the track by points once anyone scores', () => {
+    expect(scoreBarShares(3, 1)).toEqual({ my: 75, opp: 25 })
+    expect(scoreBarShares(0, 5)).toEqual({ my: 0, opp: 100 })
+    expect(scoreBarShares(2, 0)).toEqual({ my: 100, opp: 0 })
+  })
+  it('treats missing or negative scores as zero', () => {
+    expect(scoreBarShares(undefined, null)).toEqual({ my: 0, opp: 0 })
+    expect(scoreBarShares(-2, 2)).toEqual({ my: 0, opp: 100 })
   })
 })

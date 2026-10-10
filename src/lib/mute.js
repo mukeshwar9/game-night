@@ -1,11 +1,15 @@
-// Local mute list: players whose chat (and, once wired, reactions) this
-// device hides. Stored only in localStorage — muting is private to the muter
-// and never touches Firebase. The map logic is pure and tested in
-// moderationLogic.js; this file is just the storage + change-notification
-// wrapper, plus a hook for components.
+// Block list: players whose chat and reactions this device hides, and who can
+// no longer send this account friend requests or invites (blocks/{uid} in
+// Firebase, see social.js blockUser). The list lives in localStorage for
+// synchronous reads and is mirrored to the account: toggleMute writes through,
+// and startBlockSync (run once signed in) pulls the account's list down, so a
+// block survives a reinstall and follows the account to another device. The map
+// logic is pure and tested in moderationLogic.js; this file is the storage +
+// change-notification wrapper, the sync, and a hook for components.
 
 import { useSyncExternalStore } from 'react'
-import { parseMutedMap, toggleMutedMap, mutedList } from './moderationLogic'
+import { parseMutedMap, toggleMutedMap, mutedList, unsyncedMutes } from './moderationLogic'
+import { blockUser, unblockUser, subscribeBlocks } from './social'
 
 const KEY = 'gn-muted-players'
 const EVENT = 'gn-mute-change'
@@ -46,11 +50,42 @@ export function toggleMute(uid, name) {
   if (!uid) return false
   const next = toggleMutedMap(getMutedMap(), uid, name)
   write(next)
-  return !!next[uid]
+  const nowMuted = !!next[uid]
+  // Fire and forget: the local hide already applies; if the write fails (offline,
+  // rules) the next sync pass re-uploads it.
+  const sync = nowMuted ? blockUser(uid, next[uid].name) : unblockUser(uid)
+  sync.catch(() => { /* retried by the next startBlockSync */ })
+  return nowMuted
+}
+
+// Blocks `uid` and waits for the account write, so a caller can toast a failure.
+// Also drops the friendship and any pending requests (social.js blockUser).
+export async function blockPlayer(uid, name) {
+  if (!uid) return
+  if (!isMuted(uid)) write(toggleMutedMap(getMutedMap(), uid, name))
+  await blockUser(uid, name)
 }
 
 export function unmute(uid) {
   if (isMuted(uid)) toggleMute(uid)
+}
+
+// Mirrors blocks/{uid} into the local list while signed in. The first snapshot
+// also uploads mutes that only exist on this device. Returns the unsubscribe.
+export function startBlockSync() {
+  let first = true
+  return subscribeBlocks(remote => {
+    const parsed = parseMutedMap(remote)
+    if (first) {
+      first = false
+      const local = getMutedMap()
+      for (const [uid, entry] of Object.entries(unsyncedMutes(local, parsed))) {
+        blockUser(uid, entry.name).catch(() => { /* retried next boot */ })
+        parsed[uid] = entry
+      }
+    }
+    if (JSON.stringify(parsed) !== JSON.stringify(getMutedMap())) write(parsed)
+  })
 }
 
 export function getMutedList() {

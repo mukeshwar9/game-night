@@ -13,7 +13,7 @@ export default function MatchScoreRail({
 }) {
   const scores = game?.scores || { X: 0, O: 0 }
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded border border-retro-border bg-retro-card px-3 py-2">
+    <div data-lens className="glass glass-tx grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded border border-retro-border bg-retro-card px-3 py-2">
       {['X', 'O'].map((symbol, index) => {
         const isMe = symbol === mySymbol
         const color = symbol === 'X' ? 'text-retro-p1' : 'text-retro-p2'
@@ -49,7 +49,9 @@ export default function MatchScoreRail({
         )
       })}
       <div className="col-start-2 row-start-1 text-center">
-        {title && <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">{title}</p>}
+        {/* No text glow: in pale themes (MATCHA, the default) it read as
+            double-printed, blurry text over the YOU / OPPONENT labels. */}
+        {title && <p data-testid="rail-title" className="font-pixel text-[10px] text-retro-cta tracking-widest">{title}</p>}
         {roundLabel && <p className="font-pixel text-[8px] text-retro-dim mt-1">{roundLabel}</p>}
         {matchTarget > 0 && <p className="font-pixel text-[8px] text-retro-dim mt-1">FIRST TO {matchTarget}</p>}
       </div>

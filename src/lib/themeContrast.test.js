@@ -6,9 +6,11 @@ const cssText = readFileSync(new URL('../index.css', import.meta.url), 'utf8')
 const themes = parseThemes(cssText)
 
 const EXPECTED_THEME_IDS = [
-  'midnight', 'phosphor', 'amber', 'synthwave', 'grid', 'mono', 'virtualboy', 'paper',
+  'midnight', 'phosphor', 'amber', 'synthwave', 'grid', 'mono', 'virtualboy',
   'c64', 'blueprint', 'sakura', 'matcha', 'matcha-strawberry', 'matcha-blueberry',
-  'cotton-candy', 'arctic-frost',
+  'cotton-candy', 'arctic-frost', 'shoreline', 'glass', 'glass-night',
+  'cartridge', 'notebook', 'hicontrast', 'fantasy', 'sweetie', 'cga', 'riso', 'gold', 'holo', 'carpet', 'radar',
+  'pumpkin', 'campfire',
 ]
 
 const TINTS = ['tint-p1', 'tint-p2', 'tint-p3', 'tint-p4', 'tint-cta', 'tint-danger']
@@ -140,13 +142,25 @@ describe('ground scheme', () => {
   )
   const black = [0, 0, 0]
 
+  // Deliberate departures from the ground rule: these light themes draw their
+  // own overlay (LCD dot grid, paper grain) instead of the scanlines, and
+  // HIGH CONTRAST is a dark ground with no CRT layer and no glow at all.
+  const OWN_OVERLAY = new Set(['matcha', 'riso'])
+  const NO_EFFECTS = new Set(['hicontrast'])
+
   for (const id of EXPECTED_THEME_IDS.filter(id => id !== 'midnight')) {
     it(`${id} declares the color-scheme, CRT overlay and glow strength its ground needs`, () => {
       const t = themes[id]
       const lightGround = contrastRatio(t.bg, black) > contrastRatio(t.text, black)
       const body = blocks[id]
       expect(/color-scheme:\s*light\s*;/.test(body), `${id} color-scheme: light`).toBe(lightGround)
-      expect(/--crt-overlay:\s*none\s*;/.test(body), `${id} --crt-overlay: none`).toBe(lightGround)
+      if (NO_EFFECTS.has(id)) {
+        expect(body, `${id} drops the overlay`).toMatch(/--crt-overlay:\s*none\s*;/)
+        expect(body, `${id} drops the glow`).toMatch(/--glow:\s*0\s*;/)
+        return
+      }
+      const overlayOff = /--crt-overlay:\s*none\s*;/.test(body)
+      expect(overlayOff, `${id} --crt-overlay: none`).toBe(lightGround && !OWN_OVERLAY.has(id))
       const glow = body.match(/--glow:\s*([\d.]+)\s*;/)
       if (lightGround) expect(Number(glow?.[1]), `${id} --glow below 1`).toBeLessThan(1)
       else expect(glow, `${id} keeps the default --glow`).toBeNull()

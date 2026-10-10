@@ -210,7 +210,7 @@ export default function HerdDemo() {
         <div className="flex justify-center">
           <button
             onClick={playAgain}
-            className="px-5 py-2 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta active:scale-95"
+            className="px-5 py-2 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press"
           >
             PLAY AGAIN
           </button>
@@ -264,7 +264,7 @@ export default function HerdDemo() {
                 <button
                   onClick={submit}
                   disabled={!input.trim()}
-                  className="px-3 py-1.5 font-pixel text-[9px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
+                  className="px-3 py-1.5 font-pixel text-[9px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap"
                 >
                   LOCK IT IN
                 </button>
@@ -342,7 +342,7 @@ export default function HerdDemo() {
                 <button
                   onClick={matchOver ? () => setPhase('winner') : nextRound}
                   className={cn(
-                    'px-5 py-2 font-pixel text-[10px] border rounded hover:shadow-neon-win active:scale-95',
+                    'px-5 py-2 font-pixel text-[10px] border rounded hover:shadow-neon-win press',
                     matchOver
                       ? 'border-retro-cta text-retro-cta hover:shadow-neon-cta'
                       : 'border-retro-win text-retro-win',

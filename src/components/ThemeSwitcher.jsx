@@ -1,20 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
-import { THEMES, applyTheme, getStoredTheme } from '../lib/theme'
+import { THEMES, getStoredTheme, pairedFont, pickTheme } from '../lib/theme'
+import { applyFont } from '../lib/font'
 import { setProfile } from '../lib/social'
 import { cn } from '@/lib/utils'
+import LockBadge from './premium/LockBadge'
+import useAccess from '../hooks/useAccess'
+import { openPaywall } from '../lib/premiumUi'
 
 export default function ThemeSwitcher() {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState(getStoredTheme)
   const containerRef = useRef(null)
 
-  const handleSelect = (id) => {
-    applyTheme(id)
+  const access = useAccess()
+  const isLocked = (t) => t.premium === true && !access.isUnlocked({ kind: 'theme', ...t })
+
+  const handleSelect = (id, from) => {
+    const option = THEMES.find(t => t.id === id)
+    if (option && isLocked(option)) { setOpen(false); openPaywall({ kind: 'theme', ...option }); return }
+    // A theme with a matching font brings it along; the font stays changeable.
+    const font = pairedFont(id)
+    pickTheme(id, { from, alsoApply: font ? () => applyFont(font) : undefined })
     setSelected(id)
     setOpen(false)
     // Fire-and-forget: sync the choice to the account so it follows across
     // devices (see AuthContext's subscribeProfile applyTheme-on-change).
-    setProfile({ theme: id }).catch(() => {})
+    setProfile(font ? { theme: id, fontFamily: font } : { theme: id }).catch(() => {})
   }
 
   useEffect(() => {
@@ -42,7 +53,7 @@ export default function ThemeSwitcher() {
         aria-label="Switch theme"
         title="Switch theme"
         className="relative p-2 rounded border border-retro-border bg-retro-card text-retro-dim hover:text-retro-text
-          active:scale-95 transition-colors flex items-center gap-1
+          press transition-colors flex items-center gap-1
           before:content-[''] before:absolute before:-inset-y-3 before:-inset-x-1"
       >
         <div style={{ width: 5, height: 5, background: 'rgb(var(--c-p1))', borderRadius: 1 }} />
@@ -52,10 +63,10 @@ export default function ThemeSwitcher() {
 
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 bg-retro-card border-2 border-retro-border rounded min-w-[140px]">
-          {THEMES.map(({ id, label }) => (
+          {THEMES.map((t) => { const { id, label } = t; return (
             <button
               key={id}
-              onClick={() => handleSelect(id)}
+              onClick={(e) => handleSelect(id, e.currentTarget.getBoundingClientRect())}
               className={cn(
                 'w-full flex items-center gap-2 text-left px-3 py-2 font-pixel text-[9px] transition-colors active:bg-retro-tint-cta',
                 selected === id
@@ -69,8 +80,9 @@ export default function ThemeSwitcher() {
                 <span style={{ width: 5, height: 5, background: 'rgb(var(--c-cta))', borderRadius: 1 }} />
               </span>
               {selected === id ? '> ' : '  '}{label}
+              {isLocked(t) && <><LockBadge className="ml-auto" /><span className="sr-only">locked</span></>}
             </button>
-          ))}
+          )})}
         </div>
       )}
     </div>

@@ -15,7 +15,7 @@ export default function Cell({ value, index, onClick, isWinning, disabled, isLas
       aria-label={ariaLabel}
       className={cn(
         'aspect-square flex items-center justify-center font-pixel text-2xl sm:text-3xl',
-        'border-2 rounded transition-all duration-100 select-none outline-none',
+        'border-2 rounded transition duration-100 select-none outline-none',
         'focus-visible:ring-2 focus-visible:ring-retro-p1 focus-visible:ring-offset-2 focus-visible:ring-offset-retro-bg',
         isWinning
           ? 'bg-retro-win/10 border-retro-win scale-105 shadow-neon-win'
@@ -24,7 +24,7 @@ export default function Cell({ value, index, onClick, isWinning, disabled, isLas
         // returning player can re-orient without re-scanning the whole board.
         !isWinning && isLastMove && 'ring-2 ring-inset ring-retro-cta/70',
         isEmpty && !disabled
-          ? 'hover:bg-retro-surface hover:border-retro-p1/40 cursor-pointer active:scale-95'
+          ? 'hover:bg-retro-surface hover:border-retro-p1/40 cursor-pointer press'
           : 'cursor-default',
         disabled && 'board-idle',
         value === 'X' && 'text-retro-p1 text-glow-p1',

@@ -2,23 +2,26 @@
 export const PIG_TARGET = 100
 
 // ---------------------------------------------------------------------------
-// Deterministic dice (anti-cheat)
+// Fair dice (anti-cheat)
 // ---------------------------------------------------------------------------
-// A single client rolling with Math.random() can silently re-roll until a
-// favourable face appears. To prevent that, rolls are derived from a shared
-// seed that neither player alone controls, via a coin-flipping protocol:
+// Two things must hold in a room: no player can choose a face, and no player
+// can know a face before deciding to ROLL or BANK (in Pig that choice is the
+// whole game).
 //
-//   1. X generates seedA (16 random bytes), writes diceSeedCommitX = H(seedA).
-//   2. O generates seedB (16 random bytes), writes diceSeedB in the clear.
-//   3. X reveals seedA → diceSeedRevealX.
-//   4. Both compute diceSeed = H(seedA : seedB).
+// 1. A shared seed neither player controls, from a coin flip
+//    (pigSeedProtocol.js): X commits H(seedA), O publishes seedB, X reveals
+//    seedA, diceSeed = H(seedA : seedB).
+// 2. A roll is a request, `diceRoll = { i, by, at }`, where `at` is the
+//    SERVER's timestamp for the write (the rules require at === now). The
+//    faces are H(diceSeed : i : at), so they don't exist until the request
+//    is on the server: the seed alone predicts nothing. The rules keep a
+//    pending request from being replaced, cancelled or followed by a BANK,
+//    so seeing the faces never lets the roller back out.
+// 3. Either client resolves the request in a transaction (resolvePendingRoll),
+//    and both re-derive the faces to check the result (Game.jsx).
 //
-// Every roll is then die[i] = 1 + (firstByte(H(diceSeed : "pig-roll:" : i)) mod 6),
-// a fixed sequence neither side could pre-search (seedB is hidden from X
-// until after diceSeedCommitX is on the wire; seedA is hidden from O until
-// after diceSeedB is on the wire). The rolling client computes the next
-// face from the seed — it cannot re-roll — and the opponent recomputes the
-// same value on snapshot.
+// Faces use rejection sampling on the hash bytes (a byte of 252 or more is
+// skipped), so all six faces are exactly equally likely.
 
 function randomSeedHex(bytes = 16) {
   const buf = new Uint8Array(bytes)
@@ -27,7 +30,7 @@ function randomSeedHex(bytes = 16) {
   return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-import { sha256hex } from './sha256'
+import { sha256hex, sha256fallback } from './sha256'
 
 // Hex-encoded random seed (16 bytes / 32 hex chars).
 export function generateSeedHex() {
@@ -44,28 +47,56 @@ export async function deriveSeed(seedAHex, seedBHex) {
   return sha256hex('pig-seed:' + seedAHex + ':' + seedBHex)
 }
 
-// Derive a deterministic die face from the shared seed + monotonic roll index.
-// Pure (no async, no DOM) so it can be unit-tested synchronously by computing
-// the hash via a tiny inline SHA-256? — no: crypto.subtle is async-only. To
-// keep applyDiceMove synchronous (it returns {updates,result} directly), we
-// precompute the roll inside applyDiceMove via asyncumm… see below.
-//
-// Implementation note: applyDiceMove stays sync by reading `game.diceRolls`
-// (the mover's client precomputes the next face via rollDieIndexedAsync and
-// passes it through). The opponent recomputes the same face from
-// diceSeed+diceRollIndex and flags a mismatch.
-export async function rollFaceAsync(seedHex, index) {
-  const h = await sha256hex('pig-roll:' + seedHex + ':' + index)
-  // Use the first 2 hex chars (one byte) → 0..255 → mod 6 → 1..6
-  return 1 + (parseInt(h.slice(0, 2), 16) % 6)
+// The faces of roll `index` requested at server time `at`: the bytes of
+// H("pig-roll" : seed : index : at), skipping any byte >= 252 so each face is
+// exactly 1/6. A hash that runs out of usable bytes (odds about 1e-60) is
+// extended with a counter.
+export function rollFaces(seedHex, index, at, count = 1) {
+  const faces = []
+  for (let n = 0; faces.length < count; n++) {
+    const hex = sha256fallback(`pig-roll:${seedHex}:${index}:${at}${n ? `:${n}` : ''}`)
+    for (let i = 0; i < hex.length && faces.length < count; i += 2) {
+      const byte = parseInt(hex.slice(i, i + 2), 16)
+      if (byte < 252) faces.push(1 + (byte % 6))
+    }
+  }
+  return faces
 }
 
-// Synchronous verification helper for the opponent: re-derive the face from
-// the known seed and an index, compare against the claimed face. Async because
-// it uses crypto.subtle.
-export async function verifyFaceAsync(seedHex, index, claimedFace) {
-  const expected = await rollFaceAsync(seedHex, index)
-  return expected === claimedFace
+export const rollFace = (seedHex, index, at) => rollFaces(seedHex, index, at, 1)[0]
+export const rollFacePair = (seedHex, index, at) => rollFaces(seedHex, index, at, 2)
+
+// The room's roll request when it is still waiting to be resolved, else null.
+export function pendingRoll(game) {
+  const req = game?.diceRoll
+  if (!req || typeof req !== 'object') return null
+  if (req.i !== (game.diceRollIndex ?? 0)) return null
+  if (!Number.isFinite(req.at) || (req.by !== 'X' && req.by !== 'O')) return null
+  return req
+}
+
+// The room after resolving its pending roll, for a runTransaction update
+// function: undefined (abort) when nothing is pending or the request no
+// longer fits the room. `isBig` picks PIG BIG's two dice.
+export function resolvePendingRoll(cur, { isBig = false } = {}) {
+  const req = pendingRoll(cur)
+  if (!req || !cur.diceSeed || cur.status !== 'playing' || cur.currentTurn !== req.by) return undefined
+  const applied = isBig
+    ? applyDiceBigMove(cur, 'roll', req.by, rollFacePair(cur.diceSeed, req.i, req.at))
+    : applyDiceMove(cur, 'roll', req.by, rollFace(cur.diceSeed, req.i, req.at))
+  if (!applied) return undefined
+  return { ...cur, ...applied.updates }
+}
+
+// Does the room's last resolved roll match its request? null when there is
+// nothing to check (no seed yet, or no roll since the request was made).
+export function lastRollMatches(game, { isBig = false } = {}) {
+  const idx = (game?.diceRollIndex ?? 0) - 1
+  if (!game?.diceSeed || idx < 0 || game.diceLast == null) return null
+  const req = game.diceRoll
+  if (!req || req.i !== idx || !Number.isFinite(req.at)) return false
+  const expected = isBig ? rollFacePair(game.diceSeed, idx, req.at) : rollFace(game.diceSeed, idx, req.at)
+  return JSON.stringify(expected) === JSON.stringify(game.diceLast)
 }
 
 // ---------------------------------------------------------------------------
@@ -113,11 +144,6 @@ export function applyDiceBigMove(game, action, symbol, facePair) {
   return { updates: { [scoreKey]: newScore, diceTurnScore: 0, diceRolls: [], diceLast: null, currentTurn: opponent }, result: win ? { winner: symbol } : null }
 }
 
-export async function rollFacePairAsync(seedHex, index) {
-  const d1 = await rollFaceAsync(seedHex, index * 2)
-  const d2 = await rollFaceAsync(seedHex, index * 2 + 1)
-  return [d1, d2]
-}
 
 // Move application for PIG (push-your-luck dice). Synchronous so it composes
 // with the generic BotBoardDemo harness (and Game.jsx's applyMove path).
@@ -128,8 +154,8 @@ export async function rollFacePairAsync(seedHex, index) {
 //            score and diceLast, and flips the turn. A banked total ≥ 100 wins.
 // game must carry: diceScoreX, diceScoreO, diceTurnScore, currentTurn.
 //                 For deterministic rolls: diceSeed, diceRollIndex.
-// `face` (optional) is the precomputed deterministic face for this roll index
-// — supplied by Game.jsx (computed via rollFaceAsync from the shared seed) for
+// `face` (optional) is the fair face for this roll — supplied by
+// resolvePendingRoll (from the shared seed and the request's server time) in
 // real multiplayer. When omitted, falls back to rollDie() (Math.random),
 // which is the legacy/bot/demo path where anti-cheat isn't needed.
 // Returns { updates, result } or null for an invalid action.
@@ -149,7 +175,7 @@ export function applyDiceMove(game, action, symbol, face) {
     if (face != null) {
       die = face
     } else if (seed) {
-      // No precomputed face supplied but a seed exists: refuse rather than fall
+      // No fair face supplied but a seed exists: refuse rather than fall
       // back to insecure Math.random() in a real multiplayer game.
       return null
     } else {

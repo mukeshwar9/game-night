@@ -9,14 +9,35 @@ import {
   signInAnonymously,
   signOut,
   signInWithCredential,
+  linkWithCredential,
+  reauthenticateWithCredential,
   signInWithPopup,
   linkWithPopup,
   signInWithRedirect,
   linkWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  OAuthProvider,
+  deleteUser,
+  reauthenticateWithPopup,
 } from 'firebase/auth'
 import { auth } from './firebase'
+import { isNative, nativePlatform } from './platform'
+import { track } from './track'
+import { PENDING_MERGE_KEY, parsePendingMerge } from './playerCacheLogic'
+import { NATIVE_GOOGLE_SIGNIN, NATIVE_APPLE_SIGNIN } from './features'
+import {
+  APPLE_PROVIDER_ID,
+  GOOGLE_PROVIDER_ID,
+  NATIVE_CANCELLED,
+  NATIVE_UPGRADE_ERRORS,
+  buildAppleRevokeRequest,
+  canUseProvider,
+  isAccountInUseError,
+  providerIdOf,
+  upgradeErrorMessage,
+  upgradeRoute,
+} from './nativeAuthLogic'
 
 // Actionable messages for the common "it's a console-setup problem, not a bug" codes.
 // Imported by Onboarding.jsx and Profile.jsx so both show identical copy.
@@ -26,6 +47,34 @@ export const UPGRADE_ERRORS = {
   'auth/unauthorized-domain': 'ADD THIS DOMAIN IN FIREBASE AUTH → SETTINGS → AUTHORIZED DOMAINS.',
   'auth/popup-blocked': 'YOUR BROWSER BLOCKED THE POPUP — ALLOW POPUPS FOR THIS SITE AND RETRY.',
   'auth/configuration-not-found': 'ENABLE A SIGN-IN PROVIDER IN YOUR FIREBASE CONSOLE FIRST.',
+  ...NATIVE_UPGRADE_ERRORS,
+}
+
+// Message for a failed sign-in, shared by Onboarding and Profile. `provider`
+// picks Apple-specific wording where the Google copy would be wrong.
+export function upgradeMessage(e, provider = 'google') {
+  return upgradeErrorMessage(UPGRADE_ERRORS, e, provider)
+}
+
+// Which sign-in buttons to offer. The web offers Google only; the native shell
+// offers a provider only once its launch flag is on (src/lib/features.js), and
+// Sign in with Apple only on iOS. Screens must not render a button whose
+// function would throw auth/native-provider-disabled.
+function providerEnv() {
+  return {
+    native: isNative,
+    platform: nativePlatform,
+    googleEnabled: NATIVE_GOOGLE_SIGNIN,
+    appleEnabled: NATIVE_APPLE_SIGNIN,
+  }
+}
+
+export function canSignInWithGoogle() {
+  return canUseProvider('google', providerEnv())
+}
+
+export function canSignInWithApple() {
+  return canUseProvider('apple', providerEnv())
 }
 
 // Popup-based auth (linkWithPopup/signInWithPopup) is unreliable inside
@@ -38,13 +87,48 @@ function shouldUseRedirect() {
   return window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator?.standalone === true
 }
 
+// Guest -> existing account hand-off. When a link falls back to signing into an
+// account that already exists, the guest session is about to be replaced. Its ID
+// token proves ownership of the guest uid, so stash it (memory + sessionStorage,
+// since the redirect path finishes on a fresh page load) for AuthContext to pass
+// to the mergeGuestAccount callable once the new uid is current.
+let pendingGuestMerge = null
+
+async function stashGuestForMerge() {
+  try {
+    const current = auth?.currentUser
+    if (!current?.isAnonymous) return
+    const guestIdToken = await current.getIdToken()
+    pendingGuestMerge = { guestUid: current.uid, guestIdToken }
+    try { sessionStorage.setItem(PENDING_MERGE_KEY, JSON.stringify(pendingGuestMerge)) } catch { /* storage unavailable */ }
+  } catch (err) {
+    console.warn('Could not capture guest token for merge:', err?.message)
+  }
+}
+
+// Returns and clears the pending guest merge ({ guestUid, guestIdToken }) or null.
+export function consumePendingGuestMerge() {
+  let pending = pendingGuestMerge
+  pendingGuestMerge = null
+  let raw = null
+  try {
+    raw = sessionStorage.getItem(PENDING_MERGE_KEY)
+    sessionStorage.removeItem(PENDING_MERGE_KEY)
+  } catch { /* storage unavailable */ }
+  return pending || parsePendingMerge(raw)
+}
+
 // Shared fallback for both the popup and redirect upgrade paths: if the
 // Google account is already a Firebase user (e.g. upgraded on another
-// device), sign into it instead of failing outright.
+// device), sign into it instead of failing outright. The guest's progress is
+// merged into that account server-side (see stashGuestForMerge).
 async function resolveUpgradeError(e) {
   if (e.code === 'auth/credential-already-in-use' || e.code === 'auth/email-already-in-use') {
     const cred = GoogleAuthProvider.credentialFromError(e)
     if (cred) {
+      // After a redirect return the persisted guest may not be restored yet.
+      try { await auth.authStateReady?.() } catch { /* ignore */ }
+      await stashGuestForMerge()
       const res = await signInWithCredential(auth, cred)
       return res.user
     }
@@ -100,12 +184,16 @@ function takeRedirectPending() {
 // consumePendingAuthToast() to surface once a page has actually mounted.
 // No-ops if no redirect was pending.
 async function consumeRedirectResult() {
-  if (!auth) return
+  // The shell never redirects (native sheets only), and getRedirectResult would
+  // start the deferred popup/redirect resolver's firebaseapp.com iframe in a
+  // webview that can't use it, delaying boot and risking a bogus error toast.
+  if (!auth || isNative) return
   const attempted = takeRedirectPending()
   try {
     const result = await getRedirectResult(auth)
     if (result?.user) {
       pendingAuthToast = { type: 'success', message: SIGNED_IN_MESSAGE }
+      track('sign_in_completed', { provider: 'google' })
       return
     }
     // No result and no error. If a redirect WAS in flight, either it silently
@@ -206,6 +294,7 @@ export function onUser(cb) {
 const PRELOAD_DELAY_MS = 3000
 
 export function preloadGoogleSignIn() {
+  if (isNative) return () => {} // native sign-in uses the platform sheet, not the popup machinery
   const resolver = auth?._popupRedirectResolver
   if (!resolver?.preload) return () => {}
   let idleId = null
@@ -220,16 +309,66 @@ export function preloadGoogleSignIn() {
   }
 }
 
+function coded(code, message) {
+  return Object.assign(new Error(message), { code })
+}
+
+// Loaded on demand: the plugin wrapper (and through it @capacitor-firebase/
+// authentication) only ever exists in the native shell's bundle path.
+const loadNativeAuth = () => import('./native/nativeAuth')
+
+// Native upgrade: the platform sheet yields a provider credential, then the JS
+// SDK links it to the anonymous guest (same uid) or signs in with it. `getCred`
+// resolves the Firebase credential, or null when the sheet was dismissed.
+// Like the web fallback, a provider account that already belongs to another
+// Firebase user signs into that user instead; the guest's data is then
+// merged into it server-side (see stashGuestForMerge).
+async function upgradeNative(route, ProviderClass, getCred) {
+  const credential = await getCred(await loadNativeAuth())
+  if (!credential) return null
+  const current = auth.currentUser
+  try {
+    const res = route.action === 'link' && current
+      ? await linkWithCredential(current, credential)
+      : await signInWithCredential(auth, credential)
+    return res.user
+  } catch (e) {
+    if (!isAccountInUseError(e)) throw e
+    // The error usually carries a ready-to-use credential for the existing
+    // account; otherwise the one just obtained works on its own.
+    const existing = ProviderClass.credentialFromError(e) || credential
+    await stashGuestForMerge()
+    return (await signInWithCredential(auth, existing)).user
+  }
+}
+
 // Upgrade the current (anonymous) account to a permanent Google account, keeping
 // the same uid. Returns the user, null if the user cancelled the popup, or
 // undefined if a redirect was kicked off (the page is about to navigate away —
 // the result is picked up by consumeRedirectResult() on the next authReady()
 // boot, since there's no live caller left to hand it to).
 // If that Google account is ALREADY a Firebase user (e.g. upgraded on another
-// device), we fall back to signing into it — the current guest's data is then
-// orphaned (merging is out of scope for v1).
+// device), we fall back to signing into it — the current guest's progress is
+// then merged into it server-side (stashGuestForMerge + AuthContext).
+// In the native shell there is no popup: the platform Google sheet supplies a
+// credential (upgradeNative). While NATIVE_GOOGLE_SIGNIN is off it throws
+// auth/native-provider-disabled instead of hanging — screens gate on
+// canSignInWithGoogle() so they never offer the button in that state.
 export async function upgradeWithGoogle() {
+  track('sign_in_started', { provider: 'google' })
+  const user = await upgradeWithGoogleInner()
+  // A redirect leaves the page (undefined); its outcome is tracked on return.
+  if (user) track('sign_in_completed', { provider: 'google' })
+  return user
+}
+
+async function upgradeWithGoogleInner() {
   if (!auth) throw new Error('Auth unavailable')
+  const route = upgradeRoute('google', { ...providerEnv(), isAnonymous: auth.currentUser?.isAnonymous === true })
+  if (route.mode === 'disabled') throw coded(route.code, 'Google sign-in is not enabled in this build')
+  if (route.mode === 'native') {
+    return upgradeNative(route, GoogleAuthProvider, n => n.getNativeGoogleCredential())
+  }
   const provider = new GoogleAuthProvider()
   const current = auth.currentUser
   if (shouldUseRedirect()) {
@@ -257,10 +396,136 @@ export async function upgradeWithGoogle() {
   }
 }
 
+// Sign in with Apple (iOS shell only; the web never offers it). Same contract
+// as upgradeWithGoogle: the user, or null if the sheet was dismissed; throws
+// auth/native-provider-disabled when NATIVE_APPLE_SIGNIN is off or the
+// platform is not iOS (gate the button on canSignInWithApple()).
+export async function upgradeWithApple() {
+  track('sign_in_started', { provider: 'apple' })
+  const user = await upgradeWithAppleInner()
+  if (user) track('sign_in_completed', { provider: 'apple' })
+  return user
+}
+
+async function upgradeWithAppleInner() {
+  if (!auth) throw new Error('Auth unavailable')
+  const route = upgradeRoute('apple', { ...providerEnv(), isAnonymous: auth.currentUser?.isAnonymous === true })
+  if (route.mode !== 'native') {
+    throw coded(route.mode === 'disabled' ? route.code : 'auth/native-provider-disabled', 'Sign in with Apple is not enabled in this build')
+  }
+  return upgradeNative(route, OAuthProvider, async (n) => (await n.getNativeAppleCredential())?.credential ?? null)
+}
+
+// Best-effort revocation of the Sign in with Apple authorization (App Store
+// guideline 5.1.1(v)). The Firebase JS revokeAccessToken(auth, token) always
+// sends tokenType ACCESS_TOKEN, but the native sheet only gives an
+// authorization CODE, so this posts the same body the iOS SDK's
+// revokeToken(withAuthorizationCode:) does (see buildAppleRevokeRequest). Never
+// throws: a failed revoke must not block deleting the account, and the person
+// can still remove the app under Settings > Apple ID > Sign in with Apple.
+async function revokeAppleAuthorization(user, authorizationCode) {
+  try {
+    const req = buildAppleRevokeRequest({
+      apiKey: auth?.config?.apiKey,
+      idToken: await user.getIdToken(),
+      authorizationCode,
+    })
+    if (!req) return false
+    const res = await fetch(req.url, req.init)
+    if (!res.ok) console.warn('Apple token revocation was rejected:', res.status)
+    return res.ok
+  } catch (e) {
+    console.warn('Apple token revocation failed:', e?.message)
+    return false
+  }
+}
+
+// The Sign in with Apple authorization code from the latest deletion re-auth,
+// held until deleteCurrentUser() revokes it. Memory only, never persisted.
+let pendingAppleAuthCode = null
+
+// Native re-auth for a sensitive operation: a fresh credential from the
+// platform sheet for the provider the account uses, then
+// reauthenticateWithCredential. Resolves true once re-authenticated, false if
+// the sheet was dismissed. An Apple account always re-authenticates here (even
+// if Firebase would not ask) so the authorization code is at hand to revoke.
+async function reauthenticateNative(user) {
+  const providerId = providerIdOf(user.providerData)
+  if (providerId !== APPLE_PROVIDER_ID && providerId !== GOOGLE_PROVIDER_ID) return true
+  if (providerId === APPLE_PROVIDER_ID && !canSignInWithApple()) return true // no Apple sheet here; Firebase may still accept the delete
+  const native = await loadNativeAuth()
+  if (providerId === APPLE_PROVIDER_ID) {
+    const res = await native.getNativeAppleCredential()
+    if (!res) return false
+    await reauthenticateWithCredential(user, res.credential)
+    pendingAppleAuthCode = res.authorizationCode
+    return true
+  }
+  const credential = await native.getNativeGoogleCredential()
+  if (!credential) return false
+  await reauthenticateWithCredential(user, credential)
+  return true
+}
+
+// Step one of "Delete my data" (social.js deleteMyData), run BEFORE any row is
+// removed: in the native shell a permanent account re-authenticates up front, so
+// dismissing the sheet aborts with auth/native-cancelled while everything is
+// still intact. A no-op on the web (its popup re-auth stays in
+// deleteCurrentUser) and for guests.
+export async function prepareAccountDeletion() {
+  const user = auth?.currentUser
+  if (!isNative || !user || user.isAnonymous) return
+  if (!(await reauthenticateNative(user))) {
+    throw coded(NATIVE_CANCELLED, 'Account deletion cancelled')
+  }
+}
+
+// Deletes the Firebase Auth account itself (the last step of "Delete my data").
+// Deleting is a sensitive operation: an old session gets auth/requires-recent-
+// login. A permanent account then signs in once more and retries (web: popup;
+// native: the platform sheet). A guest cannot re-authenticate, so it is signed
+// out instead: every row is already gone, and the leftover empty anonymous
+// sign-in record holds no data. An Apple account's authorization is revoked
+// first (best effort). Returns 'deleted' | 'signed-out'.
+export async function deleteCurrentUser() {
+  const user = auth?.currentUser
+  if (!user) return 'signed-out'
+  // An Apple account on iOS needs a fresh authorization code even when the
+  // session is recent; prepareAccountDeletion() normally got it already.
+  if (isNative && !user.isAnonymous && !pendingAppleAuthCode && providerIdOf(user.providerData) === APPLE_PROVIDER_ID) {
+    if (!(await reauthenticateNative(user))) throw coded(NATIVE_CANCELLED, 'Account deletion cancelled')
+  }
+  if (pendingAppleAuthCode) {
+    const code = pendingAppleAuthCode
+    pendingAppleAuthCode = null
+    await revokeAppleAuthorization(user, code)
+  }
+  try {
+    await deleteUser(user)
+    return 'deleted'
+  } catch (e) {
+    if (e?.code !== 'auth/requires-recent-login') throw e
+    if (!user.isAnonymous) {
+      if (isNative) {
+        if (!(await reauthenticateNative(user))) throw coded(NATIVE_CANCELLED, 'Account deletion cancelled')
+      } else if (providerIdOf(user.providerData) === APPLE_PROVIDER_ID) {
+        await reauthenticateWithPopup(user, new OAuthProvider(APPLE_PROVIDER_ID))
+      } else {
+        await reauthenticateWithPopup(user, new GoogleAuthProvider())
+      }
+      await deleteUser(user)
+      return 'deleted'
+    }
+    await signOut(auth)
+    return 'signed-out'
+  }
+}
+
 // Sign out of a permanent account and drop back to a fresh anonymous guest.
 export async function signOutToGuest() {
   if (!auth) return null
   await signOut(auth)
+  if (isNative) loadNativeAuth().then(n => n.clearNativeSession()).catch(() => { /* no native session */ })
   const cred = await signInAnonymously(auth)
   return cred.user
 }

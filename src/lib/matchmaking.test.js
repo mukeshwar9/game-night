@@ -16,6 +16,21 @@ describe('matchmaking helpers', () => {
     const valid = publicRoomEntry({ gameId: 'A', gameType: 'tictactoe', hostUid: 'u1', hostName: 'A', now: 0 })
     expect(normalizePublicRooms({ A: valid, B: { ...valid, gameId: 'B', expiresAt: now }, C: { ...valid, gameId: 'C', hostOnline: false } }, now)).toEqual([{ ...valid, gameId: 'A' }])
   })
+  it('drops listings dated into the future or expiring beyond the listing TTL (lobby hijack)', () => {
+    const now = 1_000_000
+    const valid = publicRoomEntry({ gameId: 'A', gameType: 'tictactoe', hostUid: 'u1', hostName: 'A', now })
+    const future = { ...valid, gameId: 'F', createdAt: 9e15, expiresAt: 9e15 }
+    const longLived = { ...valid, gameId: 'L', expiresAt: now + 30 * PUBLIC_ROOM_TTL_MS }
+    const soon = { ...valid, gameId: 'S', createdAt: now + 60_000 }
+    expect(normalizePublicRooms({ A: valid, F: future, L: longLived, S: soon }, now).map(r => r.gameId)).toEqual(['A', 'S'])
+  })
+  it('keeps peer-to-peer real-time games out of the public lobby', () => {
+    for (const type of ['pong', 'snake', 'tron', 'sumo', 'spaceduel', 'paint', 'pacmac', 'airhockey', 'puckrush', 'stickyfingers', 'fenderbender', 'bonkbuggies', 'quiver']) {
+      expect(isPublicGameType(type)).toBe(false)
+      expect(getPublicGameTypes().some(g => g.type === type)).toBe(false)
+    }
+    expect(isPublicGameType('tictactoe')).toBe(true)
+  })
   it('sets a bounded expiry for public rooms', () => {
     const entry = publicRoomEntry({ gameId: 'A', gameType: 'tictactoe', hostUid: 'u1', now: 500 })
     expect(entry.expiresAt).toBe(500 + PUBLIC_ROOM_TTL_MS)

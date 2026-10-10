@@ -25,7 +25,7 @@ Copy `.env.local.example` to `.env.local` and fill in Firebase config values (`V
 
 ## Architecture
 
-This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime Database**; `database.rules.json` is the trust boundary. Two Cloud Functions in `functions/` (Node 22) run server-side: daily room cleanup and `creditMatchResults`, which writes the leaderboard after re-checking board-game winners (`functions/README.md`).
+This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime Database**; `database.rules.json` is the trust boundary. Cloud Functions in `functions/` (Node 22, Blaze plan) run server-side: hourly room cleanup, `creditMatchResults` (writes the leaderboard after re-checking board-game winners), `sendInvitePush` / `sendFriendRequestPush` / `sendJoinedPush`, `cleanupDeletedAccount`, and `moderateChatMessage` / `triageReport` (chat log pruning; TypeSafe Jev moderation and report triage, off until a key is configured) (`functions/README.md`).
 
 ### Layout
 
@@ -34,7 +34,8 @@ This is a React + Vite PWA. All multiplayer state lives in **Firebase Realtime D
 - `src/pages/` — whole games (one page per game, wires board + logic + Firebase together), plus each game's `/demo` bot-play page.
 - `src/lib/games.js` — the `GAME_TYPES` registry; the single source of per-game config. Custom pages (`Page`) and boards (`BoardComponent`) are lazy (`lazyWithRetry`). See `.claude/rules/adding-a-game-rules.md`.
 - `src/pages/Game.jsx` + `src/hooks/room/` — the room shell: session/seat claims, per-connection presence, proposals, abandon recovery, floats. `src/lib/matchRules.js` is the match-end rule, shared with `functions/`.
-- Shared primitives: `detMath.js` (engine-independent trig + `mulberry32` for replayed sims; Animal Stack's vendored planck.js uses it — regenerate with `scripts/vendor-planck.mjs`), `commit.js` (commit–reveal), `sealed.js` + `useSealKey` (per-player encryption), `coordinator.js` (online-aware host), `timerScale.js`, `seenHistory.js`, `normalize.js`, `useServerClock`, `RoundEndPanel`, `teams.js`, `raceLogic.js` + `RaceShell`.
+- Shared primitives: `detMath.js` (engine-independent trig + `mulberry32` for replayed sims; Animal Stack's vendored planck.js uses it — regenerate with `scripts/vendor-planck.mjs`), `commit.js` (commit–reveal), `sealed.js` + `useSealKey` (per-player encryption), `coordinator.js` (online-aware host), `timerScale.js`, `seenHistory.js`, `normalize.js`, `useServerClock`, `RoundEndPanel`, `teams.js`, `raceLogic.js` + `RaceShell`, `motion.js` (motion tokens and springs; `.claude/rules/motion-rules.md`).
+- Focus mode and zoom: registry `focus: true` puts a standard board on `FocusStage` (full-screen stage, HUD, scale-to-fit; real fullscreen where the browser allows, CSS-only on iPhone) from `Game.jsx` and `BotBoardDemo`; dense boards wrap their grid in `ZoomViewport` (drag/pinch/wheel/− FIT +), built on `useBoardCamera` + `boardCameraLogic.js` (Arrows still has its own camera, `arrowsCameraLogic.js`). Custom pages go full screen in place through `FocusFrame` (`FocusStage.jsx`; real-time arenas and registry `focusPage: true`, see `canFocusPage`); the page stays mounted so a sim or peer link survives.
 - Audio: `sounds.js` (SFX) and `music.js` (procedural background music, on by default, starts on the first tap) share one context (`audioContext.js`). A page declares its music with `useMusicScene('lobby'|'wait'|'game'|'results', gameType)`; in-game tracks follow the registry `category` (or an optional `music:` field, see `musicLogic.js`).
 
 ### Data model
@@ -62,6 +63,10 @@ presence:
 proposal: { action: 'playAgain'|'newMatch'|'switch', gameType, by, declined } — rematch/switch consent handshake; absent when none pending; cleared (null) by every apply/reset write
 ```
 
+Room chat and reactions: `chatLog/{pushId}` and `emotes/{pushId}` (append-only, pruned; per-match, in `FIELD_NULLS`). Every send also stamps `chatLast/{uid}` / `emoteLast/{uid}` with server time in the same write — the rules rate-limit on it (`tests/rules/chat.test.js`). The legacy single `emote` slot is still read for old clients. The moderation function may set `hidden` on a line; clients skip hidden lines. The dock, chat sheet and floats are `EmoteBar` / `ChatSheet` / `ReactionFloats` (floats anchor to `PlayerCard`'s `data-seat-card`); a registry `chatLocked(game, uid)` hook (Sketch) replaces the chat input with a reason.
+
+Arrival: the client that fills a turn-based duel's second seat stamps `startsAt` (server time) in the same patch that starts the room; both clients derive the 3·2·1 and the "NAME IS HERE!" banner from it (`arrivalLogic.js`, `useArrival`, `ArrivalMoment`) and moves wait client-side only. A guest on the invite screen writes the anonymous `arriving/{uid}` server timestamp (`useArrivingSignal`) that the waiting host reads as "SOMEONE OPENED YOUR LINK". Both keys are in `FIELD_NULLS`, so a rematch has no countdown.
+
 Party games key `players` by uid instead of X/O. Presence is per connection (`presence/{seat}/conns/{pushId}`, `players/{uid}/conns`); a seat is online if any connection exists (`presenceLogic.js`). Spectators write `spectators/{uid}`. Room-level keys that must **survive switches and NEW MATCH** stay out of `FIELD_NULLS`: `night`, `queue`, `partyRoom`, `hostUid`, `locked`, `timerScale`, `seen/{deck}`, `sealKeys/{uid}`. Per-match keys that reset are in `FIELD_NULLS` (e.g. `nightMark`, `kicked`, `raceResult`, `pieSwap`).
 
 Hangwoman has no `board`/`currentTurn`; it stores a `round` sub-node instead (`setter`, `phase`, `wrongCount`, `wordLength`, `commitment`, `guesses`, `reveal`, `result`, `turns`, `wordRule`, `verified` — see `src/pages/HangmanGame.jsx` and `docs/HANGMAN.md`). The room-level `hangwomanAnyWord` house rule is deliberately kept out of `FIELD_NULLS`. The word never touches Firebase until reveal: the setter keeps it in sessionStorage and publishes a salted SHA-256 commitment (`src/lib/commit.js`); the guesser's client verifies the reveal against the commitment and all recorded answers.
@@ -87,7 +92,7 @@ The creator is always X; the first person to join an open O slot becomes O; ever
 
 ### Profiles, friends & invites (social layer)
 
-A persistent social layer keyed by uid lives in `src/lib/social.js` (data) with pages `src/pages/Profile.jsx` and `src/pages/Friends.jsx`, `src/components/Avatar.jsx` (sprites; keys in `src/lib/avatars.js`) and `src/components/InviteFriendModal.jsx`. Nodes (rules in `database.rules.json`, tests in `tests/rules/`):
+A persistent social layer keyed by uid lives in `src/lib/social.js` (data) with pages `src/pages/Profile.jsx` and `src/pages/Friends.jsx`, `src/components/Avatar.jsx` (kit looks, `K1…` strings, in `src/lib/avatarKit/`; legacy ids in `src/lib/avatars.js`) and `src/components/InviteFriendModal.jsx`. Nodes (rules in `database.rules.json`, tests in `tests/rules/`):
 
 ```
 users/{uid}:        { displayName, nameLower, avatar, code, isAnonymous, stats, matches, admin, lastFeedbackAt, … }  // owner-only
@@ -98,21 +103,28 @@ friends/{uid}/{friendUid}:        { since }    // written both directions on acc
 friendRequests/{uid}/{fromUid}:   { name, avatar, code, at }
 invites/{uid}/{inviteId}:         { gameId, gameType, fromUid, fromName, fromAvatar, at }  // hidden after 24 h
 leaderboard/{uid}:  written only by the creditMatchResults function (verified: true, verifiedWins)
+dailyMemory/{date}/{uid}: { game, score, at, name, avatar }  // DAILY MEMORY result, written once (one try a day)
+unlocks/{uid}:      { savedBadge: { at } }   // server-written cosmetic rewards (claimSavedBadge); owner-read
+accountMerges/{guestUid}: { into, at }       // server-only audit of guest -> existing-account merges (mergeGuestAccount)
 ```
 
-`ensureProfile()` (run from `AuthContext` on boot) creates `users/{uid}` if missing (a transaction that never overwrites a chosen name), allocates a 6-char friend code, and mirrors `profiles/{uid}` and `presence/{uid}` — so accounts migrate the first time they open a new build. Read other players through `getProfile` / `subscribeProfile` (public profile + presence); only your own uid reads `users/{uid}`. Names go through `sanitizeDisplayName` (`moderationLogic.js`).
+`ensureProfile()` (run from `AuthContext` on boot) creates `users/{uid}` if missing (a transaction that never overwrites a chosen name), allocates a 6-char friend code, and mirrors `profiles/{uid}` and `presence/{uid}` — so accounts migrate the first time they open a new build. Synced per-player localStorage caches (stats, matches, Arrows stars, memory bests) belong to the uid in `gn-cache-owner` (`playerCache.js`): a different uid clears them before any sync, and every upload checks the owner. Read other players through `getProfile` / `subscribeProfile` (public profile + presence); only your own uid reads `users/{uid}`. Names go through `sanitizeDisplayName` (`moderationLogic.js`).
 
 **Setup prerequisites:** enable **Anonymous** + **Google** sign-in providers in the Firebase console, and deploy rules, functions and hosting together — the rules deny the old client's leaderboard writes and `profiles/` is filled by the new client.
 
 ### Real-time games
 
-Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Paint and Pac Mac change state ~60×/s, so gameplay does **not** go through RTDB. Firebase keeps the room (lobby, presence, score, game-over) and is the **WebRTC signaling channel**; frames travel peer-to-peer over an unreliable/unordered `RTCDataChannel`.
+Pong, Snake, Tron, Sumo, Space Duel, Air Hockey, Puck Rush, Sticky Fingers, Quiver, Fender Bender, Bonk Buggies, Paint and Pac Mac change state ~60×/s, so gameplay does **not** go through RTDB. Firebase keeps the room (lobby, presence, score, game-over) and is the **WebRTC signaling channel**; frames travel peer-to-peer over an unreliable/unordered `RTCDataChannel`.
 
 - **Pure sims:** `src/lib/*Logic.js` (`createState`, fixed-timestep `step(state, inputs, dt)`, `computeAI`, `getWinner`), unit-tested, no DOM/network.
 - **Transport:** `src/lib/realtime/rtc.js`. Each connection attempt has an id (`signaling/attempt`, with offer/answer/ICE under `signaling/runs/{id}`); whoever starts an attempt (mount, reload, RETRY from either side) replaces the node and peers rebuild their `RTCPeerConnection` without remounting. A 500 ms ping doubles as a heartbeat: play pauses (`reconnecting`) when the peer is silent for 1.5 s, and WAIT / CLAIM WIN appears when their presence is offline. Pure state in `connectionLogic.js`, RTT/delay in `netLogic.js`, ICE config in `iceConfig.js` (public STUN; TURN from `VITE_TURN_*`; public rooms relay-only when TURN is set).
 - **Sync model (host-authoritative):** X hosts the sim and streams ~30 Hz snapshots; O predicts its own input. Pages may opt in to `equalizeHostInput` (host input delayed by RTT/2, capped at 60 ms). The host writes per-point scores to Firebase and finishes the round with a `runTransaction`, reusing the standard finish/win-effect machinery. No `currentTurn`, so turn-flip sounds stay silent.
-- **Rendering:** DOM/CSS arenas themed with the `--c-*` vars (not canvas); controls in `src/hooks/use*Controls.js`. `/demo` runs each sim against a local AI with no networking. Live P2P needs real two-device/two-network testing for NAT traversal.
+- **Rendering:** DOM/CSS arenas themed with the `--c-*` vars (canvas only for the physics scenes of Animal Stack and Bonk Buggies); controls in `src/hooks/use*Controls.js`. `/demo` runs each sim against a local AI with no networking. Live P2P needs real two-device/two-network testing for NAT traversal.
+- **Bonk Buggies specifics:** a planck.js world (vendored deterministic build, as Animal Stack) drives the whole match — rounds, points, side swaps, spare lid, loser's arena pick — inside the host's `bonkLogic.js` `step()`, which advances the world in place and returns the same state. `bonkNet.js` turns it into the plain `view` the canvas paints (`bonkDraw.js`, scene derived from `--c-*` tokens) and into the ~30 Hz snapshot; the guest never simulates and dead-reckons the view. A match is one room round (`SINGLE_ROUND_GAMES`); room keys are only `bonkScoreX`/`bonkScoreO` (in `FIELD_NULLS`).
 - **Pong specifics:** `pongLogic.js` adds a `MODES` table (classic/chaos/pure/blitz; survival is solo-only), analog inputs in [-1, 1], power-ups, multi-ball (`state.balls` is an array), `getRoundWinner()` and a snapshot codec (`encodeSnapshot`/`decodeSnapshot`); sim events are relayed as `{t:'e', v:[…]}` so both sides get the same effects. Firebase keys `pongScoreX`/`pongScoreO` (per round) plus `pongMode`/`matchLength` (host's lobby picks, kept across rematches, cleared on game switch via `FIELD_NULLS`). `PongArena.jsx` (HUD + `fitCourt` sizing, rotates the court so the viewer's side is nearest) wraps `PongCourt.jsx`; effects in `usePongFx.js`. `/demo` pong is `src/pages/PongDemo.jsx` (bot at three skill levels, or SURVIVAL).
+- **Lazy Susan** (`lazySusanLogic.js`) is the shared-plate exception: 2–4 seats on RTDB, not P2P, drawn on a canvas (`lazySusanDraw.js`) with every colour derived from the `--c-*` tokens (`lazySusanTheme.js`). The `round` holds no positions: each client derives the plate from seed + start time + claims, and a taken piece is a write-once `round/lsClaims/p{plate}_{piece}` that the rules refuse to overwrite. Scores are replayed from claims and misses, never reported.
+
+- **Side Kick** (`sideKickLogic.js`, `docs/SIDE-KICK.md`) is a `race: true` room (RaceShell) that also runs a fixed three-race cup (`raceLogic.js` `CUP_RACES_BY_GAME`, `raceChampions`, the shell `decorate` hook) and draws a pseudo-3D road on a canvas (`components/sideKickRender.js`, colours from the `--c-*` tokens via `sideKickPalette.js`). Each phone simulates only its own bike and writes ~10 Hz reports under `round/stats/{round}/{uid}`; other riders are ghosts, a kick is a write-once `k/{n}` string the victim's phone applies, and the room coordinator's phone drives the bots (`bot1`..`bot3`).
 
 ### Theming
 
@@ -143,6 +155,7 @@ Enforceable conventions live here — always follow them:
 - `async-busy-rules.md` — the busy-flag convention for async actions
 - `adding-a-game-rules.md` — the registry procedure, `applyMove`/`boardProps` hooks
 - `game-logic-rules.md` — pure logic module placement and test-coverage requirement
+- `motion-rules.md` — motion tokens, springs vs pixel steps, presses, overlays, reduced motion
 
 ## Prior reviews (`docs/reviews/2026-08/`)
 

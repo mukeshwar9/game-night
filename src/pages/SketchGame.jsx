@@ -35,6 +35,7 @@ import { normalizeList } from '../lib/normalize'
 import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
+import ReportButton from '../components/ReportButton'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
@@ -607,7 +608,7 @@ export default function SketchGame({
           <button
             onClick={() => runStart(onStart)}
             disabled={starting}
-            className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
           >
             {starting ? 'STARTING…' : 'START ROUND'}
           </button>
@@ -703,7 +704,7 @@ export default function SketchGame({
                     key={idx}
                     onClick={() => { setPickingIdx(idx); runPick(() => handlePickWord(idx)) }}
                     disabled={picking}
-                    className="w-full px-3 py-2.5 font-mono text-[13px] rounded border-2 border-retro-border text-retro-text hover:border-retro-p1 hover:shadow-neon-p1 transition-all active:scale-[0.98] disabled:opacity-50"
+                    className="w-full px-3 py-2.5 font-mono text-[13px] rounded border-2 border-retro-border text-retro-text hover:border-retro-p1 hover:shadow-neon-p1 transition press-card disabled:opacity-50"
                   >
                     {picking && pickingIdx === idx ? 'LOCKING IN…' : (
                       <span className="flex items-center justify-between gap-3">
@@ -729,7 +730,7 @@ export default function SketchGame({
             <button
               onClick={() => runSkipChoosing(handleSkipChoosing)}
               disabled={skippingChoosing}
-              className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+              className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
             >
               {skippingChoosing ? 'SKIPPING…' : 'SKIP ROUND'}
             </button>
@@ -741,6 +742,11 @@ export default function SketchGame({
       {round.phase === 'drawing' && (
         <div className="space-y-3">
           <SketchCanvas gameId={gameId} isArtist={isArtist} />
+          {!isArtist && (
+            <div className="flex justify-end">
+              <ReportButton context="drawing" gameId={gameId} targetUid={round.artist} targetName={players[round.artist]?.name} label="REPORT DRAWING" />
+            </div>
+          )}
 
           <div className="text-center space-y-1">
             {haveIGuessedCorrectly ? (
@@ -790,7 +796,7 @@ export default function SketchGame({
                 <button
                   onClick={() => runGuess(handleSubmitGuess)}
                   disabled={guessing || !guessInput.trim()}
-                  className="px-4 py-2 min-w-[4.5rem] bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+                  className="px-4 py-2 min-w-[4.5rem] bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
                 >
                   {guessing ? 'GUESSING…' : 'GO'}
                 </button>
@@ -834,7 +840,7 @@ export default function SketchGame({
               <button
                 onClick={() => runEndRound(() => advanceDrawingToReveal())}
                 disabled={endingRound}
-                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition-all active:scale-95 disabled:opacity-50"
+                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-50"
               >
                 {endingRound ? 'ENDING…' : 'END ROUND'}
               </button>
@@ -847,7 +853,7 @@ export default function SketchGame({
               <button
                 onClick={() => runSkipDrawing(() => advanceDrawingToReveal())}
                 disabled={skippingDrawing}
-                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
               >
                 {skippingDrawing ? 'SKIPPING…' : 'SKIP ROUND'}
               </button>
@@ -860,6 +866,11 @@ export default function SketchGame({
       {round.phase === 'reveal' && (
         <div className="space-y-3">
           <SketchCanvas gameId={gameId} isArtist={false} />
+          {round.artist !== mySeat && (
+            <div className="flex justify-end">
+              <ReportButton context="drawing" gameId={gameId} targetUid={round.artist} targetName={players[round.artist]?.name} label="REPORT DRAWING" />
+            </div>
+          )}
           <p className="font-pixel text-lg text-retro-win text-glow-win text-center tracking-widest">
             {derivedWord ? derivedWord.toUpperCase() : '…'}
           </p>

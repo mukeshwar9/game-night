@@ -40,6 +40,25 @@ export function getServerNow() {
   return Date.now() + offset
 }
 
+/**
+ * Server-corrected time for a caller that may run before any component has
+ * mounted the shared subscription (e.g. creating a room straight from a
+ * button). Reads `.info/serverTimeOffset` once; falls back to the last known
+ * offset if the read is slow or fails, so it never blocks the caller.
+ */
+export async function fetchServerNow(timeoutMs = 1500) {
+  if (!db || offset !== 0) return getServerNow()
+  try {
+    const read = new Promise((resolve, reject) => {
+      const off = onValue(ref(db, '.info/serverTimeOffset'), snap => { off(); resolve(snap.val() ?? 0) }, reject)
+    })
+    const value = await Promise.race([read, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))])
+    offset = value
+    listeners.forEach(l => l())
+  } catch { /* keep the last known offset */ }
+  return getServerNow()
+}
+
 /** Latest known client→server clock offset (ms). */
 export function getServerOffset() {
   return offset

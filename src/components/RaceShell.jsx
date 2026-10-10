@@ -15,7 +15,7 @@ import { sounds } from '../lib/sounds'
 import {
   RACE_MATCH_WINS, RACE_MIN_PLAYERS,
   normalizeRaceRound, normalizeRaceResult, seatedIds, isSeatOnline, allReady,
-  rankRace, tiedIds, matchChampions, canEndRace, racePhase, raceGoAt,
+  rankRace, tiedIds, raceChampions, cupRacesFor, canEndRace, racePhase, raceGoAt,
   newRoundId, newRaceSeed, startRaceRound, toggleRaceReady, finishRaceRound,
 } from '../lib/raceLogic'
 import { toast } from 'sonner'
@@ -37,9 +37,17 @@ import { cn } from '@/lib/utils'
 //              the coordinator can START NOW; first to RACE_MATCH_WINS takes
 //              the match → NEW MATCH
 //
-// race config: { type, title, rules[], baseMs, scaled, entry(stats, round),
-//   isDone(stats), row(stats, round), liveKey?(stats, round), configKey?,
-//   normalizeConfig?, durationMs?(room), Config?, start?(room, seed, config) }
+// race config: { type, title, rules[], baseMs, scaled, entry(stats, round, id),
+//   isDone(stats), row(stats, round, id), liveKey?(stats, round, id), configKey?,
+//   normalizeConfig?, durationMs?(room), Config?, start?(room, seed, config),
+//   coop?: { won, lost } — round headlines for a co-op race,
+//   maxRacers?, hideClock?, hideLive?, liveCountdown?, decorate?(round, result),
+//   decided?(statsById, racers, { now, round }) }
+//
+// A cup game (raceLogic CUP_RACES_BY_GAME) runs a fixed number of rounds ranked
+// on points; its `decorate` hook returns each round's `points` (and any extra
+// result fields). With `liveCountdown` the Racer is mounted for the 3·2·1 too and
+// draws the countdown itself (it gets `phase`), so the road is on screen at the start.
 
 const TICK_MS = 250
 
@@ -82,7 +90,8 @@ export default function RaceShell({
   const readyIds = round?.ready ?? []
   const readySet = new Set(readyIds)
   const iAmReady = readySet.has(mySeat)
-  const champions = matchChampions(scores)
+  const champions = raceChampions(game)
+  const cupRaces = cupRacesFor(race.type)
   const matchOver = champions.length > 0
 
   const liveRound = status === 'playing' && round?.id && round.gameType === race.type ? round : null
@@ -126,6 +135,7 @@ export default function RaceShell({
       now: context.now,
       id: context.id,
       seed: context.seed,
+      maxRacers: race.maxRacers ?? Infinity,
       durationMs: race.durationMs
         ? race.durationMs(cur, config)
         : race.scaled ? scaledMs(race.baseMs, cur.timerScale) : race.baseMs,
@@ -177,6 +187,7 @@ export default function RaceShell({
       entryOf: race.entry,
       isDone: race.isDone,
       decidedBy: race.decided ?? null,
+      decorate: race.decorate ?? null,
       offlineSince: (id) => offlineRef.current.get(id) ?? null,
       force,
     }))
@@ -208,7 +219,7 @@ export default function RaceShell({
       offlineSince: (id) => offlineRef.current.get(id) ?? null,
       endsAt: liveRound.endsAt,
       now,
-      decided: !!race.decided?.(liveRound.stats, liveRound.racers),
+      decided: !!race.decided?.(liveRound.stats, liveRound.racers, { now, round: liveRound }),
     })
     if (!ok) return
     finishTriedRef.current = liveRound.id
@@ -245,10 +256,11 @@ export default function RaceShell({
     const rank = result.ranks[mySeat]
     if (rank == null) return
     const won = rank === 1 && !result.dnf[mySeat]
-    const champs = matchChampions(game.scores)
+    const champs = raceChampions(game)
     if (won) (champs.includes(mySeat) ? sounds.matchWin() : sounds.win())
     else sounds.lose()
-    if (champs.length && recordedRef.current !== result.roundId) {
+    // Co-op races share the result: no W/L history (as matchRules' COOP_GAMES).
+    if (!race.coop && champs.length && recordedRef.current !== result.roundId) {
       recordedRef.current = result.roundId
       // Head-to-head history only means something with exactly one opponent.
       const others = result.order.filter(id => id !== mySeat)
@@ -275,15 +287,15 @@ export default function RaceShell({
       you: id === mySeat,
       online: !!p && isSeatOnline(players, id),
       wins: Number(scores?.[id]) || 0,
-      ...race.row(rnd?.stats?.[id] ?? null, rnd),
+      ...race.row(rnd?.stats?.[id] ?? null, rnd, id),
       ...extra,
     }
   }
 
   const liveRows = useMemo(() => {
     if (!liveRound) return []
-    const keyOf = race.liveKey ?? ((s, r) => race.entry(s, r).sortKey)
-    const { order, ranks } = rankRace(liveRound.racers.map(id => ({ id, sortKey: keyOf(liveRound.stats[id] ?? null, liveRound) })))
+    const keyOf = race.liveKey ?? ((s, r, id) => race.entry(s, r, id).sortKey)
+    const { order, ranks } = rankRace(liveRound.racers.map(id => ({ id, sortKey: keyOf(liveRound.stats[id] ?? null, liveRound, id) })))
     return order.map(id => rowFor(id, liveRound, { place: ranks[id] }))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the round/players/scores change
   }, [game.round, players, game.scores, mySeat])
@@ -293,7 +305,7 @@ export default function RaceShell({
     const tied = tiedIds(result.ranks)
     return result.order.map(id => rowFor(id, round, {
       place: result.ranks[id], tied: tied.has(id), dnf: !!result.dnf[id],
-      status: result.dnf[id] ? 'idle' : race.row(round?.stats?.[id] ?? null, round).status,
+      status: result.dnf[id] ? 'idle' : race.row(round?.stats?.[id] ?? null, round, id).status,
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the result/round/players change
   }, [game.raceResult, game.round, players, game.scores, mySeat])
@@ -323,7 +335,7 @@ export default function RaceShell({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2 px-1">
           <span className="font-pixel text-[9px] text-retro-dim tracking-widest">{race.title}</span>
-          {timeLeft != null && phase === 'racing' && (
+          {timeLeft != null && phase === 'racing' && !race.hideClock && (
             <span className={cn(
               'font-pixel tabular-nums',
               race.scaled ? 'text-[9px] text-retro-dim' : 'text-lg text-retro-win text-glow-win',
@@ -340,7 +352,7 @@ export default function RaceShell({
           </p>
         )}
 
-        {phase === 'countdown' && (
+        {phase === 'countdown' && !(race.liveCountdown && isRacer) && (
           <div className="bg-retro-card border border-retro-border rounded p-8 text-center space-y-3">
             <p className="font-pixel text-[9px] text-retro-dim arcade-blink">GET READY!</p>
             <p className="font-pixel text-7xl text-retro-win text-glow-win">{secondsLeft(goAt - now)}</p>
@@ -348,7 +360,7 @@ export default function RaceShell({
           </div>
         )}
 
-        {phase === 'racing' && isRacer && (
+        {(phase === 'racing' || (race.liveCountdown && phase === 'countdown')) && isRacer && (
           <Racer
             key={liveRound.id}
             gameId={gameId}
@@ -360,6 +372,7 @@ export default function RaceShell({
             goAt={goAt}
             now={now}
             done={myDone}
+            phase={phase}
           />
         )}
 
@@ -375,14 +388,14 @@ export default function RaceShell({
           </p>
         )}
 
-        <RaceResults title="LIVE" rows={liveRows} />
+        {!(race.hideLive && isRacer) && <RaceResults title="LIVE" rows={liveRows} />}
 
         {noDeadline && amCoordinator && phase === 'racing' && (
           <div className="text-center">
             <button
               onClick={() => runEnd(() => finishRound(liveRound.id, true), () => toast.error('END ROUND FAILED — CHECK CONNECTION'))}
               disabled={ending}
-              className="px-4 py-2 border border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 border border-retro-border text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta transition press disabled:opacity-50"
             >
               {ending ? 'ENDING…' : 'END ROUND'}
             </button>
@@ -397,7 +410,12 @@ export default function RaceShell({
   if (status === 'finished' && result && result.gameType === race.type) {
     const winners = result.order.filter(id => result.ranks[id] === 1 && !result.dnf[id])
     const iWon = winners.includes(mySeat)
-    const headline = matchOver
+    // Co-op races (race.coop): everyone ranks first together or nobody does.
+    const headline = race.coop
+      ? (matchOver ? 'TEAM WINS THE MATCH!' : winners.length ? race.coop.won : race.coop.lost)
+      : matchOver && cupRaces
+      ? (champions.includes(mySeat) ? 'YOU WIN THE CUP!' : `${champions.map(nameOf).join(' & ')} WINS THE CUP`)
+      : matchOver
       ? (champions.includes(mySeat) ? 'YOU WIN THE MATCH!' : `${champions.map(nameOf).join(' & ')} WINS THE MATCH`)
       : winners.length === 0 ? 'NO FINISHERS'
         : iWon ? (winners.length > 1 ? 'TIED FOR FIRST!' : 'YOU WIN!')
@@ -407,12 +425,12 @@ export default function RaceShell({
     return (
       <div className="space-y-4">
         <RoundEndPanel
-          caption={matchOver ? 'MATCH OVER' : `ROUND OVER · FIRST TO ${RACE_MATCH_WINS} WINS`}
+          caption={matchOver ? (cupRaces ? 'CUP OVER' : 'MATCH OVER') : cupRaces ? `RACE ${Number(game.cupRaces) || 1} OF ${cupRaces} DONE` : `ROUND OVER · FIRST TO ${RACE_MATCH_WINS} WINS`}
           headline={headline}
           actions={isSeated ? [
             !matchOver && {
               key: 'again',
-              label: iAmReady ? `READY ✓ ${readyCount}/${onlineSeats.length}` : `PLAY AGAIN${readyCount ? ` ${readyCount}/${onlineSeats.length}` : ''}`,
+              label: iAmReady ? `READY ✓ ${readyCount}/${onlineSeats.length}` : `${cupRaces ? 'NEXT RACE' : 'PLAY AGAIN'}${readyCount ? ` ${readyCount}/${onlineSeats.length}` : ''}`,
               busyLabel: 'READYING…',
               onClick: readyAndStart,
               errorMsg: 'PLAY AGAIN FAILED — CHECK CONNECTION',
@@ -453,7 +471,7 @@ export default function RaceShell({
   return (
     <div className="space-y-4">
       <div className="bg-retro-card border border-retro-border rounded p-5 text-center space-y-3">
-        <p className="font-pixel text-[10px] text-retro-cta tracking-widest">{race.title} · {RACE_MIN_PLAYERS}–8 RACERS</p>
+        <p className="font-pixel text-[10px] text-retro-cta tracking-widest">{race.title} · {RACE_MIN_PLAYERS}–{race.maxRacers ?? 8} RACERS{cupRaces ? ` · ${cupRaces}-RACE CUP${Number(game.cupRaces) ? ` · RACE ${Number(game.cupRaces) + 1}` : ''}` : ''}</p>
         <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left mx-auto w-fit leading-relaxed">
           {lobbyRules.map(r => <p key={r}>● {r}</p>)}
           {noClock && <p>● NO TIME LIMIT — HOST ENDS THE ROUND</p>}
@@ -480,7 +498,7 @@ export default function RaceShell({
             disabled={readying}
             aria-pressed={iAmReady}
             className={cn(
-              'px-6 py-2.5 font-pixel text-xs rounded transition-all active:scale-95 disabled:opacity-50',
+              'px-6 py-2.5 font-pixel text-xs rounded transition press disabled:opacity-50',
               iAmReady
                 ? 'border-2 border-retro-win text-retro-win'
                 : 'bg-retro-cta text-retro-bg hover:shadow-neon-cta',
@@ -492,7 +510,7 @@ export default function RaceShell({
             <button
               onClick={() => runStart(() => startRound(true), () => toast.error('START FAILED — CHECK CONNECTION'))}
               disabled={starting}
-              className="px-6 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-xs rounded hover:shadow-neon-p1 transition-all active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 border-2 border-retro-p1 text-retro-p1 font-pixel text-xs rounded hover:shadow-neon-p1 transition press disabled:opacity-50"
             >
               {starting ? 'STARTING…' : 'START NOW'}
             </button>

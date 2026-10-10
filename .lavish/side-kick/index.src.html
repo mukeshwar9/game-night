@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Side Kick: design board</title>
+<style>
+@font-face { font-family: 'Press Start 2P'; src: url('press-start-2p-latin.woff2') format('woff2'); font-display: swap; }
+:root {
+  --bg: 238 240 226; --text: 45 55 35; --dim: 72 84 58; --border: 185 195 165;
+  --p1: 70 121 47; --p2: 129 89 180; --p3: 175 55 115; --p4: 25 100 150; --cta: 130 95 14; --win: 38 123 66; --danger: 190 30 50;
+  --art1: 150 196 120; --art2: 186 160 232; --art3: 246 186 146; --art4: 140 196 232;
+  --card: 252 253 246; --deep: 228 232 214; --tint: 255 255 255; --rim: 255 255 255; --rim-a: .9; --on-accent: 255 255 255; --cta-deep: 90 64 6; --bezel: 31 38 25;
+  --px: 'Press Start 2P', ui-monospace, monospace;
+  --spring: cubic-bezier(.2, 1.4, .4, 1);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; color: rgb(var(--text)); font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(60vmax 50vmax at 8% 0%, rgb(var(--art1) / .55), transparent 60%),
+    radial-gradient(55vmax 45vmax at 100% 12%, rgb(var(--art4) / .5), transparent 60%),
+    radial-gradient(50vmax 50vmax at 90% 95%, rgb(var(--art2) / .4), transparent 60%),
+    radial-gradient(50vmax 45vmax at 0% 100%, rgb(var(--art3) / .45), transparent 60%),
+    rgb(var(--bg));
+  background-attachment: fixed;
+}
+main { max-width: 1080px; margin: 0 auto; padding: 28px 16px 80px; }
+h1, h2, h3, h4, .px { font-family: var(--px); font-weight: 400; letter-spacing: .02em; }
+h1 { font-size: clamp(22px, 5vw, 40px); line-height: 1.25; margin: 10px 0 12px; }
+h2 { font-size: 15px; line-height: 1.5; margin: 0 0 14px; }
+h3 { font-size: 10px; line-height: 1.6; margin: 0 0 8px; color: rgb(var(--dim)); }
+p { margin: 0 0 10px; } p:last-child { margin-bottom: 0; }
+small, .note { font-size: 13px; color: rgb(var(--dim)); }
+section { margin-top: 26px; }
+.glass {
+  background: rgb(255 255 255 / .42); border: 1px solid rgb(255 255 255 / .8); border-radius: 18px; padding: 18px;
+  box-shadow: inset 0 1px 0 #fff, inset 2px 2px 1px -1px rgb(255 255 255 / .85), 0 8px 22px rgb(40 50 30 / .14);
+  -webkit-backdrop-filter: blur(10px) saturate(1.6); backdrop-filter: blur(10px) saturate(1.6); min-width: 0;
+}
+.eyebrow { font-family: var(--px); font-size: 9px; color: rgb(var(--cta)); }
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 820px) { .g3, .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .g2, .g3 { grid-template-columns: minmax(0, 1fr); } }
+.chip { display: inline-block; font-family: var(--px); font-size: 8px; line-height: 1.5; padding: 6px 9px; border-radius: 999px; background: rgb(255 255 255 / .6); border: 1px solid rgb(var(--border)); margin: 0 4px 6px 0; }
+.chip.rec { background: rgb(var(--p1)); color: #fff; border-color: transparent; }
+.chip.warn { background: rgb(var(--danger) / .12); border-color: rgb(var(--danger) / .4); color: rgb(var(--danger)); }
+.stat b { display: block; font-family: var(--px); font-size: 17px; margin-bottom: 6px; color: rgb(var(--p1)); }
+.stat span { font-size: 13px; color: rgb(var(--dim)); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid rgb(var(--border) / .7); }
+th { font-family: var(--px); font-size: 8px; color: rgb(var(--dim)); }
+.scroll { overflow-x: auto; }
+svg { max-width: 100%; height: auto; display: block; }
+svg text { font-family: var(--px); }
+ul { margin: 0; padding-left: 18px; } li { margin-bottom: 5px; }
+
+/* ── Prototype ── */
+.proto { display: grid; grid-template-columns: minmax(0, 392px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 820px) { .proto { grid-template-columns: minmax(0, 1fr); } }
+.phone { width: 100%; max-width: 392px; margin: 0 auto; padding: 14px; border-radius: 38px; background: rgb(var(--bezel)); box-shadow: 0 20px 44px rgb(40 50 30 / .32), inset 0 0 0 2px rgb(var(--border) / .35); transition: background-color .22s; }
+.screen { position: relative; border-radius: 26px; overflow: hidden; background: rgb(var(--bg)); color: rgb(var(--text)); user-select: none; -webkit-user-select: none; touch-action: none; }
+#sk-canvas { display: block; width: 100%; height: auto; aspect-ratio: 360 / 470; }
+.hud { position: absolute; inset: 0 0 auto 0; aspect-ratio: 360 / 470; pointer-events: none; font-family: var(--px); }
+.hchip { position: absolute; background: rgb(var(--tint) / .55); border: 1px solid rgb(var(--rim) / var(--rim-a)); border-radius: 13px; box-shadow: inset 0 1px 0 rgb(var(--rim) / var(--rim-a)), 0 4px 12px rgb(0 0 0 / .16); -webkit-backdrop-filter: blur(6px) saturate(1.6); backdrop-filter: blur(6px) saturate(1.6); color: rgb(var(--text)); }
+#sk-place { left: 10px; top: 10px; padding: 9px 10px 7px; font-size: 20px; color: rgb(var(--p1)); }
+#sk-place small { font-family: var(--px); font-size: 8px; color: rgb(var(--dim)); margin-left: 3px; }
+#sk-speed { right: 10px; top: 10px; padding: 9px 10px 7px; font-size: 16px; text-align: right; }
+#sk-speed small { font-family: var(--px); font-size: 7px; color: rgb(var(--dim)); display: block; margin-top: 4px; }
+#sk-time { left: 50%; top: 10px; transform: translateX(-50%); padding: 7px 9px 5px; font-size: 9px; }
+#sk-rail { left: 50%; top: 40px; transform: translateX(-50%); width: 38%; height: 12px; padding: 0; border-radius: 999px; }
+#sk-rail b { position: absolute; right: -3px; top: -4px; width: 5px; height: 18px; border-radius: 2px; background: repeating-linear-gradient(rgb(var(--text)) 0 3px, rgb(var(--bg)) 3px 6px); }
+#sk-rail i { position: absolute; left: 0; top: 0; width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgb(var(--card)); }
+#sk-pips { left: 10px; bottom: 10px; padding: 7px 9px 6px; display: flex; gap: 5px; align-items: center; font-size: 7px; }
+#sk-pips i { width: 15px; height: 11px; border-radius: 4px; background: rgb(var(--border)); transition: background-color .15s, transform .22s var(--spring); transform: scale(.8); }
+#sk-pips i.on { background: rgb(var(--p1)); transform: none; }
+#sk-pips.hurt i.on { background: rgb(var(--cta)); }
+#sk-draft { right: 10px; bottom: 10px; padding: 8px 9px 6px; font-size: 7px; color: rgb(var(--cta)); opacity: 0; transform: translateY(6px); transition: opacity .15s, transform .22s var(--spring); }
+#sk-draft.show { opacity: 1; transform: none; }
+#sk-toast { left: 50%; top: 27%; padding: 9px 12px 7px; font-size: 9px; white-space: nowrap; opacity: 0; transform: translate(-50%, 8px) scale(.9); transition: opacity .15s, transform .22s var(--spring); background: rgb(var(--tint) / .86); }
+#sk-toast.show { opacity: 1; transform: translate(-50%, 0); }
+#sk-toast[data-tone="bad"] { color: rgb(var(--on-accent)); background: rgb(var(--danger) / .92); border-color: transparent; }
+#sk-toast[data-tone="good"] { color: rgb(var(--on-accent)); background: rgb(var(--win) / .94); border-color: transparent; }
+#sk-toast[data-tone="dim"] { color: rgb(var(--dim)); }
+.sk-count { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font-size: 64px; color: rgb(var(--card)); text-shadow: 0 5px 0 rgb(var(--cta)); -webkit-text-stroke: 2px rgb(var(--text)); opacity: 0; }
+.sk-count.pop { animation: count .9s steps(6) both; }
+@keyframes count { 0% { opacity: 1; transform: scale(1.5); } 30% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.9); } }
+.cover { position: absolute; inset: 0 0 auto 0; aspect-ratio: 360 / 470; display: grid; place-items: center; padding: 16px; background: rgb(var(--bg) / .12); z-index: 3; }
+.cover[hidden] { display: none; }
+.sk-sheet { width: 100%; background: rgb(var(--tint) / .78); border: 1px solid rgb(var(--rim) / var(--rim-a)); border-radius: 20px; padding: 16px 14px; text-align: center; box-shadow: inset 0 1px 0 rgb(var(--rim) / var(--rim-a)), 0 12px 30px rgb(0 0 0 / .24); -webkit-backdrop-filter: blur(12px) saturate(1.8); backdrop-filter: blur(12px) saturate(1.8); animation: sheet .35s var(--spring) both; }
+@keyframes sheet { from { opacity: 0; transform: translateY(18px) scale(.96); } }
+.sk-sheet h4 { font-size: 12px; line-height: 1.6; margin: 0 0 10px; }
+.sk-sheet .logo { font-family: var(--px); font-size: 26px; line-height: 1.2; color: rgb(var(--p1)); text-shadow: 3px 3px 0 rgb(var(--cta) / .6); margin-bottom: 8px; }
+.sk-sheet p { font-size: 12.5px; color: rgb(var(--dim)); }
+.sk-sheet ol { list-style: none; margin: 0 0 12px; padding: 0; text-align: left; }
+.sk-sheet li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 2px 7px; align-items: center; padding: 7px 8px; border-radius: 11px; font-family: var(--px); font-size: 9px; margin: 0 0 4px; background: rgb(var(--card) / .55); }
+.sk-sheet li.me { background: rgb(var(--p1) / .16); outline: 2px solid rgb(var(--p1) / .5); }
+.sk-sheet li i { width: 10px; height: 10px; border-radius: 50%; } .sk-sheet li img { width: 22px; height: 22px; border-radius: 6px; image-rendering: pixelated; display: block; } .sk-sheet li em { font-style: normal; }
+.sk-sheet li u { grid-column: 1 / -1; text-decoration: none; font-size: 6.5px; color: rgb(var(--dim)); }
+.sk-cta, .btn { font-family: var(--px); font-size: 11px; border: 0; border-radius: 14px; padding: 13px 16px 11px; color: rgb(var(--on-accent)); background: rgb(var(--cta)); box-shadow: 0 4px 0 rgb(var(--cta-deep)), 0 8px 16px rgb(0 0 0 / .2); cursor: pointer; transition: transform 80ms; }
+.sk-cta:active, .btn:active { transform: scale(.96) translateY(2px); }
+.btn.ghost { background: rgb(255 255 255 / .7); color: rgb(var(--text)); box-shadow: 0 3px 0 rgb(var(--border)); font-size: 8px; padding: 9px 11px 7px; }
+.btn.ghost[aria-pressed="true"] { background: rgb(var(--p1)); color: #fff; box-shadow: 0 3px 0 rgb(47 84 32); }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.picks span { font-family: var(--px); font-size: 8px; color: rgb(var(--dim)); margin-right: 2px; }
+.picks i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; vertical-align: -1px; }
+.thumbs canvas { width: 100%; height: auto; aspect-ratio: 360 / 470; display: block; border-radius: 12px; }
+.thumbs figure { margin: 0; } .thumbs figcaption { font-family: var(--px); font-size: 7px; text-align: center; padding-top: 7px; color: rgb(var(--dim)); }
+.g6 { grid-template-columns: repeat(6, minmax(0, 1fr)); } @media (max-width: 820px) { .g6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.pad { display: grid; grid-template-columns: 1fr 1fr .8fr 1fr 1fr; gap: 8px; padding: 12px 12px 14px; background: linear-gradient(rgb(var(--bg)), rgb(var(--deep))); }
+.pad button { position: relative; height: 78px; border-radius: 20px; border: 1px solid rgb(var(--rim) / var(--rim-a)); background: rgb(var(--card) / .7); box-shadow: inset 0 1px 0 rgb(var(--rim) / var(--rim-a)), 0 5px 0 rgb(var(--border)), 0 9px 16px rgb(0 0 0 / .14); font-family: var(--px); font-size: 7px; color: rgb(var(--dim)); cursor: pointer; touch-action: none; transition: transform 80ms; display: grid; place-items: center; align-content: center; gap: 6px; padding: 0; }
+.pad button svg { width: 30px; height: 30px; }
+.pad button.down { transform: scale(.96) translateY(3px); box-shadow: 0 2px 0 rgb(var(--border)); }
+.pad button.kick { background: rgb(var(--cta)); border-color: transparent; color: rgb(var(--on-accent)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .4), 0 5px 0 rgb(var(--cta-deep)), 0 9px 16px rgb(0 0 0 / .2); }
+.pad button.kick.down { box-shadow: 0 2px 0 rgb(var(--cta-deep)); }
+.pad button.kick.cool { filter: saturate(.35) brightness(1.15); }
+.pad button.kick::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 7px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, rgb(var(--on-accent)) calc(var(--strain, 0) * 100%), rgb(var(--on-accent) / .25) 0); }
+.pad button.kick.risk { background: rgb(var(--danger)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .4), 0 5px 0 rgb(var(--cta-deep)), 0 9px 16px rgb(0 0 0 / .2); animation: risk .3s steps(2) infinite; }
+@keyframes risk { 50% { filter: brightness(1.25); } }
+.pad button.boost { overflow: hidden; font-size: 6px; }
+.pad button.boost::before { content: ''; position: absolute; inset: auto 0 0 0; height: calc(var(--fill, 0) * 100%); background: rgb(var(--win) / .35); transition: background-color .15s; }
+.pad button.boost.ready::before { background: rgb(var(--win) / .7); }
+.pad button.boost.burn::before { background: rgb(var(--cta)); }
+.pad button.boost > * { position: relative; }
+.pad button.boost.ready { color: rgb(var(--text)); }
+.pad button.boost.burn { color: rgb(var(--on-accent)); }
+.keys kbd { font-family: var(--px); font-size: 8px; padding: 4px 6px; border-radius: 6px; background: #fff; border: 1px solid rgb(var(--border)); box-shadow: 0 2px 0 rgb(var(--border)); }
+.seats canvas { width: 100%; height: auto; aspect-ratio: 360 / 470; display: block; border-radius: 14px; }
+.seat { padding: 8px; border-radius: 22px; background: #1f2619; }
+.seat span { display: block; text-align: center; font-family: var(--px); font-size: 8px; color: #fff; padding: 8px 0 4px; }
+.steps { counter-reset: s; list-style: none; padding: 0; }
+.steps li { position: relative; padding-left: 34px; margin-bottom: 9px; }
+.steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 8px; background: rgb(var(--p1)); color: #fff; font-family: var(--px); font-size: 9px; display: grid; place-items: center; }
+form.q { display: grid; gap: 8px; align-content: start; }
+form.q label { display: flex; gap: 9px; align-items: flex-start; padding: 9px 10px; border-radius: 12px; background: rgb(255 255 255 / .5); border: 1px solid rgb(var(--border) / .7); cursor: pointer; font-size: 14px; }
+form.q label:has(input:checked) { border-color: rgb(var(--p1)); background: rgb(var(--p1) / .12); }
+form.q input[type=radio], form.q input[type=checkbox] { margin-top: 3px; accent-color: rgb(var(--p1)); flex: none; }
+form.q input[type=text] { width: 100%; padding: 9px 10px; border-radius: 10px; border: 1px solid rgb(var(--border)); font: inherit; background: #fff; }
+form.q .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+form.q output { font-family: var(--px); font-size: 8px; color: rgb(var(--win)); }
+.rec-tag { font-family: var(--px); font-size: 7px; color: rgb(var(--p1)); white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+
+<!-- 1 · Summary -->
+<header class="glass">
+  <div class="eyebrow">GAME NIGHT · NEW GAME DESIGN · WORKING NAME</div>
+  <h1>SIDE KICK</h1>
+  <p style="font-size:17px;max-width:62ch">A one-minute bike sprint for up to four riders. Steer through traffic, pull alongside a rival and boot them sideways: into a van, onto the grass, or clean off the bike. First over the line wins the race; three races make a cup.</p>
+  <p class="note" style="max-width:70ch">The classic it studies is the 1991 to 1995 Road Rash line. Nothing is copied from it: the name, riders, road, art and sounds here are Game Night's own, and the tone is slapstick (helmets, stars, no blood).</p>
+  <div style="margin-top:12px">
+    <span class="chip rec">VIEW: CHASE CAM, PSEUDO-3D</span><span class="chip rec">2 TO 4 ONLINE, BOTS FILL EMPTY SEATS</span><span class="chip rec">SOLO VS 3 BOTS</span><span class="chip">THUMBS: STEER LEFT, KICK RIGHT</span><span class="chip">AUTO-THROTTLE</span><span class="chip">BUILD: LARGE</span><span class="chip rec">FOLLOWS THE PLAYER'S THEME</span>
+  </div>
+  <div class="grid g4" style="margin-top:14px">
+    <div class="stat"><b>~55 s</b><span>one race, start to flag</span></div>
+    <div class="stat"><b>3 pips</b><span>of balance; three kicks and you are off the bike</span></div>
+    <div class="stat"><b>1.2 s</b><span>down if you fall while behind, then a catch-up boost; 1.9 s for the leader</span></div>
+    <div class="stat"><b>3 races</b><span>a cup: 3 / 2 / 1 / 0 points by place</span></div>
+  </div>
+</header>
+
+<!-- 2 · Prototype -->
+<section class="glass" id="play">
+  <div class="eyebrow">PLAY IT</div>
+  <h2>THE CORE LOOP, PLAYABLE</h2>
+  <div class="picks">
+    <span>THEME</span>
+    <button type="button" class="btn ghost" data-theme-pick="glass" aria-pressed="true"><i style="background:#96c478"></i>GLASS</button>
+    <button type="button" class="btn ghost" data-theme-pick="glass-night"><i style="background:#00e5ff"></i>GLASS NIGHT</button>
+    <button type="button" class="btn ghost" data-theme-pick="synthwave"><i style="background:#ff2975"></i>SYNTHWAVE</button>
+    <button type="button" class="btn ghost" data-theme-pick="shoreline"><i style="background:#60a0b0"></i>SHORELINE</button>
+    <button type="button" class="btn ghost" data-theme-pick="cartridge"><i style="background:#b3202c"></i>CARTRIDGE</button>
+    <button type="button" class="btn ghost" data-theme-pick="phosphor"><i style="background:#39ff14"></i>PHOSPHOR</button>
+    <span style="margin-left:10px">STYLE</span>
+    <button type="button" class="btn ghost" data-style-pick="smooth" aria-pressed="true">SMOOTH</button>
+    <button type="button" class="btn ghost" data-style-pick="pixel">PIXEL</button>
+  </div>
+  <div class="picks">
+    <span>TRACK</span>
+    <button type="button" class="btn ghost" data-track-pick="meadow" aria-pressed="true">MEADOW RUN</button>
+    <button type="button" class="btn ghost" data-track-pick="pass">SWITCHBACK PASS</button>
+    <button type="button" class="btn ghost" data-track-pick="rush">RUSH HOUR</button>
+    <button type="button" class="btn ghost" data-track-pick="random">RANDOM ROAD</button>
+    <span style="margin-left:10px">RIDERS</span>
+    <button type="button" class="btn ghost" data-av-pick="on" aria-pressed="true">AVATARS</button>
+    <button type="button" class="btn ghost" data-av-pick="off">PLAIN</button>
+  </div>
+  <div class="proto">
+    <div class="phone" id="sk-phone">
+      <div class="screen">
+        <canvas id="sk-canvas" width="360" height="470" aria-label="Side Kick prototype race"></canvas>
+        <div class="hud">
+          <div class="hchip" id="sk-place">4TH<small>/4</small></div>
+          <div class="hchip" id="sk-time">0:00.00</div>
+          <div class="hchip" id="sk-rail"><b></b><i style="z-index:2"></i><i></i><i></i><i></i></div>
+          <div class="hchip" id="sk-speed">000<small>KM/H</small></div>
+          <div class="hchip" id="sk-pips"><i class="on"></i><i class="on"></i><i class="on"></i><span>BALANCE</span></div>
+          <div class="hchip" id="sk-draft">SLIPSTREAM +10%</div>
+          <div class="hchip" id="sk-toast"></div>
+          <div class="sk-count" id="sk-count"></div>
+        </div>
+        <div class="cover" id="sk-start">
+          <div class="sk-sheet">
+            <div class="logo">SIDE<br>KICK</div>
+            <p><b id="sk-track" style="font-family:var(--px);font-size:9px;color:rgb(var(--cta))">MEADOW RUN</b></p><p>You start last. Catch the pack, kick your way through, take the flag.</p>
+            <button type="button" id="sk-go" class="sk-cta">START RACE</button>
+          </div>
+        </div>
+        <div class="cover" id="sk-results" hidden></div>
+        <div class="pad">
+          <button type="button" id="sk-sl" aria-label="Steer left"><svg viewBox="0 0 30 30"><path d="M19 5 8 15l11 10" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>STEER</button>
+          <button type="button" id="sk-sr" aria-label="Steer right"><svg viewBox="0 0 30 30"><path d="M11 5l11 10-11 10" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>STEER</button>
+          <button type="button" id="sk-bo" class="boost" aria-label="Boost"><svg viewBox="0 0 30 30"><path d="M17 3 7 17h7l-2 10 11-15h-7z" fill="currentColor"/></svg><span>BOOST</span></button>
+          <button type="button" id="sk-kl" class="kick" aria-label="Kick left"><svg viewBox="0 0 30 30"><path d="M26 6v10H12l-8 3v5h22" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>KICK L</button>
+          <button type="button" id="sk-kr" class="kick" aria-label="Kick right"><svg viewBox="0 0 30 30"><path d="M4 6v10h14l8 3v5H4" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>KICK R</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>WHAT TO TRY</h3>
+      <ol class="steps">
+        <li><b>Catch the pack.</b> The throttle is automatic. Hold a steer button to change lanes; the road pushes you outward in corners.</li>
+        <li><b>Sit behind a rider</b> for half a second: SLIPSTREAM lights up and you close the gap 10% faster.</li>
+        <li><b>Pull alongside and kick</b> toward them. A hit shoves them a lane sideways, costs them speed and one balance pip.</li>
+        <li><b>Kick someone into traffic or off the tarmac.</b> A car is an instant wipeout; grass caps speed at 42%.</li>
+        <li><b>Take three kicks</b> while behind: you are down 1.2 s, come back at 55% speed, and CATCH-UP runs until you have won back the gap you lost. Fall while leading and it is the full 1.9 s with no boost.</li>
+        <li><b>Kick three or four times in a row.</b> Every kick rocks your own bike and fills the strain bar on the kick buttons. They turn red when you are close; one more and you throw yourself off. A whiff costs more than a hit.</li>
+        <li><b>Check your mirrors.</b> The two small mirrors show who is behind you and on which side. A rim lights up in a rider's colour when they are close enough to be lining up a kick.</li>
+        <li><b>Hold BOOST</b> on a straight: +18% speed while the tank lasts (2 s from full), then it refills in 8 s. You start with half a tank.</li>
+      </ol>
+      <p class="keys note">On a keyboard: <kbd>←</kbd> <kbd>→</kbd> steer, <kbd>A</kbd> kick left, <kbd>D</kbd> kick right, <kbd>SPACE</kbd> boost. On a phone, left thumb steers, right thumb kicks, either thumb reaches BOOST in the middle.</p>
+      <p><button type="button" id="sk-mute" class="btn ghost" aria-pressed="true">SOUND ON</button></p>
+      <p class="note">What is real here: the road, steering, slipstream, kicks, balance, knock-off and remount, traffic, oil, three bots, places and the result sheet. What is stand-in: bot brains (random lane and kick choices with a rubber band), every number (all are starting values to tune by playtest), and the synth sounds. Before START the four bots race each other so the road is never still.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Round 5 -->
+<section class="glass">
+  <div class="eyebrow">ROUND 5 · YOUR TWO RULES</div>
+  <h2>KICKS COST BALANCE · BOOST RECHARGES</h2>
+  <div class="grid g2">
+    <div>
+      <h3>KICK STRAIN</h3>
+      <svg viewBox="0 0 440 150" role="img" aria-label="Kick strain meter over four kicks">
+        <g font-size="7" text-anchor="middle">
+          <rect x="20" y="24" width="400" height="26" rx="8" fill="#fff" fill-opacity=".6" stroke="#b9c3a5" stroke-width="2"/>
+          <rect x="20" y="24" width="120" height="26" rx="8" fill="#46792f"/><rect x="140" y="24" width="90" height="26" fill="#825f0e"/><rect x="230" y="24" width="90" height="26" fill="#c26a1a"/><rect x="320" y="24" width="90" height="26" fill="#be1e32"/>
+          <path d="M420 16v42" stroke="#be1e32" stroke-width="3" stroke-dasharray="4 3"/>
+          <g fill="#fff"><text x="80" y="40">KICK 1</text><text x="185" y="40">KICK 2</text><text x="275" y="40">KICK 3</text><text x="365" y="40">KICK 4</text></g>
+          <text x="420" y="10" fill="#be1e32">LIMIT</text>
+          <text x="220" y="76" fill="#2d3723">FOUR LANDED KICKS IN A ROW FILL IT · THE FIFTH THROWS YOU OFF</text>
+          <text x="220" y="92" fill="#48543a">WHIFFS FILL IT FASTER: THE THIRD MISS IN A ROW THROWS YOU OFF</text>
+          <path d="M400 112H60" stroke="#46792f" stroke-width="2.5" marker-end="url(#ag)"/>
+          <text x="220" y="130" fill="#46792f">STOP KICKING: EMPTIES IN ABOUT 4 S</text>
+        </g>
+      </svg>
+      <p class="note">Each kick rocks your own bike harder the fuller the bar is, pushes you slightly away from the kick and dulls your steering by up to 40%. A hit adds 0.30, a miss 0.40; it holds for 0.4 s then drains at 0.25 a second. So a kick is always available, but a flurry is a gamble and mashing is self-destruction. Bots stop kicking above 0.55.</p>
+    </div>
+    <div>
+      <h3>BOOST</h3>
+      <svg viewBox="0 0 440 150" role="img" aria-label="Boost tank burn and refill">
+        <g font-size="7" text-anchor="middle">
+          <path d="M30 120 L30 30" stroke="#b9c3a5" stroke-width="2"/><path d="M30 120H420" stroke="#b9c3a5" stroke-width="2"/>
+          <path d="M30 75 L150 30 L150 30 L210 120 L225 120 L420 47" fill="none" stroke="#46792f" stroke-width="4" stroke-linejoin="round"/>
+          <rect x="150" y="24" width="60" height="96" fill="#825f0e" fill-opacity=".18"/>
+          <text x="180" y="18" fill="#825f0e">HOLD: +18%</text><text x="180" y="138" fill="#825f0e">2 S</text>
+          <text x="90" y="138" fill="#48543a">REFILL</text><text x="320" y="138" fill="#48543a">REFILL: 8 S FROM EMPTY</text>
+          <text x="14" y="34" fill="#48543a">FULL</text><text x="14" y="78" fill="#48543a">HALF</text>
+          <circle cx="30" cy="75" r="5" fill="#46792f"/><text x="62" y="68" fill="#2d3723">START</text>
+        </g>
+      </svg>
+      <p class="note">Hold to burn, let go to keep what is left. +18% top speed and double pickup while it burns. The tank empties in 2 s and refills in 8, after a half-second pause. It needs 15% to light. It cuts out if you are staggered and is lost for that moment if you fall, so a boosting rider is worth kicking. With a slipstream it stacks to about +30%: the overtaking move.</p>
+    </div>
+  </div>
+  <p class="note" style="margin-top:8px">Why these fit together: boost gets you level with a rival, strain decides how many kicks you can afford once you are there, and catch-up keeps whoever loses that exchange in the race. All numbers are first guesses for playtest.</p>
+</section>
+
+<!-- Realism -->
+<section class="glass">
+  <div class="eyebrow">ROUND 3 · REALISTIC AND ANIMATED</div>
+  <h2>ONE SUN, REAL WEIGHT</h2>
+  <p style="max-width:76ch">The flat shapes are gone. The scene now has a single light, up and to the right, and everything answers to it: lit and shaded sides, soft shadows on the ground, haze with distance, glare on the tarmac. Motion comes from springs and world-space effects instead of on/off states. It is still one 2D canvas and still follows the theme; it held 60 frames a second in the test browser. Press START above and watch for these.</p>
+  <div class="grid g3" style="margin-top:12px">
+    <div><h3>MATERIALS AND LIGHT</h3><ul class="note"><li>Rubber, brushed metal, paint and glass each shade differently; helmets are lit spheres.</li><li>Cars: painted bodies with a sky reflection in the rear glass, lamp clusters, chrome bumper, number plate.</li><li>Trees and bushes built from lit leaf clumps; cottages with shingles, window reflections and eave shadows.</li><li>Sky with a blooming sun, shaded clouds in two depths, two-face mountains with snow, haze toward the horizon.</li><li>Night themes add real light: headlight beams, glowing tail lamps, street-light pools, blinking tower beacons.</li></ul></div>
+    <div><h3>ANIMATION</h3><ul class="note"><li>Kick: knee tucks in, leg snaps out past full reach and settles, then recovers. The helmet turns toward the target.</li><li>A hit rocks the victim on a spring and squashes them for a beat; the kicker recoils the other way.</li><li>Suspension loads over crests and dips. Engine buzz, body bob, jacket hem flutter, rolling tread.</li><li>A fall: the bike slides on its side throwing sparks, the rider tumbles with loose limbs, sits dazed, then stands the bike back up.</li><li>Brake lamp brightens when a rider slows.</li></ul></div>
+    <div><h3>WORLD AND CAMERA</h3><ul class="note"><li>Exhaust smoke, dust, grass chips, sparks and skid marks live on the road, so you ride through what the rider ahead left behind.</li><li>Trees sway, flags and bunting ripple, grass moves, clouds drift, birds cross, street lights flicker.</li><li>Camera trails the bike, rolls into corners, pulls back in a slipstream, punches in on a landed kick and out when you take one.</li><li>Reduced-motion setting turns the camera roll and shake off.</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:10px">How it stays fast: static objects are painted once per theme into small images and reused; only the four riders, cloth and effects are drawn fresh each frame. Not yet measured on a real low-end phone.</p>
+</section>
+
+<!-- Themes -->
+<section class="glass">
+  <div class="eyebrow">ROUND 2 · YOUR THEMES (NOW WITH THE ROUND 3 ART)</div>
+  <h2>ONE ROAD, EVERY THEME</h2>
+  <p style="max-width:76ch">The race now takes its colours from the app's theme tokens. Nothing in the scene has its own colour any more: sky, grass, road, kerbs, riders, cars, trees and the HUD are each a token or a mix of two, so every theme gets a matching road and a new theme needs no new art. Light themes get a sun, clouds and snow peaks; dark themes get stars, a striped sun, glowing tail lamps, lit towers and street lights. These six are the same live race, all running now.</p>
+  <div class="grid g6 thumbs" style="margin-top:12px">
+    <figure><canvas data-theme-thumb="glass" width="180" height="235"></canvas><figcaption>GLASS</figcaption></figure>
+    <figure><canvas data-theme-thumb="glass-night" width="180" height="235"></canvas><figcaption>GLASS NIGHT</figcaption></figure>
+    <figure><canvas data-theme-thumb="synthwave" width="180" height="235"></canvas><figcaption>SYNTHWAVE</figcaption></figure>
+    <figure><canvas data-theme-thumb="shoreline" width="180" height="235"></canvas><figcaption>SHORELINE</figcaption></figure>
+    <figure><canvas data-theme-thumb="cartridge" width="180" height="235"></canvas><figcaption>CARTRIDGE</figcaption></figure>
+    <figure><canvas data-theme-thumb="phosphor" width="180" height="235"></canvas><figcaption>PHOSPHOR</figcaption></figure>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div><h3>HOW A THEME BECOMES A ROAD</h3><ul class="note"><li>Seat colours are the theme's four player colours.</li><li>Light themes name one token for sky and one for ground; everything else is derived.</li><li>Dark themes need no choices: sky from the background, glow from player two, kerbs from player one, centre line from the action colour.</li><li>Light and shadow tints are also mixed from the theme, so shading never leaves the palette.</li></ul></div>
+    <div><h3>SMOOTH OR PIXEL</h3><p class="note">The STYLE switch above the phone redraws the same scene at half resolution with hard pixels, closer to the app's pixel font and sprites. SMOOTH reads better at speed; PIXEL is more on-brand. Decided: both ship, as a player setting next to the theme picker.</p></div>
+  </div>
+</section>
+
+<!-- 3 · How it plays -->
+<section>
+  <div class="grid g2">
+    <div class="glass">
+      <div class="eyebrow">HOW IT PLAYS</div>
+      <h2>WHERE A KICK LANDS</h2>
+      <svg viewBox="0 0 440 300" role="img" aria-label="Top-down kick reach diagram">
+        <rect x="40" y="10" width="360" height="280" rx="10" fill="#5e665e"/>
+        <g stroke="#f1eedc" stroke-width="3" stroke-dasharray="16 14"><path d="M130 10v280M310 10v280"/></g><path d="M220 10v280" stroke="#f2c744" stroke-width="3" stroke-dasharray="16 14"/>
+        <rect x="232" y="100" width="76" height="100" rx="10" fill="#f2c744" fill-opacity=".45" stroke="#f2c744" stroke-width="2"/>
+        <rect x="132" y="100" width="76" height="100" rx="10" fill="#fff" fill-opacity=".12" stroke="#f1eedc" stroke-width="2" stroke-dasharray="5 5"/>
+        <g><rect x="210" y="118" width="20" height="64" rx="9" fill="#46792f"/><circle cx="220" cy="140" r="10" fill="#f6f7ee"/><path d="M230 152h34" stroke="#22271e" stroke-width="9" stroke-linecap="round"/></g>
+        <g><rect x="270" y="126" width="20" height="64" rx="9" fill="#8159b4"/><circle cx="280" cy="148" r="10" fill="#f6f7ee"/></g>
+        <path d="M296 158h44" stroke="#fff" stroke-width="3" marker-end="url(#ah)"/>
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0l10 5-10 5z" fill="#fff"/></marker></defs>
+        <rect x="318" y="50" width="62" height="42" rx="8" fill="#6fa3c7"/><text x="349" y="75" font-size="7" fill="#fff" text-anchor="middle">VAN</text>
+        <text x="270" y="92" font-size="7" fill="#fff" text-anchor="middle">REACH</text>
+        <text x="170" y="92" font-size="7" fill="#f1eedc" text-anchor="middle">OTHER SIDE</text>
+        <text x="220" y="212" font-size="7" fill="#fff" text-anchor="middle">YOU</text>
+        <text x="342" y="180" font-size="7" fill="#fff" text-anchor="middle">SHOVED</text><text x="342" y="194" font-size="7" fill="#fff" text-anchor="middle">1 LANE</text>
+        <text x="220" y="278" font-size="7" fill="#f1eedc" text-anchor="middle">UP TO 0.37 ROAD-HALVES SIDEWAYS · 1.25 BIKE LENGTHS FORE AND AFT</text>
+      </svg>
+      <p class="note">The kick is a short side zone, checked on one frame 90 ms after the press. You must be level with the target: no kicking forward at a rider you are chasing, which is what keeps slipstream and kicking as two separate skills.</p>
+    </div>
+    <div class="glass">
+      <div class="eyebrow">HOW IT PLAYS</div>
+      <h2>BALANCE, NOT HEALTH</h2>
+      <svg viewBox="0 0 440 300" role="img" aria-label="Balance state flow">
+        <g font-size="7" text-anchor="middle">
+          <rect x="14" y="26" width="118" height="78" rx="14" fill="#fff" fill-opacity=".7" stroke="#46792f" stroke-width="2"/>
+          <g fill="#46792f"><rect x="38" y="44" width="20" height="14" rx="4"/><rect x="63" y="44" width="20" height="14" rx="4"/><rect x="88" y="44" width="20" height="14" rx="4"/></g>
+          <text x="73" y="78" fill="#2d3723">RIDING</text><text x="73" y="92" fill="#48543a">3 PIPS</text>
+          <rect x="162" y="26" width="118" height="78" rx="14" fill="#fff" fill-opacity=".7" stroke="#825f0e" stroke-width="2"/>
+          <g><rect x="186" y="44" width="20" height="14" rx="4" fill="#825f0e"/><rect x="211" y="44" width="20" height="14" rx="4" fill="#825f0e"/><rect x="236" y="44" width="20" height="14" rx="4" fill="#b9c3a5"/></g>
+          <text x="221" y="78" fill="#2d3723">STAGGER 0.5 S</text><text x="221" y="92" fill="#48543a">-18% SPEED</text>
+          <rect x="310" y="26" width="118" height="78" rx="14" fill="#be1e32" fill-opacity=".14" stroke="#be1e32" stroke-width="2"/>
+          <g fill="#b9c3a5"><rect x="334" y="44" width="20" height="14" rx="4"/><rect x="359" y="44" width="20" height="14" rx="4"/><rect x="384" y="44" width="20" height="14" rx="4"/></g>
+          <text x="369" y="78" fill="#2d3723">OFF THE BIKE</text><text x="369" y="92" fill="#48543a">1.2 S · LEADER 1.9</text>
+          <rect x="162" y="180" width="118" height="78" rx="14" fill="#fff" fill-opacity=".7" stroke="#196496" stroke-width="2" stroke-dasharray="6 5"/>
+          <text x="221" y="214" fill="#2d3723">REMOUNT</text><text x="221" y="228" fill="#48543a">SHIELD 1.5 S · 3 PIPS</text><text x="221" y="242" fill="#825f0e">CATCH-UP IF BEHIND</text>
+          <g fill="none" stroke="#2d3723" stroke-width="2.5" marker-end="url(#ad)"><path d="M134 65h24"/><path d="M282 65h24"/><path d="M369 106v80c0 20-20 34-40 34h-44"/><path d="M160 219h-52c-20 0-35-14-35-34v-76"/></g>
+          <path d="M221 24c0-22-148-22-148 0" fill="none" stroke="#46792f" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#ag)"/>
+          <text x="147" y="10" fill="#46792f">+1 PIP EVERY 4 S UNHIT</text>
+          <text x="146" y="58" fill="#2d3723">KICK</text><text x="295" y="58" fill="#2d3723">KICK</text><text x="295" y="50" fill="#2d3723">3RD</text>
+          <text x="369" y="150" fill="#be1e32" text-anchor="middle">OR ANY CAR</text>
+          <defs><marker id="ad" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0l10 5-10 5z" fill="#2d3723"/></marker><marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0l10 5-10 5z" fill="#46792f"/></marker></defs>
+        </g>
+      </svg>
+      <p class="note">Nobody is eliminated, and a fall while you are behind is short: the catch-up boost lasts only until your gap to the rider ahead is back to what it was, so it repairs the fall and never pays for one. The classic's stamina bar, bike-damage bar, wrecks, fines and running back to the bike collapse into one rule a phone player reads at a glance: three pips, a short fall, an automatic remount.</p>
+    </div>
+  </div>
+</section>
+
+<section class="glass">
+  <div class="eyebrow">HOW IT PLAYS</div>
+  <h2>ONE EVENING, START TO FLAG</h2>
+  <svg viewBox="0 0 1000 150" role="img" aria-label="Room, race and cup flow">
+    <g font-size="8" text-anchor="middle">
+      <g fill="#fff" fill-opacity=".75" stroke="#b9c3a5" stroke-width="2"><rect x="6" y="30" width="170" height="92" rx="16"/><rect x="212" y="30" width="170" height="92" rx="16"/><rect x="418" y="30" width="170" height="92" rx="16"/><rect x="624" y="30" width="170" height="92" rx="16"/></g>
+      <rect x="826" y="30" width="168" height="92" rx="16" fill="#46792f"/>
+      <g fill="#2d3723"><text x="91" y="60">LOBBY</text><text x="297" y="60">3 · 2 · 1</text><text x="503" y="60">RACE ~55 S</text><text x="709" y="60">RESULT</text></g>
+      <g fill="#48543a" font-size="6.5"><text x="91" y="80">2 TO 4 READY UP</text><text x="91" y="94">BOTS FILL THE REST</text><text x="297" y="80">SAME SEEDED ROAD</text><text x="297" y="94">GRID BY LAST PLACE</text><text x="503" y="80">DRAFT · KICK · DODGE</text><text x="503" y="94">20 S TO FINISH AFTER 1ST</text><text x="709" y="80">3 / 2 / 1 / 0 POINTS</text><text x="709" y="94">KICKS AND FALLS SHOWN</text></g>
+      <g fill="#fff"><text x="910" y="60">CUP AFTER 3</text><text x="910" y="80" font-size="6.5">MOST POINTS WINS</text><text x="910" y="94" font-size="6.5">FEEDS THE NIGHT BOARD</text></g>
+      <g fill="none" stroke="#2d3723" stroke-width="2.5" marker-end="url(#ad)"><path d="M178 76h30"/><path d="M384 76h30"/><path d="M590 76h30"/><path d="M796 76h26"/></g>
+      <path d="M709 124c0 26-412 26-412 2" fill="none" stroke="#825f0e" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#ac)"/>
+      <text x="503" y="146" fill="#825f0e" font-size="6.5">RACES 2 AND 3: NEW SEED, LAST RACE'S LOSER STARTS IN FRONT</text>
+      <defs><marker id="ac" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0l10 5-10 5z" fill="#825f0e"/></marker></defs>
+    </g>
+  </svg>
+</section>
+
+<!-- 4 · Four seats -->
+<section class="glass">
+  <div class="eyebrow">FOUR PLAYERS</div>
+  <h2>FOUR PHONES, FOUR SEATS, ONE ROAD</h2>
+  <p style="max-width:74ch">Online, every rider gets the full chase view on their own phone. These four screens are the live race from the prototype above, drawn from each rider's seat at a network-like 5 frames a second. Two and three player rooms look the same, with bots in the empty seats so the road is never lonely.</p>
+  <div class="grid g4 seats" style="margin-top:12px">
+    <div class="seat"><canvas id="sk-seat-0" width="180" height="235"></canvas><span style="color:#b9e0a4">YOU</span></div>
+    <div class="seat"><canvas id="sk-seat-1" width="180" height="235"></canvas><span style="color:#d6c1f0">PLUM</span></div>
+    <div class="seat"><canvas id="sk-seat-2" width="180" height="235"></canvas><span style="color:#f3bcd6">RUBY</span></div>
+    <div class="seat"><canvas id="sk-seat-3" width="180" height="235"></canvas><span style="color:#b3d9f0">TEAL</span></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div>
+      <h3>ONE PHONE, MANY RIDERS?</h3>
+      <p>Not for v1. A chase view needs the whole screen per rider: two riders at opposite ends of one phone get a 360 by 300 strip each with their thumbs covering a third of it, and four is unreadable. Puck Rush and Animal Stack work on one phone because everyone shares one table; a chase camera has no shared table. A shared top-down view would work on one phone but is a different, weaker game (see the view comparison).</p>
+    </div>
+    <div>
+      <h3>SOLO</h3>
+      <p>The prototype is the solo mode: you against three bots, EASY / NORMAL / HARD changing bot top speed, kick rate and how well they dodge traffic. Same page pattern as the other <code>/demo</code> pages, no network.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · View comparison -->
+<section class="glass">
+  <div class="eyebrow">DECISION 1 · VIEW</div>
+  <h2>THREE WAYS TO LOOK AT THE ROAD</h2>
+  <div class="grid g3">
+    <div>
+      <svg viewBox="0 0 200 150"><rect width="200" height="150" rx="12" fill="#c3e2ee"/><rect y="62" width="200" height="88" fill="#9ccb7c"/><path d="M92 62h16l70 88H22z" fill="#5e665e"/><path d="M100 62v88" stroke="#f2c744" stroke-width="2" stroke-dasharray="8 8"/><rect x="88" y="100" width="24" height="40" rx="9" fill="#46792f"/><circle cx="100" cy="96" r="9" fill="#f6f7ee"/><rect x="126" y="94" width="20" height="34" rx="8" fill="#8159b4"/><circle cx="136" cy="90" r="7" fill="#f6f7ee"/><path d="M112 124h14" stroke="#22271e" stroke-width="6" stroke-linecap="round"/><rect x="96" y="70" width="10" height="9" rx="2" fill="#d96b4a"/></svg>
+      <h3 style="margin-top:10px">A · CHASE CAM (PSEUDO-3D) <span class="rec-tag">RECOMMENDED</span></h3>
+      <p class="note">The classic feel. Speed sells itself, a rival beside you is big and level so the kick reads, traffic arrives as a threat from the horizon. One canvas, ~150 road slices and ~60 sprites per frame: comfortable on phones.</p>
+    </div>
+    <div>
+      <svg viewBox="0 0 200 150"><rect width="200" height="150" rx="12" fill="#9ccb7c"/><rect x="50" width="100" height="150" fill="#5e665e"/><path d="M100 0v150" stroke="#f2c744" stroke-width="2" stroke-dasharray="8 8"/><rect x="82" y="92" width="12" height="28" rx="5" fill="#46792f"/><rect x="104" y="96" width="12" height="28" rx="5" fill="#8159b4"/><rect x="62" y="40" width="12" height="28" rx="5" fill="#af3773"/><rect x="124" y="20" width="12" height="28" rx="5" fill="#196496"/><rect x="100" y="52" width="22" height="34" rx="5" fill="#e9b44c"/></svg>
+      <h3 style="margin-top:10px">B · TOP-DOWN</h3>
+      <p class="note">Cheapest to draw and to sync, all four riders always visible, could share one phone. But bikes are 12 px slivers, a kick is a twitch, and there is no sense of speed. It would read as a second Tron or Paint Turf.</p>
+    </div>
+    <div>
+      <svg viewBox="0 0 200 150"><rect width="200" height="150" rx="12" fill="#c3e2ee"/><path d="M0 70l200-20v100H0z" fill="#9ccb7c"/><path d="M0 92l200-26v40L0 138z" fill="#5e665e"/><ellipse cx="74" cy="106" rx="11" ry="11" fill="#22271e"/><ellipse cx="112" cy="101" rx="11" ry="11" fill="#22271e"/><rect x="70" y="84" width="46" height="14" rx="6" fill="#46792f"/><circle cx="96" cy="72" r="8" fill="#f6f7ee"/><ellipse cx="132" cy="88" rx="9" ry="9" fill="#22271e"/><ellipse cx="164" cy="84" rx="9" ry="9" fill="#22271e"/><rect x="128" y="72" width="40" height="12" rx="5" fill="#8159b4"/><circle cx="150" cy="62" r="7" fill="#f6f7ee"/></svg>
+      <h3 style="margin-top:10px">C · SIDE / THREE-QUARTER</h3>
+      <p class="note">Bikes look great in profile, but lanes stack into depth: "is that rider beside me or one lane over" is the exact thing a kick needs and the one thing this view hides. Oncoming traffic gets about a third of a second of warning.</p>
+    </div>
+  </div>
+  <div class="scroll" style="margin-top:12px">
+    <table>
+      <tr><th></th><th>A · CHASE CAM</th><th>B · TOP-DOWN</th><th>C · SIDE</th></tr>
+      <tr><td><b>Kick readability</b></td><td>Strong: target is level and large</td><td>Weak: tiny sprites</td><td>Weak: depth is ambiguous</td></tr>
+      <tr><td><b>Speed feel</b></td><td>Strong</td><td>Low</td><td>Medium</td></tr>
+      <tr><td><b>Phone cost</b></td><td>Medium, one 2D canvas</td><td>Low</td><td>Low to medium</td></tr>
+      <tr><td><b>Lag tolerance</b></td><td>Medium: a rival 150 ms stale is ~1 bike length off</td><td>Same data, more visible</td><td>Same</td></tr>
+      <tr><td><b>One-phone play</b></td><td>No</td><td>Yes</td><td>2 only</td></tr>
+      <tr><td><b>Overlap with what exists</b></td><td>Nothing like it in the 68 games</td><td>Close to Tron / Snake / Paint Turf</td><td>None</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 6 · The look -->
+<section class="glass">
+  <div class="eyebrow">POLISH</div>
+  <h2>THE LOOK, PIECE BY PIECE</h2>
+  <div class="grid g3">
+    <div><h3>RIDER AND BIKE</h3><p class="note">Drawn in code, seen from behind and lit from the right: fat rear tyre with rolling tread, tail in the darker seat colour with a red lamp, twin pipes, jacket in the seat colour with shoulder pads and a race number, crested helmet with a colour band. The bike leans up to 17° into a steer. A kick throws the leg out with a yellow-soled boot and a white arc; the torso shifts the other way. Build adds the player's avatar face on the helmet back.</p></div>
+    <div><h3>ROAD AND WORLD</h3><p class="note">Four lanes, striped kerbs, painted edge and centre lines. Ground in two alternating bands so speed reads even on a straight. Pines, round trees, bushes, flowers, street lights, billboards, cottages or towers, chevron boards before hard corners, bunting poles in the four seat colours, a START arch and a chequered FINISH arch. Sky, sun, clouds, mountains and two hill layers slide at different rates as the road bends. Distance fades into haze. Every colour comes from the active theme.</p></div>
+    <div><h3>SPEED AND CONTACT</h3><p class="note">Above 86% speed streaks fly out from the vanishing point and the vignette tightens; in a slipstream they turn warm and the camera pulls back. A landed kick: 70 ms freeze, a flash ring off the victim, a POW burst, a camera punch-in, the victim rocking on a spring. Taking one: bigger shake, punch-out and a red banner. A fall: sparks and skid marks, a tumbling rider, three stars, then the bike is stood back up and the remount blinks.</p></div>
+    <div><h3>HUD</h3><p class="note">Glass chips only at the corners: place (large), time and a four-dot progress rail, speed, three balance pips that turn gold when you are hurt, and a chip for SLIPSTREAM, BOOST or CATCH-UP that springs in. Under the top chips sit two small rear mirrors showing who is behind and on which side; a rim glows in a rider's colour when they are about to reach you. One line of banner text at a time, 1.3 s. Controls sit under the road, never over it.</p></div>
+    <div><h3>SOUND</h3><p class="note">Engine hum that rises with speed and wobbles in a stagger; whoosh on a swing; thud plus square-wave drop on a hit; long noise burst on a fall; rising two-note sting when you unseat someone; 3-2-1 beeps; a four-note finish. In the build these go through <code>sounds.js</code> and the scene uses <code>useMusicScene('game')</code>.</p></div>
+    <div><h3>HAPTICS</h3><p class="note">On contact, never after the network: 25 ms when your kick lands, a double buzz when you are hit, a long triple on a fall, a short roll at the flag. Through <code>haptics.js</code> so the existing setting and caps apply. Reduced motion drops the shake, streaks and tumble and keeps the banners.</p></div>
+  </div>
+</section>
+
+<!-- 7 · Online -->
+<section class="glass">
+  <div class="eyebrow">ONLINE · THE HARD PART</div>
+  <h2>HOW A KICK CROSSES THE NETWORK</h2>
+  <div class="grid g2">
+    <svg viewBox="0 0 480 330" role="img" aria-label="Sync model">
+      <g font-size="7" text-anchor="middle">
+        <text x="240" y="12" fill="#be1e32">"I KICKED PLUM, RIGHT SIDE"</text><text x="240" y="26" fill="#48543a">JUDGED ON THE KICKER'S SCREEN</text>
+        <path d="M85 62V38h310v20" fill="none" stroke="#be1e32" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#ar)"/>
+        <rect x="10" y="64" width="150" height="120" rx="16" fill="#fff" fill-opacity=".75" stroke="#46792f" stroke-width="2"/>
+        <text x="85" y="86" fill="#46792f">YOUR PHONE</text><text x="85" y="106" fill="#2d3723">SIMS YOUR BIKE</text><text x="85" y="120" fill="#48543a">60 HZ · ZERO LAG</text><text x="85" y="142" fill="#2d3723">RIVALS = GHOSTS</text><text x="85" y="156" fill="#48543a">GLIDED FORWARD</text><text x="85" y="170" fill="#48543a">FROM LAST REPORT</text>
+        <rect x="320" y="64" width="150" height="120" rx="16" fill="#fff" fill-opacity=".75" stroke="#8159b4" stroke-width="2"/>
+        <text x="395" y="86" fill="#8159b4">PLUM'S PHONE</text><text x="395" y="106" fill="#2d3723">SIMS PLUM'S BIKE</text><text x="395" y="128" fill="#2d3723">APPLIES THE KICK</text><text x="395" y="142" fill="#48543a">WHEN IT ARRIVES</text><text x="395" y="156" fill="#48543a">UNLESS SHIELDED</text>
+        <rect x="160" y="218" width="160" height="104" rx="16" fill="#825f0e" fill-opacity=".14" stroke="#825f0e" stroke-width="2"/>
+        <text x="240" y="242" fill="#825f0e">ROOM (FIREBASE)</text><text x="240" y="262" fill="#2d3723">SEED · START TIME</text><text x="240" y="276" fill="#2d3723">POSITIONS 10 HZ</text><text x="240" y="290" fill="#2d3723">KICKS · FINISHES</text><text x="240" y="308" fill="#48543a">TRAFFIC NEVER SENT</text>
+        <g fill="none" stroke="#2d3723" stroke-width="2.5" marker-end="url(#ad)"><path d="M85 186v56c0 16 12 28 28 28h42"/><path d="M322 270h45c16 0 28-12 28-28v-52"/></g>
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0l10 5-10 5z" fill="#be1e32"/></marker></defs>
+      </g>
+    </svg>
+    <div>
+      <p><b>Each phone simulates only its own bike</b> on the same seeded road, the way Updraft already races. Rivals are ghosts moved forward from their last reported position and speed. Traffic and oil are a pure function of the seed and the shared race clock, so every phone sees the same van in the same lane without sending it.</p>
+      <p><b>A kick is decided on the kicker's phone</b> ("what you see is what you hit") and sent as an event; the victim's phone applies the shove, pip and stagger when it arrives. The victim feels a hit 100 to 300 ms after the leg went out, which is about the length of the kick animation itself.</p>
+      <p><b>Why not the existing peer-to-peer link:</b> <code>realtime/rtc.js</code> connects exactly two seats (X hosts, O joins). Four riders would need six links or a host relay, new signalling, and a host whose phone decides everyone's race. The relay through the room needs no new transport.</p>
+      <h3 style="margin-top:12px">LATENCY RISKS</h3>
+      <ul class="note">
+        <li>"I was not next to them": the victim saw the kicker a bike length away. Softened by the visible wind-up, the 1.25-length reach and the kicker's ghost snapping level when the event lands.</li>
+        <li>Two riders kick each other at once: both land. Reads as a trade, costs both a pip.</li>
+        <li>Shield wins ties: a kick that arrives during the 1.5 s remount shield is dropped and the kicker sees CLANG.</li>
+        <li>Position writes: 4 riders at 10 Hz is ~2,600 small writes a race. Needs a cost and rate check on the emulator before the build commits to it.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · Twists -->
+<section class="glass">
+  <div class="eyebrow">BEYOND THE CLASSIC</div>
+  <h2>FIVE TWISTS</h2>
+  <div class="scroll">
+    <table>
+      <tr><th>TWIST</th><th>WHAT CHANGES</th><th>WHY MORE FUN</th><th>RISK</th><th>COST</th><th></th></tr>
+      <tr><td><b>T1 Slipstream</b><br><small>in the prototype</small></td><td>Half a second in a rider's wake gives +10% top speed while you stay there.</td><td>The rider behind always has a way back, and it drags packs together so kicks actually happen.</td><td>Leader feels punished; a 4-pack can yo-yo.</td><td>Small</td><td><span class="rec-tag">SHIP IN V1</span></td></tr>
+      <tr><td><b>T2 Grudge</b></td><td>Whoever last knocked you off wears a marker on your screen. Unseat them back and you take 1 bonus cup point and the room sees PAYBACK.</td><td>Turns a race into a story between friends, which is the Game Night hook. Feeds the night recap ("biggest grudge").</td><td>Two riders feud and both lose the race; that is also the joke.</td><td>Small</td><td><span class="rec-tag">SHIP IN V1</span></td></tr>
+      <tr><td><b>T3 Pick-ups</b></td><td>Crates on the road: a pool noodle (double reach, 3 swings), a banana peel dropped behind you, a 2 s nitro.</td><td>Variety, lucky reversals, something to race for besides position.</td><td>Luck can swamp skill; three more things to sync and balance.</td><td>Medium</td><td>second release</td></tr>
+      <tr><td><b>T4 Catch-up remount</b><br><small>your rule, in the prototype</small></td><td>Fall while anyone is ahead of you: 1.2 s down instead of 1.9, back on at 55% speed instead of 28%, then +14% top speed and faster pickup until the gap to the rider who was ahead is back to what it was (6 s at most). The leader gets none of it.</td><td>A fall stops being the end of your race, so people keep fighting instead of coasting.</td><td>Falling on purpose: closed, because the boost stops at the gap you had. A pack behind the leader recovers faster than the leader does, which is the point but needs a playtest.</td><td>Small</td><td><span class="rec-tag">IN · YOUR CALL</span></td></tr>
+      <tr><td><b>T5 Tag team (2v2)</b></td><td>Four riders in two pairs. Cup points add up; your partner cannot be kicked by you and their wake gives +15%.</td><td>Blocking for a partner and double-teaming the leader are new jobs.</td><td>Only works with exactly 4 humans or a bot partner.</td><td>Medium, <code>teams.js</code> exists</td><td>second release</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- Avatars -->
+<section class="glass" id="avatars">
+  <div class="eyebrow">ROUND 8 · BUILD IT, AND YOUR AVATAR ON THE BIKE</div>
+  <h2>AVATARS ARE IN THE PROTOTYPE</h2>
+  <p style="max-width:76ch"><b>Build: noted as decided.</b> That is the go-ahead this board was waiting for. The build is a separate, larger job on the real app, so I have passed your decision up; until it starts, the open cards below fall back to the recommended answers unless you change them.</p>
+  <p style="max-width:76ch"><b>Avatars: yes, and they are in now, front and back.</b> The riders are four real characters from the app's avatar kit, the same four the Bamboozle board uses, stood up with the same trick: the flat picture, a darker copy behind it for thickness, lit from the game's sun. Use RIDERS above the phone to switch them off and compare.</p>
+  <div class="grid g4" style="margin-top:10px">
+    <div><h3>IN THE MIRRORS</h3><p class="note">Whoever is behind you is seen from the front, so the mirrors show their avatar riding at you.</p></div>
+    <div><h3>ON THE BIKE</h3><p class="note">The rider is the avatar from behind: hair, hat, skin and top colour. See round 9 below.</p></div>
+    <div><h3>ON THE NAME TAG</h3><p class="note">Each floating name carries the avatar's head.</p></div>
+    <div><h3>AFTER A FALL, AND AT THE END</h3><p class="note">A fallen rider gets up as their avatar, dazed, before climbing back on. The result sheet shows avatars in place of colour dots.</p></div>
+  </div>
+  <h3 style="margin-top:14px">ROUND 9 · THE RIDER IS YOUR AVATAR, FROM BEHIND, NO HELMET</h3>
+  <p style="max-width:80ch">Done as you asked. With RIDERS set to AVATARS, the rider on the bike is the player's avatar seen from the back: their hair or hat, their skin tone at the neck, their own top colour for the jacket and sleeves. The helmet is gone. The seat colour moves to a race bib with the rider's number on their back, and stays on the bike tail, the name tag and the kerb bunting, so you can still tell seats apart at a glance.</p>
+  <p class="note" style="max-width:80ch"><b>How the back is made.</b> The avatar kit only draws fronts, so the back is built by rule from the kit's own parts: same head shape and body, face left off, the back of the head filled with the hair colour, the fringe keeping its outline, long hair falling over the shoulders, hats kept, the picture mirrored. Nobody has to draw a second version of any cosmetic. Bald avatars show skin; a hat that hides the hair hides it from behind too.</p>
+  <div class="scroll">
+    <table>
+      <tr><th>WORKS WELL</th><th>APPROXIMATE</th><th>NOT SHOWN FROM BEHIND</th></tr>
+      <tr><td>Hair shape and colour, hats, skin tone, top colour, long hair over the shoulders.</td><td>Outfit detail: collars and buttons are the front ones mirrored. Hats with a clear front (caps) look the same from behind.</td><td>Face, glasses, beards, face marks. They still show in the mirrors, on name tags, on a fallen rider and on the result sheet.</td></tr>
+    </table>
+  </div>
+  <p class="note" style="margin-top:8px">For the build this is a small addition to the avatar kit: one extra view, <code>back</code>, next to <code>bust</code> and <code>hero</code>, with a test, so every game can use it. Bamboozle could use the same view for dodgers running away from the camera.</p>
+</section>
+
+<!-- Next -->
+<section class="glass" id="next">
+  <div class="eyebrow">ROUND 7 · WHAT NEXT</div>
+  <h2>YES TO TRACKS, AND THEY ARE CHEAP</h2>
+  <p style="max-width:76ch">A track here is a short list of road pieces plus two dials: how busy and how wooded. So I added three more to the prototype to show it; pick one with the TRACK buttons above the phone. The same builder can also make a fresh road from the race seed, so online every race could be a road nobody has seen, identical on all four phones.</p>
+  <div class="grid g4" style="margin-top:10px">
+    <div><h3>MEADOW RUN</h3><p class="note">The all-rounder you have been playing. Medium bends, rolling hills, light traffic.</p></div>
+    <div><h3>SWITCHBACK PASS</h3><p class="note">Hard corners back to back over big crests, thick forest, few cars. Steering and slipstream decide it; being kicked wide on a bend costs most.</p></div>
+    <div><h3>RUSH HOUR</h3><p class="note">Long straights through town, a car every second or so, more oil. Boost and nerve decide it; kicks send people into bumpers.</p></div>
+    <div><h3>RANDOM ROAD</h3><p class="note">A new road each press, built from a seed. Proof that tracks can be endless without anyone drawing them.</p></div>
+  </div>
+  <h3 style="margin-top:16px">WHAT I WOULD DO NEXT, IN ORDER</h3>
+  <div class="scroll">
+    <table>
+      <tr><th></th><th>STEP</th><th>WHAT YOU GET</th><th>WHY NOW</th><th>COST</th></tr>
+      <tr><td><b>1</b></td><td><b>Build the real game</b></td><td>Everything on this board as a proper Game Night game: tested rules, solo against bots, online rooms for 2 to 4, three named tracks plus RANDOM ROAD.</td><td>The design is settled enough; more prototype rounds now add less than a real two-phone test would.</td><td>Large</td></tr>
+      <tr><td><b>2</b></td><td><b>Two-phone lag test</b> (inside step 1, early)</td><td>The answer to the one open risk: does a kick feel fair with real network delay.</td><td>If it does not, the kick rules change, and it is cheaper to learn that before polish.</td><td>Small</td></tr>
+      <tr><td><b>3</b></td><td><b>Track features</b></td><td>Jumps off crests, oncoming traffic in one lane, a tunnel, a narrow bridge. Each one changes how kicks play.</td><td>Makes tracks feel different, not just bend differently.</td><td>Small each</td></tr>
+      <tr><td><b>4</b></td><td><b>Weather and time of day</b></td><td>Rain (longer slides, spray in the mirrors), dusk, fog. Picked per track or per race.</td><td>Cheap variety; the lighting already supports night through themes.</td><td>Small to medium</td></tr>
+      <tr><td><b>5</b></td><td><b>Pick-ups and tag team</b></td><td>The two twists held back from v1.</td><td>Best added once the base game has been played for a while.</td><td>Medium each</td></tr>
+      <tr><td><b>6</b></td><td><b>Solo depth</b></td><td>Time trial with your own ghost, a daily road shared by everyone, a five-race tour against tougher bots.</td><td>Gives a reason to play alone between game nights.</td><td>Medium</td></tr>
+      <tr><td><b>7</b></td><td><b>Bikes and riders</b></td><td>Three bike feels (nimble, balanced, heavy) and rider looks from the avatar kit.</td><td>Personality; also the natural home for cosmetics.</td><td>Medium</td></tr>
+    </table>
+  </div>
+  <p class="note" style="margin-top:8px">My pick: go to step 1 now, with tracks 1 to 4 included, and choose from steps 3 to 7 after the first real game night with it. Tell me which extras matter to you in the new card below.</p>
+</section>
+
+<!-- 9 · Decisions -->
+<section class="glass" id="decide">
+  <div class="eyebrow">YOUR CALLS</div>
+  <h2>SEVEN CARDS, ALL WITH A DEFAULT</h2>
+  <p><span class="chip rec">DECIDED: SMOOTH AND PIXEL BOTH STAY, AS A PLAYER SETTING</span><span class="chip rec">DECIDED: FASTER COMEBACK AFTER A FALL, ONLY WHEN BEHIND</span><span class="chip rec">DECIDED: KICKING COSTS BALANCE</span><span class="chip rec">DECIDED: RECHARGING BOOST</span><span class="chip rec">DECIDED: REAR MIRRORS</span><span class="chip rec">DECIDED: BUILD IT</span><span class="chip rec">DECIDED: RIDER IS YOUR AVATAR FROM BEHIND, NO HELMET</span></p>
+  <p class="note">You have said build. Any card you leave alone is built with its pre-selected answer. Change one by picking an option and pressing its QUEUE button, then send from the Lavish bar.</p>
+  <div class="grid g2" style="margin-top:12px">
+    <form class="q glass" data-lavish-question="view" data-kind="radio" data-title="View">
+      <h3>D1 · VIEW</h3>
+      <label><input type="radio" name="view" value="A chase cam (pseudo-3D)" checked> <span>A · Chase cam, pseudo-3D <span class="rec-tag">REC</span></span></label>
+      <label><input type="radio" name="view" value="B top-down"> <span>B · Top-down</span></label>
+      <label><input type="radio" name="view" value="C side / three-quarter"> <span>C · Side or three-quarter</span></label>
+      <div class="row"><button class="btn ghost" type="submit">QUEUE ANSWER</button><output></output></div>
+    </form>
+    <form class="q glass" data-lavish-question="name" data-kind="radio" data-title="Name">
+      <h3>D2 · NAME</h3>
+      <label><input type="radio" name="name" value="SIDE KICK" checked> <span><b>SIDE KICK</b>: says the verb and the direction <span class="rec-tag">REC</span></span></label>
+      <label><input type="radio" name="name" value="ROAD BRAWL"> <span><b>ROAD BRAWL</b>: plainest, closest to the classic</span></label>
+      <label><input type="radio" name="name" value="ELBOW ROOM"> <span><b>ELBOW ROOM</b>: friendlier, less literal</span></label>
+      <label><input type="radio" name="name" value="other"> <span>Something else:</span></label>
+      <input type="text" name="name_other" placeholder="Your name for it" aria-label="Other name">
+      <div class="row"><button class="btn ghost" type="submit">QUEUE ANSWER</button><output></output></div>
+    </form>
+    <form class="q glass" data-lavish-question="modes" data-kind="check" data-title="V1 modes">
+      <h3>D3 · V1 PLAYER COUNTS AND MODES</h3>
+      <label><input type="checkbox" name="modes" value="online 2-4 with bots filling empty seats" checked> <span>Online room, 2 to 4 riders, bots fill empty seats <span class="rec-tag">REC</span></span></label>
+      <label><input type="checkbox" name="modes" value="solo vs 3 bots with EASY/NORMAL/HARD" checked> <span>Solo against 3 bots, three difficulties <span class="rec-tag">REC</span></span></label>
+      <label><input type="checkbox" name="modes" value="online with no bots (humans only)"> <span>Online humans only, no bots (a 2-player race has 2 bikes)</span></label>
+      <label><input type="checkbox" name="modes" value="two riders on one phone (split screen)"> <span>Two riders on one phone, split screen (not recommended)</span></label>
+      <div class="row"><button class="btn ghost" type="submit">QUEUE ANSWER</button><output></output></div>
+    </form>
+    <form class="q glass" data-lavish-question="match" data-kind="radio" data-title="Match format">
+      <h3>D4 · MATCH FORMAT</h3>
+      <label><input type="radio" name="match" value="3-race cup, 3/2/1/0 points" checked> <span>Cup: 3 races, 3 / 2 / 1 / 0 points, most points wins <span class="rec-tag">REC</span></span></label>
+      <label><input type="radio" name="match" value="first to 3 race wins (same as other races)"> <span>First to 3 race wins, like the other race games (can run 9+ races with four riders)</span></label>
+      <label><input type="radio" name="match" value="single race"> <span>Single race, then PLAY AGAIN</span></label>
+      <div class="row"><button class="btn ghost" type="submit">QUEUE ANSWER</button><output></output></div>
+    </form>
+    <form class="q glass" data-lavish-question="twists" data-kind="check" data-title="Twists in v1">
+      <h3>D5 · TWISTS IN V1</h3>
+      <label><input type="checkbox" name="twists" value="T1 slipstream" checked> <span>T1 Slipstream <span class="rec-tag">REC</span></span></label>
+      <label><input type="checkbox" name="twists" value="T2 grudge" checked> <span>T2 Grudge and payback point <span class="rec-tag">REC</span></span></label>
+      <label><input type="checkbox" name="twists" value="T3 pick-ups"> <span>T3 Pick-ups</span></label>
+      <label><input type="checkbox" name="twists" value="T4 catch-up remount" checked> <span>T4 Catch-up remount (your rule) <span class="rec-tag">IN</span></span></label>
+      <label><input type="checkbox" name="twists" value="T5 tag team 2v2"> <span>T5 Tag team 2v2</span></label>
+      <div class="row"><button class="btn ghost" type="submit">QUEUE ANSWER</button><output></output></div>
+    </form>
+    <form class="q glass" data-lavish-question="extras" data-kind="check" data-title="After v1">
+      <h3>D7 · AFTER V1, WHAT MATTERS MOST</h3>
+      <label><input type="checkbox" name="extras" value="more named tracks"> <span>More named tracks</span></label>
+      <label><input type="checkbox" name="extras" value="random road every online race" checked> <span>A fresh random road every online race <span class="rec-tag">REC</span></span></label>
+      <label><input type="checkbox" name="extras" value="track features (jumps, oncoming traffic, tunnel, bridge)" checked> <span>Track features: jumps, oncoming traffic, tunnel, bridge <span class="rec-tag">REC</span></span></label>
+      <label><input type="checkbox" name="extras" value="weather and time of day"> <span>Weather and time of day</span></label>
+      <label><input type="checkbox" name="extras" value="solo depth (time trial ghost, daily road, tour)"> <span>Solo: time trial ghost, daily road, tour</span></label>
+      <label><input type="checkbox" name="extras" value="bike types and rider looks"> <span>Bike types and rider looks</span></label>
+      <div class="row"><button class="btn ghost" type="submit">QUEUE ANSWER</button><output></output></div>
+    </form>
+    <form class="q glass" data-lavish-question="avatarback" data-kind="radio" data-title="Back view in the avatar kit">
+      <h3>D6 · WHERE THE BACK VIEW LIVES</h3>
+      <label><input type="radio" name="avatarback" value="add a back view to the avatar kit for all games" checked> <span>Add it to the avatar kit as a third view, for every game <span class="rec-tag">REC</span></span></label>
+      <label><input type="radio" name="avatarback" value="keep the back view inside this game only"> <span>Keep it inside this game only</span></label>
+      <label><input type="radio" name="avatarback" value="back view needs more work first"> <span>The back view needs more work first (say what in a note)</span></label>
+      <div class="row"><button class="btn ghost" type="submit">QUEUE ANSWER</button><output></output></div>
+    </form>
+  </div>
+</section>
+
+<!-- 10 · Build -->
+<section class="glass">
+  <div class="eyebrow">IF IT IS BUILT</div>
+  <h2>WHAT THE BUILD NEEDS</h2>
+  <div class="grid g3">
+    <div><h3>REUSED AS IS</h3><ul class="note"><li>Room, seats, presence, chat, night scoreboard</li><li><code>raceLogic.js</code>: seeded round, ready-up, ranks, 3/2/1/0 placement points, offline grace</li><li><code>RaceShell</code> lobby and results, <code>coordinator.js</code> for bot ownership</li><li><code>detMath.js</code> seeded random, <code>useServerClock</code></li><li><code>sounds.js</code>, <code>haptics.js</code>, <code>FocusStage</code></li></ul></div>
+    <div><h3>NEW</h3><ul class="note"><li><code>sideKickLogic.js</code> + tests: track builder, rider step, kick, traffic, bots, ranking</li><li>Canvas renderer and sprite drawing (Animal Stack is the precedent for a canvas scene)</li><li>Controls hook, HUD, solo page, online page with ghost smoothing</li><li>Room keys and rules for positions, kick events and finishes, with rules tests</li><li>Two-client and four-client e2e spec, rules sheet, icon, registry entry</li></ul></div>
+    <div><h3>EFFORT: LARGE</h3><p class="note">About the size of Updraft plus a renderer. Rough split: sim and tests medium, renderer and polish medium, online sync and rules medium, bots small. The riskiest part is how a kick feels at 200 ms; it deserves a two-phone test before the art is finished.</p><p class="note">Sources and the full write-up are in the report file.</p></div>
+  </div>
+</section>
+
+</main>
+<script>
+/*GAME*/
+</script>
+<script>
+// Decisions: selection stays local; one queued prompt per submitted card.
+for (const form of document.querySelectorAll('form.q')) {
+  form.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const key = form.dataset.lavishQuestion, fd = new FormData(form)
+    let answer = form.dataset.kind === 'check' ? fd.getAll(key).join('; ') || 'none' : fd.get(key)
+    if (key === 'name' && answer === 'other') answer = (fd.get('name_other') || '').trim() || 'other (no name typed)'
+    const note = key === 'go' ? (fd.get('go_note') || '').trim() : key === 'look' ? (fd.get('look_note') || '').trim() : ''
+    const text = form.dataset.title + ': ' + answer + (note ? ' (note: ' + note + ')' : '')
+    const out = form.querySelector('output')
+    if (window.lavish && window.lavish.queuePrompt) {
+      window.lavish.queuePrompt('Decision ' + text, { tag: 'choice', text, element: form, queueKey: key, data: { question: key, answer, note } })
+      out.textContent = 'QUEUED'
+    } else out.textContent = 'OPEN IN LAVISH TO SEND'
+  })
+  form.addEventListener('change', () => { form.querySelector('output').textContent = '' })
+}
+</script>
+</body>
+</html>

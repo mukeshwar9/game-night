@@ -29,7 +29,7 @@ describe('words', () => {
 
 describe('starsFor', () => {
   it('scores fewer steps higher', () => {
-    expect([1, 2, 3, 4, 5, 8].map(starsFor)).toEqual([3, 3, 2, 2, 1, 1])
+    expect([2, 3, 4, 5, 8].map(starsFor)).toEqual([3, 2, 2, 1, 1])
     expect(maxStars()).toBe(CONVERGE_CHAINS * 3)
   })
 })
@@ -59,6 +59,19 @@ describe('lockWord', () => {
     expect(convergedNow(halfway, normalizeConvergeRound(lockWord(halfway, { player: 'O', word: 'cheese' })))).toBe(true)
   })
 
+  it('never scores step 1: the same opening word is a reveal-only restart (audit: CAT + CAT farmed 15/15)', () => {
+    const r = normalizeConvergeRound(lockBoth(startMatch({ seed: 's' }), 'cat', 'cats'))
+    expect(r.phase).toBe('write')
+    expect(r.stars).toBe(0)
+    expect(r.results).toEqual([])
+    expect(r.chain).toEqual([])
+    expect(r.pending).toEqual({ X: null, O: null })
+    expect(r.last).toMatchObject({ kind: 'sameStart', word: 'CAT', steps: 0 })
+    // The restart is a fresh step 1; a match on step 2 still earns ★★★.
+    const two = normalizeConvergeRound(lockBoth(lockBoth(r, 'cat', 'dog'), 'pet', 'pet'))
+    expect(two.results[0]).toMatchObject({ steps: 2, stars: 3, converged: true })
+  })
+
   it('loses the chain after the last step', () => {
     let r = startMatch({ seed: 's' })
     for (let i = 0; i < CONVERGE_MAX_STEPS; i++) r = lockBoth(r, `ax${'a'.repeat(i)}`, `bx${'b'.repeat(i)}`)
@@ -78,7 +91,7 @@ describe('lockWord', () => {
   it('ends the match after the last chain and tracks the best total', () => {
     let r = startMatch({ seed: 's', best: 2 })
     for (let c = 1; c <= CONVERGE_CHAINS; c++) {
-      r = lockBoth(r, 'same', 'same')
+      r = lockBoth(lockBoth(r, 'pizza', 'moon'), 'same', 'same')
       if (c < CONVERGE_CHAINS) r = nextChain(r)
     }
     const n = normalizeConvergeRound(r)
@@ -97,7 +110,7 @@ describe('unlockWord / nextChain', () => {
   })
 
   it('starts a fresh chain', () => {
-    const ended = lockBoth(startMatch({ seed: 's' }), 'same', 'same')
+    const ended = lockBoth(lockBoth(startMatch({ seed: 's' }), 'pizza', 'moon'), 'same', 'same')
     const n = normalizeConvergeRound(nextChain(ended))
     expect(n).toMatchObject({ phase: 'write', chainNo: 2, chain: [], stars: 3 })
     expect(nextChain(startMatch({ seed: 's' }))).toBeNull()

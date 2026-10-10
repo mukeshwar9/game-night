@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en" data-theme="glass">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bonk Buggies: design board</title>
+<link rel="icon" href="data:,">
+<style>
+@font-face { font-family: 'Press Start 2P'; src: url(data:font/woff2;base64,/*FONT*/) format('woff2'); font-display: swap; }
+/* Game Night tokens: GLASS and GLASS NIGHT from src/index.css, plus the arena's own scene palette (--s-*). */
+/* Non-glass themes: the same classes fall back to an opaque card. */
+[data-theme] { --c-glass-tint: var(--c-card); --c-glass-rim: var(--c-border); --c-glass-shade: 0 0 0;
+  --c-art-1: var(--c-tint-p1); --c-art-2: var(--c-tint-p2); --c-art-3: var(--c-tint-cta); --c-art-4: var(--c-tint-p4);
+  --g-alpha: .92; --g-alpha-sheet: .94; --g-rim-a: .5; --g-drop: .2; }
+/*THEMES*/
+[data-theme="glass"] {
+  color-scheme: light;
+  --c-bg: 238 240 226; --c-surface: 246 248 236; --c-card: 252 253 246; --c-border: 185 195 165; --c-text: 45 55 35; --c-dim: 50 60 38;
+  --c-p1: 70 121 47; --c-p2: 129 89 180; --c-p3: 175 55 115; --c-p4: 25 100 150; --c-cta: 130 95 14; --c-win: 38 123 66; --c-danger: 190 30 50;
+  --c-tint-p1: 220 238 205; --c-tint-p2: 235 225 245; --c-tint-p3: 245 220 232; --c-tint-p4: 215 232 242; --c-tint-cta: 242 232 200;
+  --c-glass-tint: 255 255 255; --c-glass-rim: 255 255 255; --c-glass-shade: 40 50 30;
+  --c-art-1: 150 196 120; --c-art-2: 186 160 232; --c-art-3: 246 186 146; --c-art-4: 140 196 232;
+  --g-alpha: .3; --g-alpha-sheet: .62; --g-rim-a: .85; --g-drop: .16;
+  --s-sky-1: 142 200 232; --s-sky-2: 250 226 196; --s-sun: 255 246 214; --s-far: 132 158 178; --s-rock-1: 124 112 100; --s-rock-2: 70 62 62;
+  --s-moss: 96 158 62; --s-water: 30 122 170; --s-foam: 238 250 252; --s-wood: 182 124 72; --s-tyre: 34 36 44; --s-steel: 150 158 166; --s-lid: 248 248 240;
+}
+[data-theme="glass-night"] {
+  color-scheme: dark;
+  --c-bg: 8 8 16; --c-surface: 15 15 26; --c-card: 19 19 40; --c-border: 56 56 106; --c-text: 236 238 255; --c-dim: 220 222 250;
+  --c-p1: 0 229 255; --c-p2: 255 64 129; --c-p3: 171 102 255; --c-p4: 255 158 44; --c-cta: 255 230 0; --c-win: 77 255 195; --c-danger: 255 45 45;
+  --c-tint-p1: 0 26 46; --c-tint-p2: 46 0 24; --c-tint-p3: 24 10 46; --c-tint-p4: 46 22 4; --c-tint-cta: 26 21 0;
+  --c-glass-tint: 16 18 34; --c-glass-rim: 200 210 255; --c-glass-shade: 0 0 0;
+  --c-art-1: 0 200 235; --c-art-2: 235 60 130; --c-art-3: 120 80 255; --c-art-4: 255 200 40;
+  --g-alpha: .42; --g-alpha-sheet: .7; --g-rim-a: .45; --g-drop: .5;
+  --s-sky-1: 8 10 30; --s-sky-2: 62 36 98; --s-sun: 228 234 255; --s-far: 30 30 64; --s-rock-1: 58 60 104; --s-rock-2: 24 24 50;
+  --s-moss: 0 204 180; --s-water: 0 110 190; --s-foam: 196 240 255; --s-wood: 150 104 76; --s-tyre: 12 12 22; --s-steel: 128 136 170; --s-lid: 240 244 255;
+}
+* { box-sizing: border-box; }
+html { background: rgb(var(--c-bg)); scroll-behavior: smooth; }
+body { margin: 0; color: rgb(var(--c-text)); font: 16px/1.6 ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(60vmax 50vmax at 8% -5%, rgb(var(--c-art-1) / .5), transparent 62%),
+    radial-gradient(55vmax 45vmax at 100% 12%, rgb(var(--c-art-4) / .5), transparent 60%),
+    radial-gradient(60vmax 50vmax at 85% 100%, rgb(var(--c-art-2) / .42), transparent 62%),
+    radial-gradient(50vmax 45vmax at 0% 85%, rgb(var(--c-art-3) / .45), transparent 60%),
+    rgb(var(--c-bg));
+  background-attachment: fixed; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+::selection { background: rgb(var(--c-cta) / .3); }
+:focus-visible { outline: 3px solid rgb(var(--c-cta)); outline-offset: 2px; border-radius: 6px; }
+.px { font-family: 'Press Start 2P', ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0; }
+h1, h2, h3, h4 { font-family: 'Press Start 2P', ui-monospace, monospace; text-transform: uppercase; font-weight: 400; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(22px, 4.6vw, 40px); line-height: 1.25; }
+h2 { font-size: clamp(15px, 2.2vw, 20px); line-height: 1.5; margin: 72px 0 14px; }
+h3 { font-size: 12px; line-height: 1.6; margin: 26px 0 8px; }
+p { margin: 0 0 12px; max-width: 68ch; }
+a { color: inherit; text-decoration-color: rgb(var(--c-cta)); text-underline-offset: 3px; }
+b, strong { font-weight: 700; }
+code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: rgb(var(--c-text) / .08); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
+.glass { background: rgb(var(--c-glass-tint) / var(--g-alpha)); -webkit-backdrop-filter: blur(12px) saturate(1.6); backdrop-filter: blur(12px) saturate(1.6);
+  border: 1px solid rgb(var(--c-glass-rim) / calc(var(--g-rim-a) * .6)); border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgb(var(--c-glass-rim) / var(--g-rim-a)), 0 10px 26px rgb(var(--c-glass-shade) / var(--g-drop)); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 90px; display: grid; grid-template-columns: minmax(0, 1fr) 406px; gap: 0 44px; align-items: start; }
+.doc { min-width: 0; grid-column: 1; grid-row: 2; }
+.side { grid-column: 2; grid-row: 2; position: sticky; top: 14px; min-width: 0; }
+.top { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 26px; font-size: 13px; }
+.top .px { font-size: 10px; line-height: 1.6; }
+.themes { display: flex; gap: 10px; align-items: center; font-size: 10px; }
+.themes select { font: 400 10px/1 'Press Start 2P', monospace; text-transform: uppercase; color: rgb(var(--c-text)); background: rgb(var(--c-card)); border: 1px solid rgb(var(--c-text) / .4); border-radius: 10px; padding: 11px 10px; min-height: 40px; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 14px 0 6px; }
+.tile { padding: 0; border: 2px solid rgb(var(--c-border)); border-radius: 12px; overflow: hidden; background: rgb(var(--c-card)); color: rgb(var(--c-text)); cursor: pointer; display: grid; text-align: left; font: inherit; min-width: 0; transition: transform .08s; }
+.tile:active { transform: scale(.98); }
+.tile[aria-pressed="true"] { outline: 3px solid rgb(var(--c-cta)); outline-offset: 2px; }
+.tile canvas { width: 100%; aspect-ratio: 14 / 9; display: block; }
+.tile span { display: flex; align-items: center; gap: 6px; padding: 8px; font: 400 9px/1.3 'Press Start 2P', monospace; text-transform: uppercase; }
+.tile i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.btn { font: 400 10px/1 'Press Start 2P', ui-monospace, monospace; text-transform: uppercase; color: rgb(var(--c-text)); background: rgb(var(--c-glass-tint) / var(--g-alpha));
+  border: 1px solid rgb(var(--c-text) / .35); border-radius: 10px; padding: 11px 12px; cursor: pointer; min-height: 40px; transition: transform .08s, background-color .15s; }
+.btn:active { transform: scale(.96); }
+.btn[aria-pressed="true"] { background: rgb(var(--c-text)); color: rgb(var(--c-bg)); }
+.btn.cta { background: rgb(var(--c-cta)); color: rgb(var(--c-bg)); border-color: transparent; box-shadow: 0 6px 16px rgb(var(--c-glass-shade) / .25); }
+.lede { font-size: 19px; line-height: 1.5; max-width: 56ch; margin: 16px 0 22px; }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 18px; margin: 0 0 8px; padding: 18px 20px; }
+.facts dt { font: 400 9px/1.9 'Press Start 2P', monospace; text-transform: uppercase; color: rgb(var(--c-dim)); }
+.facts dd { margin: 0; }
+.fig { margin: 18px 0; padding: 16px; }
+.fig svg { display: block; width: 100%; height: auto; }
+.fig figcaption, .cap { font-size: 13.5px; color: rgb(var(--c-dim)); margin-top: 10px; max-width: 70ch; }
+figure { margin: 0; }
+.tw { overflow-x: auto; margin: 12px 0 18px; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; line-height: 1.45; }
+th { font: 400 9px/1.6 'Press Start 2P', monospace; text-transform: uppercase; text-align: left; padding: 8px 10px; border-bottom: 2px solid rgb(var(--c-text) / .5); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid rgb(var(--c-text) / .14); vertical-align: top; }
+td:first-child { font-weight: 700; }
+.tag { display: inline-block; font: 400 9px/1 'Press Start 2P', monospace; text-transform: uppercase; padding: 5px 6px; border-radius: 6px; border: 1px solid currentColor; white-space: nowrap; }
+.tag.ok { color: rgb(var(--c-win)); } .tag.as { color: rgb(var(--c-danger)); } .tag.rec { background: rgb(var(--c-cta)); color: rgb(var(--c-bg)); border-color: transparent; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; max-width: 68ch; } li { margin-bottom: 6px; }
+.twist { padding: 18px 20px; margin: 14px 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; align-items: start; }
+.twist h3 { margin: 0; font-size: 13px; }
+.twist .what { grid-column: 1 / -1; margin: 6px 0 2px; }
+.twist dl { grid-column: 1 / -1; display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 14.5px; }
+.twist dt { font: 400 9px/2 'Press Start 2P', monospace; text-transform: uppercase; color: rgb(var(--c-dim)); }
+.twist dd { margin: 0; }
+.ask { padding: 20px; margin-top: 16px; }
+.ask fieldset { border: 0; padding: 0; margin: 0 0 22px; min-width: 0; }
+.ask legend { font: 400 11px/1.6 'Press Start 2P', monospace; text-transform: uppercase; padding: 0; margin-bottom: 8px; }
+.ask label { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; cursor: pointer; }
+.ask input[type=checkbox], .ask input[type=radio] { width: 20px; height: 20px; margin: 2px 0 0; accent-color: rgb(var(--c-cta)); flex: none; }
+.ask input[type=text], .ask textarea { width: 100%; font: inherit; color: inherit; background: rgb(var(--c-card) / .7); border: 1px solid rgb(var(--c-text) / .35); border-radius: 10px; padding: 10px 12px; }
+.ask small { color: rgb(var(--c-dim)); }
+#queued { font-size: 14px; margin: 10px 0 0; min-height: 1.4em; }
+
+/* ── the phone ── */
+.phone { width: 100%; max-width: 406px; margin: 0 auto; border-radius: 30px; padding: 8px; background: rgb(var(--c-text) / .9); box-shadow: 0 24px 50px rgb(var(--c-glass-shade) / .35), inset 0 0 0 2px rgb(var(--c-glass-rim) / .25); }
+.screen { border-radius: 23px; overflow: hidden; background: rgb(var(--c-bg)); position: relative; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.screen .glass { border-radius: 12px; }
+.bar { display: flex; align-items: center; gap: 8px; margin: 8px 8px 6px; padding: 7px 8px 7px 12px; }
+.bar b { font: 400 10px/1 'Press Start 2P', monospace; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { font: 400 9px/1 'Press Start 2P', monospace; text-transform: uppercase; padding: 6px 7px; border-radius: 999px; background: rgb(var(--c-glass-tint) / .78); color: rgb(var(--c-text)); border: 1px solid rgb(var(--c-text) / .25); white-space: nowrap; }
+.ic { width: 34px; height: 34px; border-radius: 9px; border: 1px solid rgb(var(--c-text) / .3); background: transparent; color: rgb(var(--c-text)); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.ic.off .wave { display: none; } .ic svg { width: 18px; height: 18px; }
+.rail { display: flex; gap: 6px; margin: 0 8px 6px; }
+.card { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 6px; align-items: center; padding: 6px 8px; border-radius: 10px; border: 2px solid; position: relative; }
+.card b { font: 400 9px/1 'Press Start 2P', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card.seat1 { border-color: rgb(var(--c-p1)); background: rgb(var(--c-tint-p1)); } .card.seat2 { border-color: rgb(var(--c-p2)); background: rgb(var(--c-tint-p2)); }
+.card.seat3 { border-color: rgb(var(--c-p3)); background: rgb(var(--c-tint-p3)); } .card.seat4 { border-color: rgb(var(--c-p4)); background: rgb(var(--c-tint-p4)); }
+.flag { width: 11px; height: 11px; display: block; }
+.f1 { background: rgb(var(--c-p1)); clip-path: polygon(0 0, 100% 50%, 0 100%); } .f2 { background: rgb(var(--c-p2)); border-radius: 50%; }
+.f3 { background: rgb(var(--c-p3)); } .f4 { background: rgb(var(--c-p4)); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.pips { grid-column: 1 / -1; display: flex; gap: 3px; } .pips i { flex: 1; height: 6px; border-radius: 3px; background: rgb(var(--c-text) / .16); }
+.pips i.on { background: rgb(var(--c-text)); } .pips i.pop { animation: pip .5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes pip { 0% { transform: scale(1, 3.4); background: rgb(var(--c-cta)); } 100% { transform: none; } }
+.card .lid { position: absolute; right: 5px; top: -8px; font: 400 8px/1 'Press Start 2P', monospace; background: rgb(var(--c-cta)); color: rgb(var(--c-bg)); padding: 3px 4px; border-radius: 4px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.play { position: relative; }
+.stage { position: relative; aspect-ratio: 14 / 9; background: rgb(var(--s-sky-1)); }
+canvas.arena { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.chips { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; gap: 6px; justify-content: space-between; pointer-events: none; }
+.chip-tide.warn { background: rgb(var(--c-cta)); color: rgb(var(--c-bg)); } .chip-tide.hot { background: rgb(var(--c-danger)); color: rgb(255 255 255); animation: throb .6s steps(2) infinite; }
+@keyframes throb { 50% { opacity: .65; } }
+.banner { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; pointer-events: none; text-align: center; }
+.banner b { font: 400 34px/1 'Press Start 2P', monospace; color: rgb(255 255 255); text-shadow: 0 3px 0 rgb(0 0 0 / .55), 0 0 18px rgb(0 0 0 / .45); }
+.banner[data-kind=count] b { font-size: 54px; } .banner[data-kind=ko] b { color: rgb(var(--c-cta)); -webkit-text-stroke: 1px rgb(0 0 0 / .55); }
+[data-theme="glass"] .banner[data-kind=ko] b { color: rgb(255 226 90); }
+.banner span { font: 400 9px/1.5 'Press Start 2P', monospace; text-transform: uppercase; color: rgb(255 255 255); background: rgb(0 0 0 / .55); padding: 5px 8px; border-radius: 6px; }
+.banner span:empty { display: none; }
+.banner.pop b { animation: slam .34s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes slam { 0% { transform: scale(2.3) rotate(-5deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.pads { display: flex; gap: 8px; padding: 10px 8px 6px; }
+.pad { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 6px; border-radius: 16px; border: 2px solid; }
+.pad.seat1 { border-color: rgb(var(--c-p1)); background: rgb(var(--c-tint-p1)); color: rgb(var(--c-p1)); } .pad.seat2 { border-color: rgb(var(--c-p2)); background: rgb(var(--c-tint-p2)); color: rgb(var(--c-p2)); }
+.pad button { color: inherit; height: 74px; border-radius: 12px; border: 0; background: currentColor; cursor: pointer; display: grid; place-items: center; touch-action: none; box-shadow: 0 5px 0 rgb(0 0 0 / .28); transition: transform .08s, box-shadow .08s; }
+.pad button svg { width: 34px; height: 34px; stroke: rgb(var(--c-bg)); } .pad button.down { transform: translateY(4px) scale(.97); box-shadow: 0 1px 0 rgb(0 0 0 / .28); }
+.pad .hop { grid-column: 1 / -1; order: -1; display: none; grid-template-columns: auto minmax(0, 1fr); gap: 6px; align-items: center; }
+.pad.has-hop .hop { display: grid; }
+.pad .hop span { font: 400 9px/1 'Press Start 2P', monospace; color: rgb(var(--c-text)); } .pad .hop i { height: 6px; border-radius: 3px; background: currentColor; transform-origin: left; display: block; }
+.screen[data-mode=bot] .pad.seat2, .screen[data-mode=melee] .pad.seat2 { display: none; }
+.screen[data-mode=bot] .pad, .screen[data-mode=melee] .pad { grid-template-columns: 110px minmax(0, 1fr) 110px; }
+.screen[data-mode=bot] .pad .hop, .screen[data-mode=melee] .pad .hop { grid-column: 2; grid-row: 1; order: 0; grid-template-columns: minmax(0, 1fr); text-align: center; align-self: center; }
+.screen[data-mode=bot] .pad button[data-dir=l], .screen[data-mode=melee] .pad button[data-dir=l] { grid-column: 1; grid-row: 1; }
+.screen[data-mode=bot] .pad button[data-dir=r], .screen[data-mode=melee] .pad button[data-dir=r] { grid-column: 3; grid-row: 1; }
+.hint { font-size: 12px; line-height: 1.4; text-align: center; margin: 0; padding: 2px 12px 12px; color: rgb(var(--c-dim)); max-width: none; }
+.sheet { position: absolute; inset: 6px; z-index: 3; display: grid; align-content: center; gap: 10px; padding: 16px; text-align: center; border-radius: 16px;
+  background: rgb(var(--c-glass-tint) / var(--g-alpha-sheet)); -webkit-backdrop-filter: blur(12px) saturate(1.7); backdrop-filter: blur(12px) saturate(1.7);
+  border: 1px solid rgb(var(--c-glass-rim) / .5); box-shadow: inset 0 1px 0 rgb(var(--c-glass-rim) / var(--g-rim-a)); animation: rise .28s cubic-bezier(.16, 1, .3, 1); }
+.sheet[hidden], .banner[hidden], [hidden] { display: none !important; }
+@keyframes rise { from { transform: translateY(14px); opacity: 0; } }
+.sheet h3 { margin: 0; font-size: 13px; } .sheet p { margin: 0 auto; font-size: 14px; line-height: 1.4; max-width: 30ch; }
+.seg { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; } .seg .btn { padding: 10px 8px; font-size: 9px; }
+.sheet .cta { justify-self: center; padding: 14px 22px; font-size: 12px; }
+.picks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.pick-card { border: 2px solid rgb(var(--c-text) / .5); border-radius: 12px; background: rgb(var(--c-card)); color: inherit; padding: 6px; cursor: pointer; text-align: left; font: inherit; display: grid; gap: 5px; }
+.pick-card:disabled { opacity: .8; cursor: default; } .pick-card canvas { width: 100%; border-radius: 7px; display: block; }
+.pick-card b { font: 400 9px/1.3 'Press Start 2P', monospace; } .pick-card span { font-size: 11.5px; line-height: 1.3; color: rgb(var(--c-dim)); }
+.settings { margin: 14px auto 0; max-width: 406px; padding: 14px 16px; font-size: 14px; }
+.settings h3 { margin: 0 0 8px; font-size: 10px; }
+.settings label { display: flex; gap: 9px; align-items: center; padding: 5px 0; cursor: pointer; }
+.settings input { width: 18px; height: 18px; accent-color: rgb(var(--c-cta)); margin: 0; }
+.settings select { font: inherit; color: inherit; background: rgb(var(--c-card) / .8); border: 1px solid rgb(var(--c-text) / .35); border-radius: 8px; padding: 6px 8px; margin-left: auto; }
+.settings small { display: block; color: rgb(var(--c-dim)); margin-top: 6px; }
+@media (max-width: 940px) {
+  .wrap { display: block; padding: 16px 16px 70px; }
+  .side { position: static; margin: 22px 0 26px; }
+  .top { margin-bottom: 18px; flex-wrap: wrap; }
+  h2 { margin-top: 54px; }
+  .twist { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .banner.pop b, .sheet, .pips i.pop, .chip-tide.hot { animation: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="buggy" viewBox="-1.15 -0.85 2.3 1.55" overflow="visible">
+      <circle cx="-0.58" cy="0.32" r="0.3" fill="rgb(var(--s-tyre))"/><circle cx="0.58" cy="0.32" r="0.3" fill="rgb(var(--s-tyre))"/>
+      <circle cx="-0.58" cy="0.32" r="0.15" fill="rgb(var(--s-steel))"/><circle cx="0.58" cy="0.32" r="0.15" fill="rgb(var(--s-steel))"/>
+      <path d="M-.82 .12H.8Q.97 .1 .94 -.07L.44 -.22Q.2 -.26 .12 -.2H-.42Q-.5 -.27 -.8 -.25Q-.93 -.2 -.9 0Q-.9 .12 -.82 .12Z" fill="currentColor" stroke="rgb(0 0 0 / .45)" stroke-width=".04"/>
+      <path d="M-.84 -.03H.86" stroke="rgb(255 255 255 / .8)" stroke-width=".05"/>
+      <circle cx="-0.14" cy="-0.5" r="0.2" fill="rgb(var(--s-lid))" stroke="rgb(0 0 0 / .55)" stroke-width=".04"/>
+      <path d="M-.02 -.58A.19 .19 0 0 1 .04 -.44L-.02 -.42Z" fill="rgb(var(--s-tyre))"/>
+    </symbol>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="rgb(var(--c-text))"/></marker>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <div class="top">
+    <span class="px">Game Night · design board · Crash It study · 10 Oct 2026</span>
+    <label class="themes px">Theme
+      <select id="theme" name="theme">
+        <option value="glass">Glass</option><option value="glass-night">Glass night</option><option value="matcha">Matcha</option><option value="midnight">Midnight arcade</option>
+        <option value="synthwave">Synthwave</option><option value="cartridge">Cartridge</option><option value="c64">Commodore 64</option><option value="mono">1-bit mono</option>
+      </select>
+    </label>
+  </div>
+
+  <aside class="side" id="proto" aria-label="Playable prototype">
+    <div class="phone">
+      <div class="screen" id="phone" data-mode="bot" tabindex="0">
+        <div class="bar glass"><b>BONK BUGGIES</b><span class="chip chip-arena">HALFPIPE</span>
+          <button class="ic" data-act="mute" aria-label="Mute sound" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wave" d="M17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+        </div>
+        <div class="rail"></div>
+        <div class="play">
+          <div class="stage">
+            <canvas class="arena" aria-label="Arena: two buggies on an island above rising water"></canvas>
+            <div class="chips"><span class="chip chip-tide">TIDE IN 8</span><span class="chip chip-mut" hidden></span></div>
+            <div class="banner" hidden aria-live="polite"><b></b><span></span></div>
+          </div>
+          <div class="pads">
+            <div class="pad seat1" data-seat="0">
+              <div class="hop"><span>HOP</span><i></i></div>
+              <button data-dir="l" aria-label="Player 1 drive left"><svg viewBox="0 0 24 24" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4l-8 8 8 8"/></svg></button>
+              <button data-dir="r" aria-label="Player 1 drive right"><svg viewBox="0 0 24 24" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4l8 8-8 8"/></svg></button>
+            </div>
+            <div class="pad seat2" data-seat="1">
+              <div class="hop"><span>HOP</span><i></i></div>
+              <button data-dir="l" aria-label="Player 2 drive left"><svg viewBox="0 0 24 24" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4l-8 8 8 8"/></svg></button>
+              <button data-dir="r" aria-label="Player 2 drive right"><svg viewBox="0 0 24 24" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4l8 8-8 8"/></svg></button>
+            </div>
+          </div>
+          <div class="sheet" data-sheet="menu">
+            <h3>First to 5 bonks</h3>
+            <p>Land any part of your buggy on their helmet. Keep your own helmet off everything.</p>
+            <div class="seg" role="group" aria-label="Mode">
+              <button class="btn" data-act="mode" data-v="bot" aria-pressed="true">Vs bot</button>
+              <button class="btn" data-act="mode" data-v="two" aria-pressed="false">2 players</button>
+              <button class="btn" data-act="mode" data-v="melee" aria-pressed="false">4 melee</button>
+            </div>
+            <div class="seg levels" role="group" aria-label="Bot level">
+              <button class="btn" data-act="level" data-v="easy" aria-pressed="false">Easy</button>
+              <button class="btn" data-act="level" data-v="normal" aria-pressed="true">Normal</button>
+              <button class="btn" data-act="level" data-v="hard" aria-pressed="false">Hard</button>
+            </div>
+            <button class="btn cta" data-act="start">Start</button>
+          </div>
+          <div class="sheet" data-sheet="pick" hidden>
+            <h3></h3><p></p>
+            <div class="picks">
+              <button class="pick-card" data-act="pick"><canvas width="280" height="150"></canvas><b></b><span></span></button>
+              <button class="pick-card" data-act="pick"><canvas width="280" height="150"></canvas><b></b><span></span></button>
+            </div>
+          </div>
+          <div class="sheet" data-sheet="end" hidden>
+            <h3></h3><p class="px" style="font-size:10px"></p>
+            <button class="btn cta" data-act="rematch">Rematch</button>
+            <button class="btn" data-act="menu" style="justify-self:center">Change mode</button>
+          </div>
+        </div>
+        <p class="hint">Hold LEFT or RIGHT to drive; in the air the same buttons tilt you. Both together: HOP. Keyboard: A / D (player 2: arrow keys).</p>
+      </div>
+    </div>
+    <div class="settings glass">
+      <h3>Twists in this prototype</h3>
+      <label><input type="checkbox" name="cfg-hop" data-cfg="hop" checked> T1 Hop <span style="color:rgb(var(--c-dim))">· both buttons</span></label>
+      <label><input type="checkbox" name="cfg-lid" data-cfg="lid" checked> T2 Spare lid <span style="color:rgb(var(--c-dim))">· 2 behind</span></label>
+      <label><input type="checkbox" name="cfg-pick" data-cfg="pick" checked> T3 Loser picks the arena</label>
+      <label><input type="checkbox" name="cfg-wild" data-cfg="wild"> T4 Wild rounds</label>
+      <label>Arena <select name="cfg-arena" data-cfg="arena"><option value="auto">Shuffle</option></select></label>
+      <small>Changes apply from the next round. T5 is 4 MELEE on the start sheet; 2 PLAYERS is two on one phone.</small>
+    </div>
+  </aside>
+
+  <main class="doc">
+    <h1>Bonk Buggies</h1>
+    <p class="lede">A two-player buggy duel seen from the side. Drive, tilt and land on the other driver's helmet to score; touch your own helmet on anything and you hand them the point. The tide comes in so no round can stall.</p>
+    <dl class="facts glass">
+      <dt>Studied</dt><dd>“Crash It”, a two-player mini game in JindoBlu's <i>1 2 3 4 Player Games</i> (the Play Store link in the request) and its sister app <i>2 Player Games: The Challenge</i>.</dd>
+      <dt>Players</dt><dd>2. Online on two phones, two on one phone, or solo against a bot.</dd>
+      <dt>A match</dt><dd>First to 5 points on arenas about 18 m wide. Two bots at full throttle finish a round in 4 to 6 seconds on average; people take longer.</dd>
+      <dt>Changed 10 Oct</dt><dd>After the first review: arenas are 60 % wider with a camera that follows both buggies, top speed is lower and the tide starts later, so rounds run longer. A theme picker shows the game in eight themes.</dd>
+      <dt>Closest games here</dt><dd>Sumo Arena (shrinking ring), Air Hockey and Puck Rush (same room and one-phone pattern). None is a side-view driving duel.</dd>
+      <dt>Build</dt><dd>Large, at the low end: about 8 to 10 working days. No database or server changes beyond three room keys.</dd>
+      <dt>Recommended</dt><dd>Ship the duel with twists T1 Hop, T2 Spare lid and T3 Loser picks. Add T4 Wild rounds as a host switch. Keep T5 Melee for later.</dd>
+    </dl>
+
+    <h2>Pick a theme</h2>
+    <p>The arena takes its sky, rock and water from each theme's ordinary colour tokens, so it follows whatever theme the player has on. Tap one to switch the whole board and the prototype. Tokens are read from the app's stylesheet when this page is built.</p>
+    <div class="gallery" id="gallery" role="group" aria-label="Themes"></div>
+    <p class="cap">Glass and Glass night use hand-picked scene colours. The other six are derived by one rule; some of those want tuning (1-bit mono's water, for one).</p>
+
+    <h2>How the source game plays</h2>
+    <p>I did not install the app. Everything here comes from the store listing and five gameplay videos, read frame by frame. Each row says where it came from.</p>
+    <figure class="fig glass">
+      <svg viewBox="0 0 720 230" role="img" aria-label="Three ways a round ends: a wheel on the rival's helmet scores; your own helmet touching the ground gives the rival the point; the rising water takes whoever is lower.">
+        <g font-family="'Press Start 2P', monospace" font-size="9" fill="rgb(var(--c-text))">
+          <text x="120" y="20" text-anchor="middle">BONK = POINT</text><text x="360" y="20" text-anchor="middle">OWN LID = THEIR POINT</text><text x="600" y="20" text-anchor="middle">THE TIDE DECIDES</text>
+        </g>
+        <g stroke="rgb(var(--c-text) / .25)"><path d="M240 34V214M480 34V214"/></g>
+        <!-- panel 1 -->
+        <path d="M20 170Q120 150 220 170V200H20Z" fill="rgb(var(--s-rock-2))"/><path d="M20 170Q120 150 220 170" fill="none" stroke="rgb(var(--s-moss))" stroke-width="5"/>
+        <use href="#buggy" x="78" y="118" width="96" height="65" style="color:rgb(var(--c-p2))"/>
+        <g transform="rotate(24 120 96)"><use href="#buggy" x="88" y="58" width="96" height="65" style="color:rgb(var(--c-p1))"/></g>
+        <g stroke="rgb(var(--c-cta))" stroke-width="3" stroke-linecap="round"><path d="M106 100l-9-9M120 96v-13M134 100l9-9"/></g>
+        <!-- panel 2 -->
+        <path d="M260 170Q360 180 460 165V200H260Z" fill="rgb(var(--s-rock-2))"/><path d="M260 170Q360 180 460 165" fill="none" stroke="rgb(var(--s-moss))" stroke-width="5"/>
+        <g transform="rotate(180 360 135)"><use href="#buggy" x="312" y="100" width="96" height="65" style="color:rgb(var(--c-p1))"/></g>
+        <g stroke="rgb(var(--c-danger))" stroke-width="3.5" stroke-linecap="round"><path d="M356 150l16 16M372 150l-16 16"/></g>
+        <!-- panel 3 -->
+        <path d="M500 150Q560 120 620 150T700 140V200H500Z" fill="rgb(var(--s-rock-2))"/>
+        <use href="#buggy" x="508" y="88" width="80" height="54" style="color:rgb(var(--c-p1))"/>
+        <use href="#buggy" x="606" y="126" width="80" height="54" style="color:rgb(var(--c-p2))"/>
+        <path d="M490 152q12 -8 24 0t24 0 24 0 24 0 24 0 24 0 24 0 24 0 24 0V206H490Z" fill="rgb(var(--s-water) / .7)"/>
+        <path d="M704 196V132" stroke="rgb(var(--c-text))" stroke-width="2.5" marker-end="url(#ar)"/>
+      </svg>
+      <figcaption>The whole rule set of the source game, redrawn. These are my drawings in Game Night's colours, not the app's art.</figcaption>
+    </figure>
+    <div class="tw"><table>
+      <thead><tr><th>What</th><th>Finding</th><th>Source</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>The app</td><td>The link opens <i>1 2 3 4 Player Games - Offline</i> by JindoBlu: 4.3 stars from 1.73 lakh reviews, updated 9 Oct 2026. “2 3 4 Player Mini Games” is a different publisher's app.</td><td>Play listing</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>Goal</td><td>The in-app card says to drive, jump and flip your car with the buttons, hit the opponent “on the head” to score, and keep anything from touching your own head.</td><td>Video A, 0:01</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>Controls</td><td>Two round arrow buttons, left and right, in the bottom corners. They drive the car and rotate it in the air. There is no separate jump button; jumps come from the terrain.</td><td>Videos A, B, C</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>Two players, one screen</td><td>A “Play vs Friend” mode exists. How the buttons are shared between the two players is not visible in any clip I found (every clip is against the bot). An older build shows a different single button per side.</td><td>Videos A, D</td><td><span class="tag as">Assumption</span></td></tr>
+        <tr><td>Round</td><td>3-2-1 countdown, both cars face each other, a new arena every round. I counted nine layouts: bowl, twin loops with a ball, wavy island, basin, closed drum, cloud cave, slab platforms, an arc, and pivoting planks.</td><td>Videos A to D</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>Scoring and win</td><td>One point per round; a red cross marks the hit head. First to 5 wins, then a “RED WINS” or “BLUE WINS” screen.</td><td>Videos A, B, C</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>Stall breaker</td><td>If nobody scores, the water at the bottom starts rising after roughly 10 seconds and floods the arena.</td><td>Video D, 0:24 to 0:45</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>Leaving the arena</td><td>A car that flies off an island seems to lose the round (the score moved as one car left the screen).</td><td>Video B, round 2</td><td><span class="tag as">Likely</span></td></tr>
+        <tr><td>Pacing</td><td>A speedrun beats the hard bot 5-0 in 40.5 seconds: about 8 seconds a round, countdown included.</td><td>Video B title</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>Solo</td><td>“Play vs Bot” with a difficulty slider from Easy to Hard.</td><td>Videos A, D</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>3 and 4 players</td><td>Not offered. Crash It sits in the two-player list only, as the request says.</td><td>Video A menu</td><td><span class="tag ok">Confirmed</span></td></tr>
+        <tr><td>What people like</td><td>A store review lists it by name among the app's best games. Rounds are instant and the physics makes every hit a small accident worth laughing at.</td><td>Play listing review; my reading of the clips</td><td><span class="tag as">Part opinion</span></td></tr>
+        <tr><td>What frustrates</td><td>Reviews of the app complain that hard bots feel unfair, that games have no how-to-play, and that controls are small. One reviewer says they have played every Crash It track many times. Head-on rounds can end in two seconds on what looks like luck.</td><td>Play listing reviews; search snippet (not opened); clips</td><td><span class="tag as">Part second-hand</span></td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">Video A: L4LeafGamer, “Crash it!” · B: Wiwiill, “WR Crash It (Hard) 40s500” · C: ExpiredGames, “2 Player Games - Crash It” · D: Waggle Gaming, “2 player game: Crash it” · also Talmud Enjoyer, “How to win Crash It… 5-0”. Links are in Sources at the end.</p>
+
+    <h2>The Game Night version</h2>
+    <p>Same heart, our own body. The setting is a harbour at low tide instead of a city skyline, the cars are open dune buggies with a helmeted driver and a pennant, and all of it is drawn in code from theme tokens. Nothing is taken from the source app.</p>
+    <h3>Rules</h3>
+    <ol>
+      <li>Two buggies start facing each other. After 3-2-1 the brakes release.</li>
+      <li><b>Bonk:</b> any part of your buggy touching the rival's helmet wins you the round.</li>
+      <li><b>Own lid:</b> your helmet touching the ground, a plank or a wall gives the rival the round.</li>
+      <li><b>Splash:</b> sinking below the water line, or leaving the arena, gives the rival the round.</li>
+      <li>After 10 seconds the tide rises. Higher ground buys time, never safety.</li>
+      <li>Both helmets hit in the same instant, or both buggies sink together: no point, the round replays.</li>
+      <li>First to 5 points wins the match. Every round brings a new arena, and the buggies swap sides.</li>
+    </ol>
+    <h3>Controls</h3>
+    <p>Two buttons per player, placed where thumbs rest. LEFT and RIGHT drive. In the air the same buttons tilt the buggy, the way the engine's kick would: RIGHT lifts the nose of a buggy facing right. Feedback fires on the press, not after the network answers.</p>
+    <figure class="fig glass">
+      <svg viewBox="0 0 720 250" role="img" aria-label="Three layouts: online each player has the arena on top and two buttons below; on one phone two pads sit side by side; solo against a bot uses the corner buttons.">
+        <g font-family="'Press Start 2P', monospace" font-size="9" fill="rgb(var(--c-text))" text-anchor="middle">
+          <text x="120" y="18">ONLINE, A PHONE EACH</text><text x="360" y="18">TWO ON ONE PHONE</text><text x="600" y="18">SOLO VS BOT</text>
+        </g>
+        <g id="ph">
+          <rect x="60" y="30" width="120" height="210" rx="16" fill="rgb(var(--c-text) / .9)"/><rect x="66" y="36" width="108" height="198" rx="11" fill="rgb(var(--c-bg))"/>
+          <rect x="66" y="64" width="108" height="70" fill="rgb(var(--s-sky-1))"/><path d="M66 118q54 -16 108 0v16H66z" fill="rgb(var(--s-rock-2))"/>
+          <rect x="72" y="44" width="46" height="14" rx="4" fill="rgb(var(--c-tint-p1))" stroke="rgb(var(--c-p1))" stroke-width="2"/><rect x="122" y="44" width="46" height="14" rx="4" fill="rgb(var(--c-tint-p2))" stroke="rgb(var(--c-p2))" stroke-width="2"/>
+        </g>
+        <use href="#ph" x="240"/><use href="#ph" x="480"/>
+        <g fill="rgb(var(--c-p1))"><rect x="72" y="146" width="34" height="34" rx="8"/><rect x="134" y="146" width="34" height="34" rx="8"/></g>
+        <text x="120" y="204" font-size="11" text-anchor="middle" fill="rgb(var(--c-dim))">chat and reactions</text><text x="120" y="218" font-size="11" text-anchor="middle" fill="rgb(var(--c-dim))">below, as today</text>
+        <g fill="rgb(var(--c-p1))"><rect x="312" y="146" width="22" height="34" rx="6"/><rect x="336" y="146" width="22" height="34" rx="6"/></g>
+        <g fill="rgb(var(--c-p2))"><rect x="362" y="146" width="22" height="34" rx="6"/><rect x="386" y="146" width="22" height="34" rx="6"/></g>
+        <text x="360" y="204" font-size="11" text-anchor="middle" fill="rgb(var(--c-dim))">sit side by side,</text><text x="360" y="218" font-size="11" text-anchor="middle" fill="rgb(var(--c-dim))">same way up</text>
+        <g fill="rgb(var(--c-p1))"><rect x="552" y="146" width="34" height="34" rx="8"/><rect x="614" y="146" width="34" height="34" rx="8"/></g>
+        <text x="600" y="204" font-size="11" text-anchor="middle" fill="rgb(var(--c-dim))">three bot levels,</text><text x="600" y="218" font-size="11" text-anchor="middle" fill="rgb(var(--c-dim))">best run kept</text>
+      </svg>
+      <figcaption>Unlike Puck Rush, the two players cannot sit at opposite ends of the phone: gravity only points one way. They sit side by side with a pad each.</figcaption>
+    </figure>
+    <h3>Round and match flow</h3>
+    <figure class="fig glass">
+      <svg viewBox="0 0 720 150" role="img" aria-label="Flow: count 3-2-1, drive, then a bonk, own lid or splash ends the round; a point is scored; the loser picks the next arena; repeat until someone has five.">
+        <g font-family="'Press Start 2P', monospace" font-size="8.5" text-anchor="middle">
+          <g fill="rgb(var(--c-card))" stroke="rgb(var(--c-text))" stroke-width="2">
+            <rect x="8" y="46" width="104" height="48" rx="10"/><rect x="150" y="46" width="104" height="48" rx="10"/><rect x="292" y="46" width="124" height="48" rx="10"/><rect x="454" y="46" width="104" height="48" rx="10"/><rect x="596" y="46" width="116" height="48" rx="10"/>
+          </g>
+          <g fill="rgb(var(--c-text))">
+            <text x="60" y="68">COUNT</text><text x="60" y="83">3 · 2 · 1</text><text x="202" y="68">DRIVE</text><text x="202" y="83">TIDE AT 10 S</text>
+            <text x="354" y="68">BONK / OWN LID</text><text x="354" y="83">/ SPLASH</text><text x="506" y="68">POINT</text><text x="506" y="83">SLOW-MO</text><text x="654" y="68">LOSER PICKS</text><text x="654" y="83">NEXT ARENA</text>
+          </g>
+        </g>
+        <g stroke="rgb(var(--c-text))" stroke-width="2.5" fill="none" marker-end="url(#ar)"><path d="M112 70H146"/><path d="M254 70H288"/><path d="M416 70H450"/><path d="M558 70H592"/><path d="M654 94V128H60V98"/></g>
+        <text x="360" y="122" font-size="12" text-anchor="middle" fill="rgb(var(--c-dim))">until someone has 5, then REMATCH or SWITCH GAME</text>
+        <text x="354" y="34" font-size="12" text-anchor="middle" fill="rgb(var(--c-dim))">double hit: no point, replay the round</text>
+      </svg>
+    </figure>
+    <h3>Player counts</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Count</th><th>One phone</th><th>Online</th><th>In v1?</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Solo against a bot at <code>/demo</code>, three levels.</td><td>n/a</td><td>Yes</td></tr>
+        <tr><td>2</td><td>Side by side, a pad each (playable here).</td><td>Standard two-seat room: X hosts the physics, O sends button states, the room keeps the score.</td><td>Yes</td></tr>
+        <tr><td>3 to 4</td><td>Four pads is eight buttons: too cramped on a phone, fine on a tablet.</td><td>Needs a transport for more than two peers. Today's real-time layer is one host and one guest.</td><td>No. See twist T5.</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Edge cases</h3>
+    <ul>
+      <li><b>Stuck on its side</b> with no helmet contact and no wheel grip: the tide ends it within about 25 seconds. With T1, a hop frees it sooner.</li>
+      <li><b>Countdown:</b> brakes are locked, so nobody rolls into a hit before GO. In 120 simulated starts on this build no buggy began in contact or tipped.</li>
+      <li><b>Seat fairness:</b> the buggies swap sides every round. On the first, narrower build's Twin Humps arena the right-hand buggy won 40 of 40 mirrored bot rounds until sides alternated; after that seats split 20 to 20. I did not find the cause, so the real build needs a seat-balance test.</li>
+      <li><b>A plank falling on a helmet</b> counts as own lid. The rule is “anything”, and it must stay that simple to read.</li>
+      <li><b>Opponent drops:</b> the existing heartbeat pauses play, then offers WAIT or CLAIM WIN. No new work.</li>
+      <li><b>Host tab hidden:</b> the sim pauses with the same reconnecting overlay rather than running blind.</li>
+      <li><b>One phone:</b> each button captures its own touch, so a second thumb on the other pad never steals a press.</li>
+      <li><b>Reduced motion:</b> no shake, zoom or slow-motion; the hit is marked by the banner and a flash only.</li>
+      <li><b>Colour is not the only cue:</b> each buggy carries a pennant shape (triangle, circle, square, diamond) and a bar count on its door.</li>
+    </ul>
+    <h3>What the build needs</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Piece</th><th>Work</th><th>Notes from the repo</th></tr></thead>
+      <tbody>
+        <tr><td>Sim</td><td><code>bonkLogic.js</code> with tests: <code>createState</code>, <code>step</code>, <code>computeAI</code>, <code>getWinner</code>; arenas as data.</td><td>Runs on <code>src/lib/vendor/planck-det.js</code>, already shipped for Animal Stack. This prototype uses that same engine.</td></tr>
+        <tr><td>Arena</td><td>A canvas component reading <code>--c-*</code> tokens.</td><td>Canvas has a precedent: <code>AnimalStackArena.jsx</code>. The scene colours must be derived for every theme, not just the two shown here.</td></tr>
+        <tr><td>Rooms</td><td>A page on <code>useRealtimeHost</code> / <code>useRealtimeGuest</code>; a snapshot of 7 bodies at about 30 Hz; host input equalised.</td><td>Same shape as Air Hockey and Puck Rush. Three room keys: scores, arena, pick. They go in <code>FIELD_NULLS</code> and the allow-list at <code>database.rules.json:73</code>, with a rules test.</td></tr>
+        <tr><td>Solo and one phone</td><td>A demo page with bot levels and a two-pad mode.</td><td>Pattern: <code>PuckRushDemo.jsx</code> (bot or two players, same sim, no network).</td></tr>
+        <tr><td>Registry and text</td><td>One <code>GAME_TYPES</code> entry, icon, HOW TO PLAY with number checks, an e2e spec with two clients.</td><td><code>custom, realtime, p2p, solo</code>, category <code>reflex</code>.</td></tr>
+        <tr><td>Assets</td><td>None to buy or draw outside code. Sounds use the existing synth.</td><td></td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Main risk:</b> the guest feels the host's delay, because the guest's own buggy is simulated on the other phone. Arcade driving is more sensitive to that than a puck is. It needs a test on two real networks before the look is polished, and a decision between snapshots (simple, laggy for the guest) and lockstep on the deterministic engine (fair, but both players feel a small delay).</p>
+
+    <h2>Twists</h2>
+    <p>Five ways to make it more than a clone. Four are switches on the prototype; the fifth is a mode on its start sheet.</p>
+
+    <article class="twist glass">
+      <h3>T1 · Hop <span class="tag rec">Ship first</span></h3>
+      <button class="btn" data-try="hop">Try it</button>
+      <p class="what">Press both buttons and the buggy fires a short jet along its own “up”. It recharges in 2.2 seconds, shown on the pad.</p>
+      <dl><dt>Why</dt><dd>The source has no way to get above a rival except terrain. A hop turns every moment into a decision: leap now, bait theirs, or save it to climb out of the tide. Upside down, your “up” points at the ground, so it is no free rescue.</dd>
+        <dt>Risk</dt><dd>Chaining hops to stay airborne. The recharge is the control; lengthen it if rounds turn into hovering.</dd><dt>Cost</dt><dd>Small. One input bit, one impulse, one meter.</dd></dl>
+    </article>
+    <article class="twist glass">
+      <h3>T2 · Spare lid <span class="tag rec">Ship first</span></h3>
+      <button class="btn" data-try="lid">Try it</button>
+      <p class="what">A player 2 or more points behind starts the round wearing a yellow hard hat. The first hit knocks the hat off instead of ending the round.</p>
+      <dl><dt>Why</dt><dd>A 4-0 scoreline in a first-to-5 is a walkover. One free mistake keeps the trailing player in it without touching the leader's score.</dd>
+        <dt>Risk</dt><dd>Can feel like charity. It is visible, it is one hit, and it never applies at 1 behind.</dd><dt>Cost</dt><dd>Small.</dd></dl>
+    </article>
+    <article class="twist glass">
+      <h3>T3 · Loser picks <span class="tag rec">Ship first</span></h3>
+      <button class="btn" data-try="pick">Try it</button>
+      <p class="what">Whoever lost the round chooses the next arena from two cards.</p>
+      <dl><dt>Why</dt><dd>It gives the losing player something to do other than lose again, and it makes the arena list part of the mind game. The source just shuffles.</dd>
+        <dt>Risk</dt><dd>About 2 seconds added between rounds. Online it needs an auto-pick after 5 seconds.</dd><dt>Cost</dt><dd>Small. One room key and one short phase.</dd></dl>
+    </article>
+    <article class="twist glass">
+      <h3>T4 · Wild rounds <span class="tag">Second</span></h3>
+      <button class="btn" data-try="wild">Try it</button>
+      <p class="what">Some rounds draw a rule card: Moon gravity, Black ice, Big heads or Turbo.</p>
+      <dl><dt>Why</dt><dd>It answers the one complaint found about the source, that the tracks run out. Six arenas times five conditions is thirty rounds that feel different.</dd>
+        <dt>Risk</dt><dd>Ice and Moon can feel out of control. Offer it as a host switch, off by default.</dd><dt>Cost</dt><dd>Small to medium. Each card is one multiplier, but each needs its own tuning pass.</dd></dl>
+    </article>
+    <article class="twist glass">
+      <h3>T5 · Four-buggy melee <span class="tag">Later</span></h3>
+      <button class="btn" data-try="melee">Try it</button>
+      <p class="what">Up to four buggies in one arena. A bonked buggy stays as a wreck; the last helmet standing takes the point.</p>
+      <dl><dt>Why</dt><dd>The rest of this request is for games that seat four. This is the version of the duel that fits a party room and the night scoreboard.</dd>
+        <dt>Risk</dt><dd>High. It needs real-time transport for more than two peers, which Game Night does not have, and it is chaotic to read on a phone.</dd><dt>Cost</dt><dd>Large, on top of the base game.</dd></dl>
+    </article>
+    <p><b>Also considered, not prototyped:</b> a co-op mode where the two players are roped together against two bot buggies (medium to large), and a “bonk cam” that replays the winning hit as a share card (medium).</p>
+    <p><b>Recommendation:</b> v1 is the two-player duel with T1, T2 and T3 on. T4 follows as a host switch once the base numbers are settled. T5 waits for a decision on multi-peer real-time play, which other four-player games from this request may also need.</p>
+
+    <h2>Numbers</h2>
+    <p>Every value in the prototype is a starting value, not a finding. Each has a test and a direction to move.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Value</th><th>Now</th><th>Kind</th><th>Test, and which way to move</th></tr></thead>
+      <tbody>
+        <tr><td>Points to win</td><td>5</td><td>From the source</td><td>Seen in three clips. Keep.</td></tr>
+        <tr><td>Countdown</td><td>3 × 0.6 s</td><td>Starting</td><td>If players call it slow by round 3, cut to 3 × 0.45 s.</td></tr>
+        <tr><td>Arena width</td><td>about 18 m (was 11 m)</td><td>Starting</td><td>Widened after review: rounds were over too fast. If the approach now feels like dead time, bring the start marks in.</td></tr>
+        <tr><td>Tide starts / rises</td><td>10 s / 0.3 m per s</td><td>Starting (source: roughly 10 s)</td><td>Under 1 round in 10 should reach the tide. More: start later. Rounds past 20 s: rise faster.</td></tr>
+        <tr><td>Top speed / engine</td><td>6.3 m/s / 2.7 N·m a wheel</td><td>Starting</td><td>The 15 m between start marks should take about 2.5 s to cross. Flips on flat ground from throttle alone: lower torque.</td></tr>
+        <tr><td>Air tilt</td><td>4.6 N·m</td><td>Starting</td><td>One full flip should need a real jump. Accidental flips: lower it.</td></tr>
+        <tr><td>Hop / recharge</td><td>6.4 m/s / 2.2 s</td><td>Starting</td><td>A hop should clear one buggy height, not two. Hovering: raise recharge.</td></tr>
+        <tr><td>Spare lid threshold</td><td>2 behind</td><td>Starting</td><td>Trailing players should win 35 to 45 % of lid rounds. Over: move to 3.</td></tr>
+        <tr><td>Hit pause / slow-motion</td><td>90 ms / 0.2× for 0.75 s</td><td>Starting</td><td>Players should be able to say who hit whom. If not, lengthen the slow-motion.</td></tr>
+        <tr><td>Round length</td><td>3.8 to 6.3 s average by arena</td><td>Measured</td><td>Bot against bot, 20 rounds on each of 6 arenas, 10 Oct 2026. On the first, narrower build the quickest arena averaged 2.0 s. Humans will be slower.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Decisions needed</h2>
+    <form class="ask glass" id="ask" data-lavish-question="bonk-buggies-decisions">
+      <fieldset><legend>Which twists go in v1?</legend>
+        <label><input type="checkbox" name="twists" value="T1" data-label="Hop" checked> <span><b>T1 Hop</b> <small>recommended</small></span></label>
+        <label><input type="checkbox" name="twists" value="T2" data-label="Spare lid" checked> <span><b>T2 Spare lid</b> <small>recommended</small></span></label>
+        <label><input type="checkbox" name="twists" value="T3" data-label="Loser picks" checked> <span><b>T3 Loser picks</b> <small>recommended</small></span></label>
+        <label><input type="checkbox" name="twists" value="T4" data-label="Wild rounds"> <span><b>T4 Wild rounds</b> <small>as a host switch</small></span></label>
+        <label><input type="checkbox" name="twists" value="T5" data-label="Four-buggy melee"> <span><b>T5 Four-buggy melee</b> <small>large; needs multi-peer real-time</small></span></label>
+      </fieldset>
+      <fieldset><legend>Player counts for v1</legend>
+        <label><input type="radio" name="players" value="2 players: online, one phone, and solo vs bot" checked> <span>2 players: online, one phone, and solo against a bot <small>recommended</small></span></label>
+        <label><input type="radio" name="players" value="2 players online and solo only, no one-phone mode"> <span>2 players online and solo only, no one-phone mode</span></label>
+        <label><input type="radio" name="players" value="2 players plus 4-buggy melee on one device"> <span>Also 4-buggy melee on one device (tablet)</span></label>
+        <label><input type="radio" name="players" value="2 players plus 4-buggy melee online"> <span>Also 4-buggy melee online</span></label>
+      </fieldset>
+      <fieldset><legend>Name</legend>
+        <label><input type="radio" name="name" value="BONK BUGGIES" checked> <span><b>Bonk Buggies</b> <small>working name: says what you drive and what you do</small></span></label>
+        <label><input type="radio" name="name" value="LID LIFTERS"> <span><b>Lid Lifters</b></span></label>
+        <label><input type="radio" name="name" value="HIGH TIDE DERBY"> <span><b>High Tide Derby</b></span></label>
+        <label><input type="radio" name="name" value="other"> <span>Another name: <input type="text" name="othername" aria-label="Another name" style="max-width:240px"></span></label>
+      </fieldset>
+      <fieldset><legend>Next step</legend>
+        <label><input type="radio" name="next" value="Build it" checked> <span>Build it with the choices above</span></label>
+        <label><input type="radio" name="next" value="Network test first"> <span>First prove the two-phone feel with a bare network test, then decide</span></label>
+        <label><input type="radio" name="next" value="Park it"> <span>Park it</span></label>
+      </fieldset>
+      <fieldset><legend>Anything to change?</legend>
+        <textarea name="note" rows="3" aria-label="Notes" placeholder="How it drives, how it looks, a twist of your own"></textarea>
+      </fieldset>
+      <button type="submit" class="btn cta">Queue these answers</button>
+      <p id="queued" role="status" aria-live="polite"></p>
+    </form>
+
+    <h2>Sources</h2>
+    <ul>
+      <li>Play Store listing, fetched 10 Oct 2026: <a href="https://play.google.com/store/apps/details?id=com.JindoBlu.FourPlayers&hl=en_IN">1 2 3 4 Player Games - Offline</a></li>
+      <li>Video A: <a href="https://www.youtube.com/watch?v=pet58KzCNrA">L4LeafGamer, “Crash it! | Play in 2 player's game”</a> (rules card, menu, 5:29 of play)</li>
+      <li>Video B: <a href="https://www.youtube.com/watch?v=ge6TkttS7eU">Wiwiill, “WR Crash It (Hard) 40s500”</a></li>
+      <li>Video C: <a href="https://www.youtube.com/watch?v=KIhrjlCPbQQ">ExpiredGames, “2 Player Games - Crash It”</a></li>
+      <li>Video D: <a href="https://www.youtube.com/watch?v=w_XITaXjqTE">Waggle Gaming, “2 player game: Crash it”</a> (rising water, older button layout)</li>
+      <li><a href="https://www.youtube.com/watch?v=MCJAmg4B_Yw">Talmud Enjoyer, “How to win Crash It in 1 2 3 4 Player Games in HARD difficulty with 5-0”</a></li>
+    </ul>
+    <p class="cap">Design source for this page: Game Night's own GLASS and GLASS NIGHT theme tokens and Press Start 2P lettering, because the board mocks the app's UI. The prototype is page code, not app code.</p>
+  </main>
+</div>
+
+<script>/*DET*/</script>
+<script>/*PLANCK*/</script>
+<script>/*SIM*/</script>
+<script>/*RENDER*/</script>
+<script>/*UI*/</script>
+<script>
+(function () {
+  var phone = document.getElementById('phone'), game = BonkGame.mount(phone)
+  window.__bonk = game
+  var sel = document.querySelector('[data-cfg=arena]')
+  BonkSim.ARENAS.forEach(function (a) { var o = document.createElement('option'); o.value = a.id; o.textContent = a.name[0] + a.name.slice(1).toLowerCase(); sel.appendChild(o) })
+  document.querySelectorAll('[data-cfg]').forEach(function (el) {
+    el.addEventListener('change', function () { game.set(el.dataset.cfg, el.type === 'checkbox' ? el.checked : el.value) })
+  })
+  var root = document.documentElement, pickSel = document.getElementById('theme'), gallery = document.getElementById('gallery'), tiles = []
+  function applyScene() {   // publish the derived scene colours as --s-* so CSS and the SVG figures follow
+    var names = ['sky-1', 'sky-2', 'sun', 'far', 'rock-1', 'rock-2', 'moss', 'water', 'foam', 'wood', 'tyre', 'steel', 'lid']
+    names.forEach(function (k) { root.style.removeProperty('--s-' + k) })
+    var pal = BonkRender.readPalette(root)
+    if (pal.derived) { var v = BonkRender.sceneVars(pal); Object.keys(v).forEach(function (k) { root.style.setProperty(k, v[k]) }) }
+  }
+  function setTheme(id) {
+    root.dataset.theme = id; pickSel.value = id; applyScene()
+    tiles.forEach(function (t) { t.el.setAttribute('aria-pressed', t.id === id) })
+    game.refresh()
+  }
+  pickSel.addEventListener('change', function () { setTheme(pickSel.value) })
+  // one posed moment, drawn once per theme
+  var pose = BonkSim.createRound({ arena: 'kicker', n: 2 }), pb = [BonkSim.makeBot('hard'), BonkSim.makeBot('hard')]
+  for (var i = 0; i < 100; i++) BonkSim.step(pose, null, 1 / 60)
+  BonkSim.start(pose)
+  for (i = 0; i < 100 && pose.phase === 'play'; i++) BonkSim.step(pose, pose.cars.map(function (c, j) { return pb[j](pose, j, 1 / 60) }), 1 / 60)
+  ;[].slice.call(pickSel.options).forEach(function (o) {
+    var el = document.createElement('button'); el.type = 'button'; el.className = 'tile'; el.dataset.theme = o.value; el.setAttribute('aria-pressed', o.value === 'glass')
+    el.innerHTML = '<canvas></canvas><span><i style="background:rgb(var(--c-p1))"></i><i style="background:rgb(var(--c-p2))"></i>' + o.textContent + '</span>'
+    el.addEventListener('click', function () { setTheme(o.value) })
+    gallery.appendChild(el); tiles.push({ id: o.value, el: el })
+  })
+  function drawTiles() {
+    tiles.forEach(function (t) {
+      var v = BonkRender.make(t.el.querySelector('canvas'))
+      v.draw(pose, { parts: [], flash: 0, shake: 0 }, { x: 0, y: -0.6 + 4.5 / 0.7, z: 0.7, sx: 0, sy: 0 }, 2.4, BonkRender.readPalette(t.el))
+    })
+  }
+  drawTiles(); window.addEventListener('resize', drawTiles)
+  document.querySelectorAll('[data-try]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.dataset.try
+      if (k === 'melee') phone.querySelector('[data-act=mode][data-v=melee]').click()
+      else { var box = document.querySelector('[data-cfg=' + k + ']'); box.checked = true; game.set(k, true); if (game.get('mode') === 'melee') phone.querySelector('[data-act=mode][data-v=bot]').click() }
+      phone.querySelector('[data-act=start]').click()
+      document.getElementById('proto').scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+    })
+  })
+  var narrow = matchMedia('(max-width: 940px)')
+  function place() { var s = document.getElementById('proto'), d = document.querySelector('.doc'); if (narrow.matches) d.insertBefore(s, d.querySelector('.facts')); else document.querySelector('.wrap').insertBefore(s, d); game.refresh() }
+  narrow.addEventListener('change', place); place()
+
+  document.getElementById('ask').addEventListener('submit', function (e) {
+    e.preventDefault()
+    var f = e.currentTarget, fd = new FormData(f)
+    var twists = [].slice.call(f.querySelectorAll('input[name=twists]:checked')).map(function (i) { return { id: i.value, label: i.dataset.label } })
+    var name = fd.get('name') === 'other' ? (fd.get('othername') || '').trim() || 'other (not given)' : fd.get('name')
+    var note = (fd.get('note') || '').trim()
+    var text = 'Twists for v1: ' + (twists.map(function (t) { return t.id + ' ' + t.label }).join(', ') || 'none') + '. Players: ' + fd.get('players') + '. Name: ' + name + '. Next: ' + fd.get('next') + '.' + (note ? ' Note: ' + note : '')
+    var out = document.getElementById('queued')
+    if (window.lavish && window.lavish.queuePrompt) {
+      window.lavish.queuePrompt('Captain answered the Bonk Buggies decisions. ' + text, { tag: 'choice', text: text, element: f, queueKey: 'bonk-buggies-decisions', data: { twists: twists, players: fd.get('players'), name: name, next: fd.get('next'), note: note } })
+      out.textContent = 'Queued. Press Send to Agent to deliver: ' + text
+    } else out.textContent = 'Not connected to the review tool. Copy this: ' + text
+  })
+})()
+</script>
+</body>
+</html>

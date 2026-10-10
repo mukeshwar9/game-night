@@ -32,6 +32,17 @@ import { isSeatOnline } from '../../src/lib/presenceLogic'
 import { isMatchFinish, isCoopGame } from '../../src/lib/matchRules'
 
 export { matchTargetFor } from '../../src/lib/matchRules'
+// Names other players wrote are clamped and masked before the server shows or
+// stores them (leaderboard rows, push text) — same helper as the app.
+export { displayNameFor } from '../../src/lib/moderationLogic'
+// Room chat moderation and report triage (chatModeration.js): the Jev request
+// builders and decision policy, plus the same log/reaction pruning helpers
+// the client uses.
+export {
+  buildModerationRequest, moderationDecision, buildTriageRequest, triageSummary, JEV_ENDPOINT,
+} from '../../src/lib/chatModerationLogic'
+export { normalizeChatLog, chatKeysToPrune, CHAT_LOG_CAP } from '../../src/lib/chat'
+export { normalizeEmotes, emoteKeysToPrune, EMOTES_CAP } from '../../src/lib/chatUiLogic'
 
 // How many recent match keys a leaderboard row keeps for idempotency. A
 // credit is applied within seconds of the finish, so a handful is plenty.
@@ -98,6 +109,37 @@ export function twoPlayerSeats(room) {
   const o = room.players?.O?.playerId
   if (typeof x !== 'string' || typeof o !== 'string' || !x || !o || x === o) return null
   return { x, o }
+}
+
+// ---- What the function has to read ----------------------------------------
+// creditMatchResults fires on every status write, and a room also holds chat,
+// signalling, spectators, seals and (in party rooms) every player, none of
+// which any decision here looks at. The function reads only these paths (the
+// core's inputs) instead of the whole room. Add a path here when the core
+// starts reading another room field; core.test.js checks that dropping
+// everything else changes no verdict.
+export const ROOM_PATHS = [
+  'status', 'scores', 'winner', 'board', 'lastMove', 'matchLength', 'arrowsRound',
+  'presence/X', 'presence/O', 'players/X', 'players/O',
+]
+
+/** Games whose results never reach the leaderboard: no reason to read the room. */
+export const isResultsSkipped = (gameType) => isCoopGame(gameType)
+
+/**
+ * Rebuilds the room the core sees from the values read at ROOM_PATHS
+ * (`values[path]`, null/undefined when absent).
+ */
+export function assembleRoom(gameType, values) {
+  const room = { gameType }
+  for (const path of ROOM_PATHS) {
+    const v = values[path]
+    if (v === null || v === undefined) continue
+    const [head, sub] = path.split('/')
+    if (sub) room[head] = { ...(room[head] || {}), [sub]: v }
+    else room[head] = v
+  }
+  return room
 }
 
 // ---- Hashing ---------------------------------------------------------------
@@ -403,3 +445,11 @@ export function errorsCutoffKey(now, keepDays = ERROR_RETENTION_DAYS) {
 
 /** True for a well-formed day key that sorts before the cutoff. */
 export const isExpiredErrorDay = (key, cutoffKey) => DAY_KEY.test(key) && key < cutoffKey
+
+// Prices, products and packs (src/lib/premiumCatalog.js): billing.js maps a
+// paid product back to what it unlocks with the same table the shop sells from.
+export { PRODUCTS, PACKS, PRICES, PRICES_INR, PASS_TRIAL_DAYS, PREPAID_PASS_DAYS } from '../../src/lib/premiumCatalog'
+
+// Party voice (voice.js): who may use voice, audio-only offers, pulls by uid,
+// and the per-uid call budget. The SAME rules the app checks before it asks.
+export { voiceAccess, isAudioOnlyOffer, allowedPulls, rateAllow, voiceMembers } from '../../src/lib/voiceLogic'

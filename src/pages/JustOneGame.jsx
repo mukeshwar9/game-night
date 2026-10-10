@@ -534,7 +534,7 @@ export default function JustOneGame({
               <button
                 onClick={startMatch}
                 disabled={starting}
-                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                className="px-6 py-2.5 min-w-[8.5rem] bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-40"
               >
                 {starting ? 'STARTING…' : 'START GAME'}
               </button>
@@ -664,6 +664,7 @@ export default function JustOneGame({
                 type="text"
                 value={clueInput}
                 maxLength={24}
+                enterKeyHint="send"
                 onChange={e => { setClueInput(e.target.value); setClueErr('') }}
                 onKeyDown={e => e.key === 'Enter' && submitClue()}
                 autoCorrect="off"
@@ -677,7 +678,7 @@ export default function JustOneGame({
               <button
                 onClick={submitClue}
                 disabled={submitting}
-                className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+                className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
               >
                 {submitting ? 'LOCKING…' : 'LOCK IN CLUE'}
               </button>
@@ -698,7 +699,7 @@ export default function JustOneGame({
             <button
               onClick={() => runClose(closeClues, () => toast.error('CLOSE FAILED — CHECK CONNECTION'))}
               disabled={closing}
-              className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95 disabled:opacity-40"
+              className="w-full py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press disabled:opacity-40"
             >
               {closing ? 'CLOSING…' : 'REVEAL CLUES NOW'}
             </button>
@@ -726,6 +727,7 @@ export default function JustOneGame({
                 type="text"
                 value={guessInput}
                 maxLength={30}
+                enterKeyHint="send"
                 onChange={e => { setGuessInput(e.target.value); setGuessErr('') }}
                 onKeyDown={e => e.key === 'Enter' && submitGuess()}
                 autoCorrect="off"
@@ -741,14 +743,14 @@ export default function JustOneGame({
                 <button
                   onClick={submitGuess}
                   disabled={guessingBusy || passing}
-                  className="flex-1 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+                  className="flex-1 py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
                 >
                   {guessingBusy ? 'GUESSING…' : 'GUESS'}
                 </button>
                 <button
                   onClick={passCard}
                   disabled={guessingBusy || passing}
-                  className="px-4 py-2.5 border-2 border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:border-retro-p2 hover:text-retro-p2 active:scale-95 disabled:opacity-40"
+                  className="px-4 py-2.5 border-2 border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:border-retro-p2 hover:text-retro-p2 press disabled:opacity-40"
                 >
                   {passing ? 'PASSING…' : 'PASS'}
                 </button>
@@ -802,7 +804,7 @@ export default function JustOneGame({
             <button
               onClick={skipCard}
               disabled={skipping}
-              className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 active:scale-95 disabled:opacity-40"
+              className="px-5 py-2 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 press disabled:opacity-40"
             >
               {skipping ? 'SKIPPING…' : 'SKIP THIS CARD'}
             </button>

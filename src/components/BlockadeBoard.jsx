@@ -9,6 +9,7 @@ import {
   isWallMoveLegal,
 } from '../lib/blockadeLogic'
 import { cellLabel, coordLabel, joinLabel } from '../lib/a11yLabels'
+import ZoomViewport from './ZoomViewport'
 
 // Screen-reader name for a wall groove. An 'h' slot sits below row r across
 // columns c..c+1; a 'v' slot sits right of column c across rows r..r+1.
@@ -117,7 +118,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
               aria-label={`Move to ${coordLabel({ row: r, col: c })}${isGoalX ? ', X goal row' : isGoalO ? ', O goal row' : ''}`}
               onClick={() => onMove({ type: 'pawn', to: cellIndex })}
               className={cn(
-                'absolute inset-0 rounded-sm transition-all duration-100 cursor-pointer',
+                'absolute inset-0 rounded-sm transition duration-100 cursor-pointer',
                 currentTurn === 'X'
                   ? 'bg-retro-p1/10 border border-retro-p1/25 hover:bg-retro-p1/15 hover:border-retro-p1/40'
                   : 'bg-retro-p2/10 border border-retro-p2/25 hover:bg-retro-p2/15 hover:border-retro-p2/40',
@@ -209,7 +210,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
             aria-hidden="true"
             className={cn(
               trackClasses,
-              'pointer-events-none rounded-sm transition-all duration-100',
+              'pointer-events-none rounded-sm transition duration-100',
               isFlashing
                 // Illegal-tap rejection: a brief danger pulse instead of silently doing nothing.
                 ? 'bg-retro-danger shadow-neon-danger animate-pulse'
@@ -241,9 +242,10 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
 
   return (
     <div className="w-full max-w-md mx-auto">
+      <ZoomViewport label="Blockade board">
       <div
         className={cn(
-          'bg-retro-surface border-2 rounded p-3 transition-all duration-200',
+          'bg-retro-surface border-2 rounded p-3 transition duration-200',
           mode === 'wall' && !disabled ? 'border-retro-cta' : 'border-retro-border',
           disabled && 'board-idle',
         )}
@@ -266,6 +268,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
           {wallEls}
         </div>
       </div>
+      </ZoomViewport>
 
       {/* Mode toggle */}
       <div className="mt-3 flex items-center justify-center gap-3">
@@ -277,7 +280,7 @@ export default function BlockadeBoard({ board, pawns, walls, onMove, disabled, c
             disabled={disabled}
             onClick={() => handleSetMode(m)}
             className={cn(
-              'px-4 py-2 font-pixel text-[10px] rounded border-2 uppercase transition-all duration-100 active:scale-95',
+              'px-4 py-2 font-pixel text-[10px] rounded border-2 uppercase transition duration-100 press',
               mode === m
                 ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                 : 'border-retro-border text-retro-dim hover:border-retro-cta/50',

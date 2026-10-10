@@ -26,7 +26,7 @@ export default function UltimateTttBoard({
       </div>
       <div
         className={cn(
-          'grid grid-cols-3 gap-1 sm:gap-1.5 bg-retro-border/40 p-1 sm:p-1.5 rounded transition-all duration-200',
+          'grid grid-cols-3 gap-1 sm:gap-1.5 bg-retro-border/40 p-1 sm:p-1.5 rounded transition duration-200',
           disabled && 'board-idle',
         )}
       >
@@ -39,7 +39,7 @@ export default function UltimateTttBoard({
             <div
               key={m}
               className={cn(
-                'relative rounded-sm p-0.5 border-2 transition-all',
+                'relative rounded-sm p-0.5 border-2 transition',
                 metaWin
                   ? 'border-retro-win shadow-neon-win bg-retro-win/10'
                   : active

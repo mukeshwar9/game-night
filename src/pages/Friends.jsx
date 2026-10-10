@@ -5,6 +5,9 @@ import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import Skeleton from '../components/loading/Skeleton'
 import { useAuth } from '../lib/AuthContext'
+import SaveCard from '../components/SaveCard'
+import { blockPlayer } from '../lib/mute'
+import ReportButton from '../components/ReportButton'
 import {
   normalizeFriendCode, isValidFriendCode, sendFriendRequestByCode,
   acceptRequest, declineRequest, removeFriend, inviteFriendToGame,
@@ -13,18 +16,41 @@ import {
 import { fetchFriendsLeaderboard, rankEntries } from '../lib/leaderboard'
 import { db } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { buildChallengeRoom } from '../lib/games'
+import { buildPartyRoom } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
-import { defaultAvatarForId } from '../lib/avatars'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
+import { trackRoomCreated } from '../lib/track'
 import useBusy from '../hooks/useBusy'
+import { displayNameFor } from '../lib/moderationLogic'
+import { resolveShareOrigin } from '../lib/platform'
+import { shareLink } from '../lib/share'
+import PushNudge from '../components/PushNudge'
 
 const REQUEST_ERRORS = {
   invalid: 'THAT CODE LOOKS WRONG — 6 CHARACTERS.',
   notfound: 'NO PLAYER WITH THAT CODE.',
   self: "THAT'S YOUR OWN CODE!",
   already: "YOU'RE ALREADY FRIENDS.",
+}
+
+// The actions under a friend or request row (tap the name to open them).
+function PlayerActions({ onBlock, busy, uid, name }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-retro-border pt-2">
+      <button
+        type="button"
+        onClick={onBlock}
+        disabled={busy}
+        className="min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] tracking-wider text-retro-dim
+          hover:text-retro-p2 hover:border-retro-p2 transition-colors press disabled:opacity-50"
+      >
+        {busy ? 'BLOCKING…' : 'BLOCK'}
+      </button>
+      <ReportButton context="profile" targetUid={uid} targetName={displayNameFor(name, 'player')} />
+    </div>
+  )
 }
 
 export default function Friends() {
@@ -36,6 +62,7 @@ export default function Friends() {
   const [confirmRemoveUid, setConfirmRemoveUid] = useState(null)
   const [friendUids, setFriendUids] = useState(null)
   const [requests, setRequests] = useState([])
+  const [menuUid, setMenuUid] = useState(null)
   const [profiles, setProfiles] = useState({})
   const [leaderboard, setLeaderboard] = useState(null)
   const [challengingUid, setChallengingUid] = useState(null)
@@ -115,6 +142,18 @@ export default function Friends() {
       setPendingUid(null)
     }
   }
+  const onBlock = async (uid, name) => {
+    setPendingUid(uid)
+    try {
+      await blockPlayer(uid, name)
+      setMenuUid(null)
+      toast(`${displayNameFor(name, 'PLAYER').toUpperCase()} BLOCKED.`)
+    } catch {
+      toast.error('SOMETHING WENT WRONG — TRY AGAIN.')
+    } finally {
+      setPendingUid(null)
+    }
+  }
   const onRemove = async (uid, name) => {
     setPendingUid(uid)
     try {
@@ -158,21 +197,14 @@ export default function Friends() {
 
   const shareCode = async () => {
     if (!profile?.code) return
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Game Night', text: `Add me on Game Night — my friend code is ${profile.code}!`, url: window.location.origin })
-        return
-      } catch (err) {
-        if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return
-        // fall through to clipboard copy
-      }
-    }
+    const outcome = await shareLink({ text: `Add me on Game Night — my friend code is ${profile.code}!`, url: resolveShareOrigin() })
+    if (outcome !== 'unavailable') return
     await copyCode()
   }
 
-  // One-tap challenge (M-20): create a lobby room (gameType still mutable —
-  // either player picks a game once both are in) and send the friend an
-  // invite into it, jumping straight into the room.
+  // One-tap INVITE: start a party (party-first rooms) and invite the friend
+  // into it, jumping straight into the lobby, where the host picks a game
+  // that fits everyone who came.
   const challengeFriend = (friendUid, friendName) => {
     setChallengingUid(friendUid)
     runChallenge(async () => {
@@ -180,15 +212,15 @@ export default function Friends() {
       const myAvatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
       const gameId = generateGameId()
       const myId = getPlayerId()
-      const gameData = buildChallengeRoom({ name: playerName, avatar: myAvatar, playerId: myId })
+      const gameData = buildPartyRoom({ name: playerName, avatar: myAvatar, playerId: myId })
       await set(ref(db, `games/${gameId}`), gameData)
-      recordPlay('tictactoe', 'multi')
-      sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
+      recordPlay(gameData.gameType, 'multi')
+      trackRoomCreated(gameData.gameType, 'private')
       recordRoom({ id: gameId, gameType: gameData.gameType })
-      await inviteFriendToGame(friendUid, { gameId, gameType: 'tictactoe' })
-      toast.success(`CHALLENGE SENT TO ${(friendName || 'FRIEND').toUpperCase()}!`)
+      await inviteFriendToGame(friendUid, { gameId, gameType: gameData.gameType, kind: 'party', size: 1, cap: gameData.partyCap })
+      toast.success(`INVITED ${(friendName || 'FRIEND').toUpperCase()} TO YOUR PARTY!`)
       navigate(`/game/${gameId}`)
-    }, () => toast.error("COULDN'T START THE GAME — TRY AGAIN.")).finally(() => setChallengingUid(null))
+    }, () => toast.error("COULDN'T START THE PARTY — TRY AGAIN.")).finally(() => setChallengingUid(null))
   }
 
   return (
@@ -204,19 +236,19 @@ export default function Friends() {
         <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
           <p className="font-pixel text-[9px] text-retro-dim tracking-wider">YOUR FRIEND CODE</p>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="flex-1 min-w-[9ch] font-mono text-lg text-retro-p1 tracking-[0.2em]">{profile?.code || '······'}</span>
+            <span data-selectable className="flex-1 min-w-[9ch] font-mono text-lg text-retro-p1 tracking-[0.2em]">{profile?.code || '······'}</span>
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={copyCode}
                 className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                  hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
+                  hover:text-retro-text hover:border-retro-p1 transition press"
               >
                 COPY
               </button>
               <button
                 onClick={shareCode}
                 className="min-h-11 px-3 bg-retro-bg border border-retro-border text-retro-dim font-pixel text-[10px] rounded
-                  hover:text-retro-text hover:border-retro-p1 transition-all active:scale-95"
+                  hover:text-retro-text hover:border-retro-p1 transition press"
               >
                 SHARE
               </button>
@@ -224,6 +256,12 @@ export default function Friends() {
           </div>
           <p className="font-mono text-[11px] text-retro-dim">Share this so friends can add you.</p>
         </div>
+
+        {friendUids?.length > 0 && (
+          <SaveCard surface="friends" compact friendCount={friendUids.length} />
+        )}
+
+        <PushNudge spot="friends" text="Want to know when a friend invites you or adds you? Turn on notifications." />
 
         {/* Add friend */}
         <div className="space-y-2">
@@ -244,7 +282,7 @@ export default function Friends() {
             <button
               onClick={sendRequest}
               disabled={sending || !isValidFriendCode(codeInput)}
-              className={`min-h-11 px-4 font-pixel text-[10px] rounded transition-all active:scale-95 ${
+              className={`min-h-11 px-4 font-pixel text-[10px] rounded transition press ${
                 isValidFriendCode(codeInput)
                   ? 'bg-retro-cta text-retro-bg hover:shadow-neon-cta disabled:opacity-60'
                   : 'bg-transparent border border-retro-border text-retro-dim cursor-default'
@@ -261,14 +299,23 @@ export default function Friends() {
             <label className="font-pixel text-[10px] text-retro-cta tracking-wider">REQUESTS ({requests.length})</label>
             <div className="space-y-2">
               {requests.map(r => (
-                <div key={r.uid} className="flex items-center gap-3 bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
+                <div key={r.uid} className="bg-retro-tint-cta border border-retro-cta/40 rounded p-2.5">
+                <div className="flex items-center gap-3">
                   <Avatar id={r.avatar} size={36} />
-                  <span className="flex-1 font-mono text-sm text-retro-text truncate">{r.name || 'player'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMenuUid(menuUid === r.uid ? null : r.uid)}
+                    aria-expanded={menuUid === r.uid}
+                    aria-label={`More actions for ${displayNameFor(r.name, 'player')}`}
+                    className="flex-1 min-h-11 text-left font-mono text-sm text-retro-text truncate"
+                  >
+                    {displayNameFor(r.name, 'player')}
+                  </button>
                   <button
                     onClick={() => onAccept(r.uid)}
                     disabled={pendingUid === r.uid}
                     className="min-h-11 px-3 bg-retro-win/20 border border-retro-win/50 text-retro-win font-pixel text-[9px] rounded
-                      hover:bg-retro-win/30 transition-all active:scale-95 disabled:opacity-50"
+                      hover:bg-retro-win/30 transition press disabled:opacity-50"
                   >
                     ACCEPT
                   </button>
@@ -280,6 +327,8 @@ export default function Friends() {
                   >
                     ✕
                   </button>
+                </div>
+                {menuUid === r.uid && <PlayerActions onBlock={() => onBlock(r.uid, r.name)} busy={pendingUid === r.uid} uid={r.uid} name={r.name} />}
                 </div>
               ))}
             </div>
@@ -320,7 +369,8 @@ export default function Friends() {
                 const p = profiles[uid]
                 const confirming = confirmRemoveUid === uid
                 return (
-                  <div key={uid} className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-2.5">
+                  <div key={uid} className="bg-retro-card border border-retro-border rounded p-2.5">
+                  <div className="flex items-center gap-3">
                     <div className="relative shrink-0">
                       <Avatar id={p?.avatar} size={36} />
                       <span
@@ -328,18 +378,24 @@ export default function Friends() {
                         title={p?.online ? 'Online' : 'Offline'}
                       />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-mono text-sm text-retro-text truncate">{p?.displayName || '…'}</p>
-                      <p className="font-pixel text-[8px] text-retro-dim">{p?.online ? 'ONLINE' : 'OFFLINE'}</p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMenuUid(menuUid === uid ? null : uid)}
+                      aria-expanded={menuUid === uid}
+                      aria-label={`More actions for ${p?.displayName ? displayNameFor(p.displayName) : 'friend'}`}
+                      className="flex-1 min-w-0 min-h-11 text-left"
+                    >
+                      <span className="block font-mono text-sm text-retro-text truncate">{p?.displayName ? displayNameFor(p.displayName) : '…'}</span>
+                      <span className="block font-pixel text-[8px] text-retro-dim">{p?.online ? 'ONLINE' : 'OFFLINE'}</span>
+                    </button>
                     {p?.online && (
                       <button
                         onClick={() => challengeFriend(uid, p?.displayName)}
                         disabled={challengingUid === uid}
                         className="min-h-11 px-2.5 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded shrink-0
-                          hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                          hover:shadow-neon-cta transition press disabled:opacity-40"
                       >
-                        {challengingUid === uid ? '…' : 'PLAY'}
+                        {challengingUid === uid ? '…' : 'INVITE'}
                       </button>
                     )}
                     <button
@@ -352,6 +408,8 @@ export default function Friends() {
                     >
                       {confirming ? 'SURE?' : '✕'}
                     </button>
+                  </div>
+                  {menuUid === uid && <PlayerActions onBlock={() => onBlock(uid, p?.displayName)} busy={pendingUid === uid} uid={uid} name={p?.displayName} />}
                   </div>
                 )
               })}
@@ -403,17 +461,16 @@ export default function Friends() {
                       type="button"
                       onClick={onRowActivate}
                       disabled={busy}
-                      aria-label={e.isMe ? 'View your profile' : `Challenge ${e.displayName || 'friend'} to a game`}
-                      className={`w-full flex items-center gap-2.5 bg-retro-card border rounded p-2.5 transition-all
-                        hover:border-retro-p1/50 active:scale-[0.99] disabled:opacity-60 disabled:active:scale-100
-                        ${e.isMe ? 'border-retro-cta' : 'border-retro-border'}`}
+                      aria-label={e.isMe ? 'View your profile' : `Challenge ${displayNameFor(e.displayName, 'friend')} to a game`}
+                      className={`w-full flex items-center gap-2.5 bg-retro-card border rounded p-2.5 transition
+                        hover:border-retro-p1/50 press-card disabled:opacity-60                         ${e.isMe ? 'border-retro-cta' : 'border-retro-border'}`}
                     >
                       <span className="font-pixel text-[11px] text-retro-dim w-5 text-center shrink-0">{e.rank}</span>
                       <span className="shrink-0"><Avatar id={e.avatar} size={36} /></span>
                       <div className="flex-1 min-w-0 flex items-center gap-1.5">
                         <div className="min-w-0 text-left">
                           <p className="font-mono text-sm text-retro-text truncate">
-                            {e.displayName || '…'}
+                            {e.displayName ? displayNameFor(e.displayName) : '…'}
                           </p>
                           <p className="font-mono text-[10px] text-retro-dim">{e.wins}W-{e.losses}L</p>
                         </div>

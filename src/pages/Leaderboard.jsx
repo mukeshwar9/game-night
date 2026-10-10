@@ -7,6 +7,7 @@ import PixelDots from '../components/loading/PixelDots'
 import { db } from '../lib/firebase'
 import { useAuth } from '../lib/AuthContext'
 import { cn } from '@/lib/utils'
+import { displayNameFor } from '../lib/moderationLogic'
 
 // Global top-50-by-wins leaderboard, backed by the leaderboard/ node. Rows are
 // written only by the creditMatchResults Cloud Function (functions/results.js),
@@ -61,18 +62,12 @@ export default function Leaderboard() {
     <div className="min-h-screen bg-retro-bg">
       <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="w-full max-w-sm mx-auto space-y-6 pt-2">
-          <Link
-            to="/profile"
-            className="inline-flex items-center gap-1.5 min-h-11 -ml-2 px-2 font-pixel text-[10px] text-retro-dim hover:text-retro-text transition-all active:scale-95"
-          >
-            ← PROFILE
-          </Link>
-
+          {/* No ← PROFILE link: Profile never links here (Friends, rooms and
+              the playground do) and the tab bar is on this route. */}
           <div className="space-y-1.5">
             <h1 className="font-pixel text-base text-retro-cta text-glow-cta">LEADERBOARD</h1>
             <p className="font-mono text-[11px] text-retro-dim leading-snug">
-              <span className="font-pixel text-[8px] text-retro-win tracking-wider">SERVER-VERIFIED</span>
-              {' '}· 2-player matches only. Board-game wins are re-checked by the server before they count.
+              2-player wins, re-checked by the server before they count.
             </p>
           </div>
 
@@ -89,7 +84,7 @@ export default function Leaderboard() {
               NO SCORES YET. PLAY A MATCH TO CLAIM THE TOP SPOT.
               <Link
                 to="/"
-                className="mt-4 flex w-fit mx-auto items-center justify-center min-h-11 px-6 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+                className="mt-4 flex w-fit mx-auto items-center justify-center min-h-11 px-6 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
               >
                 PLAY A MATCH
               </Link>
@@ -112,7 +107,7 @@ export default function Leaderboard() {
                     <div className="flex-1 min-w-0 flex items-center gap-1.5">
                       <div className="min-w-0 text-left">
                         {visible ? (
-                          <p className="font-mono text-sm text-retro-text truncate">{e.name || '…'}</p>
+                          <p className="font-mono text-sm text-retro-text truncate">{e.name ? displayNameFor(e.name) : '…'}</p>
                         ) : (
                           <p className="font-mono text-sm text-retro-text truncate blur-sm select-none pointer-events-none" aria-hidden="true">
                             PLAYER

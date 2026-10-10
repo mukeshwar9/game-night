@@ -24,12 +24,14 @@ const TABS = [
     to: '/games',
     end: true,
     label: 'GAMES',
+    // Its own glyph: HOME and GAMES both drew the # logo, so two of four
+    // tabs looked identical.
     icon: (
-      <svg width="18" height="18" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-        <line x1="10" y1="2" x2="10" y2="28" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
-        <line x1="20" y1="2" x2="20" y2="28" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
-        <line x1="2" y1="10" x2="28" y2="10" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
-        <line x1="2" y1="20" x2="28" y2="20" stroke="currentColor" strokeWidth="3" strokeLinecap="square" />
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
   },
@@ -73,11 +75,12 @@ export default function BottomTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-0 inset-x-0 z-30 border-t border-retro-border/60 bg-retro-bg/95 backdrop-blur
+      className="app-tabbar fixed bottom-0 inset-x-0 z-30 border-t border-retro-border/60 bg-retro-bg/95 backdrop-blur
         pb-[max(0.5rem,env(safe-area-inset-bottom))]
         pl-[max(0,env(safe-area-inset-left))] pr-[max(0,env(safe-area-inset-right))]"
     >
-      <div className="max-w-sm mx-auto flex items-stretch">
+      {/* glass classes: a floating pill on the GLASS themes, nothing elsewhere */}
+      <div data-lens className="glass glass-tx glass-bar max-w-sm mx-auto flex items-stretch">
         {TABS.map(tab => {
           const badgeCount = tab.badge ? counts[tab.badge] : 0
           return (
@@ -86,7 +89,7 @@ export default function BottomTabBar() {
               to={tab.to}
               end={tab.end}
               className={({ isActive }) => cn(
-                'flex-1 min-h-11 flex flex-col items-center justify-center gap-1 py-1.5 transition-colors active:scale-95',
+                'flex-1 min-h-11 flex flex-col items-center justify-center gap-1 py-1.5 transition-colors press',
                 isActive ? 'text-retro-cta' : 'text-retro-dim hover:text-retro-text',
               )}
             >

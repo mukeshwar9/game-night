@@ -68,7 +68,9 @@ export default function MancalaDemo() {
     }
   }
 
-  // Bot driver — fires while it's the bot's turn; extra turns re-trigger.
+  // Bot driver — fires while it's the bot's turn. An extra turn keeps `turn`
+  // on 'bot', which React treats as no change, so the effect also keys on
+  // pits: every bot sow schedules the next one.
   useEffect(() => {
     if (turn !== 'bot' || done) return
     timerRef.current = setTimeout(() => {
@@ -94,7 +96,7 @@ export default function MancalaDemo() {
       })
     }, BOT_DELAY_MS)
     return () => clearTimeout(timerRef.current)
-  }, [turn, done]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [turn, done, pits])
 
   useEffect(() => {
     if (!banner) return
@@ -151,7 +153,7 @@ export default function MancalaDemo() {
           </p>
           <button
             onClick={reset}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
           >
             PLAY AGAIN
           </button>

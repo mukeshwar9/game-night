@@ -4,18 +4,24 @@
 //
 // Music is on by default, but browsers only allow sound after a user gesture,
 // so "on" means armed: the first tap or key anywhere resumes the shared
-// AudioContext and fades the current screen's loop in. The player's choice is
-// stored in localStorage ('music', 'musicVolume') next to the SFX keys.
-// Music stops while the tab is hidden and while a blocker is set (the
-// video-call layout). On iOS the context stays in the default 'ambient' audio
-// session, so the silent switch mutes music and it mixes under other apps.
+// AudioContext and fades the current screen's loop in, whatever the stored
+// preference says, so turning music on later needs no second tap. The player's
+// choice is stored in localStorage ('music', 'musicVolume'); the game-sounds
+// mute does not touch it. The loop only plays while the context is actually
+// running: a suspended or interrupted context (lock, call, tab switch) is
+// re-armed on statechange, pageshow, focus, native-resume and the next gesture,
+// and the snapshot's `status` says when a tap is needed. Music stops while the
+// tab is hidden and while a blocker is set (video-call layout, voice chat).
+// On iOS the context stays in the default 'ambient' audio session, so the
+// silent switch mutes music and it mixes under other apps.
 
 import { useEffect, useSyncExternalStore } from 'react'
-import { getAudioContext, resumeAudio, setMusicDucker } from './audioContext'
+import { getAudioContext, isAudioRunning, onAudioStateChange, resumeAudio, setMusicDucker } from './audioContext'
 import { getGameConfig } from './games'
 import { getStoredTheme } from './theme'
 import {
-  DEFAULT_MUSIC_VOLUME, RESULTS_LOOPS, normalizeMusicVolume, resolveMusicOn, trackForScene,
+  DEFAULT_MUSIC_VOLUME, REVIVE_TAP_MS, RESULTS_LOOPS, engineRetryDelay, musicStatus,
+  normalizeMusicVolume, resolveMusicOn, trackForScene,
 } from './musicLogic'
 
 const KEY = 'music'
@@ -26,12 +32,14 @@ const write = (key, value) => { try { localStorage.setItem(key, value) } catch {
 
 let stored = read(KEY)
 let volume = normalizeMusicVolume(read(VOL_KEY))
-let snapshot = { on: resolveMusicOn(stored, read('sfx') === 'off'), volume }
 const listeners = new Set()
 
 let engine = null
 let loading = null
 let unlocked = false
+let engineFailures = 0
+let engineFailed = false   // retries used up: surfaced on the toggle, retried on the next tap
+let lastRevive = 0         // when a tap last started or re-armed the music
 let hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
 const blocks = new Set()
 const scenes = []          // stack of { id, scene, gameType }; the top one plays
@@ -39,13 +47,24 @@ let nextSceneId = 0
 let resultsDone = false
 let resultsTimer = null
 let suspendTimer = null
+let settleTimer = null
+
+function computeSnapshot() {
+  const on = resolveMusicOn(stored)
+  const blocked = [...blocks]
+  const status = musicStatus({ on, blocked, failed: engineFailed, running: unlocked && isAudioRunning() })
+  return { on, volume, status, blocked }
+}
+
+let snapshot = computeSnapshot()
 
 function publish() {
-  const on = resolveMusicOn(stored, read('sfx') === 'off')
-  if (on !== snapshot.on || volume !== snapshot.volume) {
-    snapshot = { on, volume }
-    listeners.forEach(fn => fn())
-  }
+  const next = computeSnapshot()
+  const same = next.on === snapshot.on && next.volume === snapshot.volume && next.status === snapshot.status
+    && next.blocked.join() === snapshot.blocked.join()
+  if (same) return
+  snapshot = next
+  listeners.forEach(fn => fn())
 }
 
 function currentTrack() {
@@ -57,22 +76,43 @@ function currentTrack() {
 }
 
 function loadEngine() {
-  if (!loading) {
-    loading = import('./musicEngine').then(({ createMusicEngine }) => {
-      const ctx = getAudioContext()
-      if (!ctx) return
-      engine = createMusicEngine(ctx)
-      engine.setVolume(volume)
-      setMusicDucker((depth, hold) => engine.duck(depth, hold))
+  if (loading || engineFailed) return
+  loading = import('./musicEngine').then(({ createMusicEngine }) => {
+    loading = null
+    const ctx = getAudioContext()
+    if (!ctx) return
+    engineFailures = 0
+    engine = createMusicEngine(ctx)
+    engine.setVolume(volume)
+    setMusicDucker((depth, hold) => engine.duck(depth, hold))
+    apply()
+  }).catch(err => {
+    // A stale shell after a deploy (404 chunk) or a flaky connection: retry
+    // with backoff, then show the failure instead of staying silently silent.
+    loading = null
+    const delay = engineRetryDelay(engineFailures++)
+    if (delay === null) {
+      engineFailed = true
+      console.warn('[music] engine failed to load', err)
       apply()
-    }).catch(() => { loading = null })
-  }
+      return
+    }
+    setTimeout(apply, delay)
+  })
+}
+
+function retryEngine() {
+  if (!engineFailed) return false
+  engineFailed = false
+  engineFailures = 0
+  apply()
+  return true
 }
 
 // Brings the engine in line with the current state. Cheap; call freely.
 function apply() {
   publish()
-  const want = snapshot.on && unlocked && !hidden && blocks.size === 0 ? currentTrack() : null
+  const want = snapshot.on && unlocked && !hidden && blocks.size === 0 && isAudioRunning() ? currentTrack() : null
   if (!engine) {
     if (want) loadEngine()
     return
@@ -94,16 +134,41 @@ function applySoon() {
   queueMicrotask(() => { queued = false; apply() })
 }
 
-// ─── Unlock + visibility ─────────────────────────────────────────────────────
+// ─── Unlock + lifecycle ──────────────────────────────────────────────────────
+
+// Resuming from a lifecycle event is not a user gesture, so iOS may refuse it;
+// the state then stays suspended/interrupted (status 'needs-tap') and the next
+// tap, which is a gesture, finishes the job. Re-checks once the resume settles
+// in case the browser reports it without a statechange event.
+function applyAfterResume() {
+  clearTimeout(settleTimer)
+  settleTimer = setTimeout(apply, 300)
+}
 
 // Any gesture: pointerup/touchend/click/keydown are the events browsers count
 // as user activation (pointerdown on touch is not). Stays installed so a
-// context iOS interrupted (a call, Siri) comes back on the next tap.
+// context iOS interrupted (a call, Siri) comes back on the next tap. The first
+// gesture unlocks audio even while music is off, so switching it on later
+// plays immediately.
 function onGesture() {
-  if (!snapshot.on) return
+  const wasSilent = !unlocked || !isAudioRunning()
   const ctx = resumeAudio()
   if (!ctx) return
-  if (!unlocked) { unlocked = true; apply() }
+  if (snapshot.on && blocks.size === 0 && wasSilent) lastRevive = Date.now()
+  if (retryEngine()) lastRevive = Date.now()
+  unlocked = true
+  apply()
+  if (wasSilent) applyAfterResume()
+}
+
+// Back in the foreground / bfcache restore / native app resume.
+function recover() {
+  if (typeof document !== 'undefined') hidden = document.visibilityState === 'hidden'
+  if (hidden) return
+  clearTimeout(suspendTimer)
+  if (unlocked) resumeAudio()
+  apply()
+  applyAfterResume()
 }
 
 if (typeof window !== 'undefined') {
@@ -113,13 +178,20 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     hidden = document.visibilityState === 'hidden'
     clearTimeout(suspendTimer)
+    if (!hidden) return recover()
     apply()
     const ctx = unlocked && getAudioContext()
     if (!ctx) return
     // Hidden: fade out, then suspend so the audio device can sleep. Game
     // sounds resume it on their own if one plays in the background.
-    if (hidden) suspendTimer = setTimeout(() => { if (hidden) ctx.suspend().catch(() => {}) }, 1500)
-    else if (snapshot.on) ctx.resume().catch(() => {})
+    suspendTimer = setTimeout(() => { if (hidden) ctx.suspend().catch(() => {}) }, 1500)
+  })
+  for (const type of ['pageshow', 'focus', 'native-resume']) window.addEventListener(type, recover)
+  // The OS or browser moved the context on its own (call, Siri, lock screen,
+  // or a resume finishing): re-evaluate, and try to win it back if we're visible.
+  onAudioStateChange(state => {
+    apply()
+    if (state !== 'running' && unlocked && !hidden) resumeAudio()
   })
 }
 
@@ -132,7 +204,11 @@ export function subscribeMusic(fn) {
   return () => listeners.delete(fn)
 }
 
-/** `{ on, volume }`, re-rendering on change. */
+/**
+ * `{ on, volume, status, blocked }`, re-rendering on change. `status` is
+ * 'off' | 'blocked' | 'failed' | 'needs-tap' | 'playing' (see musicStatus);
+ * `blocked` lists the reasons music is held back ('videoCall', 'voice').
+ */
 export function useMusic() {
   return useSyncExternalStore(subscribeMusic, getMusicState, getMusicState)
 }
@@ -142,13 +218,15 @@ export function useMusic() {
 export function setMusicOn(on) {
   stored = on ? 'on' : 'off'
   write(KEY, stored)
-  if (on) {
-    unlocked = !!resumeAudio()
-  }
+  if (on && resumeAudio()) unlocked = true
   apply()
 }
 
+// A tap on the toggle is also a gesture: the capture handler above has already
+// started (or re-armed) the music by the time this runs, so toggling now would
+// switch it straight back off. Treat that tap as "start the music" instead.
 export function toggleMusic() {
+  if (snapshot.on && Date.now() - lastRevive < REVIVE_TAP_MS) return snapshot.on
   setMusicOn(!snapshot.on)
   return snapshot.on
 }
@@ -167,7 +245,7 @@ export function resetMusicDefaults() {
   setMusicOn(true)
 }
 
-// Re-reads things other settings change (the SFX switch, the theme).
+// Re-reads things other settings change (the theme).
 export function syncMusic() { apply() }
 
 // A reason music must stay silent regardless of the preference.

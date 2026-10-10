@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { ref, update } from 'firebase/database'
+import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../../lib/firebase'
 import { getGameConfig } from '../../lib/games'
 
@@ -19,6 +19,7 @@ export default function useRoomEffect({ game, gameId, mySymbol }) {
       mySymbol: mySymbol.current,
       memo: memo.current,
       write: (patch) => update(ref(db, `games/${gameId}`), patch),
+      transact: (fn) => runTransaction(ref(db, `games/${gameId}`), fn),
     })
   }, [game, gameId, mySymbol])
 }

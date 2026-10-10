@@ -1,17 +1,20 @@
 import { createContext, useContext, useEffect, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import SettingsButton from './SettingsButton'
 import MusicToggle from './MusicToggle'
 import useHideOnScroll from '../hooks/useHideOnScroll'
+import { LEADERBOARD_ENABLED } from '../lib/features'
+import { backDestination, showBackControl } from '../lib/backNavLogic'
 
 /* eslint-disable react-refresh/only-export-components */
 
-// Persistent Home/Daily/Friends/Profile tab bar — only on the four meta
-// routes; also the only routes where the header hides on scroll (game rooms
-// and /demo stay pinned so it doesn't fight the fixed GameStatus bar).
+// Persistent Home/Daily/Friends/Profile tab bar — only on the meta routes;
+// also the only routes where the header hides on scroll. /solo/:type and
+// /local/:type use an unpinned header (IN_GAME_PREFIXES) so it scrolls away
+// with the page; /demo stays pinned.
 // Every top-level destination keeps the tab bar so no page is a dead end
 // (daily, online lobby and leaderboard had no way back).
-export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile', '/daily', '/online', '/leaderboard']
+export const TAB_BAR_ROUTES = ['/', '/games', '/friends', '/profile', '/daily', '/online', ...(LEADERBOARD_ENABLED ? ['/leaderboard'] : [])]
 
 // Game rooms can intercept the logo tap (leave-match confirm) without
 // owning their own Home link. The ref is stable; Game registers a handler
@@ -43,11 +46,17 @@ export function useHomeIntercept(handler) {
 // fullscreen (h-dvh, camera-panned world) and hosts its own back/mute/theme
 // HUD overlaid on the world — same reasoning as /game/.
 const HIDDEN_ROUTES_PREFIXES = ['/game/', '/playground']
+const IN_GAME_PREFIXES = ['/solo/', '/local/']
 
 export default function NavBar() {
-  const { pathname } = useLocation()
+  const location = useLocation()
+  const { pathname } = location
+  const navigate = useNavigate()
   const interceptRef = useContext(HomeInterceptContext)
   const hidden = useHideOnScroll({ enabled: TAB_BAR_ROUTES.includes(pathname), resetKey: pathname })
+  // Solo and pass & play pages scroll the game card to the top of the screen;
+  // an unpinned header scrolls off with the page instead of covering the arena.
+  const inGame = IN_GAME_PREFIXES.some((p) => pathname.startsWith(p))
 
   // Mirror `hidden` onto <html> so sticky-chrome elsewhere (GamePicker's
   // filter/tab block) can collapse its top offset in sync via
@@ -61,36 +70,53 @@ export default function NavBar() {
 
   return (
     <header
-      className={`sticky top-0 z-30 w-full border-b border-retro-border/60 bg-retro-bg/95 backdrop-blur
+      className={`app-navbar ${inGame ? 'relative' : 'sticky top-0'} z-30 w-full border-b border-retro-border/60 bg-retro-bg/95 backdrop-blur
         pt-[max(0.75rem,env(safe-area-inset-top))]
         pl-[max(1rem,env(safe-area-inset-left))]
         pr-[max(1rem,env(safe-area-inset-right))]
         pb-2 transition-transform duration-200 ${hidden ? '-translate-y-full' : ''}`}
     >
-      <div className="max-w-sm mx-auto flex items-center justify-between gap-2 min-h-9">
-        <Link
-          to="/"
-          title="Home"
-          onClick={(e) => {
-            interceptRef.current?.(e)
-            if (!e.defaultPrevented && pathname === '/') window.scrollTo(0, 0)
-          }}
-          className="relative flex items-center gap-2 shrink-0 active:scale-95 transition-transform
-            before:content-[''] before:absolute before:-inset-y-2.5 before:-inset-x-2"
-        >
-          <div className="relative w-6 h-6 border-2 border-retro-cta bg-retro-tint-cta rounded
-            flex items-center justify-center shadow-neon-cta">
-            <svg width="12" height="12" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-              <line x1="10" y1="2" x2="10" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-              <line x1="20" y1="2" x2="20" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-              <line x1="2" y1="10" x2="28" y2="10" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-              <line x1="2" y1="20" x2="28" y2="20" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
-            </svg>
-          </div>
-          <span className="font-pixel text-[9px] text-retro-cta text-glow-cta tracking-wide">
-            GAME NIGHT
-          </span>
-        </Link>
+      {/* glass classes: a floating pill on the GLASS themes, nothing elsewhere */}
+      <div data-lens className="glass glass-tx glass-bar max-w-sm mx-auto flex items-center justify-between gap-2 min-h-9">
+        <div className="flex items-center gap-1 min-w-0">
+          {/* Off the tab bar: a BACK control, since the iOS app has no browser
+              back button (the logo stays the way home). */}
+          {showBackControl(pathname, { tabRoutes: TAB_BAR_ROUTES }) && (
+            <button
+              type="button"
+              aria-label="Back"
+              onClick={() => (backDestination(location) === 'history' ? navigate(-1) : navigate('/'))}
+              className="relative -ml-2 w-9 h-9 shrink-0 flex items-center justify-center text-retro-cta press transition-transform"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M10 2 L4 8 L10 14" className="stroke-retro-cta" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter" />
+              </svg>
+            </button>
+          )}
+          <Link
+            to="/"
+            title="Home"
+            onClick={(e) => {
+              interceptRef.current?.(e)
+              if (!e.defaultPrevented && pathname === '/') window.scrollTo(0, 0)
+            }}
+            className="relative flex items-center gap-2 shrink-0 press transition-transform
+              before:content-[''] before:absolute before:-inset-y-2.5 before:-inset-x-2"
+          >
+            <div className="relative w-6 h-6 border-2 border-retro-cta bg-retro-tint-cta rounded
+              flex items-center justify-center shadow-neon-cta">
+              <svg width="12" height="12" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+                <line x1="10" y1="2" x2="10" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+                <line x1="20" y1="2" x2="20" y2="28" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+                <line x1="2" y1="10" x2="28" y2="10" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+                <line x1="2" y1="20" x2="28" y2="20" className="stroke-retro-cta" strokeWidth="3" strokeLinecap="square"/>
+              </svg>
+            </div>
+            <span className="font-pixel text-[9px] text-retro-cta text-glow-cta tracking-wide">
+              GAME NIGHT
+            </span>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <MusicToggle />

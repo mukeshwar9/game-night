@@ -16,7 +16,7 @@ function CardView({ k, active, mover, size = 'md' }) {
   return (
     <span
       className={cn(
-        'inline-grid grid-cols-5 p-1 rounded border transition-all duration-100',
+        'inline-grid grid-cols-5 p-1 rounded border transition duration-100',
         size === 'lg' ? 'gap-0.5' : 'gap-px',
         active ? 'border-retro-cta bg-retro-tint-cta/20' : 'border-retro-border/50',
       )}
@@ -89,7 +89,7 @@ export default function OnitamaBoard({
   return (
     <div className="w-full max-w-[400px] sm:max-w-[440px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         {/* Opponent's hand (face-up, as in real Onitama) + spare */}
@@ -136,12 +136,12 @@ export default function OnitamaBoard({
                 disabled={disabled}
                 onClick={() => !disabled && tap(i)}
                 className={cn(
-                  'aspect-square rounded-sm transition-all duration-100 select-none',
+                  'aspect-square rounded-sm transition duration-100 select-none',
                   'flex items-center justify-center font-pixel text-base sm:text-lg outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   dark ? 'bg-retro-surface' : 'bg-retro-card',
                   'border border-retro-border/40',
-                  !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  !disabled && 'cursor-pointer hover:brightness-125 press',
                   isTarget && 'ring-2 ring-inset ring-retro-cta/70 bg-retro-tint-cta/20',
                   (i === 2 || i === 22) && 'border-retro-cta/60',
                   i === lastMove && !isTarget && 'ring-2 ring-inset ring-retro-cta/60',
@@ -174,7 +174,7 @@ export default function OnitamaBoard({
               disabled={disabled}
               onClick={() => pickCard(k)}
               className={cn(
-                'flex flex-col items-center gap-1 rounded border-2 px-2 py-1.5 transition-all duration-100',
+                'flex flex-col items-center gap-1 rounded border-2 px-2 py-1.5 transition duration-100',
                 'focus-visible:ring-2 focus-visible:ring-retro-cta outline-none',
                 selectable.has(k) ? 'cursor-pointer hover:brightness-125' : 'opacity-40 cursor-default',
                 card === k ? 'border-retro-cta bg-retro-tint-cta/20' : 'border-retro-border/50',

@@ -1,386 +1,148 @@
 // WIRE CROSSED: two-screen co-op defusal. The Tech holds the device, the
 // Handbook holds a manual generated for this exact bomb, and neither screen
 // is any use alone. Everything about a bomb — serial, indicators, modules,
-// their solutions and the manual text — is derived from the room's `seed`
-// and `level`, so the only synced state is the `wire` node's progress,
+// their solutions and the manual text — is derived from the room's `seed`,
+// `level` and `mode`, so the only synced state is the `wire` node's progress,
 // strikes and result (see src/pages/WireCrossedGame.jsx).
+//
+// This file is the entry point: it deals bombs and holds the reducers, and
+// re-exports what pages, components and e2e specs import. The pieces live in
+// src/lib/wire/ (rng, shell, modes, modifiers, legacy, modules/*). The design
+// is docs/prds/wire-crossed-modes.md.
 //
 // Every rule and every manual line here is original to this game.
 //
 // Pure — no DOM, no Firebase, no React.
+import { MODE_LEVELS, isWireMode, normalizeRun } from './wireMatchLogic'
+import { makeRng, pick, sample, shuffle } from './wire/rng'
+import { makeShell } from './wire/shell'
+import { isMode, levelCount, levelPlan, tierFor } from './wire/modes'
+import {
+  drawModifiers, eligibleModifiers, fuseFor, makePageOrder, roleOf, strikePenaltyOf,
+} from './wire/modifiers'
+import { generateLegacyBomb } from './wire/legacy'
+import { MODULES } from './wire/modules'
+import { gaugeBurstAt, gaugeFillMs, gaugeIndex, normalizeGauge } from './wire/modules/gauge'
 
-// ---------------------------------------------------------------------------
-// Constants
+export { makeRng } from './wire/rng'
+export {
+  COLOR_LETTERS, COLOR_NAMES, INDICATOR_LABELS, WIRE_COLORS, isLit, serialLastDigit,
+} from './wire/shell'
+export {
+  BLACKOUT_EVERY_MS, BLACKOUT_MS, MODIFIERS, SHIPPED_MODIFIERS, STRIKE_PENALTY_MS, SWAP_BANNER_MS,
+  isBlackout, isSwapBanner, isSwapped, pageOrderOf, roleOf, strikePenaltyOf, urgentMsOf,
+} from './wire/modifiers'
+export { bombMsForLevel, moduleCountForLevel, BOMB_MS, BOMB_MS_HARD } from './wire/legacy'
+export { MODULES, MODULE_NAMES, MODULE_TYPES } from './wire/modules'
+export {
+  describeWireAction, describeWireCond, isCut, isStriped, requiredCuts, solveWires, wireHas,
+} from './wire/modules/wires'
+export {
+  GLYPH_COUNT, GLYPH_MIRROR_COUNT, GLYPH_MIRROR_FIRST, GLYPH_TOTAL, KEYPAD_COLUMNS, KEYPAD_COLUMN_LEN, KEYPAD_KEYS,
+  isMirroredGlyph, keypadPage, pressedCount,
+} from './wire/modules/keypad'
+export {
+  LEVER_COLORS, LEVER_LABELS, STRIP_COLORS, STRIP_SWITCH_MS, TAP_MAX_MS, describeLeverRule, solveLever,
+} from './wire/modules/lever'
+export {
+  DIRS, MAZE_CELLS, MAZE_SIZE, cellName, cellRC, isOpen, mazeDistances, mazeMoves, mazePos, mazeSize,
+  stepCell, valveBlocks,
+} from './wire/modules/maze'
+export {
+  COLUMN_NAMES, columnIndex, coveredBy, crossings, patchRouting, patchState,
+} from './wire/modules/patch'
+export {
+  LIGHT_COLORS, SHORT_COUNTS, SWITCH_COUNTS, describeCond, describeLock, describeShort, isLocked, isShort,
+  switchPath, switchState, switchTarget,
+} from './wire/modules/switch'
+
+export {
+  GAUGE_FILL_MS, GAUGE_VALVES, GAUGE_ZONE_NAMES, describeGaugeCond, gaugeBurstAt, gaugeFillMs, gaugeIndex,
+  gaugePressure, gaugeValve, gaugeZone, normalizeGauge,
+} from './wire/modules/gauge'
 
 export const MAX_STRIKES = 3
-export const STRIKE_PENALTY_MS = 15_000
-export const BOMB_MS = 180_000
-export const BOMB_MS_HARD = 150_000
-/** A lever held for less than this counts as a tap. */
-export const TAP_MAX_MS = 600
-
-export const WIRE_COLORS = ['red', 'blue', 'yellow', 'white', 'black', 'green']
-export const COLOR_NAMES = {
-  red: 'RED', blue: 'BLUE', yellow: 'YELLOW', white: 'WHITE', black: 'BLACK', green: 'GREEN',
-}
-/** Letter tags printed on every wire and strip, so colour is never the only cue. */
-export const COLOR_LETTERS = {
-  red: 'R', blue: 'B', yellow: 'Y', white: 'W', black: 'K', green: 'G',
-}
-
-export const INDICATOR_LABELS = ['SIG', 'CLR', 'BUS', 'FRQ', 'NAV', 'AUX', 'VNT', 'TRN']
-export const MODULE_TYPES = ['wires', 'keypad', 'lever', 'maze']
-export const MODULE_NAMES = { wires: 'WIRES', keypad: 'GLYPHS', lever: 'LEVER', maze: 'PIPES' }
-
-export const GLYPH_COUNT = 24
-export const KEYPAD_COLUMNS = 5
-export const KEYPAD_COLUMN_LEN = 6
-export const KEYPAD_KEYS = 4
-
-export const LEVER_COLORS = ['red', 'blue', 'yellow', 'white']
-export const LEVER_LABELS = ['PULL', 'VENT', 'PRIME', 'LOCK']
-export const STRIP_COLORS = ['red', 'blue', 'yellow', 'white', 'green']
-
-export const MAZE_SIZE = 6
-export const MAZE_CELLS = MAZE_SIZE * MAZE_SIZE
-// Open-side bits for a maze cell.
-export const DIRS = {
-  N: { bit: 1, dr: -1, dc: 0, opposite: 'S', word: 'UP' },
-  E: { bit: 2, dr: 0, dc: 1, opposite: 'W', word: 'RIGHT' },
-  S: { bit: 4, dr: 1, dc: 0, opposite: 'N', word: 'DOWN' },
-  W: { bit: 8, dr: 0, dc: -1, opposite: 'E', word: 'LEFT' },
-}
-const DIR_KEYS = ['N', 'E', 'S', 'W']
 
 /** Fixed text-only signals for players without voice. Stored by index. */
 export const QUICK_PHRASES = [
   'READ AGAIN', 'SLOWER', 'WHICH MODULE?', 'HOW MANY?', 'GOT IT', 'WAIT…', 'STOP!', 'YES', 'NO', 'DONE ✓',
 ]
 
-const SERIAL_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I/O: they read as 1/0
-
-// ---------------------------------------------------------------------------
-// Seeded randomness (xmur3 → mulberry32). Both screens must derive the same
-// bomb from the same seed; nothing here is secret.
-
-export function makeRng(seed) {
-  const s = String(seed)
-  let h = 1779033703 ^ s.length
-  for (let i = 0; i < s.length; i++) {
-    h = Math.imul(h ^ s.charCodeAt(i), 3432918353)
-    h = (h << 13) | (h >>> 19)
-  }
-  h = Math.imul(h ^ (h >>> 16), 2246822507)
-  h = Math.imul(h ^ (h >>> 13), 3266489909)
-  let a = (h ^ (h >>> 16)) >>> 0
-  return () => {
-    a = (a + 0x6D2B79F5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-const int = (rng, min, max) => min + Math.floor(rng() * (max - min + 1))
-const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)]
-function shuffle(rng, arr) {
-  const out = [...arr]
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[out[i], out[j]] = [out[j], out[i]]
-  }
-  return out
-}
-const sample = (rng, arr, n) => shuffle(rng, arr).slice(0, n)
-
-// ---------------------------------------------------------------------------
-// Bomb shell: serial, indicators, ruleset name
-
-function makeSerial(rng) {
-  const chars = []
-  for (let i = 0; i < 5; i++) {
-    chars.push(rng() < 0.55 ? pick(rng, SERIAL_LETTERS) : String(int(rng, 0, 9)))
-  }
-  if (!chars.some(c => /[A-Z]/.test(c))) chars[0] = pick(rng, SERIAL_LETTERS)
-  chars.push(String(int(rng, 0, 9)))
-  return chars.join('')
-}
-
-export const serialLastDigit = (serial) => Number(String(serial).slice(-1))
-
-function makeIndicators(rng) {
-  return sample(rng, INDICATOR_LABELS, 2).map(label => ({ label, lit: rng() < 0.5 }))
-}
-
-export const isLit = (bomb, label) => bomb.indicators.some(i => i.lit && i.label === label)
-
-// ---------------------------------------------------------------------------
-// Shared conditions (wires and lever rules)
-
-const COLOR_CONDS = ['none', 'exactlyOne', 'many', 'lastIs', 'firstIs']
-// Conditions that guarantee at least one wire of their colour.
-const HAS_COLOR = new Set(['exactlyOne', 'many', 'lastIs', 'firstIs'])
-
-function genBombCond(rng) {
-  const r = rng()
-  if (r < 0.5) return { kind: rng() < 0.5 ? 'serialOdd' : 'serialEven' }
-  return { kind: 'lit', label: pick(rng, INDICATOR_LABELS) }
-}
-
-function bombCondHolds(cond, bomb) {
-  const digit = serialLastDigit(bomb.serial)
-  if (cond.kind === 'serialOdd') return digit % 2 === 1
-  if (cond.kind === 'serialEven') return digit % 2 === 0
-  if (cond.kind === 'lit') return isLit(bomb, cond.label)
-  return false
-}
-
-function describeBombCond(cond) {
-  if (cond.kind === 'serialOdd') return 'the serial ends in an odd digit'
-  if (cond.kind === 'serialEven') return 'the serial ends in an even digit'
-  if (cond.kind === 'lit') return `an indicator marked ${cond.label} is lit`
-  return ''
-}
-
-// ---------------------------------------------------------------------------
-// Module: WIRES
-
-function genWireCond(rng) {
-  if (rng() < 0.7) return { kind: pick(rng, COLOR_CONDS), color: pick(rng, WIRE_COLORS) }
-  return genBombCond(rng)
-}
-
-function genWireAction(rng, n, cond) {
-  if (HAS_COLOR.has(cond.kind) && rng() < 0.5) {
-    return { kind: rng() < 0.5 ? 'firstOf' : 'lastOf', color: cond.color }
-  }
-  if (rng() < 0.2) return { kind: 'last' }
-  return { kind: 'pos', n: int(rng, 1, n) }
-}
-
-function wireCondHolds(cond, wires, bomb) {
-  const count = wires.filter(w => w === cond.color).length
-  switch (cond.kind) {
-    case 'none': return count === 0
-    case 'exactlyOne': return count === 1
-    case 'many': return count > 1
-    case 'lastIs': return wires[wires.length - 1] === cond.color
-    case 'firstIs': return wires[0] === cond.color
-    default: return bombCondHolds(cond, bomb)
-  }
-}
-
-function resolveWireAction(action, wires) {
-  if (action.kind === 'pos') return action.n - 1
-  if (action.kind === 'last') return wires.length - 1
-  if (action.kind === 'firstOf') return wires.indexOf(action.color)
-  if (action.kind === 'lastOf') return wires.lastIndexOf(action.color)
-  return -1
-}
-
-/**
- * Which wire (0-based) the manual says to cut, and the rule that decided it
- * (1-based row, or 0 for the "otherwise" line).
- */
-export function solveWires(module, bomb) {
-  const { wires } = module.device
-  const table = module.manual.tables[wires.length]
-  for (let i = 0; i < table.rules.length; i++) {
-    const { cond, action } = table.rules[i]
-    if (wireCondHolds(cond, wires, bomb)) return { index: resolveWireAction(action, wires), rule: i + 1 }
-  }
-  return { index: resolveWireAction(table.otherwise, wires), rule: 0 }
-}
-
-function genWires(rng, level) {
-  const maxWires = level <= 1 ? 4 : level === 2 ? 5 : 6
-  const tables = {}
-  for (let n = 3; n <= 6; n++) {
-    const rules = Array.from({ length: 3 }, () => {
-      const cond = genWireCond(rng)
-      return { cond, action: genWireAction(rng, n, cond) }
-    })
-    tables[n] = { rules, otherwise: rng() < 0.5 ? { kind: 'last' } : { kind: 'pos', n: int(rng, 1, n) } }
-  }
-  const count = int(rng, 3, maxWires)
-  const wires = Array.from({ length: count }, () => pick(rng, WIRE_COLORS))
-  return { type: 'wires', device: { wires }, manual: { tables } }
-}
-
-export function describeWireCond(cond) {
-  const c = COLOR_NAMES[cond.color]
-  switch (cond.kind) {
-    case 'none': return `there are no ${c} wires`
-    case 'exactlyOne': return `there is exactly one ${c} wire`
-    case 'many': return `there is more than one ${c} wire`
-    case 'lastIs': return `the last wire is ${c}`
-    case 'firstIs': return `the first wire is ${c}`
-    default: return describeBombCond(cond)
-  }
-}
-
-const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth']
-
-export function describeWireAction(action) {
-  if (action.kind === 'pos') return `cut the ${ORDINALS[action.n - 1]} wire`
-  if (action.kind === 'last') return 'cut the last wire'
-  if (action.kind === 'firstOf') return `cut the first ${COLOR_NAMES[action.color]} wire`
-  if (action.kind === 'lastOf') return `cut the last ${COLOR_NAMES[action.color]} wire`
-  return ''
-}
-
-// ---------------------------------------------------------------------------
-// Module: GLYPHS (keypad)
-
-function genKeypad(rng) {
-  const all = Array.from({ length: GLYPH_COUNT }, (_, i) => i)
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const columns = Array.from({ length: KEYPAD_COLUMNS }, () => sample(rng, all, KEYPAD_COLUMN_LEN))
-    const col = int(rng, 0, KEYPAD_COLUMNS - 1)
-    const positions = sample(rng, [0, 1, 2, 3, 4, 5], KEYPAD_KEYS).sort((a, b) => a - b)
-    const solution = positions.map(p => columns[col][p])
-    const unique = columns.every((c, i) => i === col || !solution.every(g => c.includes(g)))
-    if (!unique) continue
-    return {
-      type: 'keypad',
-      device: { keys: shuffle(rng, solution) },
-      manual: { columns },
-      solution,
-    }
-  }
-  /* c8 ignore next */
-  throw new Error('keypad generation failed')
-}
-
-// ---------------------------------------------------------------------------
-// Module: LEVER
-
-function genLever(rng) {
-  const tapRules = [
-    { label: pick(rng, LEVER_LABELS) },
-    { color: pick(rng, LEVER_COLORS), cond: genBombCond(rng) },
-  ]
-  const digits = sample(rng, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], STRIP_COLORS.length)
-  const stripDigits = Object.fromEntries(STRIP_COLORS.map((c, i) => [c, digits[i]]))
-  const device = {
-    color: pick(rng, LEVER_COLORS),
-    label: pick(rng, LEVER_LABELS),
-    strip: pick(rng, STRIP_COLORS),
-  }
-  return { type: 'lever', device, manual: { tapRules, stripDigits } }
-}
-
-/** { tap: true } or { tap: false, digit } for this lever on this bomb. */
-export function solveLever(module, bomb) {
-  const { device, manual } = module
-  const [byLabel, byColor] = manual.tapRules
-  if (device.label === byLabel.label) return { tap: true, rule: 1 }
-  if (device.color === byColor.color && bombCondHolds(byColor.cond, bomb)) return { tap: true, rule: 2 }
-  return { tap: false, digit: manual.stripDigits[device.strip] }
-}
-
-export function describeLeverRule(rule, i) {
-  if (i === 0) return `the lever reads ${rule.label}`
-  return `the lever is ${COLOR_NAMES[rule.color]} and ${describeBombCond(rule.cond)}`
-}
-
-// ---------------------------------------------------------------------------
-// Module: PIPES (maze)
-
-export const cellRC = (cell) => ({ r: Math.floor(cell / MAZE_SIZE), c: cell % MAZE_SIZE })
-export const cellName = (cell) => {
-  const { r, c } = cellRC(cell)
-  return `${'ABCDEF'[c]}${r + 1}`
-}
-
-/** The neighbouring cell in `dir`, or -1 off the grid. */
-export function stepCell(cell, dir) {
-  const { r, c } = cellRC(cell)
-  const d = DIRS[dir]
-  const nr = r + d.dr
-  const nc = c + d.dc
-  if (nr < 0 || nc < 0 || nr >= MAZE_SIZE || nc >= MAZE_SIZE) return -1
-  return nr * MAZE_SIZE + nc
-}
-
-export const isOpen = (open, cell, dir) => ((open[cell] || 0) & DIRS[dir].bit) !== 0
-
-function carveMaze(rng) {
-  const open = Array(MAZE_CELLS).fill(0)
-  const seen = Array(MAZE_CELLS).fill(false)
-  const stack = [int(rng, 0, MAZE_CELLS - 1)]
-  seen[stack[0]] = true
-  while (stack.length) {
-    const cell = stack[stack.length - 1]
-    const options = DIR_KEYS.filter(d => {
-      const n = stepCell(cell, d)
-      return n >= 0 && !seen[n]
-    })
-    if (!options.length) { stack.pop(); continue }
-    const dir = pick(rng, options)
-    const next = stepCell(cell, dir)
-    open[cell] |= DIRS[dir].bit
-    open[next] |= DIRS[DIRS[dir].opposite].bit
-    seen[next] = true
-    stack.push(next)
-  }
-  return open
-}
-
-/** Path length between cells through open sides (Infinity when unreachable). */
-export function mazeDistances(open, from) {
-  const dist = Array(MAZE_CELLS).fill(Infinity)
-  dist[from] = 0
-  const queue = [from]
-  while (queue.length) {
-    const cell = queue.shift()
-    for (const d of DIR_KEYS) {
-      if (!isOpen(open, cell, d)) continue
-      const n = stepCell(cell, d)
-      if (n >= 0 && dist[n] === Infinity) {
-        dist[n] = dist[cell] + 1
-        queue.push(n)
-      }
-    }
-  }
-  return dist
-}
-
-function genMaze(rng, level) {
-  const open = carveMaze(rng)
-  const start = int(rng, 0, MAZE_CELLS - 1)
-  const dist = mazeDistances(open, start)
-  const minSteps = level <= 1 ? 5 : 7
-  let far = dist.map((d, i) => (d >= minSteps ? i : -1)).filter(i => i >= 0)
-  if (!far.length) {
-    const max = Math.max(...dist)
-    far = dist.map((d, i) => (d === max ? i : -1)).filter(i => i >= 0)
-  }
-  const exit = pick(rng, far)
-  return { type: 'maze', device: { start, exit }, manual: { open } }
-}
-
 // ---------------------------------------------------------------------------
 // Whole bomb
 
-const GENERATORS = { wires: genWires, keypad: genKeypad, lever: genLever, maze: genMaze }
-
-export const moduleCountForLevel = (level) => (level <= 2 ? 3 : 4)
-export const bombMsForLevel = (level) => (level >= 5 ? BOMB_MS_HARD : BOMB_MS)
+/**
+ * Errata: pick one module that can take a slip and one of its patches, and
+ * swap the patched manual into `modules` in place. Null when none can.
+ */
+function dealErrata(rng, modules, ctx) {
+  const options = []
+  modules.forEach((m, i) => {
+    const def = MODULES[m.type]
+    if (!def.errataCandidates) return
+    const patches = def.errataCandidates(rng, m, ctx)
+    if (patches.length) options.push({ i, patches })
+  })
+  if (!options.length) return null
+  const { i, patches } = pick(rng, options)
+  const patch = pick(rng, patches)
+  const def = MODULES[modules[i].type]
+  const text = def.describeErrata(modules[i], patch)
+  modules[i] = { ...modules[i], manual: def.applyErrata(modules[i].manual, patch) }
+  return { mod: i, patch, ...text }
+}
 
 /**
- * Derive the whole bomb — device and manual — from the room seed and level.
- * Deterministic: both screens call this and must agree.
+ * Derive the whole bomb — device and manual — from the room seed, level and
+ * mode. Deterministic: both screens call this and must agree. One rng stream
+ * is consumed in a fixed order: shell, modifiers (and page order), slot types,
+ * slot tiers, then each module in slot order, then (only with Errata) the
+ * errata draws, appended last so bombs without Errata derive as before.
+ * A missing `mode` deals the frozen pre-modes bomb (src/lib/wire/legacy.js).
+ *
+ * Errata: `bomb.errata = { mod, patch, where, was, now }` and the module at
+ * `mod` carries the patched manual, so every solver and judge uses the slip's
+ * rule. When no module on the bomb can take a slip, Errata is swapped for
+ * another distinct modifier of allowed severity (or dropped if none is left).
  */
-export function generateBomb(seed, level = 1) {
-  const lvl = Number.isInteger(level) && level >= 1 ? level : 1
+export function generateBomb(seed, level = 1, mode = null) {
+  if (!isMode(mode)) return generateLegacyBomb(seed, level)
+  const lvl = Number.isInteger(level) && level >= 1 ? Math.min(level, levelCount(mode)) : 1
+  const plan = levelPlan(mode, lvl)
   const rng = makeRng(`wirecrossed:${seed}`)
-  const serial = makeSerial(rng)
-  const indicators = makeIndicators(rng)
-  const ruleset = `${pick(rng, SERIAL_LETTERS)}-${int(rng, 1, 9)}`
-  const types = sample(rng, MODULE_TYPES, moduleCountForLevel(lvl))
-  const modules = types.map(type => GENERATORS[type](rng, lvl))
-  return { seed: String(seed), level: lvl, serial, indicators, ruleset, modules, durationMs: bombMsForLevel(lvl) }
+  const shell = makeShell(rng)
+  let modifiers = drawModifiers(rng, plan.modifiers.count, plan.modifiers.max)
+  // The Gauge (if any) keeps the last Handbook tab; only the slot pages scramble.
+  const scramble = () => [...makePageOrder(rng, plan.tiers.length), ...(plan.gauge ? [plan.tiers.length] : [])]
+  let pageOrder = modifiers.includes('scrambled') ? scramble() : null
+  const types = sample(rng, plan.pool, plan.tiers.length)
+  const tiers = shuffle(rng, plan.tiers)
+  const ctx = { level: lvl, mode, serial: shell.serial, indicators: shell.indicators }
+  const modules = types.map((type, i) => MODULES[type].generate(rng, tierFor(type, tiers[i]), ctx))
+  // "+G" levels: one Pressure Gauge after the slot modules (never drawn into a slot).
+  if (plan.gauge) modules.push(MODULES.gauge.generate(rng, plan.gauge, ctx))
+  let errata = null
+  if (modifiers.includes('errata')) {
+    errata = dealErrata(rng, modules, ctx)
+    if (!errata) {
+      const swapIn = eligibleModifiers(plan.modifiers.max).filter(id => id !== 'errata' && !modifiers.includes(id))
+      const id = swapIn.length ? pick(rng, swapIn) : null
+      modifiers = modifiers.flatMap(m => (m !== 'errata' ? [m] : id ? [id] : []))
+      if (id === 'scrambled') pageOrder = scramble()
+    }
+  }
+  return {
+    seed: String(seed),
+    level: lvl,
+    mode,
+    ...shell,
+    modules,
+    durationMs: plan.clockMs,
+    modifiers,
+    ...(errata ? { errata } : {}),
+    ...(pageOrder ? { pageOrder } : {}),
+    ...fuseFor(modifiers),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -415,37 +177,47 @@ export function strikesOf(wire) {
   return Number.isFinite(n) && n > 0 ? Math.min(MAX_STRIKES, n) : 0
 }
 
+const nonNeg = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : 0)
+const posOrNull = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : null)
+
+/**
+ * The match tally: bombs defused and blown, plus per-mode records —
+ * `bestMs` (shortest cleared run), `fewestBooms` (in a cleared run) and
+ * `clears`. Records replace the old streak/best and reset on NEW MATCH.
+ */
 export function normalizeWireStats(raw) {
-  const num = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : 0)
-  return {
-    streak: num(raw?.streak),
-    best: num(raw?.best),
-    defused: num(raw?.defused),
-    booms: num(raw?.booms),
+  const records = {}
+  for (const mode of Object.keys(MODE_LEVELS)) {
+    const r = raw?.records?.[mode]
+    const fewest = r?.fewestBooms == null ? NaN : Number(r.fewestBooms)
+    records[mode] = {
+      bestMs: posOrNull(r?.bestMs),
+      fewestBooms: Number.isFinite(fewest) && fewest >= 0 ? Math.floor(fewest) : null,
+      clears: nonNeg(r?.clears),
+    }
   }
+  return { defused: nonNeg(raw?.defused), booms: nonNeg(raw?.booms), records }
 }
 
-/** Keypad: how many glyphs are already pressed, in order. */
-export const pressedCount = (wire, i) => {
-  const n = Number(modProgress(wire, i).pressed)
-  return Number.isInteger(n) && n > 0 ? Math.min(KEYPAD_KEYS, n) : 0
-}
-
-/** Maze: the Tech's current cell. */
-export function mazePos(wire, i, module) {
-  const p = Number(modProgress(wire, i).pos)
-  return Number.isInteger(p) && p >= 0 && p < MAZE_CELLS ? p : module.device.start
-}
-
-export const isCut = (wire, i, w) => !!modProgress(wire, i).cut?.[w]
+/**
+ * A bomb dealt before modes existed (or by the retired two-bomb build): no mode
+ * and no run. Once armed it plays and finishes with the legacy generator at
+ * max(1, level). One still in `ready` was never armed, so it is not legacy: it
+ * shows the mode picker like a fresh room, and accepting a mode replaces it.
+ */
+export const isLegacyWire = (wire) => !wire?.mode && !wire?.run && wire?.phase !== 'ready'
 
 /**
  * Tech arms the bomb. `durationMs` null means the room's timers are off: no
- * deadline, the clock counts up instead.
+ * deadline, the clock counts up instead. A bomb cannot be armed until the
+ * players have agreed a mode (a mode-less `ready` bomb shows the picker).
+ * With `bomb` on a "+G" level it also starts the Gauge at 10% with its fill time scaled by `timerScale` (the
+ * unscaled time when timers are off: the Gauge always runs).
  */
-export function armWire(wire, now, durationMs) {
+export function armWire(wire, now, durationMs, bomb = null, timerScale = undefined) {
   if (!wire || wire.phase !== 'ready') return null
-  return {
+  if (!isWireMode(wire.mode)) return null
+  const armed = {
     ...wire,
     phase: 'armed',
     armedAt: now,
@@ -456,12 +228,21 @@ export function armWire(wire, now, durationMs) {
     last: null,
     result: null,
   }
+  // Swap: half of the base clock (also with timers off, when there is no deadline).
+  const halfMs = (durationMs ?? bomb?.durationMs) / 2
+  if (bomb?.modifiers?.includes('swap') && Number.isFinite(halfMs)) armed.swapAt = now + halfMs
+  else delete armed.swapAt
+  if (gaugeIndex(bomb) >= 0) armed.gauge = { base: 10, at: now, vents: 0, fillMs: gaugeFillMs(bomb, timerScale) }
+  else delete armed.gauge
+  return armed
 }
 
 function finish(wire, outcome, reason, now) {
   const stats = normalizeWireStats(wire.stats)
-  const streak = outcome === 'defused' ? stats.streak + 1 : 0
-  return {
+  const took = Number.isFinite(wire.armedAt) ? Math.max(0, now - wire.armedAt) : null
+  const mode = isWireMode(wire.mode) ? wire.mode : null
+  const cleared = !!mode && outcome === 'defused' && wire.level >= MODE_LEVELS[mode]
+  const next = {
     ...wire,
     phase: 'over',
     result: {
@@ -469,80 +250,55 @@ function finish(wire, outcome, reason, now) {
       reason,
       at: now,
       left: wire.endsAt ? Math.max(0, wire.endsAt - now) : null,
-      took: Number.isFinite(wire.armedAt) ? Math.max(0, now - wire.armedAt) : null,
+      took,
+      cleared,
     },
     stats: {
-      streak,
-      best: Math.max(stats.best, streak),
       defused: stats.defused + (outcome === 'defused' ? 1 : 0),
       booms: stats.booms + (outcome === 'boom' ? 1 : 0),
+      records: stats.records,
     },
   }
+  if (!mode) return next
+  // The run's armed time counts every attempt, boomed or not; run.booms is
+  // bumped when the next bomb is dealt (nextWireBomb).
+  const run = normalizeRun(wire.run)
+  next.run = { booms: run.booms, ms: run.ms + (took || 0) }
+  if (cleared) {
+    const rec = stats.records[mode]
+    next.stats.records = {
+      ...stats.records,
+      [mode]: {
+        bestMs: rec.bestMs == null ? next.run.ms : Math.min(rec.bestMs, next.run.ms),
+        fewestBooms: rec.fewestBooms == null ? next.run.booms : Math.min(rec.fewestBooms, next.run.booms),
+        clears: rec.clears + 1,
+      },
+    }
+  }
+  return next
+}
+
+/** Margin added to the first timeout check, and the pause between re-checks. */
+export const TIMEOUT_MARGIN_MS = 60
+export const TIMEOUT_RETRY_MS = 1000
+
+/**
+ * How long a seated client waits before trying to write the boom: the time
+ * left plus a small margin, or 0 when the clock has run out. Callers must
+ * call it again after every attempt instead of trusting one timer: the
+ * server-corrected clock can move backwards after a reconnect, so a timer that
+ * fires "on time" may still be before `endsAt`, and a failed write has to be
+ * retried. Without the loop the bomb froze at 0:00 and never exploded.
+ */
+export function timeoutCheckDelay(endsAt, now) {
+  const wait = endsAt - now
+  return wait > 0 ? wait + TIMEOUT_MARGIN_MS : 0
 }
 
 /** The clock ran out: boom. Null when there is nothing to do. */
 export function applyTimeout(wire, now) {
   if (!wire || wire.phase !== 'armed' || !wire.endsAt || now < wire.endsAt) return null
   return finish(wire, 'boom', 'time', now)
-}
-
-function judge(module, bomb, wire, i, action) {
-  const progress = modProgress(wire, i)
-  switch (module.type) {
-    case 'wires': {
-      if (action.kind !== 'cut') return null
-      const w = action.wire
-      if (!Number.isInteger(w) || w < 0 || w >= module.device.wires.length || progress.cut?.[w]) return null
-      const ok = w === solveWires(module, bomb).index
-      return {
-        ok,
-        solved: ok,
-        progress: { ...progress, cut: { ...(progress.cut || {}), [w]: true } },
-        text: `CUT WIRE ${w + 1}`,
-      }
-    }
-    case 'keypad': {
-      if (action.kind !== 'press') return null
-      const done = pressedCount(wire, i)
-      const g = action.glyph
-      if (!module.solution.includes(g) || module.solution.indexOf(g) < done) return null
-      const ok = module.solution[done] === g
-      const pressed = ok ? done + 1 : done
-      return {
-        ok,
-        solved: pressed === KEYPAD_KEYS,
-        progress: { ...progress, pressed },
-        text: `PRESSED GLYPH ${module.device.keys.indexOf(g) + 1}`,
-      }
-    }
-    case 'lever': {
-      if (action.kind !== 'tap' && action.kind !== 'release') return null
-      const sol = solveLever(module, bomb)
-      const shown = String(action.clock ?? '')
-      const ok = action.kind === 'tap' ? sol.tap : !sol.tap && shown.includes(String(sol.digit))
-      return {
-        ok,
-        solved: ok,
-        progress,
-        text: action.kind === 'tap' ? 'TAPPED THE LEVER' : `RELEASED AT ${shown || '?'}`,
-      }
-    }
-    case 'maze': {
-      if (action.kind !== 'move' || !DIRS[action.dir]) return null
-      const pos = mazePos(wire, i, module)
-      const next = stepCell(pos, action.dir)
-      const ok = next >= 0 && isOpen(module.manual.open, pos, action.dir)
-      const at = ok ? next : pos
-      return {
-        ok,
-        solved: ok && at === module.device.exit,
-        progress: { ...progress, pos: at },
-        text: `MOVED ${DIRS[action.dir].word}${ok ? '' : ' — PIPE WALL'}`,
-      }
-    }
-    default:
-      return null
-  }
 }
 
 /**
@@ -559,29 +315,115 @@ function judge(module, bomb, wire, i, action) {
  */
 export function applyWireAction(wire, bomb, action, now, by) {
   if (!wire || wire.phase !== 'armed' || !action) return null
+  // Only the current Tech may act; after a Swap that is the other seat.
+  if ((by === 'X' || by === 'O') && roleOf(wire, by, now) !== 'tech') return null
   const timedOut = applyTimeout(wire, now)
   if (timedOut) return { wire: timedOut, ok: null }
+  // A burst that is due beats whatever the Tech did after it (ok null, like the timeout).
+  const burst = applyGaugeBurst(wire, bomb, now)
+  if (burst) return { wire: burst, ok: null }
   const i = action.mod
   const module = bomb.modules[i]
   if (!module || isSolved(wire, i)) return null
-  const verdict = judge(module, bomb, wire, i, action)
+  const verdict = MODULES[module.type]?.judge(module, bomb, wire, i, action, now)
   if (!verdict) return null
 
-  let next = {
+  const next = {
     ...wire,
-    mods: { ...(wire.mods || {}), [i]: verdict.progress },
+    ...(verdict.progress !== undefined ? { mods: { ...(wire.mods || {}), [i]: verdict.progress } } : {}),
+    ...(verdict.gauge ? { gauge: verdict.gauge } : {}),
     last: { by: by || null, mod: i, text: verdict.text, ok: verdict.ok, at: now },
   }
   if (verdict.solved) next.solved = { ...(wire.solved || {}), [i]: true }
   if (!verdict.ok) {
-    const strikes = strikesOf(wire) + 1
-    next.strikes = strikes
-    if (next.endsAt) next.endsAt = next.endsAt - STRIKE_PENALTY_MS
-    if (strikes >= MAX_STRIKES) return { wire: finish(next, 'boom', 'strikes', now), ok: false }
-    if (next.endsAt && now >= next.endsAt) return { wire: finish(next, 'boom', 'time', now), ok: false }
+    const boomed = addStrike(next, wire, bomb, now)
+    if (boomed) return { wire: boomed, ok: false }
   }
-  if (bomb.modules.every((_, m) => isSolved(next, m))) {
+  // The Gauge is never solved and does not count toward the defuse.
+  if (bomb.modules.every((m, k) => m.type === 'gauge' || isSolved(next, k))) {
     return { wire: finish(next, 'defused', 'solved', now), ok: verdict.ok }
   }
   return { wire: next, ok: verdict.ok }
+}
+
+/**
+ * Charge one strike to `next` (built from `prev`): +1 strike, the bomb's
+ * penalty off the clock. Returns the finished (boomed) wire on the third
+ * strike or when the penalty empties the clock at `now`, else null.
+ */
+function addStrike(next, prev, bomb, now) {
+  const strikes = strikesOf(prev) + 1
+  next.strikes = strikes
+  if (next.endsAt) next.endsAt = next.endsAt - strikePenaltyOf(bomb)
+  if (strikes >= MAX_STRIKES) return finish(next, 'boom', 'strikes', now)
+  if (next.endsAt && now >= next.endsAt) return finish(next, 'boom', 'time', now)
+  return null
+}
+
+/**
+ * The Gauge reached 100%: a strike, and the needle restarts at 40%. Pure and
+ * idempotent: it returns null unless the pressure has reached 100 for the
+ * current `gauge.at`, and the write moves `gauge.at` to the exact burst moment
+ * (not `now`), so a second client applying it after the first finds the gauge
+ * fresh and gets null. If the clock ran out before the burst, the boom is the
+ * timeout. Applies one burst per call (the watchdog re-arms for the next).
+ * @returns {any | null} the new wire node, or null when nothing is due
+ */
+export function applyGaugeBurst(wire, bomb, now) {
+  if (!wire || wire.phase !== 'armed') return null
+  const i = gaugeIndex(bomb)
+  const gauge = normalizeGauge(wire)
+  if (i < 0 || !gauge) return null
+  const burstAt = gaugeBurstAt(wire, bomb)
+  if (now < burstAt) return null
+  if (wire.endsAt && burstAt >= wire.endsAt) return applyTimeout(wire, now)
+  const next = {
+    ...wire,
+    gauge: { ...gauge, base: 40, at: burstAt },
+    last: { by: null, mod: i, text: 'PRESSURE BURST', ok: false, at: burstAt },
+  }
+  return addStrike(next, wire, bomb, burstAt) || next
+}
+
+// ---------------------------------------------------------------------------
+// Mode proposal (either seat proposes, the other confirms; docs/prds §3.4).
+// Separate from the room-level `proposal`, so FIELD_NULLS.wire clears it on a
+// game switch. Allowed only between bombs (`ready` or `over`).
+
+const isSeat = (by) => by === 'X' || by === 'O'
+const betweenBombs = (wire) => !!wire && (wire.phase === 'ready' || wire.phase === 'over')
+
+/** Seat `by` proposes `mode`. Overwrites an earlier proposal. Null when not allowed. */
+export function proposeMode(wire, mode, by, now) {
+  if (!betweenBombs(wire) || !isSeat(by) || !isMode(mode) || mode === wire.mode) return null
+  return { ...wire, modeProposal: { by, mode, at: now } }
+}
+
+/**
+ * The other seat accepts: the mode is set and the run restarts at level 1
+ * with `seed`. From a finished bomb the Tech flips and the bomb number climbs
+ * like a normal next bomb; the records and match tally carry.
+ */
+export function acceptMode(wire, by, seed) {
+  const proposal = wire?.modeProposal
+  if (!betweenBombs(wire) || !isSeat(by) || !proposal || proposal.by === by || !isMode(proposal.mode)) return null
+  const fromOver = wire.phase === 'over'
+  return {
+    seed: String(seed),
+    level: 1,
+    bombNo: (Number.isInteger(wire.bombNo) ? wire.bombNo : 0) + (fromOver ? 1 : 0),
+    tech: fromOver ? (wire.tech === 'X' ? 'O' : 'X') : (wire.tech === 'O' ? 'O' : 'X'),
+    phase: 'ready',
+    strikes: 0,
+    mode: proposal.mode,
+    run: { booms: 0, ms: 0 },
+    stats: wire.stats ?? null,
+  }
+}
+
+/** Either seat clears the proposal (the proposer cancels, the other declines). */
+export function cancelMode(wire, by) {
+  if (!betweenBombs(wire) || !isSeat(by) || !wire.modeProposal) return null
+  const { modeProposal: _gone, ...rest } = wire // eslint-disable-line no-unused-vars
+  return rest
 }

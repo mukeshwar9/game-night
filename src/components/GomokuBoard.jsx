@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { GOMOKU_SIZE, SWAP_ACTION, canGomokuSwap } from '../lib/gomokuLogic'
-import { cellLabel } from '../lib/a11yLabels'
+import { cellLabel, columnLetter } from '../lib/a11yLabels'
+import ZoomViewport from './ZoomViewport'
 
 // Fit-to-width: the whole 15×15 board is always visible (five-in-a-row is
 // about reading long lines — a horizontally scrolling board hid half of it).
 // Cells get small on phones (~21px at 360), so placement is two-tap: the
 // first tap drops a ghost stone, a second tap on it confirms. A mouse keeps
-// single-click placement.
+// single-click placement. Pinch, the wheel or + zoom in for bigger cells.
 const isCoarse = () => {
   try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
 }
@@ -26,9 +27,10 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
   }
   return (
     <div className="w-full max-w-sm mx-auto">
+      <ZoomViewport label="Gomoku board">
       <div
         className={cn(
-          'relative bg-retro-surface border-2 border-retro-border rounded transition-all duration-200',
+          'relative bg-retro-surface border-2 border-retro-border rounded transition duration-200',
           disabled && 'board-idle',
         )}
       >
@@ -60,7 +62,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
                   className={cn(
                     'aspect-square flex items-center justify-center',
                     'border border-retro-border/50 rounded-sm',
-                    'transition-all duration-100',
+                    'transition duration-100',
                     isClickable
                       ? currentTurn === 'X'
                         ? 'hover:bg-retro-p1/10 hover:border-retro-p1/40 cursor-pointer'
@@ -97,8 +99,10 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
           </div>
         </div>
       </div>
+      </ZoomViewport>
       <p className="mt-1.5 text-center font-pixel text-[8px] text-retro-dim tracking-wider" aria-live="polite">
-        {pendingLive != null ? 'TAP AGAIN TO PLACE' : '\u00a0'}
+        {/* the finger hides the ghost stone, so say where it is */}
+        {pendingLive != null ? `TAP AGAIN TO PLACE · ${columnLetter(pendingLive % GOMOKU_SIZE)}${Math.floor(pendingLive / GOMOKU_SIZE) + 1}` : '\u00a0'}
       </p>
       {swapOpen && !disabled && (
         <div className="mt-2 flex flex-col items-center gap-1.5">
@@ -106,7 +110,7 @@ export default function GomokuBoard({ board, onMove, disabled, winningLine = [],
             onClick={() => onMove({ action: SWAP_ACTION })}
             aria-label={`Swap: take ${opener}'s opening stone`}
             className={cn(
-              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition-all active:scale-95',
+              'px-4 py-2 rounded border-2 font-pixel text-[10px] tracking-widest transition press',
               'border-retro-cta text-retro-cta bg-retro-tint-cta hover:shadow-neon-cta',
             )}
           >

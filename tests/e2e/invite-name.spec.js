@@ -4,8 +4,9 @@
 // Guest-XXXX) and is what the opponent sees.
 import { test, expect } from '@playwright/test'
 import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
-const DB_URL = 'http://127.0.0.1:9000'
+const DB_URL = DB_ORIGIN
 const NS = 'demo-game-night-default-rtdb'
 
 async function readNode(request, path) {

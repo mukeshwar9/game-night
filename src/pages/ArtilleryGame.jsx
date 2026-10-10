@@ -203,22 +203,22 @@ export default function ArtilleryGame({
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <button onClick={() => adjust(setAngle, -FINE_STEP, 5, 90)} disabled={!myTurn}
-                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded active:scale-90 disabled:opacity-40">−</button>
+                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded press disabled:opacity-40">−</button>
               <input type="range" min="5" max="90" value={angle} disabled={!myTurn}
                 onChange={e => setAngle(Number(e.target.value))}
                 className="flex-1 accent-[rgb(var(--c-cta))]" />
               <button onClick={() => adjust(setAngle, FINE_STEP, 5, 90)} disabled={!myTurn}
-                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded active:scale-90 disabled:opacity-40">+</button>
+                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded press disabled:opacity-40">+</button>
               <span className="font-pixel text-[10px] text-retro-dim w-12 text-right">{angle}° ANGLE</span>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => adjust(setPower, -FINE_STEP, 10, 100)} disabled={!myTurn}
-                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded active:scale-90 disabled:opacity-40">−</button>
+                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded press disabled:opacity-40">−</button>
               <input type="range" min="10" max="100" value={power} disabled={!myTurn}
                 onChange={e => setPower(Number(e.target.value))}
                 className="flex-1 accent-[rgb(var(--c-cta))]" />
               <button onClick={() => adjust(setPower, FINE_STEP, 10, 100)} disabled={!myTurn}
-                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded active:scale-90 disabled:opacity-40">+</button>
+                className="w-9 h-9 border border-retro-border text-retro-text font-pixel rounded press disabled:opacity-40">+</button>
               <span className="font-pixel text-[10px] text-retro-dim w-12 text-right">{power} PWR</span>
             </div>
           </div>
@@ -226,7 +226,7 @@ export default function ArtilleryGame({
           <button
             onClick={fire}
             disabled={!myTurn}
-            className="w-full min-h-11 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+            className="w-full min-h-11 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta press disabled:opacity-40"
           >
             FIRE
           </button>

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { commit } from './commit'
 import {
   DRAW_MS,
+  sketchChatLock,
   normalize,
   wordPattern,
   quantize,
@@ -552,5 +553,18 @@ describe('roundDeltas drawMs + multiplier together', () => {
     const halfway = { g1: { at: endsAt - drawMs / 2 } }
     const deltas = roundDeltas({ guesserIds: ['g1'], correct: halfway, artistId: 'artist', endsAt, drawMs, multiplier: 1.5 })
     expect(deltas).toEqual({ g1: 113, artist: 56 })
+  })
+})
+
+describe('sketchChatLock', () => {
+  it('locks room chat for the artist while choosing and drawing', () => {
+    expect(sketchChatLock({ artist: 'a', phase: 'choosing' }, 'a')).toMatch(/DRAWING/)
+    expect(sketchChatLock({ artist: 'a', phase: 'drawing' }, 'a')).toMatch(/DRAWING/)
+  })
+  it('leaves guessers, the reveal and an empty round alone', () => {
+    expect(sketchChatLock({ artist: 'a', phase: 'drawing' }, 'b')).toBeNull()
+    expect(sketchChatLock({ artist: 'a', phase: 'reveal' }, 'a')).toBeNull()
+    expect(sketchChatLock(null, 'a')).toBeNull()
+    expect(sketchChatLock({ artist: 'a', phase: 'drawing' }, '')).toBeNull()
   })
 })

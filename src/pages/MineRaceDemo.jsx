@@ -5,7 +5,9 @@ import {
 } from '../lib/minesweeperLogic'
 import { mineCellLabel } from '../lib/a11yLabels'
 import { sounds } from '../lib/sounds'
+import { haptic } from '../lib/haptics'
 import { cn } from '@/lib/utils'
+import ZoomViewport from '../components/ZoomViewport'
 
 // Solo minesweeper — the MINE RACE board with no opponent. Best time per
 // difficulty lives in localStorage. Same theme-token number palette as the
@@ -126,7 +128,7 @@ export default function MineRaceDemo() {
     pressTimerRef.current = setTimeout(() => {
       longPressFiredRef.current = true
       toggleFlag(cell)
-      navigator.vibrate?.(20)
+      haptic(20)
     }, 450)
   }
 
@@ -148,7 +150,8 @@ export default function MineRaceDemo() {
         <p className="font-pixel text-[8px] text-retro-dim text-center">BEST {secs(best)}s</p>
       )}
 
-      <div className="relative mx-auto" style={{ width: 'min(100%, 26rem)' }}>
+      <div className="relative mx-auto" style={{ width: 'min(100%, 32rem)' }}>
+        <ZoomViewport label="Mine field" onGestureStart={cancelPress}>
         <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' }}>
           {Array.from({ length: CELL_COUNT }, (_, cell) => {
             const isRevealed = revealed.has(cell)
@@ -195,6 +198,7 @@ export default function MineRaceDemo() {
             )
           })}
         </div>
+        </ZoomViewport>
 
         {(dead || done) && (
           <div className="absolute inset-0 flex items-center justify-center bg-retro-bg/85 rounded">
@@ -207,7 +211,7 @@ export default function MineRaceDemo() {
               )}
               <button
                 onClick={reset}
-                className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+                className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press"
               >
                 NEW BOARD
               </button>
@@ -223,7 +227,7 @@ export default function MineRaceDemo() {
               onClick={() => setMode(m => (m === 'reveal' ? 'flag' : 'reveal'))}
               aria-pressed={mode === 'flag'}
               className={cn(
-                'px-4 py-1.5 font-pixel text-[9px] rounded border-2 transition-all active:scale-95',
+                'min-h-11 px-4 py-1.5 font-pixel text-[10px] rounded border-2 transition press',
                 mode === 'flag'
                   ? 'border-retro-p2 text-retro-p2 shadow-neon-p2'
                   : 'border-retro-border text-retro-dim hover:border-retro-p2/50',
@@ -233,7 +237,7 @@ export default function MineRaceDemo() {
             </button>
             <button
               onClick={reset}
-              className="px-4 py-1.5 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+              className="min-h-11 px-4 py-1.5 font-pixel text-[10px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press"
             >
               RESTART
             </button>

@@ -19,8 +19,8 @@ export default function NumberPad({ onKey, disabled = false }) {
   }, { enabled: !disabled })
 
   const baseBtn = cn(
-    'h-12 flex items-center justify-center font-pixel text-[12px] rounded border transition-all',
-    'select-none active:scale-90',
+    'h-12 flex items-center justify-center font-pixel text-[12px] rounded border transition',
+    'select-none press',
   )
 
   const mkKey = (raw) => {

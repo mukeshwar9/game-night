@@ -74,11 +74,13 @@ export function formatAgo(ts, now) {
 }
 
 /**
- * How the game was last played, as the rail's sub-line.
+ * How the game was last played, as the rail's sub-line. `soloRun` marks games
+ * whose solo mode is a score to beat rather than a bot.
  * @param {string} mode
+ * @param {boolean} [soloRun]
  */
-export function modeLabel(mode) {
-  if (mode === 'solo') return 'vs CPU'
+export function modeLabel(mode, soloRun = false) {
+  if (mode === 'solo') return soloRun ? 'solo' : 'vs CPU'
   if (mode === 'local') return 'same device'
   return 'online'
 }

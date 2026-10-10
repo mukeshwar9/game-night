@@ -24,12 +24,14 @@ export default function TimerScalePicker({ gameId, game, canEdit }) {
     run(() => setTimerScale(gameId, value), () => toast.error("COULDN'T SET TIMERS — TRY AGAIN"))
   }
 
+  // One flat row, not a card: it's a room preference, not the screen's job.
   return (
-    <div className="w-full bg-retro-card border border-retro-border rounded p-3 space-y-2 text-center" data-testid="timer-scale">
+    <div className="w-full flex flex-wrap items-center justify-between gap-x-3 gap-y-2" data-testid="timer-scale">
       <p className="font-pixel text-[9px] text-retro-dim tracking-wider">
         TIMERS · <span className="text-retro-cta">{busy ? 'SAVING…' : currentLabel}</span>
+        {!canEdit && <span className="text-retro-dim/70"> · HOST PICKS</span>}
       </p>
-      <div className="flex justify-center gap-2 flex-wrap" role="radiogroup" aria-label="Timer speed">
+      <div className="flex gap-1.5" role="radiogroup" aria-label="Timer speed">
         {OPTIONS.map(opt => (
           <button
             key={opt.value}
@@ -38,10 +40,10 @@ export default function TimerScalePicker({ gameId, game, canEdit }) {
             disabled={!canEdit || busy}
             onClick={() => pick(opt.value)}
             className={cn(
-              'min-h-11 px-3 font-pixel text-[9px] rounded border-2 transition-all active:scale-95',
+              'min-h-11 px-2.5 font-pixel text-[8px] rounded border transition press',
               current === opt.value
-                ? 'border-retro-cta bg-retro-tint-cta text-retro-cta shadow-neon-cta'
-                : 'border-retro-border bg-retro-surface text-retro-dim hover:border-retro-cta/40',
+                ? 'border-retro-cta bg-retro-tint-cta text-retro-cta'
+                : 'border-retro-border text-retro-dim hover:border-retro-cta/40',
               (!canEdit || busy) && 'opacity-60 cursor-not-allowed',
             )}
           >
@@ -49,9 +51,6 @@ export default function TimerScalePicker({ gameId, game, canEdit }) {
           </button>
         ))}
       </div>
-      {!canEdit && (
-        <p className="font-pixel text-[8px] text-retro-dim/70">HOST PICKS THE TIMERS</p>
-      )}
     </div>
   )
 }

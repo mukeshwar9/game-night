@@ -30,19 +30,31 @@ export default function ChimpBoard({
   const startRef = useRef(null)
   const [numbersExpired, setNumbersExpired] = useState(false)
   const [msLeft, setMsLeft] = useState(windowMs)
+  // Duels stamp the round start a few seconds ahead (LEVEL_COUNTDOWN_MS) so both
+  // players count down together; until then the board shows a countdown, not numbers.
+  const [leadMs, setLeadMs] = useState(0)
 
   useEffect(() => {
     startRef.current = roundStartedAt ?? serverNow()
     const remaining = windowMs - (serverNow() - startRef.current)
-    const reset = setTimeout(() => { setNumbersExpired(remaining <= 0); setMsLeft(Math.max(0, remaining)) }, 0)
+    const reset = setTimeout(() => {
+      setNumbersExpired(remaining <= 0)
+      setMsLeft(Math.max(0, Math.min(windowMs, remaining)))
+      setLeadMs(Math.max(0, startRef.current - serverNow()))
+    }, 0)
     const timer = remaining > 0 ? setTimeout(() => setNumbersExpired(true), remaining) : null
-    const tick = setInterval(() => setMsLeft(Math.max(0, windowMs - (serverNow() - startRef.current))), 250)
+    const tick = setInterval(() => {
+      const now = serverNow()
+      setLeadMs(Math.max(0, startRef.current - now))
+      setMsLeft(Math.max(0, Math.min(windowMs, windowMs - (now - startRef.current))))
+    }, 100)
     return () => { clearTimeout(reset); clearInterval(tick); if (timer) clearTimeout(timer) }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutSignature is the intentional re-arm trigger (one per round); level is folded into it, roundStartedAt is stable for the round
   }, [layoutSignature, roundStartedAt])
 
-  const showNumbers = reveal || (progress === 0 && !numbersExpired)
-  const memorizing = !reveal && progress === 0 && !numbersExpired
+  const counting = !reveal && leadMs > 0
+  const showNumbers = reveal || (!counting && progress === 0 && !numbersExpired)
+  const memorizing = !reveal && !counting && progress === 0 && !numbersExpired
 
   // cellIndex → 1-based number (only for numbered cells)
   const cellNum = {}
@@ -71,12 +83,18 @@ export default function ChimpBoard({
       {/* Memorize timer: drains while the numbers are showing */}
       <div className="h-1.5 rounded-full bg-retro-card overflow-hidden" aria-hidden="true">
         {memorizing && (
-          <div className="h-full bg-retro-cta transition-[width] duration-200 ease-linear" style={{ width: `${(msLeft / windowMs) * 100}%` }} />
+          <div className="h-full w-full origin-left bg-retro-cta transition-transform duration-200 ease-linear" style={{ transform: `scaleX(${msLeft / windowMs})` }} />
         )}
       </div>
 
       {/* 5×5 grid */}
       <div className="bg-retro-surface border-2 border-retro-border rounded p-2 relative">
+        {counting && (
+          <div className="absolute inset-0 bg-retro-bg/80 flex flex-col items-center justify-center gap-2 rounded z-10" role="status">
+            <p className="font-pixel text-[9px] text-retro-dim tracking-widest">GET READY</p>
+            <p className="font-pixel text-3xl text-retro-cta text-glow-cta">{Math.ceil(leadMs / 1000)}</p>
+          </div>
+        )}
         {/* Waiting overlay when I'm done but opponent isn't */}
         {!reveal && myDone && !opDone && (
           <div className="absolute inset-0 bg-retro-bg/70 flex items-center justify-center rounded z-10">
@@ -93,7 +111,7 @@ export default function ChimpBoard({
             const isMiss = reveal && missCell === i
             // The tile that should have been tapped instead.
             const isExpected = reveal && missCell != null && layout[progress] === i
-            const isClickable = !reveal && !disabled && isNumbered && !isCorrect
+            const isClickable = !reveal && !counting && !disabled && isNumbered && !isCorrect
             const where = `row ${Math.floor(i / SIDE) + 1}, column ${(i % SIDE) + 1}`
             // Never speak a hidden number — that would read the answer out.
             const label = !isNumbered
@@ -113,7 +131,7 @@ export default function ChimpBoard({
                 onClick={() => isClickable && onMove(i)}
                 className={cn(
                   'aspect-square flex items-center justify-center rounded',
-                  'border-2 font-pixel text-base leading-none transition-all duration-100',
+                  'border-2 font-pixel text-base leading-none transition duration-100',
                   isMiss
                     ? 'bg-retro-tint-danger border-retro-danger text-retro-danger pairs-mismatch-shake'
                     : isCorrect
@@ -123,12 +141,12 @@ export default function ChimpBoard({
                             'bg-retro-card border-retro-p1/70 text-retro-p1',
                             reveal && !isExpected && 'opacity-70',
                             isExpected && 'border-retro-cta text-retro-cta shadow-neon-cta',
-                            isClickable && 'hover:shadow-neon-p1 active:scale-90 cursor-pointer',
+                            isClickable && 'hover:shadow-neon-p1 press cursor-pointer',
                           )
                         : isNumbered
                           ? cn(
                               'bg-retro-card border-retro-border',
-                              isClickable && 'hover:bg-retro-surface active:scale-90 cursor-pointer',
+                              isClickable && 'hover:bg-retro-surface press cursor-pointer',
                             )
                           : 'bg-transparent border-retro-border/15 cursor-default',
                 )}
@@ -144,7 +162,7 @@ export default function ChimpBoard({
       <p className="font-pixel text-[9px] text-center" aria-live="polite">
         {reveal ? (
           <span className="text-retro-text">
-            {missCell != null ? `WRONG TILE — NEXT WAS ${progress + 1} (GLOWING)` : 'ROUND OVER'}
+            {missCell != null ? `WRONG TILE — NEXT WAS ${progress + 1} (OUTLINED)` : 'ROUND OVER'}
           </span>
         ) : myDone ? (
           <span className="text-retro-win text-glow-win">

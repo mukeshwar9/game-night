@@ -9,6 +9,7 @@ import {
 } from '../lib/daily'
 import { getCurrentStreak, getBestStreak, getLast7Days } from '../lib/dailyStreakLogic'
 import { shareResult } from '@/lib/shareCard'
+import { shareUrl } from '@/lib/platform'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
@@ -147,7 +148,7 @@ export default function DailyGame() {
       headline: `DAILY #${getDailyNumber(date)} — ${correct} SOLVED`,
       sub: dayStreak >= 2 ? `🔥 ${dayStreak} DAY STREAK` : undefined,
       accentVar: '--c-cta',
-      url: `${window.location.origin}/daily`,
+      url: shareUrl('/daily'),
     })
     if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })
@@ -190,7 +191,7 @@ export default function DailyGame() {
               )}
               <button
                 onClick={start}
-                className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+                className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
               >
                 {playedToday ? 'PLAY AGAIN' : 'START'}
               </button>
@@ -282,7 +283,7 @@ export default function DailyGame() {
             <button
               onClick={shareDaily}
               disabled={sharing}
-              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-50"
             >
               {sharing ? 'BUILDING…' : 'SHARE RESULT'}
             </button>
@@ -296,7 +297,7 @@ export default function DailyGame() {
 
             <button
               onClick={start}
-              className="w-full py-2.5 border border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors active:scale-95"
+              className="w-full py-2.5 border border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] rounded hover:border-retro-p1/50 transition-colors press"
             >
               REPLAY (JUST FOR FUN)
             </button>

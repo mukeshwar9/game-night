@@ -8,12 +8,18 @@ export const ROOM_URL = /\/game\/[A-Z0-9]{6}$/
 export const ERROR_BOUNDARY_TEXT = 'SOMETHING BROKE'
 
 // Opens a fresh player and records uncaught page errors on `player.errors`.
-export async function newPlayer(browser) {
-  const context = await browser.newContext()
+export async function newPlayer(browser, contextOptions = {}) {
+  const context = await browser.newContext(contextOptions)
   const page = await context.newPage()
   const errors = []
+  const cspViolations = []
   page.on('pageerror', (err) => errors.push(err))
-  return { context, page, errors }
+  // Chrome logs a blocked request as a console error; with E2E_CSP=1 the app
+  // runs under the production policy, so any of these is a real regression.
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && /Content Security Policy/i.test(msg.text())) cspViolations.push(msg.text())
+  })
+  return { context, page, errors, cspViolations }
 }
 
 // Onboarding's two steps: NAME (pre-filled with a suggestion) → LOOK → the
@@ -33,9 +39,10 @@ export async function onboard(page, name) {
   await completeOnboarding(page, name, "LET'S PLAY")
 }
 
-// Home → PLAY WITH FRIENDS → game card → INVITE FRIEND. Returns the room URL.
+// GAMES (friend intent) → game card → INVITE FRIEND: a single-game room, the
+// path Home's PLAY WITH FRIENDS used before START A PARTY. Returns the room URL.
 export async function createRoom(page, gameLabel) {
-  await page.getByRole('link', { name: 'PLAY WITH FRIENDS' }).click()
+  await page.goto('/games?intent=friend')
   await expect(page.getByRole('heading', { name: 'CHOOSE YOUR GAME' })).toBeVisible()
   await page.getByRole('button', { name: new RegExp(`^${gameLabel}\\b`) }).first().click()
   const sheet = page.getByRole('dialog', { name: new RegExp(`^${gameLabel}\\b`) })
@@ -53,7 +60,8 @@ export async function joinViaInvite(page, roomUrl, name) {
 }
 
 export function expectNoPageErrors(...players) {
-  for (const { errors } of players) {
+  for (const { errors, cspViolations = [] } of players) {
     expect(errors.map(e => e.message)).toEqual([])
+    expect(cspViolations).toEqual([])
   }
 }

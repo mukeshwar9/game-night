@@ -10,17 +10,19 @@ import RoundTimer from '../components/RoundTimer'
 import WordFeedback from '../components/WordFeedback'
 import { sounds } from '../lib/sounds'
 import { shareResult } from '../lib/shareCard'
+import { shareCurrentUrl } from '../lib/platform'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import useServerClock from '@/hooks/useServerClock'
 import { toast } from 'sonner'
 import { getGameConfig } from '../lib/games'
+import { scrollBehavior } from '../hooks/useMotionPref'
 import {
   MAX_STATEMENT_LENGTH as MAX_LEN, WRITING_DEADLINE_MS, GUESSING_DEADLINE_MS, REVEAL_DEADLINE_MS,
   DEFAULT_MATCH_TARGET, otherSymbol, validateEntry, lieSecret, secretStorageKey, buildStoredSecret,
   parseStoredSecret, normalizeRound, toFirebaseRound, anchorRound, lockEntry, lockGuess, submitReveal,
   canEndWriting, canEndGuessing, canForfeitOpponentReveal, revealKey, verifyRoundReveals,
-  settleRevealedGame, settleStalledGame, advanceGame, autoAdvanceAt,
+  settleRevealedGame, settleStalledGame, advanceGame, autoAdvanceAt, topicForRound, nextStarter,
 } from '../lib/twoTruthsLogic'
 
 const SETTLE_RETRY_MS = 3000
@@ -41,8 +43,9 @@ function secondsLeft(since, deadlineMs, now) {
 }
 
 // --- Writer: three statements, mark the lie ---
-function StatementWriter({ onLock, busy }) {
+function StatementWriter({ onLock, busy, topic }) {
   const [statements, setStatements] = useState(['', '', ''])
+  const [inspireTaps, setInspireTaps] = useState(0)
   const [lieIndex, setLieIndex] = useState(null)
   const [error, setError] = useState('')
   const [errorId, setErrorId] = useState(0)
@@ -59,7 +62,7 @@ function StatementWriter({ onLock, busy }) {
   // under the keyboard fold on short viewports.
   const handleFieldFocus = () => {
     setTimeout(() => {
-      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
     }, 300)
   }
 
@@ -72,8 +75,24 @@ function StatementWriter({ onLock, busy }) {
     if (next) next.focus()
     else {
       e.currentTarget.blur()
-      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      submitRef.current?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
     }
+  }
+
+  // INSPIRE ME: a sentence starter for the round's topic in the first empty
+  // statement, with the caret at its end.
+  const emptyIndex = statements.findIndex(s => !s.trim())
+  const inspire = () => {
+    if (emptyIndex < 0) return
+    const starter = nextStarter(topic, statements, inspireTaps)
+    if (!starter) return
+    setStatement(emptyIndex, starter)
+    setInspireTaps(n => n + 1)
+    const field = fieldRefs.current[emptyIndex]
+    requestAnimationFrame(() => {
+      field?.focus()
+      field?.setSelectionRange(starter.length, starter.length)
+    })
   }
 
   const handleSubmit = () => {
@@ -97,6 +116,24 @@ function StatementWriter({ onLock, busy }) {
           2 truths and 1 lie — then mark the lie
         </p>
       </div>
+
+      {topic && (
+        <div className="flex items-center justify-between gap-3 rounded border-2 border-retro-cta/60 bg-retro-tint-cta px-3 py-2">
+          <div className="min-w-0">
+            <p className="font-pixel text-[8px] text-retro-dim tracking-widest">TOPIC</p>
+            <p className="font-pixel text-[11px] text-retro-cta tracking-wider">{topic.label}</p>
+            <p className="font-mono text-[10px] text-retro-dim">or anything about you</p>
+          </div>
+          <button
+            type="button"
+            onClick={inspire}
+            disabled={emptyIndex < 0}
+            className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] hover:bg-retro-card press disabled:opacity-40"
+          >
+            INSPIRE ME
+          </button>
+        </div>
+      )}
 
       <div className="space-y-3">
         {statements.map((s, i) => {
@@ -127,7 +164,7 @@ function StatementWriter({ onLock, busy }) {
                 onClick={() => { setLieIndex(i); setError('') }}
                 aria-pressed={isLie}
                 className={cn(
-                  'w-full py-1.5 font-pixel text-[9px] rounded border transition-all active:scale-95',
+                  'w-full min-h-11 py-1.5 font-pixel text-[9px] rounded border transition press',
                   isLie
                     ? 'border-retro-p2 text-retro-p2 bg-retro-tint-p2 shadow-neon-p2'
                     : 'border-retro-border text-retro-dim hover:border-retro-p2/50 hover:text-retro-p2',
@@ -148,7 +185,7 @@ function StatementWriter({ onLock, busy }) {
         onClick={handleSubmit}
         disabled={busy}
         className={cn(
-          'w-full py-3 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
+          'w-full py-3 font-pixel text-[10px] rounded border-2 transition press',
           busy
             ? 'border-retro-border text-retro-border cursor-not-allowed'
             : 'border-retro-p1 text-retro-p1 hover:shadow-neon-p1 hover:bg-retro-tint-p1',
@@ -177,9 +214,9 @@ function StatementList({ statements, lieIndex = null, picked = null, pickedLabel
             disabled={!canPick}
             aria-pressed={canPick ? isPicked : undefined}
             className={cn(
-              'w-full min-h-11 text-left rounded border-2 px-3 py-3 transition-all',
+              'w-full min-h-11 text-left rounded border-2 px-3 py-3 transition',
               'font-mono text-xs leading-relaxed flex items-start gap-2',
-              canPick && 'hover:border-retro-p2 hover:bg-retro-tint-p2 active:scale-[0.99] cursor-pointer',
+              canPick && 'hover:border-retro-p2 hover:bg-retro-tint-p2 press-card cursor-pointer',
               isTheLie
                 ? 'border-retro-p2 bg-retro-tint-p2 text-retro-p2'
                 : isTruth
@@ -229,7 +266,7 @@ function GuessPicker({ statements, oppName, onLock, busy }) {
         onClick={() => selected != null && onLock(selected)}
         disabled={selected == null || busy}
         className={cn(
-          'w-full py-3 font-pixel text-[10px] rounded border-2 transition-all active:scale-95',
+          'w-full py-3 font-pixel text-[10px] rounded border-2 transition press',
           selected == null || busy
             ? 'border-retro-border text-retro-border cursor-not-allowed'
             : 'border-retro-cta text-retro-cta hover:shadow-neon-cta hover:bg-retro-tint-cta',
@@ -247,7 +284,7 @@ function EndRoundButton({ onClick, busy, label }) {
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+      className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
     >
       {busy ? 'ENDING…' : label}
     </button>
@@ -538,7 +575,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
               <button
                 type="button"
                 onClick={onNewMatch}
-                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+                className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
               >
                 NEW MATCH
               </button>
@@ -551,12 +588,12 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
                   headline,
                   sub: `${scoreX} – ${scoreO}`,
                   accentVar: '--c-cta',
-                  url: window.location.href,
+                  url: shareCurrentUrl(),
                 })
                 if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
               }, () => toast.error("COULDN'T SHARE — TRY AGAIN"))}
               disabled={sharing}
-              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition-all active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 min-w-[6.5rem] font-pixel text-xs border-2 border-retro-border text-retro-dim rounded hover:border-retro-cta hover:text-retro-cta transition press disabled:opacity-50"
             >
               {sharing ? 'BUILDING…' : 'SHARE'}
             </button>
@@ -580,7 +617,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
         <div className="space-y-4">
           {header}
           {timeLine('WRITING TIME')}
-          <StatementWriter key={`write-${roundNum}`} onLock={handleLock} busy={locking} />
+          <StatementWriter key={`write-${roundNum}`} onLock={handleLock} busy={locking} topic={topicForRound(gameId, roundNum)} />
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {entries[opp] ? `${nameOf(opp)} HAS LOCKED IN ✓` : `${nameOf(opp)} IS WRITING…`}
           </p>
@@ -713,7 +750,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
                 type="button"
                 onClick={handleConcedeReveal}
                 disabled={conceding}
-                className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+                className="px-5 py-2 font-pixel text-[10px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
               >
                 {conceding ? 'CONCEDING…' : 'CONCEDE REVEAL'}
               </button>
@@ -744,7 +781,7 @@ export default function TwoTruthsGame({ gameId, game, mySymbol, opponentOnline, 
             type="button"
             onClick={handleNextRound}
             disabled={advancing}
-            className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95 disabled:opacity-50"
+            className="mt-2 px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press disabled:opacity-50"
           >
             {advancing ? 'STARTING…' : 'NEXT ROUND'}
           </button>

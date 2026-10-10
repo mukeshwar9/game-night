@@ -3,9 +3,13 @@ import { cn } from '@/lib/utils'
 import GameSwitcher from './GameSwitcher'
 import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
+import { shareCurrentUrl } from '@/lib/platform'
 import { suggestGames } from '@/lib/gameSuggestions'
 import useBusy from '@/hooks/useBusy'
-import { getHeadToHead, formatHeadToHeadLabel } from '@/lib/profile'
+import { getHeadToHead } from '@/lib/profile'
+import { resultMood, seriesFor } from '@/lib/resultMoodLogic'
+import { coPlayerUid } from '@/lib/addFriendLogic'
+import AddFriendButton from './AddFriendButton'
 import { toast } from 'sonner'
 
 const MATCH_WINS = 3
@@ -20,7 +24,7 @@ function RetroButton({ onClick, children, busy, busyLabel, locked }) {
       disabled={busy || locked}
       className={cn(
         'min-h-11 px-6 py-3 bg-retro-cta text-retro-bg font-pixel text-xs',
-        'rounded transition-all active:scale-95 disabled:opacity-50',
+        'rounded transition press disabled:opacity-50',
         !locked && 'hover:shadow-neon-cta',
       )}
     >
@@ -36,7 +40,7 @@ function ShareButton({ onClick, busy, busyLabel = 'BUILDING…', locked }) {
       disabled={busy || locked}
       className={cn(
         'min-h-11 px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs',
-        'rounded transition-all active:scale-95 disabled:opacity-50',
+        'rounded transition press disabled:opacity-50',
         !locked && 'hover:border-retro-p1/50 hover:text-retro-p1',
       )}
     >
@@ -49,18 +53,48 @@ function ShareButton({ onClick, busy, busyLabel = 'BUILDING…', locked }) {
 // sticky bottom bar independent of board height, so they're always reachable
 // without scrolling. Game.jsx adds matching bottom padding to the page.
 function StickyActionBar({ children }) {
+  // The bar is fixed, so it covers the bottom of the page. The in-flow spacer
+  // reserves its height (solo and pass & play pages have no matching page
+  // padding), and scrolling it into view keeps the result line above the bar.
+  const spacerRef = useRef(null)
+  useEffect(() => {
+    spacerRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [])
   return (
-    <div
-      className="fixed bottom-0 inset-x-0 z-40 flex justify-center gap-2 flex-wrap
-        bg-retro-bg/95 border-t border-retro-border backdrop-blur-sm
-        px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-    >
-      {children}
-    </div>
+    <>
+      <div ref={spacerRef} aria-hidden="true" className="h-[calc(4.5rem+env(safe-area-inset-bottom))]" />
+      <div
+        className="glass glass-tx fixed bottom-0 inset-x-0 z-40 flex justify-center gap-2 flex-wrap
+          bg-retro-bg/95 border-t border-retro-border backdrop-blur-sm
+          px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
+        {children}
+      </div>
+    </>
   )
 }
 
-export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, matchTarget = MATCH_WINS, matchOver = false, matchWinnerOverride = null }) {
+// One-tap sportsmanship on the result screen: sends a reaction through the
+// room's emote channel (it floats on the other player's screen).
+function GGButton({ onClick, busy, sent, locked }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={busy || sent || locked}
+      aria-label={sent ? 'Good game sent' : 'Send good game'}
+      className={cn(
+        'min-h-11 px-4 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs',
+        'rounded transition press disabled:opacity-50',
+        !sent && !locked && 'hover:border-retro-win/60 hover:text-retro-win',
+        sent && 'text-retro-win border-retro-win/50',
+      )}
+    >
+      {sent ? 'GG SENT' : busy ? 'SENDING…' : '🤝 GG'}
+    </button>
+  )
+}
+
+export default function GameStatus({ status, winner, currentTurn, mySymbol, scores, players, gameType, extraTurn, passNote, onPlayAgain, onNewMatch, onSwitchGame, onGG = null, gameId = null, margin = null, matchTarget = MATCH_WINS, matchOver = false, matchWinnerOverride = null }) {
   const scoreX = scores?.X || 0
   const scoreO = scores?.O || 0
   const targetWinner = scoreX >= matchTarget ? 'X' : scoreO >= matchTarget ? 'O' : null
@@ -70,13 +104,22 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
   const opponentUid = mySymbol && players?.[mySymbol === 'X' ? 'O' : 'X']?.playerId || null
   const headToHead = getHeadToHead(opponentUid)
 
-  const renderHeadToHead = () => {
-    if (!headToHead) return null
+  // The series score is shown to both players on every result: the head-to-
+  // head record once a match is decided, the room's round wins until then.
+  const renderSeries = (isMatchOver) => {
+    const line = seriesFor({ mySymbol, scores, headToHead, matchOver: isMatchOver })
+    if (!line) return null
     return (
-      <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
-        {formatHeadToHeadLabel(headToHead.myWins, headToHead.theirWins)}
+      <p data-testid="series-line" className="font-pixel text-[9px] text-retro-dim tracking-widest">
+        {line}
       </p>
     )
+  }
+
+  // "+ ADD AS FRIEND" for the other seat of a room, on a decided round or match.
+  const renderAddFriend = () => {
+    const other = gameId ? coPlayerUid(players, mySymbol) : null
+    return other ? <AddFriendButton otherUid={other} gameId={gameId} /> : null
   }
 
   const [startBusy, runStart] = useBusy()
@@ -100,14 +143,26 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     return () => clearTimeout(t)
   }, [ctaLocked])
 
+  const [ggBusy, runGG] = useBusy()
+  const [ggSentFor, setGgSentFor] = useState(null)
+  const ggSent = !!finishSignature && ggSentFor === finishSignature
+  const sendGG = () => runGG(async () => {
+    const ok = await onGG()
+    if (ok !== false) setGgSentFor(finishSignature)
+  }, () => toast.error("COULDN'T SEND — CHECK CONNECTION"))
+  const renderGG = () => (onGG && mySymbol
+    ? <GGButton onClick={sendGG} busy={ggBusy} sent={ggSent} locked={ctaLocked} />
+    : null)
+
   const startAgain = (fn) => runStart(fn, () => toast.error("COULDN'T START — CHECK CONNECTION"))
 
   const shareScore = (headline, accentVar) => shareResult({
     gameLabel: getGameConfig(gameType)?.label || 'GAME NIGHT',
     headline,
-    sub: `${scoreX} – ${scoreO}`,
+    // A vs-CPU round has no match score to show (BotBoardDemo passes no `scores`).
+    sub: scores ? `${scoreX} – ${scoreO}` : undefined,
     accentVar,
-    url: window.location.href,
+    url: shareCurrentUrl(),
   })
 
   const share = (headline, accentVar) => runShare(async () => {
@@ -122,8 +177,9 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     if (!onSwitchGame) return null
     const suggestions = suggestGames(gameType)
     return (
+      // One row: three suggestions, then the full switcher — no caption;
+      // the chips say what they do.
       <div className="space-y-2">
-        <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAY SOMETHING ELSE</p>
         <div className="flex flex-wrap items-center justify-center gap-2 [&>div]:mt-0 [&>div>button]:min-h-11">
           {suggestions.map(g => {
             const Icon = g.Icon
@@ -132,7 +188,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
                 key={g.type}
                 onClick={() => onSwitchGame(g.type)}
                 className="min-h-11 flex items-center gap-1.5 px-3 py-2 border border-retro-border rounded
-                  text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition-all active:scale-95"
+                  text-retro-dim hover:border-retro-cta/50 hover:text-retro-text transition press"
               >
                 <div className="w-4 h-4 flex items-center justify-center shrink-0">
                   {Icon && <Icon />}
@@ -161,15 +217,15 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
           <p
             key={`out-${scoreX}-${scoreO}`}
             className={cn(
-              'font-pixel text-base',
+              'modal-pop font-pixel text-base',
               isMatchDraw ? 'text-retro-text' : iWon ? 'text-retro-cta text-glow-cta' : 'text-retro-dim',
             )}
-            style={{ animation: 'modal-pop 0.28s ease-out both' }}
           >
             {isMatchDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : `${winnerName} WINS`}
           </p>
           <p className="font-mono text-sm text-retro-dim">{scoreX} – {scoreO}</p>
-          {renderHeadToHead()}
+          {renderSeries(true)}
+          {renderAddFriend()}
         </div>
         {renderPlayElse()}
         <StickyActionBar>
@@ -183,6 +239,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
               NEW MATCH
             </RetroButton>
           )}
+          {renderGG()}
           <ShareButton
             onClick={() => share(isMatchDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : `${winnerName} WINS`, matchWinner === 'X' ? '--c-p1' : matchWinner === 'O' ? '--c-p2' : '--c-cta')}
             busy={shareBusy}
@@ -196,31 +253,44 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
   if (status === 'finished') {
     const isDraw = winner === 'draw'
     const iWon = winner === mySymbol
+    const winnerLabel = (players?.[winner]?.name || winner || '').toUpperCase()
+    const mood = resultMood({ winner, mySymbol, margin, headToHead })
     return (
       <div className="text-center space-y-4">
         <p
           key={`out-${scoreX}-${scoreO}`}
           className={cn(
-            'font-pixel text-base',
+            'modal-pop font-pixel text-base',
             isDraw
               ? 'text-retro-text'
               : iWon
                 ? 'text-retro-cta text-glow-cta'
-                : winner === 'X' ? 'text-retro-p1' : 'text-retro-p2',
+                : mood.headline ? 'text-retro-text'
+                  : winner === 'X' ? 'text-retro-p1' : 'text-retro-p2',
           )}
-          style={{ animation: 'modal-pop 0.28s ease-out both' }}
         >
           {/* Order & Chaos: both players place both letters, so "X WINS" reads
               as "the X letters won" — name the role instead of the seat.
-              Everyone else sees the winner's name, never a bare "GAME OVER". */}
+              Everyone else sees the winner's name, never a bare "GAME OVER".
+              A loser whose game can say how close it was gets that instead
+              (resultMoodLogic.js); no known margin keeps this copy. */}
           {isDraw ? 'DRAW!' : iWon ? 'YOU WIN!'
-            : gameType === 'orderchaos' ? (winner === 'X' ? 'ORDER WINS!' : 'CHAOS WINS!')
-              : `${(players?.[winner]?.name || winner).toUpperCase()} WINS!`}
+            : mood.headline ? mood.headline
+              : gameType === 'orderchaos' ? (winner === 'X' ? 'ORDER WINS!' : 'CHAOS WINS!')
+                : `${winnerLabel} WINS!`}
         </p>
         {!isDraw && !iWon && mySymbol && (
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest -mt-2">YOU LOSE THIS ROUND · {scoreX}–{scoreO}</p>
+          <p className="font-pixel text-[9px] text-retro-dim tracking-widest -mt-2">
+            {mood.headline
+              ? `${gameType === 'orderchaos' ? (winner === 'X' ? 'ORDER' : 'CHAOS') : winnerLabel} WINS THIS ROUND${scores ? ` · ${scoreX}–${scoreO}` : ''}`
+              : `YOU LOSE THIS ROUND${scores ? ` · ${scoreX}–${scoreO}` : ''}`}
+          </p>
         )}
-        {renderHeadToHead()}
+        {mood.positive && (
+          <p data-testid="result-positive" className="font-mono text-xs text-retro-dim">{mood.positive}</p>
+        )}
+        {renderSeries(false)}
+        {renderAddFriend()}
         {renderPlayElse()}
         <StickyActionBar>
           {onPlayAgain && (
@@ -233,6 +303,7 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
               PLAY AGAIN
             </RetroButton>
           )}
+          {renderGG()}
           <ShareButton
             onClick={() => share(
               isDraw ? 'DRAW!' : iWon ? 'YOU WIN!' : `${players?.[winner]?.name || winner} WINS`,
@@ -274,8 +345,8 @@ export default function GameStatus({ status, winner, currentTurn, mySymbol, scor
     const mine = mySymbol != null && currentTurn === mySymbol
     return (
       <p className="text-center">
-        <span className={cn(
-          'turn-pill inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-pixel text-[10px] tracking-wider',
+        <span data-lens className={cn(
+          'glass glass-tx turn-pill inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 font-pixel text-[10px] tracking-wider',
           mine ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border bg-retro-card text-retro-text',
         )}>
           <span aria-hidden="true" className={cn('turn-pill-dot h-2 w-2 rounded-full', currentTurn === 'X' ? 'bg-retro-p1' : 'bg-retro-p2')} />

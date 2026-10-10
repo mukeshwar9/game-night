@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   activePartySeats, applyPartyJoin, ghostsToSweep, inviteSeatsLine, inviteSummary, isMyTurn, openSeat, partyJoinPlan,
-  pickRoomHost, roomAnnouncement, seatedIds, spectatorCount,
+  pickRoomHost, roomAnnouncement, seatedIds, spectatorCount, waitingForLabel,
 } from './roomLogic'
 
 const NOW = 10_000_000
@@ -172,6 +172,13 @@ describe('roomAnnouncement', () => {
     expect(roomAnnouncement({ status: 'playing', currentTurn: 'O', players }, { me: null })).toBe('Bo to move.')
   })
 
+  it('speaks of a partner in co-op rooms', () => {
+    expect(roomAnnouncement({ status: 'playing', currentTurn: 'O', players }, { me: 'X', coop: true })).toBe("Waiting for your partner's move.")
+    expect(roomAnnouncement({ status: 'finished', winner: 'draw', players }, { me: 'X', coop: true })).toBe('Your team finished the match.')
+    expect(waitingForLabel(true)).toBe('WAITING FOR PARTNER')
+    expect(waitingForLabel(false)).toBe('WAITING FOR OPPONENT')
+  })
+
   it('speaks the result', () => {
     expect(roomAnnouncement({ status: 'finished', winner: 'X', players }, { me: 'X' })).toBe('You won.')
     expect(roomAnnouncement({ status: 'finished', winner: 'X', players }, { me: 'O' })).toBe('Ann won.')
@@ -184,8 +191,10 @@ describe('roomAnnouncement', () => {
       roomAnnouncement({ status: 'playing', currentTurn: 'O', players }, { me: 'X' }),
       roomAnnouncement({ status: 'finished', winner: 'X', players }, { me: 'X' }),
       roomAnnouncement({ status: 'finished', winner: 'draw', players }, { me: 'X' }),
+      roomAnnouncement({ status: 'finished', winner: 'draw', players }, { me: 'X', coop: true }),
+      roomAnnouncement({ status: 'playing', currentTurn: 'O', players }, { me: 'X', coop: true }),
     ].map(l => l.toUpperCase())
-    for (const label of ['YOUR TURN', "OPPONENT'S TURN", 'YOU WIN!', 'DRAW!', 'GAME OVER', 'WAITING FOR OPPONENT']) {
+    for (const label of ['YOUR TURN', "OPPONENT'S TURN", 'YOU WIN!', 'DRAW!', 'GAME OVER', 'MATCH OVER', 'WAITING FOR OPPONENT', 'WAITING FOR PARTNER']) {
       for (const line of lines) expect(line.includes(label)).toBe(false)
     }
   })

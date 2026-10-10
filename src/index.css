@@ -2,6 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Motion tokens (lib/motion.js, .claude/rules/motion-rules.md). Durations and
+   Material 3 curves for plain transitions; springs sampled into linear() for
+   CSS (motion.test.js keeps them equal to the presets in motion.js). Press
+   release and page springs follow the platform: iOS and Android inside the
+   Capacitor shell (data-native), the web otherwise. */
+:root {
+  --dur-press: 80ms;
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-page: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --spring-ui: linear(0, 0.075, 0.225, 0.381, 0.535, 0.664, 0.765, 0.837, 0.893, 0.932, 0.958, 0.975, 0.986, 0.993, 0.997, 0.999, 1);
+  --spring-ui-dur: 250ms;
+  --spring-pop: linear(0, 0.169, 0.506, 0.809, 1.012, 1.108, 1.122, 1.092, 1.051, 1.016, 0.994, 0.985, 0.986, 0.99, 0.995, 0.999, 1);
+  --spring-pop-dur: 470ms;
+  --spring-press: linear(0, 0.109, 0.326, 0.555, 0.757, 0.893, 0.979, 1.024, 1.041, 1.042, 1.035, 1.025, 1.015, 1.008, 1.003, 1, 1);
+  --spring-press-dur: 270ms;
+  --spring-page: linear(0, 0.097, 0.275, 0.455, 0.611, 0.726, 0.811, 0.871, 0.913, 0.942, 0.962, 0.975, 0.984, 0.989, 0.993, 0.995, 1);
+  --spring-page-dur: 420ms;
+}
+[data-native="ios"] {
+  --spring-press: linear(0, 0.173, 0.48, 0.775, 0.973, 1.067, 1.092, 1.076, 1.047, 1.021, 1.002, 0.994, 0.992, 0.993, 0.996, 0.998, 1);
+  --spring-press-dur: 400ms;
+  --spring-page: linear(0, 0.086, 0.252, 0.419, 0.569, 0.688, 0.779, 0.844, 0.892, 0.926, 0.95, 0.966, 0.977, 0.985, 0.99, 0.993, 1);
+  --spring-page-dur: 600ms;
+}
+[data-native="android"] {
+  --spring-press: linear(0, 0.085, 0.234, 0.41, 0.556, 0.687, 0.78, 0.855, 0.904, 0.941, 0.964, 0.98, 0.989, 0.995, 0.998, 1, 1);
+  --spring-press-dur: 180ms;
+  --spring-page: linear(0, 0.075, 0.225, 0.381, 0.535, 0.664, 0.765, 0.837, 0.893, 0.932, 0.958, 0.975, 0.986, 0.993, 0.997, 0.999, 1);
+  --spring-page-dur: 250ms;
+}
+
+/* Phone type floor: the 7-9px pixel-font sizes sprinkled through the UI (turn
+   pills, timers, score labels, hints) are below the ~11pt reading guidance on
+   a handheld. On phones everything read during play is at least 10px; desktop
+   keeps the denser sizes. Declared after the utilities so it wins at equal
+   specificity. */
+@media (max-width: 640px) {
+  .text-\[7px\],
+  .text-\[8px\],
+  .text-\[9px\] {
+    font-size: 10px;
+  }
+}
+
 /* Portrait 9:16 video-call space shares the reaction row without changing game layout. */
 .video-call-reaction-dock {
   display: grid;
@@ -43,7 +91,6 @@
     margin: -.25rem;
   }
   .game-header-meta { display: none; }
-  .game-room-meta { display: block !important; }
 
     .video-call-reaction-dock {
       display: block;
@@ -123,15 +170,15 @@
   font-display: swap;
   src: url('/fonts/press-start-2p-latin.woff2') format('woff2');
 }
-@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/silkscreen-regular.ttf') format('truetype'); size-adjust: 140%; }
-@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/silkscreen-bold.ttf') format('truetype'); size-adjust: 140%; }
-@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/pixelify-sans-regular.ttf') format('truetype'); size-adjust: 139%; }
-@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/pixelify-sans-bold.ttf') format('truetype'); size-adjust: 137%; }
-@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/vt323.ttf') format('truetype'); size-adjust: 156%; }
-@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/share-tech-mono.ttf') format('truetype'); size-adjust: 125%; }
-@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.ttf') format('truetype'); size-adjust: 127%; }
-@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.ttf') format('truetype'); size-adjust: 127%; }
-@font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.ttf') format('truetype'); size-adjust: 125%; }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/silkscreen-regular.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Silkscreen'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/silkscreen-bold.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/pixelify-sans-regular.woff2') format('woff2'); size-adjust: 139%; }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/pixelify-sans-bold.woff2') format('woff2'); size-adjust: 137%; }
+@font-face { font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/vt323.woff2') format('woff2'); size-adjust: 156%; }
+@font-face { font-family: 'Share Tech Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/share-tech-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/oxanium-regular.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Oxanium'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/oxanium-bold.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Audiowide'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/audiowide-latin.woff2') format('woff2'); size-adjust: 125%; }
 @font-face { font-family: 'Fredoka'; font-style: normal; font-weight: 300 700; font-display: swap; src: url('/fonts/fredoka-latin.woff2') format('woff2'); size-adjust: 127%; }
 @font-face { font-family: 'Russo One'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/russo-one-latin.woff2') format('woff2'); size-adjust: 125%; }
 @font-face { font-family: 'Patrick Hand'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/patrick-hand-latin.woff2') format('woff2'); size-adjust: 132%; }
@@ -139,6 +186,76 @@
 @font-face { font-family: 'Tilt Neon'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-neon-latin.woff2') format('woff2'); size-adjust: 126%; }
 
 :root { --font-pixel: 'Press Start 2P'; }
+@font-face { font-family: 'Tiny5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tiny5.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Micro 5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/micro5.woff2') format('woff2'); size-adjust: 192%; }
+@font-face { font-family: 'Handjet'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/handjet.woff2') format('woff2'); size-adjust: 135%; }
+@font-face { font-family: 'DotGothic16'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/dotgothic16.woff2') format('woff2'); size-adjust: 111%; }
+@font-face { font-family: 'Sixtyfour'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Sixtyfour Convergence'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour-convergence.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Workbench'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/workbench.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Jersey 15'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jersey15.woff2') format('woff2'); size-adjust: 158%; }
+@font-face { font-family: 'Bytesized'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bytesized.woff2') format('woff2'); size-adjust: 233%; }
+@font-face { font-family: 'Doto'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/doto.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Nabla'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/nabla.woff2') format('woff2'); size-adjust: 95%; }
+@font-face { font-family: 'Bungee'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Spice'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-spice.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Shade'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-shade.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Monoton'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/monoton.woff2') format('woff2'); size-adjust: 108%; }
+@font-face { font-family: 'Tilt Warp'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-warp.woff2') format('woff2'); size-adjust: 129%; }
+@font-face { font-family: 'Tilt Neon VF'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-neon-v.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Bitcount Prop Double'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/bitcount-prop-double.woff2') format('woff2'); size-adjust: 146%; }
+@font-face { font-family: 'Jacquard 12'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jacquard12.woff2') format('woff2'); size-adjust: 153%; }
+@font-face { font-family: 'Coral Pixels'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/coral-pixels.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Big Shoulders Display'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/big-shoulders.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/chakra-petch.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Orbitron'; font-style: normal; font-weight: 400 900; font-display: swap; src: url('/fonts/orbitron.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Pixelify Sans VF'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/pixelify-v.woff2') format('woff2'); size-adjust: 139%; }
+@font-face { font-family: 'Departure Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/departure-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Atkinson Hyperlegible Mono'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-mono.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'Atkinson Hyperlegible Next'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-next.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/jetbrains-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Space Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/space-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/geist-mono.woff2') format('woff2'); size-adjust: 123%; }
+@font-face { font-family: 'Martian Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/martian-mono.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Kode Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/kode-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Lexend'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/lexend.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Sometype Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/sometype-mono.woff2') format('woff2'); size-adjust: 135%; }
+@font-face { font-family: 'Tiny5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tiny5.woff2') format('woff2'); size-adjust: 140%; }
+@font-face { font-family: 'Micro 5'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/micro5.woff2') format('woff2'); size-adjust: 192%; }
+@font-face { font-family: 'Handjet'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/handjet.woff2') format('woff2'); size-adjust: 135%; }
+@font-face { font-family: 'DotGothic16'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/dotgothic16.woff2') format('woff2'); size-adjust: 111%; }
+@font-face { font-family: 'Sixtyfour'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Sixtyfour Convergence'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/sixtyfour-convergence.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Workbench'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/workbench.woff2') format('woff2'); size-adjust: 102%; }
+@font-face { font-family: 'Jersey 15'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jersey15.woff2') format('woff2'); size-adjust: 158%; }
+@font-face { font-family: 'Bytesized'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bytesized.woff2') format('woff2'); size-adjust: 233%; }
+@font-face { font-family: 'Doto'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/doto.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Nabla'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/nabla.woff2') format('woff2'); size-adjust: 95%; }
+@font-face { font-family: 'Bungee'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Spice'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-spice.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Bungee Shade'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/bungee-shade.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Monoton'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/monoton.woff2') format('woff2'); size-adjust: 108%; }
+@font-face { font-family: 'Tilt Warp'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-warp.woff2') format('woff2'); size-adjust: 129%; }
+@font-face { font-family: 'Tilt Neon VF'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/tilt-neon-v.woff2') format('woff2'); size-adjust: 127%; }
+@font-face { font-family: 'Bitcount Prop Double'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/bitcount-prop-double.woff2') format('woff2'); size-adjust: 146%; }
+@font-face { font-family: 'Jacquard 12'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/jacquard12.woff2') format('woff2'); size-adjust: 153%; }
+@font-face { font-family: 'Coral Pixels'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/coral-pixels.woff2') format('woff2'); size-adjust: 126%; }
+@font-face { font-family: 'Big Shoulders Display'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/big-shoulders.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/chakra-petch.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Orbitron'; font-style: normal; font-weight: 400 900; font-display: swap; src: url('/fonts/orbitron.woff2') format('woff2'); size-adjust: 122%; }
+@font-face { font-family: 'Pixelify Sans VF'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/pixelify-v.woff2') format('woff2'); size-adjust: 139%; }
+@font-face { font-family: 'Departure Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/departure-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'Atkinson Hyperlegible Mono'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-mono.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'Atkinson Hyperlegible Next'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/atkinson-next.woff2') format('woff2'); size-adjust: 131%; }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/jetbrains-mono.woff2') format('woff2'); size-adjust: 120%; }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/ibm-plex-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Space Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/space-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/geist-mono.woff2') format('woff2'); size-adjust: 123%; }
+@font-face { font-family: 'Martian Mono'; font-style: normal; font-weight: 100 800; font-display: swap; src: url('/fonts/martian-mono.woff2') format('woff2'); size-adjust: 109%; }
+@font-face { font-family: 'Kode Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/kode-mono.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Lexend'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/lexend.woff2') format('woff2'); size-adjust: 125%; }
+@font-face { font-family: 'Sometype Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/sometype-mono.woff2') format('woff2'); size-adjust: 135%; }
 [data-font='silkscreen'] { --font-pixel: 'Silkscreen'; }
 [data-font='pixelify'] { --font-pixel: 'Pixelify Sans'; }
 [data-font='vt323'] { --font-pixel: 'VT323'; }
@@ -150,6 +267,76 @@
 [data-font='patrick-hand'] { --font-pixel: 'Patrick Hand'; }
 [data-font='jersey'] { --font-pixel: 'Jersey 10'; }
 [data-font='tilt-neon'] { --font-pixel: 'Tilt Neon'; }
+[data-font='tiny5'] { --font-pixel: 'Tiny5'; }
+[data-font='micro5'] { --font-pixel: 'Micro 5'; }
+[data-font='handjet'] { --font-pixel: 'Handjet'; }
+[data-font='dotgothic'] { --font-pixel: 'DotGothic16'; }
+[data-font='sixtyfour'] { --font-pixel: 'Sixtyfour'; }
+[data-font='sixtyfour-c'] { --font-pixel: 'Sixtyfour Convergence'; }
+[data-font='workbench'] { --font-pixel: 'Workbench'; }
+[data-font='jersey15'] { --font-pixel: 'Jersey 15'; }
+[data-font='bytesized'] { --font-pixel: 'Bytesized'; }
+[data-font='doto'] { --font-pixel: 'Doto'; }
+[data-font='nabla'] { --font-pixel: 'Nabla'; }
+[data-font='bungee'] { --font-pixel: 'Bungee'; }
+[data-font='bungee-spice'] { --font-pixel: 'Bungee Spice'; }
+[data-font='bungee-shade'] { --font-pixel: 'Bungee Shade'; }
+[data-font='monoton'] { --font-pixel: 'Monoton'; }
+[data-font='tilt-warp'] { --font-pixel: 'Tilt Warp'; }
+[data-font='tilt-neon-v'] { --font-pixel: 'Tilt Neon VF'; }
+[data-font='bitcount'] { --font-pixel: 'Bitcount Prop Double'; }
+[data-font='jacquard12'] { --font-pixel: 'Jacquard 12'; }
+[data-font='coral-pixels'] { --font-pixel: 'Coral Pixels'; }
+[data-font='big-shoulders'] { --font-pixel: 'Big Shoulders Display'; }
+[data-font='chakra-petch'] { --font-pixel: 'Chakra Petch'; }
+[data-font='orbitron'] { --font-pixel: 'Orbitron'; }
+[data-font='pixelify-v'] { --font-pixel: 'Pixelify Sans VF'; }
+[data-font='departure'] { --font-pixel: 'Departure Mono'; }
+[data-font='atkinson-mono'] { --font-pixel: 'Atkinson Hyperlegible Mono'; }
+[data-font='atkinson-next'] { --font-pixel: 'Atkinson Hyperlegible Next'; }
+[data-font='jetbrains'] { --font-pixel: 'JetBrains Mono'; }
+[data-font='plex-mono'] { --font-pixel: 'IBM Plex Mono'; }
+[data-font='space-mono'] { --font-pixel: 'Space Mono'; }
+[data-font='geist-mono'] { --font-pixel: 'Geist Mono'; }
+[data-font='martian'] { --font-pixel: 'Martian Mono'; }
+[data-font='kode'] { --font-pixel: 'Kode Mono'; }
+[data-font='lexend'] { --font-pixel: 'Lexend'; }
+[data-font='sometype'] { --font-pixel: 'Sometype Mono'; }
+[data-font='tiny5'] { --font-pixel: 'Tiny5'; }
+[data-font='micro5'] { --font-pixel: 'Micro 5'; }
+[data-font='handjet'] { --font-pixel: 'Handjet'; }
+[data-font='dotgothic'] { --font-pixel: 'DotGothic16'; }
+[data-font='sixtyfour'] { --font-pixel: 'Sixtyfour'; }
+[data-font='sixtyfour-c'] { --font-pixel: 'Sixtyfour Convergence'; }
+[data-font='workbench'] { --font-pixel: 'Workbench'; }
+[data-font='jersey15'] { --font-pixel: 'Jersey 15'; }
+[data-font='bytesized'] { --font-pixel: 'Bytesized'; }
+[data-font='doto'] { --font-pixel: 'Doto'; }
+[data-font='nabla'] { --font-pixel: 'Nabla'; }
+[data-font='bungee'] { --font-pixel: 'Bungee'; }
+[data-font='bungee-spice'] { --font-pixel: 'Bungee Spice'; }
+[data-font='bungee-shade'] { --font-pixel: 'Bungee Shade'; }
+[data-font='monoton'] { --font-pixel: 'Monoton'; }
+[data-font='tilt-warp'] { --font-pixel: 'Tilt Warp'; }
+[data-font='tilt-neon-v'] { --font-pixel: 'Tilt Neon VF'; }
+[data-font='bitcount'] { --font-pixel: 'Bitcount Prop Double'; }
+[data-font='jacquard12'] { --font-pixel: 'Jacquard 12'; }
+[data-font='coral-pixels'] { --font-pixel: 'Coral Pixels'; }
+[data-font='big-shoulders'] { --font-pixel: 'Big Shoulders Display'; }
+[data-font='chakra-petch'] { --font-pixel: 'Chakra Petch'; }
+[data-font='orbitron'] { --font-pixel: 'Orbitron'; }
+[data-font='pixelify-v'] { --font-pixel: 'Pixelify Sans VF'; }
+[data-font='departure'] { --font-pixel: 'Departure Mono'; }
+[data-font='atkinson-mono'] { --font-pixel: 'Atkinson Hyperlegible Mono'; }
+[data-font='atkinson-next'] { --font-pixel: 'Atkinson Hyperlegible Next'; }
+[data-font='jetbrains'] { --font-pixel: 'JetBrains Mono'; }
+[data-font='plex-mono'] { --font-pixel: 'IBM Plex Mono'; }
+[data-font='space-mono'] { --font-pixel: 'Space Mono'; }
+[data-font='geist-mono'] { --font-pixel: 'Geist Mono'; }
+[data-font='martian'] { --font-pixel: 'Martian Mono'; }
+[data-font='kode'] { --font-pixel: 'Kode Mono'; }
+[data-font='lexend'] { --font-pixel: 'Lexend'; }
+[data-font='sometype'] { --font-pixel: 'Sometype Mono'; }
 
 /* shadcn/ui CSS variables — retro palette */
 @layer base {
@@ -187,9 +374,13 @@
     --crt-overlay: block;
     --glow: 1;
     --c-bg:       8 8 16;       /* #080810 */
+    --c-portal-1: 57 135 229;
+    --c-portal-2: 217 89 38;
+    --c-portal-3: 192 79 176;
+    --c-portal-4: 25 158 112;
     --c-surface:  15 15 26;     /* #0f0f1a */
     --c-card:     19 19 40;     /* #131328 */
-    --c-border:   30 30 58;     /* #1e1e3a */
+    --c-border:   56 56 106;
     --c-text:     224 224 255;  /* #e0e0ff */
     --c-dim:      122 122 186;  /* #7a7aba */
     --c-p1:       0 229 255;    /* #00e5ff */
@@ -197,7 +388,7 @@
     --c-p3:       171 102 255;   /* #ab66ff */
     --c-p4:       255 158 44;   /* #ff9e2c */
     --c-cta:      255 230 0;    /* #ffe600 */
-    --c-win:      57 255 20;    /* #39ff14 */
+    --c-win:      77 255 195;
     /* M-86/M-88: dedicated error/danger accent — distinct from p2 (O's
        identity color), cta and win in every theme, so danger states never
        double as "player O". A true low-blue red vs p2's pink (high blue). */
@@ -208,7 +399,7 @@
     --c-tint-p4: 46 22 4;
     --c-tint-cta: 26 21 0;      /* #1a1500 */
     --c-tint-danger: 46 8 8;    /* #2e0808 */
-    --c-structure:42 42 80;     /* #2a2a50 */
+    --c-structure:74 74 138;
     --c-deep:     12 12 32;     /* #0c0c20 */
     --c-skin-1:   245 215 190;
     --c-skin-2:   238 202 176;
@@ -303,6 +494,10 @@
 
 [data-theme="phosphor"] {
   --c-bg:       3 15 3;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  6 24 6;
   --c-card:     8 32 8;
   --c-border:   16 58 16;
@@ -346,6 +541,10 @@
 
 [data-theme="amber"] {
   --c-bg:       13 7 0;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  22 13 2;
   --c-card:     36 23 6;
   --c-border:   70 50 18;
@@ -389,6 +588,10 @@
 
 [data-theme="synthwave"] {
   --c-bg:       13 2 33;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  21 5 49;
   --c-card:     26 6 64;
   --c-border:   45 27 94;
@@ -432,6 +635,10 @@
 
 [data-theme="grid"] {
   --c-bg:       2 8 15;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  4 17 29;
   --c-card:     6 24 39;
   --c-border:   15 58 82;
@@ -475,6 +682,10 @@
 
 [data-theme="mono"] {
   --c-bg:       0 0 0;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  10 10 10;
   --c-card:     16 16 16;
   --c-border:   96 96 96;
@@ -521,6 +732,10 @@
 
 [data-theme="virtualboy"] {
   --c-bg:       10 0 0;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  20 2 2;
   --c-card:     30 4 4;
   --c-border:   70 10 10;
@@ -565,59 +780,17 @@
   --c-kam7:     255 150 140;
 }
 
-[data-theme="paper"] {
-  color-scheme: light;
-  --crt-overlay: none;
-  --glow:       0.3;
-  --c-bg:       242 240 233;
-  --c-surface:  250 248 242;
-  --c-card:     255 255 252;
-  --c-border:   200 196 184;
-  --c-text:     40 38 34;
-  --c-dim:      106 102 92;
-  --c-p1:       20 110 180;
-  --c-p2:       184 75 25;
-  --c-p3:       125 65 165;
-  --c-p4:       175 40 125;
-  --c-cta:      158 95 0;
-  --c-win:      29 125 58;
-  --c-danger:      200 20 45;
-  --c-tint-p1:  215 230 245;
-  --c-tint-p2:  250 225 210;
-  --c-tint-p3:  235 222 245;
-  --c-tint-p4:  245 220 235;
-  --c-tint-cta: 248 235 205;
-  --c-tint-danger: 248 215 220;
-  --c-structure:170 165 152;
-  --c-deep:     232 229 220;
-  --c-skin-1:   240 212 188;
-  --c-skin-2:   233 199 172;
-  --c-skin-3:   225 185 155;
-  --c-skin-4:   195 150 120;
-  --c-skin-5:   150 110 85;
-  --c-skin:     225 185 155;
-  --c-av1:      210 110 40;
-  --c-av2:      130 90 180;
-  --c-av3:      30 140 130;
-  --c-av4:      120 85 55;
-  /* Kamisado — muted ink colors on light paper */
-  --c-kam0:     120 80 50;
-  --c-kam1:     60 140 70;
-  --c-kam2:     200 60 60;
-  --c-kam3:     230 180 40;
-  --c-kam4:     220 110 160;
-  --c-kam5:     130 90 200;
-  --c-kam6:     60 110 200;
-  --c-kam7:     230 140 50;
-}
-
 [data-theme="c64"] {
   --c-bg:       64 49 141;
-  --c-surface:  72 58 155;
-  --c-card:     80 66 170;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface:  58 44 133;
+  --c-card:     53 40 121;
   --c-border:   120 110 200;
   --c-text:     205 218 255;
-  --c-dim:      195 193 239;
+  --c-dim:      176 171 238;
   --c-p1:       137 255 255;
   --c-p2:       255 137 137;
   --c-p3:       240 170 255;
@@ -634,7 +807,7 @@
   --c-tint-cta: 105 95 60;
   --c-tint-danger: 88 86 140;
   --c-structure:100 90 190;
-  --c-deep:     50 38 115;
+  --c-deep:     43 32 104;
   --c-skin-1:   245 215 190;
   --c-skin-2:   238 202 176;
   --c-skin-3:   230 190 160;
@@ -658,6 +831,10 @@
 
 [data-theme="blueprint"] {
   --c-bg:       22 62 110;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  28 72 125;
   --c-card:     32 80 138;
   --c-border:   90 140 190;
@@ -665,16 +842,16 @@
   --c-dim:      172 196 220;
   --c-p1:       255 255 255;
   --c-p2:       255 200 90;
-  --c-p3:       120 210 255;
+  --c-p3:       255 158 224;
   --c-p4:       205 175 255;
-  --c-cta:      255 220 100;
-  --c-win:      140 255 190;
+  --c-cta:      127 240 255;
+  --c-win:      200 255 122;
   --c-danger:      255 172 164;
   --c-tint-p1:  55 100 150;
   --c-tint-p2:  70 90 95;
-  --c-tint-p3:  40 95 140;
+  --c-tint-p3:  90 74 122;
   --c-tint-p4:  90 70 120;
-  --c-tint-cta: 65 92 100;
+  --c-tint-cta: 36 90 122;
   --c-tint-danger: 80 65 95;
   --c-structure:110 155 205;
   --c-deep:     16 50 92;
@@ -701,22 +878,26 @@
 
 [data-theme="sakura"] {
   --c-bg:       30 18 28;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
   --c-surface:  40 24 38;
   --c-card:     50 30 46;
   --c-border:   100 60 90;
   --c-text:     255 230 240;
   --c-dim:      175 135 160;
   --c-p1:       255 150 190;
-  --c-p2:       130 220 200;
+  --c-p2:       140 202 255;
   --c-p3:       195 165 255;
-  --c-p4:       150 200 255;
+  --c-p4:       255 210 122;
   --c-cta:      255 200 120;
   --c-win:      150 255 180;
   --c-danger:      255 68 68;
   --c-tint-p1:  70 35 50;
-  --c-tint-p2:  30 60 55;
+  --c-tint-p2:  30 53 80;
   --c-tint-p3:  50 38 75;
-  --c-tint-p4:  30 45 70;
+  --c-tint-p4:  60 48 32;
   --c-tint-cta: 65 50 30;
   --c-tint-danger: 60 20 22;
   --c-structure:110 65 100;
@@ -744,9 +925,13 @@
 
 [data-theme="matcha"] {
   color-scheme: light;
-  --crt-overlay: none;
-  --glow:       0.3;
+  --crt-overlay: block;
+  --glow:       0;
   --c-bg:       238 240 226;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  246 248 236;
   --c-card:     252 253 246;
   --c-border:   185 195 165;
@@ -756,7 +941,7 @@
   --c-p2:       129 89 180;
   --c-p3:       175 55 115;
   --c-p4:       25 100 150;
-  --c-cta:      139 102 18;
+  --c-cta:      130 95 14;
   --c-win:      38 123 66;
   --c-danger:      190 30 50;
   --c-tint-p1:  220 238 205;
@@ -788,32 +973,240 @@
   --c-kam7:     220 140 60;
 }
 
-/* Matcha Strawberry — whisked-matcha ground with a strawberry-pink CTA.
-   X is matcha green and O grape violet: the pair stays apart under protan
-   and deutan colour blindness (green/amber would not) and neither collides
-   with the pink selection and last-move rings. */
+/* GLASS and GLASS NIGHT: the LIQUID material over arcade-glyph art. Same
+   ground, ink and accent triplets as MATCHA / MIDNIGHT (so every contrast floor
+   already holds), with --c-dim pushed to near full ink because secondary text
+   also lands on the art. The rest is the material: --c-glass-* (tint, rim,
+   shade), --c-art-* (the four colour fields behind the glyphs) and --g-*
+   (tint opacity per surface, blur, saturation, rim and shadow strength, art
+   caps). Light art is full strength with glyphs at 70 % at most; dark art is
+   capped at 50 %. src/lib/contrast.test.js recomputes the contrast table
+   from these tokens. The material itself is the `[data-theme^="glass"]` rules
+   near the end of this file; nothing here applies to any other theme. */
+[data-theme="glass"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --glow:       0;
+  --c-bg:       238 240 226;
+  --c-surface:  246 248 236;
+  --c-card:     252 253 246;
+  --c-border:   185 195 165;
+  --c-text:     45 55 35;
+  --c-dim:      50 60 38;
+  --c-p1:       70 121 47;
+  --c-p2:       129 89 180;
+  --c-p3:       175 55 115;
+  --c-p4:       25 100 150;
+  --c-cta:      130 95 14;
+  --c-win:      38 123 66;
+  --c-danger:      190 30 50;
+  --c-tint-p1:  220 238 205;
+  --c-tint-p2:  235 225 245;
+  --c-tint-p3:  245 220 232;
+  --c-tint-p4:  215 232 242;
+  --c-tint-cta: 242 232 200;
+  --c-tint-danger: 242 214 214;
+  --c-structure:160 170 140;
+  --c-deep:     228 232 214;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      210 110 50;
+  --c-av2:      150 90 180;
+  --c-av3:      30 150 140;
+  --c-av4:      130 90 60;
+  /* Kamisado — earthy matcha tones on light ground */
+  --c-kam0:     130 90 55;
+  --c-kam1:     90 150 60;
+  --c-kam2:     190 70 60;
+  --c-kam3:     210 170 50;
+  --c-kam4:     200 120 170;
+  --c-kam5:     130 100 190;
+  --c-kam6:     70 130 190;
+  --c-kam7:     220 140 60;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-glass-tint:  255 255 255;
+  --c-glass-rim:   255 255 255;
+  --c-glass-shade: 40 50 30;
+  --c-art-1:    150 196 120;
+  --c-art-2:    186 160 232;
+  --c-art-3:    246 186 146;
+  --c-art-4:    140 196 232;
+  --g-alpha:        .16;
+  --g-alpha-text:   .30;
+  --g-alpha-sheet:  .50;
+  --g-blur:         2px;
+  --g-blur-sheet:   12px;
+  --g-blur-bar:     6px;
+  --g-sat:          1.8;
+  --g-rim-a:        .85;
+  --g-spec:         1;
+  --g-drop:         .16;
+  --g-art-strength: 1;
+  --g-glyph-opacity: .68;
+}
+
+[data-theme="glass-night"] {
+  color-scheme: dark;
+  --crt-overlay: block;
+  --c-bg:       8 8 16;
+  --c-surface:  15 15 26;
+  --c-card:     19 19 40;
+  --c-border:   56 56 106;
+  --c-text:     236 238 255;
+  --c-dim:      220 222 250;
+  --c-p1:       0 229 255;
+  --c-p2:       255 64 129;
+  --c-p3:       171 102 255;
+  --c-p4:       255 158 44;
+  --c-cta:      255 230 0;
+  --c-win:      77 255 195;
+  --c-danger:      255 45 45;
+  --c-tint-p1:  0 26 46;
+  --c-tint-p2:  46 0 24;
+  --c-tint-p3: 24 10 46;
+  --c-tint-p4: 46 22 4;
+  --c-tint-cta: 26 21 0;
+  --c-tint-danger: 46 8 8;
+  --c-structure:74 74 138;
+  --c-deep:     12 12 32;
+  --c-skin-1:   245 215 190;
+  --c-skin-2:   238 202 176;
+  --c-skin-3:   230 190 160;
+  --c-skin-4:   200 155 125;
+  --c-skin-5:   150 110 85;
+  --c-skin:     230 190 160;
+  --c-av1:      255 140 60;
+  --c-av2:      170 110 255;
+  --c-av3:      45 210 190;
+  --c-av4:      140 95 65;
+  --c-kam0:     157 106 56;
+  --c-kam1:     57 255 120;
+  --c-kam2:     255 77 77;
+  --c-kam3:     255 230 90;
+  --c-kam4:     255 105 180;
+  --c-kam5:     187 134 252;
+  --c-kam6:     80 160 255;
+  --c-kam7:     255 159 28;
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-glass-tint:  16 18 34;
+  --c-glass-rim:   200 210 255;
+  --c-glass-shade: 0 0 0;
+  --c-art-1:    0 200 235;
+  --c-art-2:    235 60 130;
+  --c-art-3:    120 80 255;
+  --c-art-4:    255 200 40;
+  --g-alpha:        .24;
+  --g-alpha-text:   .38;
+  --g-alpha-sheet:  .58;
+  --g-blur:         2px;
+  --g-blur-sheet:   12px;
+  --g-blur-bar:     6px;
+  --g-sat:          1.8;
+  --g-rim-a:        .45;
+  --g-spec:         .55;
+  --g-drop:         .40;
+  --g-art-strength: .5;
+  --g-glyph-opacity: .5;
+}
+
+/* SHORELINE: a midday beach. Dry-sand ground, sea-teal X, raspberry O, coral
+   CTA. The sea, waves and wet sand are drawn by BeachBackdrop from the
+   beach-only tokens at the end (sea, shallow, foam, wet, damp). */
+[data-theme="shoreline"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --glow:       0;
+  --c-bg:       246 236 214;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
+  --c-surface:  251 244 229;
+  --c-card:     255 252 244;
+  --c-border:   218 198 162;
+  --c-text:     33 49 61;
+  --c-dim:      92 86 74;
+  --c-p1:       0 112 134;
+  --c-p2:       184 46 106;
+  --c-p3:       112 76 160;
+  --c-p4:       146 96 18;
+  --c-cta:      190 62 42;
+  --c-win:      20 112 76;
+  --c-danger:   176 28 34;
+  --c-tint-p1:  212 238 236;
+  --c-tint-p2:  250 222 234;
+  --c-tint-p3:  232 224 246;
+  --c-tint-p4:  246 232 204;
+  --c-tint-cta: 252 226 214;
+  --c-tint-danger: 248 214 210;
+  --c-structure:96 160 176;
+  --c-deep:     238 225 198;
+  --c-skin-1:   240 212 188;
+  --c-skin-2:   233 199 172;
+  --c-skin-3:   225 185 155;
+  --c-skin-4:   195 150 120;
+  --c-skin-5:   150 110 85;
+  --c-skin:     225 185 155;
+  --c-av1:      214 110 60;
+  --c-av2:      140 96 186;
+  --c-av3:      30 150 150;
+  --c-av4:      130 90 60;
+  /* Kamisado — sun-bleached beach tones */
+  --c-kam0:     140 96 56;
+  --c-kam1:     60 150 110;
+  --c-kam2:     200 70 56;
+  --c-kam3:     226 176 60;
+  --c-kam4:     214 110 156;
+  --c-kam5:     120 96 190;
+  --c-kam6:     40 140 176;
+  --c-kam7:     236 140 70;
+  --c-sea:      14 128 156;
+  --c-shallow:  98 210 210;
+  --c-foam:     255 255 255;
+  --c-wet:      212 190 150;
+  --c-damp:     188 162 118;
+}
+
+/* Matcha Strawberry — whisked-matcha ground with a strawberry-red CTA.
+   X is matcha green and O raspberry, so every accent a player sees on the
+   board reads as a berry; red and raspberry sit 30+ degrees apart in hue and
+   in lightness, so the selection ring stays visible on O pieces. */
 [data-theme="matcha-strawberry"] {
   color-scheme: light;
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       226 236 212;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  234 242 222;
   --c-card:     245 249 238;
   --c-border:   176 196 152;
   --c-text:     34 48 26;
   --c-dim:      78 96 64;
   --c-p1:       52 110 40;
-  --c-p2:       118 58 190;
+  --c-p2:       172 36 118;
   --c-p3:       31 106 98;
   --c-p4:       48 95 166;
-  --c-cta:      186 28 90;
+  --c-cta:      196 32 52;
   --c-win:      17 108 82;
   --c-danger:   180 36 20;
   --c-tint-p1:  214 234 200;
-  --c-tint-p2:  234 224 248;
+  --c-tint-p2:  248 220 236;
   --c-tint-p3:  208 236 232;
   --c-tint-p4:  222 230 248;
-  --c-tint-cta: 250 222 234;
+  --c-tint-cta: 250 222 226;
   --c-tint-danger: 248 216 210;
   --c-structure:150 174 124;
   --c-deep:     212 226 194;
@@ -838,31 +1231,35 @@
   --c-kam7:     220 140 60;
 }
 
-/* Matcha Blueberry — cooler matcha ground with a blueberry-indigo CTA.
-   X is matcha green and O raspberry, the red-blue berry that stays apart
-   from green under colour blindness without sitting on the indigo rings. */
+/* Matcha Blueberry — cooler matcha ground with a blueberry-blue CTA.
+   X is matcha green and O blueberry violet, so the board reads as blue and
+   purple berries; the blue CTA ring stays apart from the violet O. */
 [data-theme="matcha-blueberry"] {
   color-scheme: light;
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       222 234 214;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  231 240 224;
   --c-card:     243 248 238;
   --c-border:   170 194 156;
   --c-text:     28 44 34;
   --c-dim:      72 92 78;
   --c-p1:       48 106 40;
-  --c-p2:       172 36 118;
+  --c-p2:       118 58 190;
   --c-p3:       10 103 126;
   --c-p4:       140 37 208;
-  --c-cta:      76 88 170;
+  --c-cta:      44 84 190;
   --c-win:      17 108 82;
   --c-danger:   180 36 20;
   --c-tint-p1:  212 234 202;
-  --c-tint-p2:  248 220 236;
+  --c-tint-p2:  234 224 248;
   --c-tint-p3:  206 232 238;
   --c-tint-p4:  236 222 250;
-  --c-tint-cta: 226 228 248;
+  --c-tint-cta: 218 228 250;
   --c-tint-danger: 248 214 216;
   --c-structure:144 172 128;
   --c-deep:     208 224 198;
@@ -895,6 +1292,10 @@
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       251 233 242;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  253 241 247;
   --c-card:     255 250 253;
   --c-border:   226 189 210;
@@ -943,6 +1344,10 @@
   --crt-overlay: none;
   --glow:       0.3;
   --c-bg:       229 237 244;
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
   --c-surface:  237 243 248;
   --c-card:     248 251 253;
   --c-border:   179 197 214;
@@ -982,6 +1387,628 @@
   --c-kam5:     138 112 208;
   --c-kam6:     74 128 200;
   --c-kam7:     216 136 64;
+}
+
+/* CARTRIDGE: warm console cream; red X, navy O, gold CTA */
+[data-theme="cartridge"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --glow:       0.3;
+  --c-bg: 239 230 210; /* #efe6d2 */
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
+  --c-surface: 246 239 224; /* #f6efe0 */
+  --c-card: 255 250 240; /* #fffaf0 */
+  --c-border: 205 191 160; /* #cdbfa0 */
+  --c-text: 42 29 23; /* #2a1d17 */
+  --c-dim: 107 88 72; /* #6b5848 */
+  --c-p1: 179 32 44; /* #b3202c */
+  --c-p2: 31 78 156; /* #1f4e9c */
+  --c-p3: 15 112 102; /* #0f7066 */
+  --c-p4: 160 82 14; /* #a0520e */
+  --c-cta: 92 67 0; /* #5c4300 */
+  --c-win: 29 111 60; /* #1d6f3c */
+  --c-danger: 184 63 15; /* #b83f0f */
+  --c-tint-p1: 243 215 209; /* #f3d7d1 */
+  --c-tint-p2: 219 222 227; /* #dbdee3 */
+  --c-tint-p3: 217 228 218; /* #d9e4da */
+  --c-tint-p4: 240 223 204; /* #f0dfcc */
+  --c-tint-cta: 229 221 202; /* #e5ddca */
+  --c-tint-danger: 244 220 204; /* #f4dccc */
+  --c-structure: 179 163 126; /* #b3a37e */
+  --c-deep: 229 218 194; /* #e5dac2 */
+  --c-skin-1: 240 212 188;
+  --c-skin-2: 233 199 172;
+  --c-skin-3: 225 185 155;
+  --c-skin-4: 195 150 120;
+  --c-skin-5: 150 110 85;
+  --c-skin:   225 185 155;
+  --c-av1: 210 110 40;
+  --c-av2: 130 90 180;
+  --c-av3: 30 140 130;
+  --c-av4: 120 85 55;
+  --c-kam0: 120 80 50;
+  --c-kam1: 60 140 70;
+  --c-kam2: 200 60 60;
+  --c-kam3: 230 180 40;
+  --c-kam4: 220 110 160;
+  --c-kam5: 130 90 200;
+  --c-kam6: 60 110 200;
+  --c-kam7: 230 140 50;
+}
+
+/* NOTEBOOK: graph paper; blue-pen X, red-pen O, violet-ink CTA */
+[data-theme="notebook"] {
+  color-scheme: light;
+  --crt-overlay: none;
+  --glow:       0;
+  --c-bg: 247 248 243; /* #f7f8f3 */
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
+  --c-surface: 251 252 248; /* #fbfcf8 */
+  --c-card: 255 255 255; /* #ffffff */
+  --c-border: 201 211 224; /* #c9d3e0 */
+  --c-text: 31 38 51; /* #1f2633 */
+  --c-dim: 90 99 114; /* #5a6372 */
+  --c-p1: 31 79 191; /* #1f4fbf */
+  --c-p2: 192 38 45; /* #c0262d */
+  --c-p3: 176 90 0; /* #b05a00 */
+  --c-p4: 0 120 140; /* #00788c */
+  --c-cta: 11 110 79; /* #0b6e4f */
+  --c-win: 150 104 14; /* #96680e */
+  --c-danger: 143 29 107; /* #8f1d6b */
+  --c-tint-p1: 219 227 245; /* #dbe3f5 */
+  --c-tint-p2: 245 220 221; /* #f5dcdd */
+  --c-tint-p3: 242 229 214; /* #f2e5d6 */
+  --c-tint-p4: 214 233 237; /* #d6e9ed */
+  --c-tint-cta: 216 232 227; /* #d8e8e3 */
+  --c-tint-danger: 237 219 231; /* #eddbe7 */
+  --c-structure: 159 180 207; /* #9fb4cf */
+  --c-deep: 238 240 232; /* #eef0e8 */
+  --c-skin-1: 240 212 188;
+  --c-skin-2: 233 199 172;
+  --c-skin-3: 225 185 155;
+  --c-skin-4: 195 150 120;
+  --c-skin-5: 150 110 85;
+  --c-skin:   225 185 155;
+  --c-av1: 210 110 40;
+  --c-av2: 130 90 180;
+  --c-av3: 30 140 130;
+  --c-av4: 120 85 55;
+  --c-kam0: 120 80 50;
+  --c-kam1: 60 140 70;
+  --c-kam2: 200 60 60;
+  --c-kam3: 230 180 40;
+  --c-kam4: 220 110 160;
+  --c-kam5: 130 90 200;
+  --c-kam6: 60 110 200;
+  --c-kam7: 230 140 50;
+}
+
+/* HIGH CONTRAST: pure black, white text, Okabe-Ito accents, no glow or CRT */
+[data-theme="hicontrast"] {
+  --glow:       0;
+  --crt-overlay: none;
+  --c-bg: 0 0 0; /* #000000 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 10 10 10; /* #0a0a0a */
+  --c-card: 18 18 18; /* #121212 */
+  --c-border: 160 160 160; /* #a0a0a0 */
+  --c-text: 255 255 255; /* #ffffff */
+  --c-dim: 226 226 226; /* #e2e2e2 */
+  --c-p1: 86 180 233; /* #56b4e9 */
+  --c-p2: 230 159 0; /* #e69f00 */
+  --c-p3: 204 121 167; /* #cc79a7 */
+  --c-p4: 25 201 143; /* #19c98f */
+  --c-cta: 240 228 66; /* #f0e442 */
+  --c-win: 255 255 255; /* #ffffff */
+  --c-danger: 255 92 138; /* #ff5c8a */
+  --c-tint-p1: 17 36 47; /* #11242f */
+  --c-tint-p2: 46 32 0; /* #2e2000 */
+  --c-tint-p3: 41 24 33; /* #291821 */
+  --c-tint-p4: 5 40 29; /* #05281d */
+  --c-tint-cta: 48 46 13; /* #302e0d */
+  --c-tint-danger: 51 18 28; /* #33121c */
+  --c-structure: 255 255 255; /* #ffffff */
+  --c-deep: 0 0 0; /* #000000 */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* FANTASY CONSOLE: fantasy-console navy with the PICO-8 sixteen; blue X, orange O, yellow CTA */
+[data-theme="fantasy"] {
+  --c-bg: 15 22 48; /* #0f1630 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 22 32 74; /* #16204a */
+  --c-card: 29 43 83; /* #1d2b53 */
+  --c-border: 51 66 122; /* #33427a */
+  --c-text: 255 241 232; /* #fff1e8 */
+  --c-dim: 194 195 199; /* #c2c3c7 */
+  --c-p1: 41 173 255; /* #29adff */
+  --c-p2: 255 163 0; /* #ffa300 */
+  --c-p3: 155 142 181; /* #9b8eb5 */
+  --c-p4: 255 119 168; /* #ff77a8 */
+  --c-cta: 255 236 39; /* #ffec27 */
+  --c-win: 0 228 54; /* #00e436 */
+  --c-danger: 253 91 109; /* #fd5b6d */
+  --c-tint-p1: 20 52 89; /* #143459 */
+  --c-tint-p2: 63 50 38; /* #3f3226 */
+  --c-tint-p3: 43 46 75; /* #2b2e4b */
+  --c-tint-p4: 63 41 72; /* #3f2948 */
+  --c-tint-cta: 63 65 46; /* #3f412e */
+  --c-tint-danger: 63 36 60; /* #3f243c */
+  --c-structure: 131 118 156; /* #83769c */
+  --c-deep: 10 16 36; /* #0a1024 */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* SWEETIE 16: soft indie-pixel night; sky X, orange O, cyan CTA */
+[data-theme="sweetie"] {
+  --c-bg: 26 28 44; /* #1a1c2c */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 32 35 58; /* #20233a */
+  --c-card: 38 43 68; /* #262b44 */
+  --c-border: 51 60 87; /* #333c57 */
+  --c-text: 244 244 244; /* #f4f4f4 */
+  --c-dim: 148 176 194; /* #94b0c2 */
+  --c-p1: 65 166 246; /* #41a6f6 */
+  --c-p2: 239 125 87; /* #ef7d57 */
+  --c-p3: 167 240 112; /* #a7f070 */
+  --c-p4: 230 122 200; /* #e67ac8 */
+  --c-cta: 115 239 247; /* #73eff7 */
+  --c-win: 56 183 100; /* #38b764 */
+  --c-danger: 247 95 119; /* #f75f77 */
+  --c-tint-p1: 34 56 84; /* #223854 */
+  --c-tint-p2: 69 47 53; /* #452f35 */
+  --c-tint-p3: 54 70 58; /* #36463a */
+  --c-tint-p4: 67 47 75; /* #432f4b */
+  --c-tint-cta: 44 70 85; /* #2c4655 */
+  --c-tint-danger: 70 41 59; /* #46293b */
+  --c-structure: 86 108 134; /* #566c86 */
+  --c-deep: 20 21 34; /* #141522 */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* CGA: DOS-era black with cyan X, magenta O and a yellow CTA */
+[data-theme="cga"] {
+  --c-bg: 0 0 0; /* #000000 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 8 8 15; /* #08080f */
+  --c-card: 14 14 28; /* #0e0e1c */
+  --c-border: 0 0 170; /* #0000aa */
+  --c-text: 255 255 255; /* #ffffff */
+  --c-dim: 170 170 170; /* #aaaaaa */
+  --c-p1: 85 255 255; /* #55ffff */
+  --c-p2: 255 85 255; /* #ff55ff */
+  --c-p3: 255 170 0; /* #ffaa00 */
+  --c-p4: 85 255 85; /* #55ff55 */
+  --c-cta: 255 255 85; /* #ffff55 */
+  --c-win: 85 255 85; /* #55ff55 */
+  --c-danger: 255 85 85; /* #ff5555 */
+  --c-tint-p1: 17 51 51; /* #113333 */
+  --c-tint-p2: 51 17 51; /* #331133 */
+  --c-tint-p3: 51 34 0; /* #332200 */
+  --c-tint-p4: 17 51 17; /* #113311 */
+  --c-tint-cta: 51 51 17; /* #333311 */
+  --c-tint-danger: 51 17 17; /* #331111 */
+  --c-structure: 85 85 255; /* #5555ff */
+  --c-deep: 0 0 0; /* #000000 */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* RISO PRINT: cream stock and overprinted ink; blue X, orange O, fluoro-pink CTA */
+[data-theme="riso"] {
+  color-scheme: light;
+  --crt-overlay: block;
+  --glow:       0;
+  --c-bg: 245 240 230; /* #f5f0e6 */
+  --c-portal-1: 42 120 214;
+  --c-portal-2: 235 104 52;
+  --c-portal-3: 178 58 154;
+  --c-portal-4: 27 175 122;
+  --c-surface: 250 246 238; /* #faf6ee */
+  --c-card: 255 253 248; /* #fffdf8 */
+  --c-border: 216 207 191; /* #d8cfbf */
+  --c-text: 35 32 46; /* #23202e */
+  --c-dim: 98 91 110; /* #625b6e */
+  --c-p1: 0 103 168; /* #0067a8 */
+  --c-p2: 209 21 122; /* #d1157a */
+  --c-p3: 194 67 2; /* #c24302 */
+  --c-p4: 0 122 128; /* #007a80 */
+  --c-cta: 46 33 71; /* #2e2147 */
+  --c-win: 3 126 69; /* #037e45 */
+  --c-danger: 176 35 42; /* #b0232a */
+  --c-tint-p1: 214 229 235; /* #d6e5eb */
+  --c-tint-p2: 248 216 228; /* #f8d8e4 */
+  --c-tint-p3: 245 223 209; /* #f5dfd1 */
+  --c-tint-p4: 214 232 229; /* #d6e8e5 */
+  --c-tint-cta: 222 218 220; /* #dedadc */
+  --c-tint-danger: 242 218 215; /* #f2dad7 */
+  --c-structure: 192 180 159; /* #c0b49f */
+  --c-deep: 235 228 214; /* #ebe4d6 */
+  --c-skin-1: 240 212 188;
+  --c-skin-2: 233 199 172;
+  --c-skin-3: 225 185 155;
+  --c-skin-4: 195 150 120;
+  --c-skin-5: 150 110 85;
+  --c-skin:   225 185 155;
+  --c-av1: 210 110 40;
+  --c-av2: 130 90 180;
+  --c-av3: 30 140 130;
+  --c-av4: 120 85 55;
+  --c-kam0: 120 80 50;
+  --c-kam1: 60 140 70;
+  --c-kam2: 200 60 60;
+  --c-kam3: 230 180 40;
+  --c-kam4: 220 110 160;
+  --c-kam5: 130 90 200;
+  --c-kam6: 60 110 200;
+  --c-kam7: 230 140 50;
+}
+
+/* PUMPKIN NIGHT: haunted violet night; pumpkin X, ghost-blue O, candy-pink CTA */
+[data-theme="pumpkin"] {
+  --c-bg: 21 14 29; /* #150e1d */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 29 20 39; /* #1d1427 */
+  --c-card: 38 26 51; /* #261a33 */
+  --c-border: 63 44 82; /* #3f2c52 */
+  --c-text: 255 241 224; /* #fff1e0 */
+  --c-dim: 184 160 200; /* #b8a0c8 */
+  --c-p1: 255 145 36; /* #ff9124 */
+  --c-p2: 111 208 255; /* #6fd0ff */
+  --c-p3: 182 242 74; /* #b6f24a */
+  --c-p4: 197 139 255; /* #c58bff */
+  --c-cta: 255 95 162; /* #ff5fa2 */
+  --c-win: 182 242 74; /* #b6f24a */
+  --c-danger: 255 64 64; /* #ff4040 */
+  --c-tint-p1: 68 40 30; /* #44281e */
+  --c-tint-p2: 39 53 74; /* #27354a */
+  --c-tint-p3: 53 60 38; /* #353c26 */
+  --c-tint-p4: 56 39 74; /* #38274a */
+  --c-tint-cta: 68 30 56; /* #441e38 */
+  --c-tint-danger: 68 24 36; /* #441824 */
+  --c-structure: 90 63 117; /* #5a3f75 */
+  --c-deep: 16 10 23; /* #100a17 */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* CAMPFIRE: charcoal and ember; night-sky X, flame O, coal-pink CTA */
+[data-theme="campfire"] {
+  --c-bg: 23 17 15; /* #17110f */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 32 23 19; /* #201713 */
+  --c-card: 42 30 24; /* #2a1e18 */
+  --c-border: 74 52 40; /* #4a3428 */
+  --c-text: 255 238 221; /* #ffeedd */
+  --c-dim: 199 159 130; /* #c79f82 */
+  --c-p1: 116 183 255; /* #74b7ff */
+  --c-p2: 255 159 67; /* #ff9f43 */
+  --c-p3: 184 233 134; /* #b8e986 */
+  --c-p4: 255 226 122; /* #ffe27a */
+  --c-cta: 255 111 145; /* #ff6f91 */
+  --c-win: 158 227 125; /* #9ee37d */
+  --c-danger: 255 75 62; /* #ff4b3e */
+  --c-tint-p1: 42 50 63; /* #2a323f */
+  --c-tint-p2: 69 45 25; /* #452d19 */
+  --c-tint-p3: 55 60 39; /* #373c27 */
+  --c-tint-p4: 69 59 36; /* #453b24 */
+  --c-tint-cta: 69 36 41; /* #452429 */
+  --c-tint-danger: 69 29 24; /* #451d18 */
+  --c-structure: 107 74 54; /* #6b4a36 */
+  --c-deep: 18 13 11; /* #120d0b */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* 24K: black lacquer and gold leaf; sapphire X, ruby O, gold CTA */
+[data-theme="gold"] {
+  --c-bg: 11 9 7; /* #0b0907 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 19 16 11; /* #13100b */
+  --c-card: 27 22 15; /* #1b160f */
+  --c-border: 58 46 26; /* #3a2e1a */
+  --c-text: 255 245 220; /* #fff5dc */
+  --c-dim: 188 169 131; /* #bca983 */
+  --c-p1: 111 168 255; /* #6fa8ff */
+  --c-p2: 255 111 160; /* #ff6fa0 */
+  --c-p3: 126 224 224; /* #7ee0e0 */
+  --c-p4: 255 184 77; /* #ffb84d */
+  --c-cta: 240 192 80; /* #f0c050 */
+  --c-win: 95 211 154; /* #5fd39a */
+  --c-danger: 255 80 64; /* #ff5040 */
+  --c-tint-p1: 31 41 57; /* #1f2939 */
+  --c-tint-p2: 60 29 38; /* #3c1d26 */
+  --c-tint-p3: 34 52 50; /* #223432 */
+  --c-tint-p4: 60 44 21; /* #3c2c15 */
+  --c-tint-cta: 57 46 22; /* #392e16 */
+  --c-tint-danger: 60 23 18; /* #3c1712 */
+  --c-structure: 92 74 42; /* #5c4a2a */
+  --c-deep: 7 6 4; /* #070604 */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* HOLOFOIL: ink-violet with prismatic accents; cyan X, peach O, holo-pink CTA */
+[data-theme="holo"] {
+  --c-bg: 12 10 24; /* #0c0a18 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 19 17 42; /* #13112a */
+  --c-card: 26 23 54; /* #1a1736 */
+  --c-border: 46 42 90; /* #2e2a5a */
+  --c-text: 246 244 255; /* #f6f4ff */
+  --c-dim: 169 163 214; /* #a9a3d6 */
+  --c-p1: 92 225 255; /* #5ce1ff */
+  --c-p2: 255 166 107; /* #ffa66b */
+  --c-p3: 196 155 255; /* #c49bff */
+  --c-p4: 140 255 158; /* #8cff9e */
+  --c-cta: 255 122 209; /* #ff7ad1 */
+  --c-win: 180 255 106; /* #b4ff6a */
+  --c-danger: 255 77 94; /* #ff4d5e */
+  --c-tint-p1: 28 53 70; /* #1c3546 */
+  --c-tint-p2: 61 41 41; /* #3d2929 */
+  --c-tint-p3: 49 39 70; /* #312746 */
+  --c-tint-p4: 38 59 51; /* #263b33 */
+  --c-tint-cta: 61 32 61; /* #3d203d */
+  --c-tint-danger: 61 23 38; /* #3d1726 */
+  --c-structure: 74 69 144; /* #4a4590 */
+  --c-deep: 8 6 26; /* #08061a */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* COSMIC CARPET: black-light carpet; cyan X, orange O, hot-pink CTA */
+[data-theme="carpet"] {
+  --c-bg: 20 11 38; /* #140b26 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 27 16 49; /* #1b1031 */
+  --c-card: 35 21 63; /* #23153f */
+  --c-border: 61 42 102; /* #3d2a66 */
+  --c-text: 251 243 255; /* #fbf3ff */
+  --c-dim: 183 163 217; /* #b7a3d9 */
+  --c-p1: 56 214 255; /* #38d6ff */
+  --c-p2: 255 154 46; /* #ff9a2e */
+  --c-p3: 255 243 92; /* #fff35c */
+  --c-p4: 233 228 255; /* #e9e4ff */
+  --c-cta: 255 79 176; /* #ff4fb0 */
+  --c-win: 109 255 158; /* #6dff9e */
+  --c-danger: 255 59 59; /* #ff3b3b */
+  --c-tint-p1: 27 52 81; /* #1b3451 */
+  --c-tint-p2: 67 40 40; /* #432828 */
+  --c-tint-p3: 67 57 49; /* #433931 */
+  --c-tint-p4: 63 54 81; /* #3f3651 */
+  --c-tint-cta: 67 25 66; /* #431942 */
+  --c-tint-danger: 67 21 42; /* #43152a */
+  --c-structure: 90 63 146; /* #5a3f92 */
+  --c-deep: 14 7 28; /* #0e071c */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
+}
+
+/* P7 RADAR: scope green-black; afterglow X, lock-on magenta O, flash-blue CTA */
+[data-theme="radar"] {
+  --c-bg: 2 10 7; /* #020a07 */
+  --c-portal-1: 57 135 229;
+  --c-portal-2: 217 89 38;
+  --c-portal-3: 192 79 176;
+  --c-portal-4: 25 158 112;
+  --c-surface: 4 18 12; /* #04120c */
+  --c-card: 6 26 17; /* #061a11 */
+  --c-border: 15 58 36; /* #0f3a24 */
+  --c-text: 214 255 233; /* #d6ffe9 */
+  --c-dim: 111 191 147; /* #6fbf93 */
+  --c-p1: 157 255 90; /* #9dff5a */
+  --c-p2: 255 107 213; /* #ff6bd5 */
+  --c-p3: 255 179 107; /* #ffb36b */
+  --c-p4: 201 184 255; /* #c9b8ff */
+  --c-cta: 143 227 255; /* #8fe3ff */
+  --c-win: 232 255 240; /* #e8fff0 */
+  --c-danger: 255 80 80; /* #ff5050 */
+  --c-tint-p1: 33 59 24; /* #213b18 */
+  --c-tint-p2: 53 29 48; /* #351d30 */
+  --c-tint-p3: 53 44 27; /* #352c1b */
+  --c-tint-p4: 42 45 57; /* #2a2d39 */
+  --c-tint-cta: 30 53 57; /* #1e3539 */
+  --c-tint-danger: 53 24 22; /* #351816 */
+  --c-structure: 26 92 58; /* #1a5c3a */
+  --c-deep: 1 6 4; /* #010604 */
+  --c-skin-1: 245 215 190;
+  --c-skin-2: 238 202 176;
+  --c-skin-3: 230 190 160;
+  --c-skin-4: 200 155 125;
+  --c-skin-5: 150 110 85;
+  --c-skin:   230 190 160;
+  --c-av1: 255 140 60;
+  --c-av2: 170 110 255;
+  --c-av3: 45 210 190;
+  --c-av4: 140 95 65;
+  --c-kam0: 157 106 56;
+  --c-kam1: 57 255 120;
+  --c-kam2: 255 77 77;
+  --c-kam3: 255 230 90;
+  --c-kam4: 255 105 180;
+  --c-kam5: 187 134 252;
+  --c-kam6: 80 160 255;
+  --c-kam7: 255 159 28;
 }
 
 /* Sticky header height (NavBar padding + min-h-9 row) so in-page sticky
@@ -1041,6 +2068,12 @@ body {
   /* Faster taps + no grey tap-flash on mobile */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* No iOS long-press callout on images/links while playing; text inputs
+     and selectable copy opt back in below. */
+  -webkit-touch-callout: none;
+}
+input, textarea, [contenteditable] {
+  -webkit-touch-callout: default;
 }
 
 /* M-21: without this a stray downward swipe outside a real-time game's own
@@ -1048,6 +2081,29 @@ body {
    whole SPA (and killing any live WebRTC connection). Cheap, no visual cost. */
 html, body {
   overscroll-behavior-y: contain;
+}
+
+/* Native shell only (main.jsx sets data-native on <html> inside the Capacitor
+   apps; the web never has it, so nothing here touches a browser). The app
+   should feel like an app, not a page: no rubber-band / pull-to-refresh, no
+   double-tap zoom, no tap flash, and no text selection or long-press callout
+   on game surfaces. Text fields, chat and anything marked data-selectable
+   (.select-text) stay selectable. */
+html[data-native] {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-native] body {
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+html[data-native] :is(input, textarea, select, [contenteditable], [contenteditable] *, .select-text, [data-selectable], [data-selectable] *) {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* M-11: below 16px iOS Safari force-zooms the whole page on input focus —
@@ -1089,6 +2145,28 @@ body::before {
   z-index: 9997;
 }
 
+/* Press feedback (lib/pressFeedback.js, .claude/rules/motion-rules.md):
+   controls take `press` (0.96), cards and rows `press-card` (0.98). The dip is
+   a quick 80 ms press-in; the release springs back on the platform's press
+   spring. [data-pressed] holds the dip briefly so a fast tap still shows it,
+   and works where touch never triggers :active. `no-press` opts an element
+   that inherits a press class out. */
+.press { --press-scale: 0.96; }
+.press-card { --press-scale: 0.98; }
+.no-press { --press-scale: 1; }
+.press, .press-card {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-duration: var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--spring-press-dur), var(--dur-fast), var(--dur-fast);
+  transition-timing-function: var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--ease-standard), var(--spring-press), var(--ease-standard), var(--ease-standard);
+}
+:is(.press, .press-card):is(:active, [data-pressed]):not(:disabled) {
+  --tw-scale-x: var(--press-scale);
+  --tw-scale-y: var(--press-scale);
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+  transition-duration: var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-fast), var(--dur-press), var(--dur-fast), var(--dur-fast);
+  transition-timing-function: var(--ease-standard);
+}
+
 /* Look-and-feel prefs (Settings → Look & feel, see lib/displayPrefs.js).
    CRT toggle kills both overlay layers regardless of theme. */
 [data-crt="off"] body::after,
@@ -1118,6 +2196,21 @@ body::before {
 }
 .pong-ball-pulse { animation: pong-ball-pulse 0.6s ease-in-out infinite; }
 
+/* Minigolf — sink burst, portal pulse, drifting water */
+.minigolf-burst { animation: pixel-burst 0.6s ease-out forwards; }
+.minigolf-portal { animation: minigolf-portal 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes minigolf-portal {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+.minigolf-wave { animation: minigolf-wave 2.4s linear infinite; }
+@keyframes minigolf-wave {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+[data-motion="reduced"] .minigolf-burst { display: none; }
+
 /* Pong juice — hit sparks, callout pop, pulsing goal-line shield */
 .pong-particle { animation: pixel-burst 0.45s ease-out forwards; }
 @keyframes pong-callout {
@@ -1128,6 +2221,12 @@ body::before {
   100% { transform: scale(1); opacity: 0; }
 }
 .pong-callout { animation: pong-callout 0.95s ease-out forwards; }
+/* Sumo Arena ring-out: a two-step white flash over the dohyo. */
+@keyframes sumo-flash {
+  0%   { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+.sumo-flash { animation: sumo-flash 0.24s steps(3) forwards; }
 @keyframes pong-shield {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.55; }
@@ -1135,7 +2234,7 @@ body::before {
 .pong-shield { animation: pong-shield 0.8s ease-in-out infinite; }
 /* Reduced motion: callouts still carry information (power-up names), so show them static. */
 [data-motion="reduced"] .pong-callout { animation: none; }
-@media (prefers-reduced-motion: reduce) { .pong-callout { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .pong-callout { animation: none; } }
 
 /* Animal Stack: turn pill slides in then fades; TOPPLE! stamp pops at a tilt.
    Reduced motion keeps both readable and static (the pill just fades). */
@@ -1223,6 +2322,9 @@ body::before {
   100% { opacity: 1; transform: scale(1); }
 }
 
+/* SaveCard's unsaved pip: a stepped blink (the game announcing, so steps()) */
+.save-pip { animation: blink-text 1.1s steps(2, jump-none) infinite; }
+
 @keyframes blink-text {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
@@ -1275,6 +2377,17 @@ body::before {
   35%      { box-shadow: inset 0 0 0 2px rgb(var(--c-danger) / 0.75), 0 0 18px rgb(var(--c-danger) / 0.25); }
 }
 .arrows-stage.is-error { animation: arrows-board-error 0.5s ease; }
+/* Shared rejection shake (WordFeedback's "✗ NOT IN WORD LIST" line): a
+   decaying side-to-side that reads as "no" rather than as a buzz. */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  14%      { transform: translateX(-6px); }
+  28%      { transform: translateX(5px); }
+  43%      { transform: translateX(-4px); }
+  57%      { transform: translateX(3px); }
+  71%      { transform: translateX(-2px); }
+  86%      { transform: translateX(1px); }
+}
 @keyframes arrows-board-shake {
   0%, 100% { transform: translateX(0); }
   25%      { transform: translateX(-3px); }
@@ -1282,18 +2395,169 @@ body::before {
   75%      { transform: translateX(-2px); }
 }
 .arrows-stage.is-error .arrows-svg { animation: arrows-board-shake 0.28s ease; }
+/* Curved arrows carry a CTA-coloured hook showing the turn they take at the
+   edge; a hint pulses one free arrow in the win colour. */
+.arrows-arrow .ar-hook { stroke: rgb(var(--c-cta)); }
+.arrows-arrow .ar-hook-tip { fill: rgb(var(--c-cta)); stroke: none; }
+.arrows-arrow.is-error .ar-hook { stroke: rgb(var(--c-danger)); }
+.arrows-arrow.is-error .ar-hook-tip { fill: rgb(var(--c-danger)); }
+@keyframes arrows-hint {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+.arrows-arrow.is-hint .ar-body { stroke: rgb(var(--c-win)); }
+.arrows-arrow.is-hint .ar-head { fill: rgb(var(--c-win)); }
+.arrows-arrow.is-hint { animation: arrows-hint 0.8s ease 3; }
+/* Sleeping arrows are hollow (a surface-coloured core inside the body, an
+   outlined head) until an arrow touching them leaves; then the core fades. */
+.arrows-arrow.is-sleep .ar-core { stroke: rgb(var(--c-surface)); transition: opacity 0.35s ease; }
+.arrows-arrow.is-sleep .ar-head { fill: rgb(var(--c-surface)); stroke: rgb(var(--c-text)); stroke-width: 0.7; stroke-linejoin: round; transition: fill 0.35s ease; }
+.arrows-arrow.is-sleep.is-awake .ar-core { opacity: 0; }
+.arrows-arrow.is-sleep.is-awake .ar-head { fill: rgb(var(--c-text)); stroke: none; }
+.arrows-arrow.is-sleep.is-error .ar-head { stroke: rgb(var(--c-danger)); }
+.arrows-arrow.is-sleep.is-awake.is-error .ar-head { fill: rgb(var(--c-danger)); }
+/* Lesson boards: the guided arrow pulses until tapped; its route is dotted. */
+.arrows-arrow.is-target .ar-body { stroke: rgb(var(--c-win)); }
+.arrows-arrow.is-target .ar-head { fill: rgb(var(--c-win)); }
+.arrows-arrow.is-target { animation: arrows-hint 1.1s ease infinite; }
+.ar-route { stroke: rgb(var(--c-win)); stroke-width: 0.9; stroke-dasharray: 1.2 1.6; opacity: 0.9; }
+/* Route peek (solo): fades in; a mouse hover is fainter. Reduced motion zeroes
+   the animation duration app-wide, so it simply appears. */
+.ar-route.is-peek { animation: ar-route-in var(--dur-fast) var(--ease-enter) backwards; pointer-events: none; }
+.ar-route.is-hover { opacity: 0.5; }
+@keyframes ar-route-in { from { opacity: 0; } }
 .ar-hit { outline: none; }
 .ar-hit:focus-visible { stroke: rgb(var(--c-cta) / 0.3); }
+/* Mirrors (a fixed tile with a slanted bar) and crates (a numbered box that
+   counts down with every clear, then breaks). A crate that blocks a tap
+   flashes like a blocking arrow. */
+.ar-mirror-cell { fill: rgb(var(--c-deep)); stroke: rgb(var(--c-structure)); stroke-width: 0.5; }
+.ar-mirror-bar { stroke: rgb(var(--c-p1)); stroke-width: 1.7; stroke-linecap: round; }
+.ar-mirror-glint { stroke: rgb(var(--c-text)); stroke-width: 0.6; stroke-linecap: round; opacity: 0.8; }
+/* Flat mirrors (endless) wear the O accent so they read apart from slanted ones; the bar's angle is the main cue. */
+.ar-mirror.is-flat .ar-mirror-bar { stroke: rgb(var(--c-p2)); }
+/* Portals: plain ovals told apart by colour (--c-portal-1..4, CVD-checked per
+   theme; never the player accents). No letter unless SHOW PORTAL LETTERS is on
+   (html[data-portalletters]); a 4th pair always shows it. A small arrowhead
+   marks only the special rings: entrance in, exit-only (filled) out, a turning
+   ring clockwise. The oval fills briefly as an arrow passes (is-pass). A
+   shaped board tints its playable cells so the outline reads against the stage.
+   Tunnels: a light floor, dark walls on the two blocked sides and one chevron
+   the allowed way; the pass-through sides have no border. */
+.ar-portal-0 { --portal: var(--c-portal-1); }
+.ar-portal-1 { --portal: var(--c-portal-2); }
+.ar-portal-2 { --portal: var(--c-portal-3); }
+.ar-portal-3 { --portal: var(--c-portal-4); }
+.ar-portal-cell { fill: rgb(var(--c-deep)); stroke: rgb(var(--c-structure)); stroke-width: 0.5; }
+.ar-portal-oval { fill: rgb(var(--portal) / 0.14); stroke: rgb(var(--portal)); stroke-width: 0.95; }
+.ar-portal.is-exit .ar-portal-oval { fill: rgb(var(--portal)); }
+.ar-portal-head { fill: rgb(var(--portal)); stroke: rgb(var(--c-card)); stroke-width: 0.3; stroke-linejoin: round; }
+.ar-portal.is-exit .ar-portal-head { stroke-width: 0.45; }
+.ar-portal.is-pass .ar-portal-oval { fill: rgb(var(--portal) / 0.55); stroke-width: 1.4; }
+.ar-portal.is-exit.is-pass .ar-portal-oval { stroke: rgb(var(--c-card)); }
+.ar-portal-letter { display: none; font-size: 3.2px; fill: rgb(var(--portal)); }
+html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter { display: block; }
+.ar-portal.is-exit .ar-portal-letter { fill: rgb(var(--c-card)); }
+.ar-shape { fill: rgb(var(--c-tint-p1)); opacity: 0.7; }
+.ar-tunnel-cell { stroke: none; fill: none; }
+.ar-tunnel-floor { fill: rgb(var(--c-win) / 0.14); }
+.ar-tunnel-wall { stroke: rgb(var(--c-text)); stroke-width: 1; stroke-linecap: square; opacity: 0.85; fill: none; }
+.ar-tunnel-chevron { fill: none; stroke: rgb(var(--c-win)); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; animation: ar-tunnel-nudge 2.4s ease-in-out infinite; }
+.ar-tunnel.is-pass .ar-tunnel-floor { fill: rgb(var(--c-win) / 0.45); }
+.ar-tunnel.is-blocker { animation: arrows-blocker 0.62s ease; }
+.ar-tunnel.is-blocker .ar-tunnel-wall { stroke: rgb(var(--c-danger)); opacity: 1; }
+.ar-tunnel.is-blocker .ar-tunnel-chevron { stroke: rgb(var(--c-danger)); }
+.ar-tunnel.is-blocker .ar-tunnel-floor { fill: rgb(var(--c-danger) / 0.15); }
+@keyframes ar-tunnel-nudge { 0%, 60%, 100% { transform: translateX(0); } 75% { transform: translateX(0.9px); } }
+.ar-crate-box { fill: rgb(var(--c-tint-cta)); stroke: rgb(var(--c-cta)); stroke-width: 0.8; }
+.ar-crate-slat { stroke: rgb(var(--c-cta) / 0.35); stroke-width: 0.6; }
+.ar-crate-num { font-size: 4px; fill: rgb(var(--c-cta)); }
+.ar-crate-num.is-wide { font-size: 3.2px; }
+.ar-crate { transition: opacity 0.35s, transform 0.35s; transform-box: fill-box; transform-origin: center; }
+.ar-crate.is-open { opacity: 0; transform: scale(1.4); }
+.ar-crate.is-blocker { animation: arrows-blocker 0.62s ease; }
+.ar-crate.is-blocker .ar-crate-box { stroke: rgb(var(--c-danger)); }
 /* Reduced motion (in-app setting, else the OS query): drop the flash, ring
    and shake; the red / CTA colour cues stay. */
+[data-motion="reduced"] .ar-crate { transition: none; }
+[data-motion="reduced"] .ar-tunnel-chevron,
+[data-motion="reduced"] .ar-crate.is-blocker,
+[data-motion="reduced"] .ar-tunnel.is-blocker,
 [data-motion="reduced"] .arrows-arrow.is-blocker,
+[data-motion="reduced"] .arrows-arrow.is-hint,
+[data-motion="reduced"] .arrows-arrow.is-target,
 [data-motion="reduced"] .arrows-stage.is-error,
 [data-motion="reduced"] .arrows-stage.is-error .arrows-svg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .ar-crate { transition: none; }
+  :root:not([data-motion="full"]) .ar-tunnel-chevron,
+  :root:not([data-motion="full"]) .ar-crate.is-blocker,
+  :root:not([data-motion="full"]) .ar-tunnel.is-blocker,
   :root:not([data-motion="full"]) .arrows-arrow.is-blocker,
+  :root:not([data-motion="full"]) .arrows-arrow.is-hint,
+  :root:not([data-motion="full"]) .arrows-arrow.is-target,
   :root:not([data-motion="full"]) .arrows-stage.is-error,
   :root:not([data-motion="full"]) .arrows-stage.is-error .arrows-svg { animation: none; }
 }
+
+/* Chop Chop: the stack lands after a crate is knocked out, and that crate flies off */
+@keyframes chop-drop {
+  0%   { transform: translateY(-38px); }
+  80%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+@keyframes chop-fly-l {
+  to { transform: translate(-150px, -70px) rotate(-140deg); opacity: 0; }
+}
+@keyframes chop-fly-r {
+  to { transform: translate(150px, -70px) rotate(140deg); opacity: 0; }
+}
+
+/* Bonk Buggies: the banner stamps in over the arena, and a new point pip pops */
+@keyframes bonk-stamp {
+  0%   { transform: scale(1.7); opacity: 0; }
+  55%  { transform: scale(0.94); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes bonk-pip {
+  0%   { transform: scale(0.2); }
+  60%  { transform: scale(1.55); }
+  100% { transform: scale(1); }
+}
+.bonk-stamp { animation: bonk-stamp var(--dur-base) var(--ease-enter) both; }
+.bonk-pip { animation: bonk-pip var(--dur-page) var(--ease-enter) both; }
+
+/* Bamboozle: the count-in number lands, the YOU tag bobs above your dodger */
+@keyframes bz-pop {
+  0%   { transform: scale(1.6); opacity: 0; }
+  30%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes bz-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.bz-count { animation: bz-pop var(--dur-page) var(--ease-enter) both; }
+.bz-bob   { animation: bz-bob 0.8s ease-in-out infinite; }
+
+/* Quiver: the domed arcade button at each seat. The colour is the seat's own
+   theme token (--pad), lit from the top left; the wheel itself is on a canvas. */
+.quiver-pad {
+  background:
+    radial-gradient(circle at 34% 26%, rgb(255 255 255 / .55), rgb(255 255 255 / 0) 46%),
+    radial-gradient(circle at 62% 80%, rgb(0 0 0 / .38), rgb(0 0 0 / 0) 62%),
+    rgb(var(--pad));
+  border: 4px solid rgb(var(--c-structure));
+  box-shadow:
+    inset 0 -3px 8px rgb(0 0 0 / .45),
+    inset 0 2px 3px rgb(255 255 255 / .3),
+    0 4px 0 rgb(var(--c-deep)),
+    0 7px 10px rgb(0 0 0 / .4);
+}
+.quiver-pad[data-live='false'] { filter: saturate(.45) brightness(.7); }
+.quiver-pad[data-stun='true'] { filter: grayscale(1) brightness(.6); }
+.quiver-pad[data-pop='true'] .quiver-pad-score { transform: scale(1.3); }
+.quiver-pad-score { transition: transform var(--dur-fast) var(--ease-standard); }
 
 /* Pig: a bust (rolling a 1) shakes the die briefly */
 @keyframes dice-bust {
@@ -1316,7 +2580,26 @@ body::before {
   0%   { opacity: 0; transform: scale(0.92) translateY(6px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
-.modal-pop { animation: modal-pop 0.12s steps(3) both; }
+.modal-pop { animation: modal-pop var(--dur-base) steps(3) both; }
+
+/* A friend arrives (arrivalLogic.js): the joining seat pops in on the pop
+   spring, each countdown number lands the same way, and an empty seat
+   breathes while it waits. Reduced motion freezes them (the global rule). */
+@keyframes seat-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.seat-pop { animation: seat-pop var(--spring-pop-dur) var(--spring-pop) both; }
+@keyframes arrival-count {
+  0%   { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.arrival-count { animation: arrival-count var(--spring-pop-dur) var(--spring-pop) both; }
+@keyframes seat-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+.seat-breathe { animation: seat-breathe 1.8s ease-in-out infinite; }
 
 /* A freshly-placed mark pops in (gated on mount so only the new piece animates) */
 @keyframes place-pop {
@@ -1392,9 +2675,81 @@ body::before {
   0%   { opacity: 0; }
   100% { opacity: 1; }
 }
-.route-fade {
+html:not([data-vt-routes]) .route-fade {
   animation: route-fade-in 180ms ease-out;
 }
+/* Reduced motion is calmer, not nothing: the page still fades (opacity only)
+   instead of cutting, so the change of screen is not missed. Wins over the
+   app-wide freeze by specificity. */
+[data-motion="reduced"]:not([data-vt-routes]) .route-fade { animation-duration: var(--dur-fast) !important; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]):not([data-vt-routes]) .route-fade { animation-duration: var(--dur-fast) !important; }
+}
+
+/* Page transitions (MotionRouter.jsx + lib/routeTransitionLogic.js): View
+   Transitions on the whole viewport (root), with the app bar and tab bar
+   captured separately so they stay put and only crossfade. data-route-vt names
+   the kind for the duration of one transition; data-native picks the
+   platform's version. Web: fade-through. Android: Material shared axis X.
+   iOS: push with the old page sliding a third under a dim, on the iOS page
+   spring; tab switches are instant there. Reduced motion is "fade". */
+html[data-route-vt] .app-navbar { view-transition-name: app-navbar; }
+html[data-route-vt] .app-tabbar { view-transition-name: app-tabbar; }
+html[data-route-vt]::view-transition-group(*) {
+  animation-duration: var(--dur-page);
+  animation-timing-function: var(--ease-standard);
+}
+html[data-route-vt]::view-transition-old(root),
+html[data-route-vt]::view-transition-new(root) { mix-blend-mode: normal; }
+
+html[data-route-vt="push"]::view-transition-old(root),
+html[data-route-vt="pop"]::view-transition-old(root) { animation: vt-fade-out-early var(--dur-page) linear both; }
+html[data-route-vt="push"]::view-transition-new(root),
+html[data-route-vt="pop"]::view-transition-new(root) { animation: vt-rise-in var(--dur-page) var(--ease-standard) both; }
+html[data-route-vt="tab"]::view-transition-old(root),
+html[data-route-vt="fade"]::view-transition-old(root) { animation: vt-fade-out var(--dur-fast) linear both; }
+html[data-route-vt="tab"]::view-transition-new(root),
+html[data-route-vt="fade"]::view-transition-new(root) { animation: vt-fade-in var(--dur-fast) linear both; }
+
+html[data-native="android"][data-route-vt="push"]::view-transition-old(root) { animation: vt-axis-out-left var(--dur-page) var(--ease-standard) both; }
+html[data-native="android"][data-route-vt="push"]::view-transition-new(root) { animation: vt-axis-in-right var(--dur-page) var(--ease-enter) both; }
+html[data-native="android"][data-route-vt="pop"]::view-transition-old(root) { animation: vt-axis-out-right var(--dur-page) var(--ease-standard) both; }
+html[data-native="android"][data-route-vt="pop"]::view-transition-new(root) { animation: vt-axis-in-left var(--dur-page) var(--ease-enter) both; }
+html[data-native="android"][data-route-vt="tab"]::view-transition-old(root) { animation: vt-fade-out-early var(--dur-page) linear both; }
+html[data-native="android"][data-route-vt="tab"]::view-transition-new(root) { animation: vt-through-in var(--dur-page) var(--ease-enter) both; }
+
+html[data-native="ios"][data-route-vt="push"]::view-transition-old(root) { animation: vt-ios-under-out var(--spring-page-dur) var(--spring-page) both; }
+html[data-native="ios"][data-route-vt="push"]::view-transition-new(root) { animation: vt-ios-push-in var(--spring-page-dur) var(--spring-page) both; box-shadow: -8px 0 24px rgb(0 0 0 / .18); }
+html[data-native="ios"][data-route-vt="pop"]::view-transition-old(root) { animation: vt-ios-pop-out var(--spring-page-dur) var(--spring-page) both; z-index: 1; box-shadow: -8px 0 24px rgb(0 0 0 / .18); }
+html[data-native="ios"][data-route-vt="pop"]::view-transition-new(root) { animation: vt-ios-under-in var(--spring-page-dur) var(--spring-page) both; }
+
+/* Theme switch (theme.js switchTheme): one View Transition over the whole
+   screen; iOS crossfades, elsewhere the new theme spreads in a circle from
+   the tapped control (--vt-x/--vt-y/--vt-r). .theme-switching suspends
+   element transitions so nothing tweens on its own inside the change. */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after { transition: none !important; }
+html[data-theme-vt]::view-transition-old(root),
+html[data-theme-vt]::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html[data-theme-vt="fade"]::view-transition-new(root) { animation: vt-fade-in 250ms var(--ease-standard) both; }
+html[data-theme-vt="reveal"]::view-transition-new(root) { animation: vt-theme-reveal 400ms var(--ease-standard) both; }
+@keyframes vt-theme-reveal {
+  from { clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 0)); }
+  to   { clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 0)); }
+}
+
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in { from { opacity: 0; } }
+@keyframes vt-fade-out-early { 0% { opacity: 1; } 30%, 100% { opacity: 0; } }
+@keyframes vt-rise-in { 0%, 30% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-through-in { 0%, 30% { opacity: 0; transform: scale(0.92); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-axis-out-left { 0% { opacity: 1; transform: none; } 35% { opacity: 0; } 100% { opacity: 0; transform: translateX(-30px); } }
+@keyframes vt-axis-out-right { 0% { opacity: 1; transform: none; } 35% { opacity: 0; } 100% { opacity: 0; transform: translateX(30px); } }
+@keyframes vt-axis-in-right { 0%, 35% { opacity: 0; transform: translateX(30px); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-axis-in-left { 0%, 35% { opacity: 0; transform: translateX(-30px); } 100% { opacity: 1; transform: none; } }
+@keyframes vt-ios-push-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes vt-ios-under-out { from { transform: none; filter: brightness(1); } to { transform: translateX(-30%); filter: brightness(0.9); } }
+@keyframes vt-ios-pop-out { from { transform: none; } to { transform: translateX(100%); } }
+@keyframes vt-ios-under-in { from { transform: translateX(-30%); filter: brightness(0.9); } to { transform: none; filter: brightness(1); } }
 
 /* PAC MAC: two-frame chomp, pulsing power pellets, blink for shield /
    fading power, a fast flicker for a muncher that is being hunted, and a
@@ -1419,9 +2774,11 @@ body::before {
 .pacmac-fright-end { animation: pacmac-power 0.3s steps(2) infinite; }
 .pacmac-status-ring { border-color: var(--pacmac-ring); box-shadow: 0 0 14px var(--pacmac-ring); }
 @media (prefers-reduced-motion: reduce) {
-  .pacmac-mouth-open, .pacmac-mouth-shut, .pacmac-power { animation: none; }
-  .pacmac-mouth-shut { opacity: 0; }
+  :root:not([data-motion="full"]) .pacmac-mouth-open, :root:not([data-motion="full"]) .pacmac-mouth-shut, :root:not([data-motion="full"]) .pacmac-power { animation: none; }
+  :root:not([data-motion="full"]) .pacmac-mouth-shut { opacity: 0; }
 }
+[data-motion="reduced"] .pacmac-mouth-open, [data-motion="reduced"] .pacmac-mouth-shut, [data-motion="reduced"] .pacmac-power { animation: none; }
+[data-motion="reduced"] .pacmac-mouth-shut { opacity: 0; }
 
 /* Avatar customizer preview: idle bounce + eyelid blink (animate prop only) */
 @keyframes avatar-idle {
@@ -1476,10 +2833,42 @@ body::before {
   --pair-wizard:   186 128 248;
   --pair-invader:  240 104 208;
   --pair-cat:      255 170 200;
-  --pair-ninja:    150 162 186;
+  --pair-sword:    150 162 186;
+  --pair-ninja:    150 162 186; /* legacy face: decks dealt before 'sword' replaced it */
   --pair-skull:    220 188 140;
   --pair-ghost:    234 236 246;
 }
+
+/* ── Simon pads ──
+   Like the Pairs faces, a dedicated palette and deliberately NOT themed: the pads
+   used to borrow --c-p1/p2/cta/win, and on Matcha two of them were the same green
+   (CIE76 ΔE 12.8), on 1-BIT MONO three were the same white. Classic Simon colours,
+   one per quadrant, each far from the others and readable under --simon-ink
+   (enforced by src/lib/simonPads.test.js). The glyph on each pad points at its own
+   corner, so colour is never the only cue. */
+:root {
+  --simon-ink:    24 20 34;
+  --simon-green:  64 196 92;
+  --simon-red:    240 84 96;
+  --simon-yellow: 244 200 48;
+  --simon-blue:   96 152 255;
+}
+.simon-pad {
+  background-color: rgb(var(--pad) / 0.16);
+  border-color: rgb(var(--pad) / 0.55);
+  color: rgb(var(--pad));
+  transition: background-color 90ms ease-out, box-shadow 90ms ease-out, transform 90ms ease-out;
+}
+.simon-pad.is-lit {
+  background-color: rgb(var(--pad));
+  border-color: rgb(var(--simon-ink));
+  color: rgb(var(--simon-ink));
+  box-shadow: 0 0 0 4px rgb(var(--pad) / 0.35), 0 0 28px rgb(var(--pad) / 0.7);
+  transform: scale(1.04);
+}
+.simon-chip { background-color: rgb(var(--pad)); border-color: rgb(var(--simon-ink) / 0.6); color: rgb(var(--simon-ink)); }
+[data-motion="reduced"] .simon-pad.is-lit { transform: none; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .simon-pad.is-lit { transform: none; } }
 
 .pairs-card-back {
   background-color: rgb(var(--c-card));
@@ -1496,7 +2885,7 @@ body::before {
   box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.35), inset 0 -3px 0 rgb(var(--pair-ink) / 0.18);
 }
 /* A claimed pair settles back: same identity, quieter, so the live cards stand out. */
-.pairs-card-face.is-claimed { filter: saturate(0.8); opacity: 0.85; }
+.pairs-card-face.is-claimed { filter: saturate(0.6); opacity: 0.7; }
 
 @keyframes pairs-match-pop {
   0%   { transform: scale(1); }
@@ -1544,7 +2933,6 @@ body::before {
 }
 
 /* Room meta line only exists for the mobile header (see Game.jsx). */
-.game-room-meta { display: none; }
 
 /* Not-your-turn / finished boards: keep every piece's player color (X/O,
    stones, discs stay identifiable for the loser and for spectators) and only
@@ -1597,4 +2985,493 @@ body::before {
 }
 .lanterns-flash { animation: lanterns-flash 0.7s ease-in-out 2; }
 [data-motion="reduced"] .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); }
-@media (prefers-reduced-motion: reduce) { .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .lanterns-flash { animation: none; box-shadow: 0 0 0 2px rgb(var(--c-cta)); } }
+
+/* WIRE CROSSED SWITCHBOARD: a locked switch rattles when tapped. */
+@keyframes wire-rattle {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-3px); }
+  40%, 80% { transform: translateX(3px); }
+}
+.wire-rattle { animation: wire-rattle 0.3s linear 1; }
+[data-motion="reduced"] .wire-rattle { animation: none; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .wire-rattle { animation: none; } }
+/* WIRE CROSSED BLACKOUT: the Tech's panel goes dark. Fills, glows and wire
+   colours drop to the outline colour; borders (outlines) and text (colour
+   letter tags, labels) stay legible, and every button keeps working. The
+   flicker is one short animation; reduced motion keeps only the dim state. */
+@keyframes wire-blackout-flicker {
+  0%, 100% { opacity: 1; }
+  25% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+  75% { opacity: 0.6; }
+}
+.wire-blackout {
+  --wire-red: 20 20 30;
+  --wire-blue: 20 20 30;
+  --wire-yellow: 20 20 30;
+  --wire-white: 20 20 30;
+  --wire-black: 20 20 30;
+  --wire-green: 20 20 30;
+  --c-cta: var(--c-structure);
+  --c-p1: var(--c-structure);
+  --c-p2: var(--c-structure);
+  --c-win: var(--c-structure);
+  --c-danger: var(--c-structure);
+  --c-tint-cta: var(--c-deep);
+  --c-tint-p1: var(--c-deep);
+  --c-tint-p2: var(--c-deep);
+  --c-tint-danger: var(--c-deep);
+  --c-card: var(--c-deep);
+  animation: wire-blackout-flicker 0.45s steps(4) 1;
+}
+.wire-blackout * { color: rgb(var(--c-text)); }
+[data-motion="reduced"] .wire-blackout { animation: none; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .wire-blackout { animation: none; } }
+
+/* How-to-play rule clips (RuleClips.jsx): GIF-like looping demos — silent,
+   autoplay, infinite. Phases are encoded as keyframe percentages (no WAAPI,
+   no timers), so each clip is one SVG + zero JS. Reduced motion freezes every
+   clip into its readable end-state via .clip-still (plain GIFs can't do this;
+   the app-wide [data-motion] rule alone would park them at opacity 0). */
+.clip-anim {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-fill-mode: both;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+/* TTT: marks pop in staggered (t0..t4), strike draws, all hold, then clear. */
+@keyframes clip-t0 { 0%,3%{opacity:0;transform:scale(.4)} 7%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t1 { 0%,15%{opacity:0;transform:scale(.4)} 19%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t2 { 0%,28%{opacity:0;transform:scale(.4)} 32%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t3 { 0%,41%{opacity:0;transform:scale(.4)} 45%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-t4 { 0%,54%{opacity:0;transform:scale(.4)} 58%,90%{opacity:1;transform:scale(1)} 96%,100%{opacity:0;transform:scale(1)} }
+@keyframes clip-strike { 0%,66%{opacity:0;transform:scaleX(.2)} 72%,90%{opacity:1;transform:scaleX(1)} 96%,100%{opacity:0;transform:scaleX(1)} }
+/* C4: discs drop from above the board staggered, win ring pings, then clear. */
+@keyframes clip-d0 { 0%,2%{opacity:0;transform:translateY(-48px)} 5%{opacity:1} 10%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-d1 { 0%,14%{opacity:0;transform:translateY(-48px)} 17%{opacity:1} 22%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-d2 { 0%,26%{opacity:0;transform:translateY(-48px)} 29%{opacity:1} 34%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-d3 { 0%,38%{opacity:0;transform:translateY(-48px)} 41%{opacity:1} 46%,90%{opacity:1;transform:translateY(0)} 96%,100%{opacity:0} }
+@keyframes clip-ping { 0%,56%{opacity:0;transform:scale(.6)} 62%,84%{opacity:1;transform:scale(1)} 90%,100%{opacity:0;transform:scale(1)} }
+/* Pong: seamless 4s rally loop (ends where it starts — no clear needed). */
+@keyframes clip-ball { 0%{transform:translate(0,0)} 25%{transform:translate(24px,-8px)} 50%{transform:translate(0,4px)} 75%{transform:translate(-24px,-6px)} 100%{transform:translate(0,0)} }
+@keyframes clip-paddle-l { 0%{transform:translateY(0)} 25%{transform:translateY(-7px)} 50%{transform:translateY(3px)} 75%{transform:translateY(-5px)} 100%{transform:translateY(0)} }
+@keyframes clip-paddle-r { 0%{transform:translateY(0)} 30%{transform:translateY(5px)} 60%{transform:translateY(-4px)} 100%{transform:translateY(0)} }
+[data-motion="reduced"] .clip-still { animation: none !important; opacity: 1 !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) .clip-still { animation: none !important; opacity: 1 !important; transform: none !important; } }
+
+/* Per-theme effects: overlay layers, patterns, foil and animation. Frozen by [data-motion="reduced"] above. */
+/* MATCHA: an LCD dot grid replaces the scanlines and the vignette is off, so the default keeps an arcade layer on a light ground. */
+[data-theme='matcha'] body::after {
+  background:
+    linear-gradient(90deg, rgb(var(--c-text) / .07) 1px, transparent 1px) 0 0 / 3px 3px,
+    linear-gradient(0deg, rgb(var(--c-text) / .07) 1px, transparent 1px) 0 0 / 3px 3px;
+}
+[data-theme='matcha'] body::before { display: none; }
+/* Hard offset title shadows on light grounds instead of a blurred glow. */
+[data-theme='matcha'] .text-glow-cta, [data-theme='matcha'] .text-glow-win, [data-theme='matcha'] .text-glow-p1, [data-theme='matcha'] .text-glow-p2,
+[data-theme='cartridge'] .text-glow-cta, [data-theme='cartridge'] .text-glow-win {
+  text-shadow: 2px 2px 0 rgb(var(--c-border)), 3px 3px 0 rgb(var(--c-tint-cta));
+}
+/* Arcade material on light grounds: buttons sit on a ledge, cards on a 3 px base. */
+[data-theme='matcha'] .bg-retro-cta, [data-theme='cartridge'] .bg-retro-cta { box-shadow: 0 4px 0 rgb(var(--c-text) / .55); }
+[data-theme='matcha'] .bg-retro-card, [data-theme='matcha'] .bg-retro-surface,
+[data-theme='cartridge'] .bg-retro-card, [data-theme='cartridge'] .bg-retro-surface { box-shadow: 0 3px 0 rgb(var(--c-border)); }
+[data-theme='matcha'] .shadow-neon-cta, [data-theme='cartridge'] .shadow-neon-cta { box-shadow: 0 3px 0 rgb(var(--c-structure)); }
+
+/* NOTEBOOK: graph paper under every page. */
+[data-theme='notebook'] body, [data-theme='notebook'] .min-h-screen.bg-retro-bg {
+  background-image:
+    linear-gradient(rgb(var(--c-border) / .55) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--c-border) / .55) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* RISO PRINT: paper grain plus a misregistered two-ink title shadow. */
+[data-theme='riso'] body::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .18; mix-blend-mode: multiply;
+}
+[data-theme='riso'] body::before { display: none; }
+[data-theme='riso'] h1, [data-theme='riso'] .text-glow-cta, [data-theme='riso'] .text-glow-win {
+  text-shadow: 2px 1px 0 rgb(var(--c-cta) / .55), -1px -1px 0 rgb(var(--c-p1) / .45);
+}
+
+/* 24K: a foil sheen sweeps the CTA; gold hairline under cards. */
+@keyframes lab-sheen { 0%, 70% { background-position: 160% 0, 0 0; } 100% { background-position: -60% 0, 0 0; } }
+[data-theme='gold'] .bg-retro-cta {
+  background-image: linear-gradient(105deg, transparent 38%, rgb(255 250 230 / .75) 50%, transparent 62%),
+    linear-gradient(180deg, rgb(255 232 160), rgb(var(--c-cta)) 55%, rgb(176 128 36));
+  background-size: 250% 100%, 100% 100%;
+  animation: lab-sheen 5s ease-in-out infinite;
+}
+[data-theme='gold'] .bg-retro-card { box-shadow: inset 0 1px 0 rgb(var(--c-cta) / .35); }
+[data-theme='gold'] body::before { background: radial-gradient(ellipse at 50% 0%, rgb(var(--c-cta) / .10), transparent 55%), radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.6) 100%); }
+
+/* HOLOFOIL: prismatic CTA and a slow holographic drift behind the page. */
+@keyframes lab-holo { to { background-position: 300% 0; } }
+@keyframes lab-drift { 0% { transform: translate(-10%, -6%) rotate(0deg); } 100% { transform: translate(10%, 6%) rotate(25deg); } }
+[data-theme='holo'] .bg-retro-cta {
+  background-image: linear-gradient(110deg, rgb(var(--c-cta)), rgb(255 214 120), rgb(140 255 214), rgb(122 184 255), rgb(196 155 255), rgb(var(--c-cta)));
+  background-size: 300% 100%;
+  animation: lab-holo 6s linear infinite;
+}
+[data-theme='holo'] body::before {
+  inset: -40%;
+  background: conic-gradient(from 0deg at 50% 50%, rgb(255 122 209 / .10), rgb(122 184 255 / .10), rgb(140 255 214 / .09), rgb(255 214 120 / .08), rgb(255 122 209 / .10));
+  filter: blur(40px);
+  animation: lab-drift 18s ease-in-out infinite alternate;
+}
+[data-theme='holo'] .border-retro-border { border-color: rgb(var(--c-border)); box-shadow: inset 0 0 0 1px rgb(196 155 255 / .08); }
+
+/* COSMIC CARPET: 90s arcade carpet under every page. */
+[data-theme='carpet'] body, [data-theme='carpet'] .min-h-screen.bg-retro-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke-width='3' stroke-linecap='round' opacity='.38'%3E%3Cpath d='M10 30 q10 -14 20 0 t20 0' stroke='%2338d6ff'/%3E%3Cpath d='M80 100 q10 -14 20 0 t20 0' stroke='%23ff4fb0'/%3E%3Ccircle cx='100' cy='30' r='9' stroke='%23fff35c'/%3E%3Ccircle cx='30' cy='100' r='5' stroke='%23ff9a2e'/%3E%3Cpath d='M60 55 l12 -6 l-2 13 z' stroke='%23b6ff3c'/%3E%3Cpath d='M118 70 l6 6 m0 -6 l-6 6' stroke='%23c9a2ff'/%3E%3Cpath d='M15 65 l6 6 m0 -6 l-6 6' stroke='%23ff4fb0'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 140px 140px;
+}
+
+/* P7 RADAR: a rotating sweep with an afterglow trail. */
+@keyframes lab-sweep { to { transform: rotate(360deg); } }
+[data-theme='radar'] body::before {
+  inset: -50%;
+  background: conic-gradient(from 0deg, rgb(var(--c-p1) / .16), rgb(var(--c-p1) / .04) 40deg, transparent 90deg, transparent 360deg);
+  animation: lab-sweep 6s linear infinite;
+}
+
+/* CAMPFIRE: warm ground glow that flickers in steps. */
+@keyframes lab-flicker { 0%, 100% { opacity: 1; } 30% { opacity: .82; } 55% { opacity: .95; } 75% { opacity: .78; } }
+[data-theme='campfire'] body::before {
+  background: radial-gradient(ellipse 90% 45% at 50% 105%, rgb(var(--c-p2) / .22), transparent 70%), radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, .55) 100%);
+  animation: lab-flicker 2.2s steps(4) infinite;
+}
+
+/* PUMPKIN NIGHT: low fog. */
+[data-theme='pumpkin'] body::before {
+  background: radial-gradient(ellipse 70% 25% at 20% 100%, rgb(var(--c-p3) / .10), transparent 70%), radial-gradient(ellipse 70% 25% at 85% 100%, rgb(var(--c-p4) / .12), transparent 70%), radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, .6) 100%);
+}
+
+/* SHORELINE: midday, seen from above. The sea fills the top of the page (about
+   a third of the screen, --beach-sea) with the header floating on it, and its
+   foamy edge washes onto warm speckled sand that covers everything below.
+   BeachBackdrop.jsx draws the sea, waves, wet sand, damp patches, shells and
+   crabs; the sand itself is a static speckle tile on the body (painted once).
+   Pages let it show through; cards stay cream and opaque on top. */
+[data-theme='shoreline'] {
+  --beach-sea: clamp(190px, 33svh, 380px);
+  /* The header scrolls away with the sea, so sticky chrome sits at the top. */
+  --app-header-offset: 0px;
+}
+[data-theme='shoreline'] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .36  0 0 0 0 .22  0 0 0 .12 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3Ccircle cx='0.0' cy='110.5' r='0.76' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='87.5' cy='63.9' r='0.80' fill='rgb(120,95,60)' fill-opacity='0.23'/%3E%3Ccircle cx='90.6' cy='65.1' r='1.12' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='98.0' cy='29.0' r='0.84' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='83.8' cy='6.5' r='1.12' fill='rgb(120,95,60)' fill-opacity='0.17'/%3E%3Ccircle cx='110.7' cy='96.9' r='0.61' fill='rgb(120,95,60)' fill-opacity='0.18'/%3E%3Ccircle cx='110.8' cy='82.6' r='1.08' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='109.4' cy='109.0' r='0.84' fill='rgb(120,95,60)' fill-opacity='0.15'/%3E%3Ccircle cx='100.5' cy='39.9' r='0.64' fill='rgb(120,95,60)' fill-opacity='0.14'/%3E%3Ccircle cx='51.4' cy='35.4' r='1.34' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='87.5' cy='105.3' r='0.55' fill='rgb(120,95,60)' fill-opacity='0.14'/%3E%3Ccircle cx='67.3' cy='61.1' r='0.88' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='109.1' cy='6.6' r='0.83' fill='rgb(120,95,60)' fill-opacity='0.15'/%3E%3Ccircle cx='79.7' cy='110.9' r='0.96' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='48.7' cy='34.0' r='0.83' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='39.9' cy='63.8' r='1.05' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='108.8' cy='54.9' r='1.28' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='76.1' cy='61.9' r='0.95' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='112.7' cy='47.6' r='1.14' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='70.4' cy='42.1' r='0.80' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='95.4' cy='105.3' r='0.60' fill='rgb(120,95,60)' fill-opacity='0.24'/%3E%3Ccircle cx='9.3' cy='48.8' r='0.64' fill='rgb(120,95,60)' fill-opacity='0.10'/%3E%3Ccircle cx='119.5' cy='26.4' r='1.07' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='54.9' cy='71.1' r='0.62' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='106.1' cy='106.9' r='1.30' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='91.3' cy='33.1' r='0.51' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='9.1' cy='0.2' r='1.06' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='88.9' cy='58.7' r='1.12' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='105.9' cy='28.2' r='0.84' fill='rgb(120,95,60)' fill-opacity='0.25'/%3E%3Ccircle cx='14.2' cy='58.7' r='0.50' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='76.4' cy='110.7' r='0.52' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='22.6' cy='116.2' r='1.01' fill='rgb(120,95,60)' fill-opacity='0.21'/%3E%3Ccircle cx='32.0' cy='26.7' r='0.69' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='6.3' cy='92.3' r='1.13' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='59.8' cy='3.9' r='0.60' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='15.7' cy='82.5' r='1.30' fill='rgb(120,95,60)' fill-opacity='0.09'/%3E%3Ccircle cx='106.0' cy='103.4' r='1.39' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3Ccircle cx='91.8' cy='50.4' r='0.72' fill='rgb(120,95,60)' fill-opacity='0.22'/%3E%3Ccircle cx='105.9' cy='47.8' r='0.71' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='106.4' cy='67.1' r='0.82' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='88.2' cy='40.2' r='1.15' fill='rgb(120,95,60)' fill-opacity='0.16'/%3E%3Ccircle cx='23.8' cy='37.4' r='1.39' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3Ccircle cx='75.9' cy='104.7' r='1.33' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='77.4' cy='16.2' r='0.95' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='92.6' cy='113.5' r='0.93' fill='rgb(120,95,60)' fill-opacity='0.12'/%3E%3Ccircle cx='53.6' cy='19.9' r='1.10' fill='rgb(120,95,60)' fill-opacity='0.18'/%3E%3Ccircle cx='67.4' cy='60.8' r='1.18' fill='rgb(120,95,60)' fill-opacity='0.15'/%3E%3Ccircle cx='90.1' cy='3.1' r='0.77' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='24.3' cy='86.8' r='0.76' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='79.1' cy='51.5' r='0.57' fill='rgb(120,95,60)' fill-opacity='0.23'/%3E%3Ccircle cx='98.7' cy='109.9' r='1.32' fill='rgb(120,95,60)' fill-opacity='0.21'/%3E%3Ccircle cx='115.1' cy='3.0' r='1.19' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='86.9' cy='107.8' r='0.53' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='9.6' cy='13.0' r='0.58' fill='rgb(120,95,60)' fill-opacity='0.08'/%3E%3Ccircle cx='72.6' cy='113.5' r='0.67' fill='rgb(120,95,60)' fill-opacity='0.11'/%3E%3Ccircle cx='24.3' cy='81.0' r='0.72' fill='rgb(120,95,60)' fill-opacity='0.17'/%3E%3Ccircle cx='119.3' cy='50.7' r='1.11' fill='rgb(120,95,60)' fill-opacity='0.23'/%3E%3Ccircle cx='47.6' cy='50.0' r='0.56' fill='rgb(120,95,60)' fill-opacity='0.13'/%3E%3Ccircle cx='96.9' cy='116.9' r='0.64' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='61.0' cy='14.7' r='0.69' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='20.5' cy='9.4' r='0.75' fill='rgb(120,95,60)' fill-opacity='0.21'/%3E%3Ccircle cx='66.7' cy='57.7' r='1.39' fill='rgb(120,95,60)' fill-opacity='0.10'/%3E%3Ccircle cx='49.6' cy='37.7' r='0.50' fill='rgb(120,95,60)' fill-opacity='0.08'/%3E%3Ccircle cx='49.6' cy='11.0' r='0.71' fill='rgb(120,95,60)' fill-opacity='0.26'/%3E%3Ccircle cx='93.3' cy='91.7' r='0.89' fill='rgb(120,95,60)' fill-opacity='0.25'/%3E%3Ccircle cx='115.5' cy='96.1' r='1.10' fill='rgb(120,95,60)' fill-opacity='0.19'/%3E%3Ccircle cx='41.8' cy='48.8' r='0.95' fill='rgb(120,95,60)' fill-opacity='0.18'/%3E%3Ccircle cx='68.1' cy='86.6' r='1.10' fill='rgb(120,95,60)' fill-opacity='0.20'/%3E%3Ccircle cx='87.5' cy='106.1' r='1.26' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3Ccircle cx='52.6' cy='58.4' r='1.36' fill='rgb(120,95,60)' fill-opacity='0.27'/%3E%3C/svg%3E");
+}
+[data-theme='shoreline'] .min-h-screen.bg-retro-bg { background-color: transparent; }
+/* Its paired Fredoka reads best a step heavier than the pixel faces' 400. */
+[data-theme='shoreline'][data-font='fredoka'] .font-pixel { font-weight: 600; }
+/* The header sits directly on the water: no ground or border of its own,
+   white ink, no backdrop blur. It belongs to the sea, so it scrolls away with
+   it rather than pinning over the sand. Game rooms' own header row and room
+   line sit on the sea the same way. */
+[data-theme='shoreline'] :is(.app-navbar, .game-header, .game-room-meta) {
+  --c-text: 255 255 255;
+  --c-dim: 222 244 246;
+  --c-p1: 255 255 255;
+  --c-cta: 255 255 255;
+  --c-border: var(--c-sea);
+  --c-tint-cta: 10 104 128;
+}
+[data-theme='shoreline'] .app-navbar {
+  position: relative;
+  transform: none;
+  background-color: transparent;
+  border-bottom-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+[data-theme='shoreline'] :is(.app-navbar, .game-header, .game-room-meta) :is(.text-glow-cta, .text-glow-p1, .font-pixel) { text-shadow: 0 1px 2px rgb(0 0 0 / .25); }
+/* Menus start just past the reach of the waves, on the sand. */
+[data-theme='shoreline'] .beach-pad { padding-top: calc(var(--beach-sea) - var(--app-header-h) + 52px); }
+/* The tab bar is cream, like the cards. */
+[data-theme='shoreline'] .app-tabbar { --c-bg: var(--c-surface); }
+/* Light-ground material: buttons on a ledge, cream cards on a base with a
+   soft shadow on the sand. */
+[data-theme='shoreline'] .text-glow-cta, [data-theme='shoreline'] .text-glow-win,
+[data-theme='shoreline'] .text-glow-p1, [data-theme='shoreline'] .text-glow-p2 {
+  text-shadow: 0 2px 0 rgb(var(--c-border));
+}
+/* Seat cards can sit over the sea in a game room: keep their tints opaque. */
+[data-theme='shoreline'] .bg-retro-tint-p1\/60 { background-color: rgb(var(--c-tint-p1)); }
+[data-theme='shoreline'] .bg-retro-tint-p2\/60 { background-color: rgb(var(--c-tint-p2)); }
+[data-theme='shoreline'] .bg-retro-cta { box-shadow: 0 4px 0 rgb(var(--c-text) / .28), 0 8px 16px rgb(var(--c-text) / .1); }
+[data-theme='shoreline'] .bg-retro-card, [data-theme='shoreline'] .bg-retro-surface { box-shadow: 0 3px 0 rgb(var(--c-border)), 0 6px 14px rgb(var(--c-text) / .07); }
+
+/* The scene lies at the top of the page and scrolls with it, behind
+   everything. The sea is the first --beach-sea px; the waves' foam line sits
+   there and washes WASH reach further down. */
+.beach-backdrop {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--beach-sea) + 160px);
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.beach-sand { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.beach-backdrop > *, .beach-sand > * { position: absolute; }
+.beach-deep {
+  left: 0;
+  right: 0;
+  top: 0;
+  /* Solid down past the top of the wave strips at their furthest wash (30px
+     below where they rest), then fading into them. */
+  height: calc(var(--beach-sea) - 2px);
+  background: linear-gradient(rgb(var(--c-sea)) calc(100% - 68px), rgb(var(--c-sea) / 0));
+}
+.beach-glint {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgb(var(--c-foam));
+  opacity: 0;
+  will-change: opacity;
+  animation: beach-glint 3.2s ease-in-out infinite;
+}
+@keyframes beach-glint { 0%, 100% { opacity: 0; } 50% { opacity: .9; } }
+.beach-wet {
+  left: 0;
+  right: 0;
+  top: calc(var(--beach-sea) - 2px);
+  height: 70px;
+  background: linear-gradient(rgb(var(--c-wet) / .75), rgb(var(--c-wet) / 0));
+  opacity: .25;
+  will-change: opacity;
+  animation: beach-wet 7s var(--wash-delay, 0s) infinite;
+}
+/* Damp sand the last waves left behind: soft darker blots, painted once. */
+.beach-patch {
+  transform: rotate(var(--rot));
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(var(--c-damp) / .38), rgb(var(--c-damp) / .2) 60%, rgb(var(--c-damp) / 0));
+}
+.beach-item { transform: rotate(var(--rot)); }
+.beach-item svg { display: block; }
+/* Now and then a crab scuttles a few steps sideways and back. */
+.beach-crab { will-change: transform; animation: beach-scuttle 11s steps(1, end) infinite; }
+@keyframes beach-scuttle {
+  0%, 30%  { transform: translateX(0) rotate(var(--rot)); }
+  33%      { transform: translateX(4px) rotate(var(--rot)); }
+  36%      { transform: translateX(8px) rotate(var(--rot)); }
+  39%, 70% { transform: translateX(12px) rotate(var(--rot)); }
+  73%      { transform: translateX(8px) rotate(var(--rot)); }
+  76%      { transform: translateX(4px) rotate(var(--rot)); }
+  79%, 100% { transform: translateX(0) rotate(var(--rot)); }
+}
+/* Phones: the cards cover the open sand, so only the pieces in the wash show.
+   Wider screens have open sand beside the column and larger pieces. */
+@media (max-width: 639px) { .beach-sand { display: none; } }
+@media (min-width: 640px) { .beach-item svg { transform: scale(1.4); } }
+/* Each wave strip is 170px tall with its foam line at 102px (BeachBackdrop
+   FRONT.base), placed so that line rests on --beach-sea. */
+.beach-wave { left: 0; top: calc(var(--beach-sea) - 102px); will-change: transform; animation: beach-wash 7s var(--wash-delay, 0s) infinite; }
+.beach-wave.is-front { --reach: 30px; }
+.beach-wave.is-back { --reach: 14px; animation-delay: calc(var(--wash-delay, 0s) - 3.4s); }
+.beach-drift { will-change: transform; animation: beach-drift 24s linear infinite; }
+.beach-wave.is-back .beach-drift { animation-duration: 34s; animation-direction: reverse; }
+.beach-drift svg { display: block; }
+/* Forward: a quick run up the sand that slows at its peak (WASH_PEAK = 42%);
+   back: a slower, steady retreat. */
+@keyframes beach-wash {
+  0%   { transform: translateY(0); animation-timing-function: cubic-bezier(.22, .7, .32, 1); }
+  42%  { transform: translateY(var(--reach)); animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+  100% { transform: translateY(0); }
+}
+/* One shoreline tile (beachLogic SHORE_TILE), so the strip loops seamlessly. */
+@keyframes beach-drift { to { transform: translateX(-390px); } }
+@keyframes beach-wet { 0% { opacity: .25; } 42% { opacity: .85; } 100% { opacity: .2; } }
+/* Reduced motion: the beach stays, frozen mid-wash, and the crabs sit still. */
+[data-motion='reduced'] :is(.beach-backdrop, .beach-sand) * { animation: none !important; }
+[data-motion='reduced'] .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
+[data-motion='reduced'] .beach-wet { opacity: .5; }
+[data-motion='reduced'] .beach-glint { opacity: .5; }
+[data-motion='reduced'] .beach-crab { transform: rotate(var(--rot)); }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) :is(.beach-backdrop, .beach-sand) * { animation: none !important; }
+  :root:not([data-motion='full']) .beach-wave { transform: translateY(calc(var(--reach) / 2)); }
+  :root:not([data-motion='full']) .beach-wet { opacity: .5; }
+  :root:not([data-motion='full']) .beach-glint { opacity: .5; }
+  :root:not([data-motion='full']) .beach-crab { transform: rotate(var(--rot)); }
+}
+
+/* HIGH CONTRAST: thick focus ring. */
+[data-theme='hicontrast'] :focus-visible { outline: 3px solid rgb(var(--c-cta)); outline-offset: 2px; }
+
+/* ── GLASS material (the LIQUID look: GLASS and GLASS NIGHT only) ──────────
+   Glass goes on chrome: the bars, sheets, room dock, HUD pills and lobby tiles.
+   Never on boards, pieces, rules text or anything over a real-time arena.
+   Components add these classes unconditionally; every rule is scoped to a
+   GLASS theme, so on any other theme they do nothing.
+   .glass icon controls and chips (--g-alpha), .glass-tx panels with text
+   (--g-alpha-text), .glass-sheet an expanded sheet (--g-alpha-sheet). The tint
+   is a see-through wash, with a double rim and a specular sheen steered by the
+   pointer or tilt (--mx/--my, lib/glassRuntime.js). Text on glass carries a
+   soft halo in the ground colour. Elements that also carry data-lens get the
+   liquid lens on Blink (hooks/useGlassLens.js sets --lens; clear glass
+   elsewhere). */
+[data-theme^="glass"] .glass,
+[data-theme^="glass"] .glass-tx,
+[data-theme^="glass"] .glass-sheet {
+  --glass-a: var(--g-alpha);
+  background-color: rgb(var(--c-glass-tint) / var(--glass-a));
+  background-image: radial-gradient(120% 70% at var(--mx, 22%) var(--my, -10%), rgb(var(--c-glass-rim) / calc(var(--g-spec) * .4)), transparent 55%);
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat));
+  border: 1px solid rgb(var(--c-glass-rim) / calc(var(--g-rim-a) * .55));
+  /* rim light, the thick-pane double edge, then the drop shadow */
+  box-shadow:
+    inset 0 1px 0 rgb(var(--c-glass-rim) / var(--g-spec)),
+    inset 2px 2px 1px -1px rgb(var(--c-glass-rim) / calc(var(--g-rim-a) * .85)),
+    inset -2px -2px 1px -1px rgb(var(--c-glass-rim) / calc(var(--g-rim-a) * .4)),
+    0 8px 22px rgb(var(--c-glass-shade) / var(--g-drop));
+  text-shadow: 0 0 6px rgb(var(--c-bg) / .8);
+}
+[data-theme^="glass"] .glass-tx { --glass-a: var(--g-alpha-text); }
+[data-theme^="glass"] .glass-sheet {
+  --glass-a: var(--g-alpha-sheet);
+  /* a sheet sits over page content, not only art: frost it harder than a bar */
+  -webkit-backdrop-filter: blur(var(--g-blur-sheet)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-sheet)) saturate(var(--g-sat));
+}
+/* The lens: only where the engine draws it (data-glass-lens is set by JS on a
+   Blink engine, never by @supports, which Safari passes and then draws nothing). */
+:root[data-glass-lens="on"] :is(.glass, .glass-tx)[data-lens] {
+  -webkit-backdrop-filter: var(--lens, blur(var(--g-blur))) saturate(var(--g-sat));
+  backdrop-filter: var(--lens, blur(var(--g-blur))) saturate(var(--g-sat));
+}
+/* The floating bars have page content scrolling under them, so they carry a
+   little more frost than a tile (--g-blur-bar) and bend the art on top of it. */
+[data-theme^="glass"] .glass-bar {
+  -webkit-backdrop-filter: blur(var(--g-blur-bar)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-bar)) saturate(var(--g-sat));
+}
+:root[data-glass-lens="on"] .glass-bar[data-lens] {
+  -webkit-backdrop-filter: blur(var(--g-blur-bar)) var(--lens, blur(0px)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-bar)) var(--lens, blur(0px)) saturate(var(--g-sat));
+}
+/* A sheet keeps its heavy frost and bends the art at the rim on top of it. */
+:root[data-glass-lens="on"] .glass-sheet[data-lens] {
+  -webkit-backdrop-filter: blur(var(--g-blur-sheet)) var(--lens, blur(0px)) saturate(var(--g-sat));
+  backdrop-filter: blur(var(--g-blur-sheet)) var(--lens, blur(0px)) saturate(var(--g-sat));
+}
+/* Safari below 18 only knows the prefixed property; nothing else to change. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-theme^="glass"] :is(.glass, .glass-tx, .glass-sheet) { --glass-a: .94; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme^="glass"] :is(.glass, .glass-tx, .glass-sheet) {
+    --glass-a: .94;
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    text-shadow: none;
+  }
+}
+/* Scanlines and the vignette read as film over glass; the art draws its own grid. */
+[data-theme^="glass"] body::before,
+[data-theme^="glass"] body::after { display: none; }
+
+/* Bars float as pills over the centred column instead of spanning the screen.
+   The header and tab bar lose their solid strip; the inner row is the glass. */
+[data-theme^="glass"] {
+  --app-header-h: calc(max(0.75rem, env(safe-area-inset-top)) + 0.5rem + 2.25rem + 0.75rem);
+  --app-tabbar-h: calc(4.25rem + env(safe-area-inset-bottom));
+}
+[data-theme^="glass"] .app-navbar {
+  background: transparent;
+  border-bottom-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+[data-theme^="glass"] .app-tabbar {
+  background: transparent;
+  border-top-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  padding-inline: max(0.75rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  pointer-events: none;
+}
+[data-theme^="glass"] .glass-bar { border-radius: 22px; padding-inline: 0.75rem; }
+[data-theme^="glass"] .app-tabbar .glass-bar { pointer-events: auto; padding-inline: 0.25rem; margin-bottom: 0.25rem; }
+[data-theme^="glass"] .app-tabbar a { border-radius: 18px; }
+[data-theme^="glass"] .app-tabbar a[aria-current="page"] {
+  background-color: rgb(var(--c-glass-rim) / .28);
+  box-shadow: inset 0 1px 0 rgb(var(--c-glass-rim) / .6);
+}
+[data-theme="glass-night"] .app-tabbar a[aria-current="page"] { background-color: rgb(var(--c-glass-rim) / .12); }
+
+/* The art has to show: a page root that paints the solid ground goes see-through. */
+[data-theme^="glass"] :is(main, div):is(.min-h-screen, .min-h-dvh, .min-h-svh, .h-dvh).bg-retro-bg { background-color: transparent; }
+/* The room dock is a pill; its reaction buttons sit in it as soft bubbles. */
+[data-theme^="glass"] .glass-dock { border-radius: 9999px; padding-block: 0.25rem; }
+[data-theme^="glass"] .glass-emote {
+  background-color: rgb(var(--c-glass-rim) / .18);
+  border-color: transparent;
+  border-radius: 9999px;
+  box-shadow: inset 0 1px 0 rgb(var(--c-glass-rim) / .5);
+}
+[data-theme="glass-night"] .glass-emote { background-color: rgb(var(--c-glass-rim) / .08); }
+[data-theme^="glass"] .glass-emote.bg-retro-tint-p2 { background-color: rgb(var(--c-p2) / .25); border-color: rgb(var(--c-p2)); }
+/* A sticky filter block over a scrolling list is frosted like a sheet. */
+[data-theme^="glass"] .glass-sticky { border-radius: 18px; padding-inline: 0.5rem; }
+
+/* A glass sheet is dimmed by a light wash, not the near-black scrim. */
+[data-theme^="glass"] [data-sheet-backdrop]:has(~ .glass-sheet) { background-color: rgb(var(--c-glass-shade) / .25); }
+
+/* ── GLASS art: soft colour fields plus sharp arcade glyphs ────────────────
+   GlassBackdrop.jsx. The glyphs are the point: refraction only shows where an
+   edge is bent, and over soft gradients alone the lens would be invisible.
+   Dark art is capped (--g-art-strength .5, --g-glyph-opacity .5) so text on the
+   glass keeps its contrast. The fields drift slowly and the glyphs float; both
+   freeze on game screens (--still), under reduced motion, and one step into the
+   low-end step-down (data-glass-step 1). */
+.glass-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.glass-backdrop__fields {
+  position: absolute;
+  inset: -20%;
+  opacity: var(--g-art-strength);
+  background:
+    radial-gradient(34% 26% at 16% 14%, rgb(var(--c-art-1)) 0 40%, transparent 72%),
+    radial-gradient(30% 24% at 86% 28%, rgb(var(--c-art-2)) 0 38%, transparent 72%),
+    radial-gradient(36% 26% at 28% 70%, rgb(var(--c-art-3)) 0 36%, transparent 70%),
+    radial-gradient(32% 26% at 84% 86%, rgb(var(--c-art-4)) 0 40%, transparent 72%);
+  animation: glass-drift 28s ease-in-out infinite alternate;
+}
+.glass-backdrop__glyphs {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--g-glyph-opacity);
+  animation: glass-float 40s linear infinite alternate;
+}
+.glass-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(var(--c-text) / .05) 1px, transparent 1px) 0 0 / 4px 4px,
+    linear-gradient(0deg, rgb(var(--c-text) / .05) 1px, transparent 1px) 0 0 / 4px 4px;
+}
+@keyframes glass-drift { to { transform: translate(4%, -3%) rotate(6deg) scale(1.06); } }
+@keyframes glass-float { to { transform: translateY(-46px); } }
+.glass-backdrop--still > *,
+:root:is([data-glass-step="1"], [data-glass-step="2"]) .glass-backdrop > *,
+[data-motion='reduced'] .glass-backdrop > * { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .glass-backdrop > * { animation: none; }
+}

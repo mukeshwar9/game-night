@@ -17,9 +17,13 @@ if (!services || command.length === 0) {
 
 const quote = (arg) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replace(/'/g, `'\\''`)}'`)
 
+// FIREBASE_CONFIG_FILE points at a private copy of firebase.json with other
+// emulator ports, for when another checkout already holds 9000/9099.
+const config = process.env.FIREBASE_CONFIG_FILE ? ['--config', process.env.FIREBASE_CONFIG_FILE] : []
+
 const child = spawn(
   'firebase',
-  ['emulators:exec', '--only', services, '--project', 'demo-game-night', command.map(quote).join(' ')],
+  ['emulators:exec', ...config, '--only', services, '--project', 'demo-game-night', command.map(quote).join(' ')],
   { stdio: 'inherit', shell: process.platform === 'win32' },
 )
 child.on('exit', (code, signal) => process.exit(signal ? 1 : code ?? 1))

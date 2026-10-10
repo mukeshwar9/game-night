@@ -1,0 +1,116 @@
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import useBusy from '../hooks/useBusy'
+import OpenInBrowserHint from './OpenInBrowserHint'
+import { isInAppBrowser } from '../lib/uaLogic'
+import { pushAvailable, permissionState, checkPushPermission, vapidKey, enablePush, disablePush, classifyEnableError, PUSH_WHAT } from '../lib/push'
+import { reportError } from '../lib/telemetry'
+import { isNative } from '../lib/platform'
+
+// Opt-in push toggle. Hidden when push can't work: on the web, no SW/Push
+// support or no VAPID key; in the native shell, NATIVE_PUSH off (no APNs key or
+// Firebase config yet). Follows useBusy convention: sync busy flag, disabled
+// state, …ING label, toast.error on failure.
+export default function PushToggle() {
+  const [supported] = useState(() => pushAvailable())
+  // The browser's permission reads synchronously; the native plugin's does not.
+  const [perm, setPerm] = useState(() => (isNative ? 'default' : permissionState()))
+  const [on, setOn] = useState(() => {
+    try { return localStorage.getItem('push-enabled') === '1' } catch { return false }
+  })
+  const [token, setToken] = useState(null)
+  const [busy, run] = useBusy()
+  const [opening, runOpen] = useBusy()
+
+  useEffect(() => {
+    if (isNative) {
+      if (!supported) return undefined
+      let live = true
+      const refresh = () => { checkPushPermission().then(p => { if (live) setPerm(p) }) }
+      refresh()
+      // Coming back from the phone's settings after allowing notifications.
+      document.addEventListener('visibilitychange', refresh)
+      return () => { live = false; document.removeEventListener('visibilitychange', refresh) }
+    }
+    const update = () => setPerm(permissionState())
+    try {
+      navigator.permissions?.query({ name: 'notifications' }).then(
+        s => { s.onchange = update },
+        () => {},
+      )
+    } catch { /* ignore */ }
+    return undefined
+  }, [supported])
+
+  // Webviews cannot hold a push subscription: say so instead of failing on tap.
+  // (The app's own shell is a webview too, but it has native push instead.)
+  if (!isNative && isInAppBrowser() && Boolean(vapidKey())) return <OpenInBrowserHint feature="Notifications" />
+  if (!supported) return null
+
+  const enable = () => run(async () => {
+    const t = await enablePush()
+    setToken(t)
+    setOn(true)
+    setPerm(await checkPushPermission())
+    toast.success('NOTIFICATIONS ON!')
+  }, (e) => {
+    const kind = classifyEnableError(e)
+    if (kind === 'blocked') {
+      toast.error(isNative
+        ? 'NOTIFICATIONS BLOCKED — ALLOW THEM IN YOUR PHONE SETTINGS.'
+        : 'NOTIFICATIONS BLOCKED — ALLOW THEM IN BROWSER SETTINGS.')
+    } else if (kind === 'not-configured') {
+      toast.error('PUSH NOT CONFIGURED YET.')
+    } else {
+      // Generic toast by design (no per-branch user copy without a proven
+      // cause), but capture the real code: console for a DevTools re-attempt
+      // and telemetry so errors/{day} holds what the toast hides.
+      try { console.error('[push] enable failed:', e?.message || e) } catch { /* ignore */ }
+      reportError(e, { kind: 'error' })
+      toast.error('COULD NOT ENABLE NOTIFICATIONS — TRY AGAIN.')
+    }
+  })
+
+  const openSettings = () => runOpen(async () => {
+    const { openAppNotificationSettings } = await import('../lib/native/appSettings')
+    if (!(await openAppNotificationSettings())) throw new Error('settings')
+  }, () => toast.error("COULDN'T OPEN SETTINGS — OPEN THEM FROM YOUR PHONE'S SETTINGS APP."))
+
+  const disable = () => run(async () => {
+    await disablePush(token)
+    setToken(null)
+    setOn(false)
+  }, () => toast.error("COULDN'T TURN OFF — TRY AGAIN."))
+
+  return (
+    <div className="bg-retro-card border border-retro-border rounded p-4 space-y-2">
+      <p className="font-pixel text-[10px] text-retro-dim tracking-wider">NOTIFICATIONS</p>
+      <p className="font-mono text-[11px] text-retro-dim">
+        {perm === 'denied'
+          ? `Blocked in ${isNative ? 'phone' : 'browser'} settings — re-allow to get ${PUSH_WHAT}.`
+          : on
+            ? `On — ${PUSH_WHAT} reach you even when the app is closed.`
+            : `Get ${PUSH_WHAT} even when the app is closed.`}
+      </p>
+      {perm === 'denied' && isNative ? (
+        // A refused permission can only be changed in the phone's settings;
+        // send the player straight there.
+        <button
+          onClick={openSettings}
+          disabled={opening}
+          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-40"
+        >
+          {opening ? 'OPENING…' : 'OPEN SETTINGS'}
+        </button>
+      ) : (
+        <button
+          onClick={on ? disable : enable}
+          disabled={busy || perm === 'denied'}
+          className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {busy ? (on ? 'TURNING OFF…' : 'TURNING ON…') : on ? 'TURN OFF' : 'TURN ON'}
+        </button>
+      )}
+    </div>
+  )
+}

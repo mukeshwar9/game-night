@@ -1,13 +1,22 @@
 import { useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import useBusy from '../hooks/useBusy'
+import { isNative } from '../lib/platform'
 
 // LATER is remembered for the browser session — dismissing stops the nag
 // across reloads until the next visit, instead of re-popping every load
 // while the waiting service worker sits unclaimed.
 const DISMISS_KEY = 'updatePromptDismissed'
 
+// useRegisterSW registers sw.js as soon as it mounts. The native shell bundles
+// its assets locally (a store update is the update path), so it must never
+// register one: the hook lives in a child that simply does not render there.
 export default function UpdatePrompt() {
+  if (isNative) return null
+  return <WebUpdatePrompt />
+}
+
+function WebUpdatePrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -39,7 +48,7 @@ export default function UpdatePrompt() {
           onClick={() => run(() => updateServiceWorker(true))}
           disabled={busy}
           className="px-4 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded
-            hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+            hover:shadow-neon-cta transition press disabled:opacity-50"
         >
           {busy ? 'RELOADING…' : 'RELOAD'}
         </button>

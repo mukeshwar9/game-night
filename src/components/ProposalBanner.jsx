@@ -20,7 +20,7 @@ function firstMoverLabel(proposal, players) {
   return null
 }
 
-export default function ProposalBanner({ proposal, mySymbol, players, onAccept, onDecline, onCancel }) {
+export default function ProposalBanner({ proposal, mySymbol, players, opponentOnline = true, onAccept, onDecline, onCancel }) {
   const [busy, run] = useBusy()
   const [tapped, setTapped] = useState(null)
 
@@ -34,6 +34,9 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
   const isProposer = proposal.by === mySymbol
   const isRecipient = mySymbol && !isProposer
   const isSpectator = !mySymbol
+  // Rematch the other player has already asked for, while they are still here:
+  // say so, and make the answer one obvious tap.
+  const theyAreReady = isRecipient && proposal.action === 'playAgain' && opponentOnline !== false
 
   const handle = (action, fn) => {
     setTapped(action)
@@ -60,8 +63,11 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
       {isRecipient && (
         <>
           <p className="font-pixel text-[10px] text-retro-text leading-relaxed">
-            {proposerName} WANTS TO {label}
+            {theyAreReady ? `${proposerName} WANTS A REMATCH` : `${proposerName} WANTS TO ${label}`}
           </p>
+          {theyAreReady && (
+            <p className="font-pixel text-[9px] text-retro-win">THEY'RE READY</p>
+          )}
           {whoStarts && (
             <p className="font-pixel text-[9px] text-retro-cta">{whoStarts}</p>
           )}
@@ -69,7 +75,7 @@ export default function ProposalBanner({ proposal, mySymbol, players, onAccept, 
             <button
               onClick={() => handle('accept', onAccept)}
               disabled={busy}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-50"
             >
               {tapped === 'accept' ? 'ACCEPTING…' : 'ACCEPT'}
             </button>

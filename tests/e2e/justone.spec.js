@@ -4,11 +4,12 @@
 // before the result, and that the guesser rotates.
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
 // Reads the room straight from the Database emulator ("owner" bypasses rules).
 async function readRoom(roomUrl) {
   const id = roomUrl.split('/').pop()
-  const res = await fetch(`http://127.0.0.1:9000/games/${id}.json?ns=demo-game-night-default-rtdb`, {
+  const res = await fetch(`${DB_ORIGIN}/games/${id}.json?ns=demo-game-night-default-rtdb`, {
     headers: { Authorization: 'Bearer owner' },
   })
   return res.json()
@@ -39,6 +40,9 @@ test('three players cancel duplicate clues and guess a Just One card', async ({ 
     word = (await gus.page.getByTestId('jo-word').innerText()).trim()
     await expect(gia.page.getByTestId('jo-word')).toHaveText(word)
     await expect(hana.page.getByTestId('jo-word')).toHaveCount(0)
+    // No typed chat while clues are written: a clue-giver could just type
+    // the word to the guesser (audit X8). Emotes stay.
+    for (const { page } of everyone) await expect(page.getByRole('button', { name: /^Open chat/ })).toHaveCount(0)
     const room = await readRoom(hana.page.url())
     expect(room.round.phase).toBe('clues')
     expect(Object.keys(room.round.sealed)).toHaveLength(2)

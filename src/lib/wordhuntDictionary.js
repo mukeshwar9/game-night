@@ -25,6 +25,13 @@
 // leak here is lower-stakes — but the same accepted-casual-leak tier applies.
 
 import { createDictionary } from './wordhuntLogic'
+import { ALLOW_WORDS } from './decks/wordAllowList'
+
+// The asset plus the reviewed allow-list of everyday words it lacks (Indian
+// English, British spelling, modern words — see decks/wordAllowList.js).
+export function dictionaryFromText(text) {
+  return createDictionary([...String(text ?? '').split('\n'), ...ALLOW_WORDS])
+}
 
 let _promise = null
 
@@ -37,7 +44,7 @@ export function loadDictionary() {
       })
       // Resolves to { has(word), hasPrefix(prefix), size }. `has` never
       // accepts a banned word, even from a stale cached copy of the asset.
-      .then((text) => createDictionary(text.split('\n')))
+      .then(dictionaryFromText)
       .catch((err) => {
         _promise = null
         throw err

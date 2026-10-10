@@ -5,7 +5,7 @@ import {
   wordleTopK, pickWordleGuess, playWordleBoard, wordleThinkMs, pickCpuSecret,
   botRowTimes, botRowsShown, botDoneState, playerDoneState, tallyWins, matchWinner,
   landBotGuesses, advanceBotRace,
-  findWeight, planBotFinds, botFindsBy, botFoundMap, FIND_GAP_MS, FIND_MS_PER_LETTER, ANAGRAMS_FIND_GAP_MS,
+  findWeight, commonFindWeight, planBotFinds, WORD_BOT_LEVELS, WORD_BOT_LEVEL_IDS, wordBotLevel, botFindsBy, botFoundMap, FIND_GAP_MS, FIND_MS_PER_LETTER, ANAGRAMS_FIND_GAP_MS,
   HANGMAN_CPU_WORDS, HANGMAN_LETTER_ORDER, HANGMAN_THINK_MS,
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
 } from './wordBotsLogic'
@@ -13,6 +13,7 @@ import { markGuess, MAX_GUESSES } from './wordduelLogic'
 import { applyGuessForPlayer, FINISH_GRACE_MS } from './wordraceLogic'
 import { getAnswerList, has, isAnswerWord } from './dictionary'
 import { isFamilySafe } from './wordDenylist'
+import { isCommonWord } from './commonWords'
 import {
   createDictionary, generateGrid, ensurePlayableGrid, solveGrid, scoreWords, ROUND_MS as HUNT_MS,
 } from './wordhuntLogic'
@@ -348,6 +349,10 @@ describe('Hangwoman CPU guesser', () => {
   it('think time stays in range', () => {
     expect(hangmanThinkMs(() => 0)).toBe(HANGMAN_THINK_MS[0])
     expect(hangmanThinkMs(() => 0.999999)).toBeLessThanOrEqual(HANGMAN_THINK_MS[1])
+    // Past its opening letters the CPU guesses twice as fast (audit: dead time).
+    expect(hangmanThinkMs(() => 0, 2)).toBe(HANGMAN_THINK_MS[0])
+    expect(hangmanThinkMs(() => 0, 3)).toBe(HANGMAN_THINK_MS[0] / 2)
+    expect(hangmanThinkMs(() => 0.999999, 8)).toBeLessThanOrEqual(HANGMAN_THINK_MS[1] / 2)
   })
 
   it('solves most common words but not all (a beatable opponent)', async () => {
@@ -447,4 +452,68 @@ describe('word-finding bot (Word Hunt / Anagrams)', () => {
     expect(median).toBeGreaterThanOrEqual(12)
     expect(median).toBeLessThanOrEqual(35)
   }, 60_000)
+})
+
+describe('commonFindWeight (Anagrams CPU)', () => {
+  it('never lets the CPU find an obscure word (audit: it played PAC and APT on PANOCTI)', () => {
+    const solutions = getSolutions('panocti', ANAGRAM_VALID_WORDS)
+    expect(solutions).toContain('pac')
+    const obscure = solutions.filter(w => !isCommonWord(w))
+    expect(obscure.length).toBeGreaterThan(0)
+    for (const word of obscure) expect(commonFindWeight(word), word).toBe(0)
+    // Even a CPU that spots everything it may (recall 1) plays only everyday words.
+    const plan = planBotFinds(solutions, { durationMs: 10 * 60_000, recall: 1, weight: w => (commonFindWeight(w) ? 1 : 0), random: () => 0 })
+    expect(plan.length).toBeGreaterThan(0)
+    for (const { word } of plan) expect(isCommonWord(word), word).toBe(true)
+  })
+
+  it('keeps the usual length weights for everyday words', () => {
+    expect(commonFindWeight('coat')).toBe(findWeight('coat'))
+    expect(commonFindWeight('caption')).toBe(findWeight('caption'))
+  })
+})
+
+describe('word CPU difficulty levels', () => {
+  const pool = getAnswerList()
+  const answers = pool.filter((_, i) => i % 37 === 0)
+  const avgGuesses = (level) => {
+    const k = wordBotLevel(level)
+    let total = 0
+    answers.forEach((answer, i) => {
+      const rows = playWordleBoard({ answer, pool, skill: k.skill, recall: k.recall, thinkScale: k.thinkScale, random: seeded(100 + i) })
+      const solved = rows.at(-1)?.marks === 'GGGGG'
+      total += solved ? rows.length : MAX_GUESSES + 1
+    })
+    return total / answers.length
+  }
+
+  it('offers EASY, NORMAL and HARD, falling back to NORMAL', () => {
+    expect(WORD_BOT_LEVEL_IDS).toEqual(['easy', 'normal', 'hard'])
+    expect(wordBotLevel('bogus')).toBe(WORD_BOT_LEVELS.normal)
+    expect(wordBotLevel(undefined)).toBe(WORD_BOT_LEVELS.normal)
+  })
+
+  it('orders the Wordle CPU: EASY needs more guesses than HARD', () => {
+    const [easy, normal, hard] = ['easy', 'normal', 'hard'].map(avgGuesses)
+    expect(easy).toBeGreaterThan(normal)
+    expect(normal).toBeGreaterThan(hard)
+  }, 60_000)
+
+  it('makes HARD think faster and EASY slower', () => {
+    const rowsAt = (scale) => playWordleBoard({ answer: 'plant', pool, thinkScale: scale, random: seeded(11) })
+      .reduce((sum, row) => sum + row.thinkMs, 0)
+    expect(rowsAt(WORD_BOT_LEVELS.hard.thinkScale)).toBeLessThan(rowsAt(1))
+    expect(rowsAt(WORD_BOT_LEVELS.easy.thinkScale)).toBeGreaterThan(rowsAt(1))
+  })
+
+  it('orders the word-finding and Hangwoman CPUs', () => {
+    const { easy, normal, hard } = WORD_BOT_LEVELS
+    expect(easy.findRecall).toBeLessThan(normal.findRecall)
+    expect(normal.findRecall).toBeLessThan(hard.findRecall)
+    expect(easy.hangmanSlip).toBeGreaterThan(normal.hangmanSlip)
+    expect(normal.hangmanSlip).toBeGreaterThan(hard.hangmanSlip)
+    const solutions = getSolutions('panocti', ANAGRAM_VALID_WORDS)
+    const finds = (level) => planBotFinds(solutions, { durationMs: 10 * 60_000, recall: wordBotLevel(level).findRecall, random: seeded(9) }).length
+    expect(finds('easy')).toBeLessThanOrEqual(finds('hard'))
+  })
 })

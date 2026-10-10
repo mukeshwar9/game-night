@@ -34,9 +34,9 @@ function OrbDots({ count, symbol, nearCritical }) {
           />
         )
       })}
-      {/* 4+ orbs render identically to 3 above (visual cap) — a numeric badge keeps the
-          real count legible instead of silently looking the same as a 3-stack. */}
-      {count >= 4 && (
+      {/* Dots cap at 3 and read small on a phone — a numeric badge keeps the real
+          count legible (4+ would otherwise look the same as a 3-stack). */}
+      {count >= 2 && (
         <span
           className={cn(
             'absolute bottom-0 right-0 font-pixel text-[8px] leading-none px-[2px] rounded-sm',
@@ -56,6 +56,9 @@ function OrbDots({ count, symbol, nearCritical }) {
 // at 140ms/wave would lock the board for well over a minute. Play the first
 // MAX_REPLAY_WAVES for drama, then jump straight to the settled board.
 const MAX_REPLAY_WAVES = 12
+// ...and flash at most this many exploding cells per wave: a late-game wave can
+// pop dozens at once, and animating them all stalls a mid-range phone.
+const MAX_WAVE_FLASHES = 10
 
 // Seat name for the score line: X/O in 2P, P1–P4 in the 4-player roster.
 const P_LABEL = { X: 'P1', O: 'P2', A: 'P3', B: 'P4' }
@@ -152,7 +155,7 @@ export default function ChainReactionBoard({
 
           currentSimBoard = nextBoard
           setDisplayBoard([...nextBoard])
-          setExplodingSet(new Set(step.exploded))
+          setExplodingSet(new Set(step.exploded.slice(0, MAX_WAVE_FLASHES)))
           sounds.hit(waveIdx)
 
           // Clear flash after 140ms
@@ -203,7 +206,7 @@ export default function ChainReactionBoard({
     <div className="w-full max-w-sm mx-auto" style={fitStyle}>
       <div
         className={cn(
-          'border-2 border-retro-border rounded p-1 sm:p-1.5 transition-all duration-200',
+          'border-2 border-retro-border rounded p-1 sm:p-1.5 transition duration-200',
           disabled && 'board-idle',
         )}
         style={{
@@ -239,7 +242,7 @@ export default function ChainReactionBoard({
                 onClick={() => isLegal && onMove(i)}
                 className={cn(
                   'aspect-square relative rounded-sm overflow-hidden',
-                  'border transition-all duration-100',
+                  'border transition duration-100',
                   owner
                     ? crSymbolColor(owner).cell
                     : 'bg-retro-deep border-retro-border/20',

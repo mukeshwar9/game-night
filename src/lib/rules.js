@@ -161,7 +161,7 @@ export const GAME_RULES = {
       'Tap the cells in ascending numeric order from memory.',
       'Both players race the same layout at once. When you both clear it, the next level adds another number.',
     ],
-    win: 'One wrong tap ends your run — the board then shows where every number was. Outlast your opponent to win.',
+    win: 'A wrong tap ends your level, not the round: your opponent must still clear it to win. If you both slip, more numbers in order wins, then the faster total clear time.',
   },
 
   numbermemory: {
@@ -192,6 +192,65 @@ export const GAME_RULES = {
       'A tap on empty arena costs a point, so don’t spray.',
     ],
     win: 'Highest score when the 30 seconds run out wins the round. First to 3 round wins takes the match.',
+  },
+
+  chopchop: {
+    objective: 'Knock out more crates than anyone else in 30 seconds.',
+    howToPlay: [
+      'Tap LEFT or RIGHT to stand on that side and knock the bottom crate out of the stack. The stack drops by one.',
+      'Some crates carry a striped beam on one side. If a beam comes down on the side you are standing on, it lands on your head.',
+      'A beam stuns you for 1 second and ends your streak. You are never knocked out, so a bad start can still win.',
+      'For your first 10 crates the button on a beam side turns red. After that you read the stack yourself.',
+    ],
+    win: 'Everyone gets the same stack. The most crates when the clock stops wins the round; first to 3 round wins takes the match. 2 to 8 players.',
+  },
+
+  firstcut: {
+    objective: 'Cut the fruit before anyone else, and leave the lookalikes alone. First to 10 cuts wins.',
+    howToPlay: [
+      'One item sits on the plate at a time: a fruit, or a round lookalike in the same colours (melon and beach ball, orange and hoop ball, apple and bauble, lemon and tennis ball).',
+      'Tap your pad while a fruit shows and your katana swings through it. The fastest tap takes the fruit and scores 1.',
+      'Tap a lookalike and the blade stops dead at its edge. It does not cut, and it lifts back slowly, so you also miss the next item. A blocked katana ignores taps.',
+      'On the slow pace each item stays between 1.2 and 1.9 seconds.',
+      'RULE FLIP (optional): a card by the plate says what counts (any fruit, citrus only, no citrus, red or green fruit) and changes every 6 items.',
+      'GOLD & ROTTEN (optional): gold fruit is worth 3 and leaves in under a second. A rotten fruit costs you 1 point and blocks your katana. 3 or more points behind: you are freed sooner.',
+    ],
+    win: 'On one phone (2 to 4 players) or against bots, first to 10 cuts wins the game. Online (2 to 8 players), first to 5 cuts takes the round and first to 3 round wins takes the match.',
+  },
+  bamboozle: {
+    objective: 'Be the last dodger standing in a garden where bamboo poles fire across it from one wall at a time.',
+    howToPlay: [
+      'Drag anywhere on your side of the screen to steer your dodger. Everyone starts with 3 hearts.',
+      'A wall lights up and its poles draw back, then every pole on that wall fires. A pole stops at the first boulder in its lane, so the ground behind a boulder is safe.',
+      'A pole that touches you costs a heart. You blink for a moment and cannot be hit again by the same volley. Each volley comes sooner, and later a second wall fires with the first.',
+      'A boulder cracks each time it stops a pole and breaks on the 3rd block. A ring shows where the next one lands.',
+      'A coin shows in the open before a wall fires. Every 3 coins buy a heart back, up to 4 hearts.',
+      'GRAB (one phone and solo): stand next to a rival and hold GRAB to walk them out of cover, then let go to throw them.',
+    ],
+    win: 'The last dodger with a heart wins the round. On one phone and against bots, first to 2 rounds wins. Online, 2 to 8 players race the same garden and first to 3 round wins takes the match.',
+  },
+
+  pulprush: {
+    objective: 'Slice more produce than everyone else in 45 seconds (2–8 players).',
+    howToPlay: [
+      'Swipe across the flying produce to slice it — a slow drag won’t cut.',
+      'Everyone gets exactly the same throws, in the same order.',
+      'Three or more in one quick swipe chain is a combo worth bonus points.',
+      'Never slice a rotten apple: it costs 5 points and stuns you for a second.',
+      'Two on one phone: open it from PLAY SOLO and pick SPLIT DUEL — sit face to face.',
+    ],
+    win: 'Highest score when the 45 seconds run out wins the round. First to 3 round wins takes the match.',
+  },
+
+  pulpharvest: {
+    objective: 'Fill one team basket together before 60 seconds are up (2–8 players, co-op).',
+    howToPlay: [
+      'Everyone slices the same throws in their own field; every point goes into the team basket.',
+      'The basket needs 60 pulp per player.',
+      'The team shares 5 hearts: any fruit that falls unsliced, or any rotten apple you slice, costs one.',
+      'Combos (3+ in one quick swipe chain) fill the basket faster.',
+    ],
+    win: 'Fill the basket before time or hearts run out and the whole team wins the round.',
   },
 
   reef: {
@@ -233,9 +292,10 @@ export const GAME_RULES = {
     howToPlay: [
       'Tiles light up for a moment (watch the bar drain), then go dark.',
       'Tap every tile that was lit, from memory, in any order.',
-      'You and your opponent take turns on the same level; once you both clear it, the next level adds a tile. The grid grows from 4×4 up to 8×8 as the patterns get longer.',
+      'Online, you and your opponent see the same pattern at the same moment (after a 3-2-1) and recall it on your own boards. Pass and play takes turns instead.',
+      'Once you both clear a level, the next adds a tile. The grid grows from 4×4 up to 8×8 as the patterns get longer.',
     ],
-    win: 'Tap a tile that was not lit and you lose the round — the board then shows the real pattern.',
+    win: 'A wrong tile ends your level, not the round: your opponent must still clear it to win. If you both slip, more tiles found wins, then the faster total recall time. You have 30 seconds to recall each pattern.',
   },
 
   gomoku: {
@@ -329,6 +389,72 @@ export const GAME_RULES = {
     win: 'Opponent loses when they have no pieces left or no legal move.',
   },
 
+  puckrush: {
+    objective: 'Sling every puck off your half of the table before your rival clears theirs.',
+    howToPlay: [
+      'Each player starts with 5 pucks. Press one on your half, pull it back and let go to sling it.',
+      'A wall splits the table. Only the gap in the middle lets a puck through; everything else bounces back.',
+      'Both players sling at the same time. A puck takes the colour of the half it is on, so pucks sent your way become yours to clear.',
+    ],
+    win: 'The first player with no pucks on their half wins the round. First to 3 rounds wins the match.',
+  },
+
+  stickyfingers: {
+    objective: 'Drag loot from the middle of the table into your safe. Most loot when the clock runs out wins.',
+    howToPlay: [
+      'Press the table and your arm reaches out from your safe to your finger. Drag a coin, bill or gem to your safe; the arm stretches as you go.',
+      'Two hands on the same item within half a second of each other is a tug: nobody lets go, and whoever is still holding when the others have let go keeps all of it. If nobody lets go for 3 seconds the item snaps and no one gets it. Reach an item after that half second and the first grip is locked.',
+      'A coin is worth 1, a bill 3, a gem 5. A pack with a blinking light is dyed: it costs 3 and puts your hands out for a moment, so flick it into a rival safe.',
+      'The last 10 seconds pay double. A tie at the buzzer goes to the next loot into a safe.',
+    ],
+    win: 'Most loot after 60 seconds wins the round. First to 3 rounds wins the match.',
+  },
+
+  bonkbuggies: {
+    objective: 'Touch the other driver\'s helmet with your buggy, and keep your own helmet off the ground.',
+    howToPlay: [
+      'Hold LEFT or RIGHT to drive. In the air the same buttons tilt your buggy, so use them to land on your wheels.',
+      'Any part of your buggy touching their helmet wins the round. Your own helmet touching the ground, a plank or a wall gives them the point.',
+      'Holding both buttons fires a hop jet that recharges in a couple of seconds. After 10 seconds the tide rises: stay on high ground.',
+      'Trailing by 2 points earns a spare lid that soaks one hit. The player who just lost chooses the next arena.',
+    ],
+    win: 'First to 5 points wins the match.',
+  },
+
+  sidekick: {
+    objective: 'Race to the flag on a motorbike and kick the riders beside you off their bikes.',
+    howToPlay: [
+      'Hold STEER to turn; the throttle is automatic. Tap KICK L or KICK R to hit the rider beside you, and hold BOOST for a burst that refills when you let go.',
+      'It takes 3 hits to unseat a rider. Every kick costs you balance, a miss more than a hit, and too many in a row throw you off your own bike.',
+      'A fall costs a moment, then you remount with a short shield. Fall with a rider ahead and you come back faster with a catch-up boost. Traffic knocks you off, oil makes you wobble, and sitting in a rider\'s wake gives you a slipstream.',
+      'Bots fill empty seats up to 4 riders. The race ends 20 seconds after the first rider crosses the line.',
+    ],
+    win: 'Places score 3, 2, 1 and 0 points, plus a bonus point for knocking off the rider who last knocked you off. Most points after 3 races wins the cup.',
+  },
+
+  fenderbender: {
+    objective: 'Be the last car rolling: shove rivals off the road or let the traffic wreck them.',
+    howToPlay: [
+      'Everyone drives at once on one four-lane road. Drag your pad to steer; the car follows your thumb.',
+      'Traffic comes down the road. Each hit costs a heart and you start with 3. Cross the edge of the road and you are out at once.',
+      'Ram a rival and the car driving in harder wins: the other is knocked away and skids. Tap your pad to honk and blast nearby cars outward; the horn needs 4 seconds to recharge.',
+      'After 28 seconds the road closes in from both sides. A car that is out comes back as a truck after 2 seconds and keeps coming down the road.',
+    ],
+    win: 'The last car rolling takes the round. Two cars: first to 3 rounds wins. With three or four cars you score a point for every rival you outlast; first to 5 with three cars, 7 with four.',
+  },
+
+  quiver: {
+    objective: 'Shoot arrows into a spinning wheel and take the stars on its rim without hitting an arrow that is already stuck there.',
+    howToPlay: [
+      'Everyone shoots at once. Tap your button and an arrow flies down your lane to the hub. It lands on whatever part of the rim faces your lane when it arrives, so aim ahead of the spin.',
+      'Your quiver holds 8 arrows with 2 players, 6 with 3 and 5 with 4. After each shot your button reloads for a moment.',
+      'A star is worth 1 and the gold star 3. Landing on a stuck arrow is a clink: it costs 1 and locks your button for a moment. Landing just beside a stuck arrow without touching it is a close shave worth 1.',
+      'A bomb blows every stuck arrow off the rim and a reverse token turns the wheel the other way. Whoever is furthest behind sees where an arrow shot now would land.',
+      'A wheel ends when its stars are gone, the quivers are empty or 15 seconds have passed. Team up and you share one set of 3 hearts: a clink or a wheel with a star left on it costs one.',
+    ],
+    win: 'Most stars after 3 wheels wins the round, and a tie plays sudden death for one star. First to 3 rounds wins the match.',
+  },
+
   airhockey: {
     objective: 'Flick the puck past your rival seven times.',
     howToPlay: [
@@ -337,6 +463,31 @@ export const GAME_RULES = {
       'Walls bounce, the puck glides and slows; goals are the glowing mouths on each end.',
     ],
     win: 'First to 7 goals wins.',
+  },
+
+  minigolf: {
+    objective: 'Sink the ball on every hole in the fewest total strokes.',
+    howToPlay: [
+      'Press anywhere on the course and pull back — the ball goes the opposite way. Longer pull, harder putt. Drag back to the start to cancel.',
+      'Each player plays the hole out before the next tees off; best score on a hole tees off first on the next.',
+      'Banks off walls, bumpers kick, sand slows you, slopes roll you back, windmills and sliders keep moving. Water costs +1 and puts you back.',
+      '6 strokes per hole — not in by then and the ball is picked up for a 7.',
+      'Solo: PAR RUN (beat par, earn stars) or VS BOT. Pass & play for 2–4 on one phone, or an online room for 2–4.',
+    ],
+    win: 'Lowest total over the course wins. A shared lowest total is a tie.',
+  },
+
+  birdseye: {
+    objective: 'Sling the flock at a farmyard fort and pop every scarecrow, riding each shot with the bird.',
+    howToPlay: [
+      'Drag anywhere and pull back. The bird flies the opposite way; a longer pull throws harder, and letting go near where you started cancels.',
+      'Pick your camera any time: CHASE flies behind the bird, BEAK puts you in its eyes, SIDE is the classic view. Hold PEEK while aiming to see the fort side-on.',
+      'Tap once mid-flight for the bird\'s trick: PIP flaps for a second arc, DART dives straight through wood and glass.',
+      'A scarecrow pops when it is hit hard, knocked over or dropped, for 1000 points. Breaking wood, stone or glass scores too.',
+      'Solo: five forts with 3 birds each. Clear one to open the next; every unused bird adds 1500 and stars rate your score.',
+      'Online duel: two players take turns throwing at one fort, 3 birds each.',
+    ],
+    win: 'Solo: pop every scarecrow to clear the fort. Duel: more scarecrows popped wins; points break a tie.',
   },
 
   artillery: {
@@ -375,7 +526,7 @@ export const GAME_RULES = {
   animalstack: {
     objective: 'Take turns dropping animals onto one tower — do not be the one who topples it.',
     howToPlay: [
-      'Drag anywhere on the arena to move the hovering animal; ⟲ ROTATE turns it 15° (hold to spin).',
+      'Drag anywhere on the arena to move the hovering animal; ⟲ and ⟳ turn it 15° either way (hold to spin).',
       'Press DROP to let go. Everyone sees the same animal and the NEXT one.',
       'If any animal falls off the island into the water, whoever just dropped loses a heart and a new tower starts.',
       '2 players: 3 hearts each. 3-4 players: 2 hearts each. Online you have 15 s to aim.',
@@ -440,6 +591,51 @@ export const GAME_RULES = {
     win: 'First to 3 points with the lead wins. Tied at 3 or more? Keep playing rounds until someone leads.',
   },
 
+  faceoff: {
+    objective: 'Find your rival\'s hidden face before they find yours.',
+    howToPlay: [
+      'Both players see the same 24 faces. Each secretly picks one to hide.',
+      'On your turn, ask one of 6 yes/no questions about your rival\'s face, such as HAT? or GLASSES?. Tap a question first to see how many faces a YES or a NO would leave.',
+      'The game answers from the face\'s real features, and every face the answer rules out flips down on your board.',
+      'Instead of asking, you can name the face. You get one guess: a right name wins the round, a wrong name loses it.',
+    ],
+    win: 'Name your rival\'s face to win the round. First to 3 rounds wins the match.',
+  },
+
+  darts: {
+    objective: 'Throw three darts a visit. Count down to exactly zero, or claim wedges in Turf.',
+    howToPlay: [
+      'Hold on the board and drag to aim, then let go. The ring shows how much your hand shakes: let go when it is small. In ONE BUTTON mode, tap to lock across, tap again to lock up and down.',
+      'Countdown: a single scores its number, the outer ring doubles it, the inner ring trebles it, the outer bull is 25 and the bull is 50. Go past zero and the visit busts: your score goes back to where the visit began.',
+      'Finish on exactly zero; the segments that finish glow. Everyone throws the same number of visits, so a later player who finishes in fewer darts still wins. Level on darts means a shoot-off: one dart each, nearest the bull.',
+      'Turf: a single claims a wedge, a double claims and locks it, and a treble takes the wedge and both neighbours. The bull is 2 bonus points and the outer bull 1.',
+      'Nerves: the leader\u2019s hand shakes more, and whoever is furthest behind shakes less.',
+    ],
+    win: 'First to zero wins the leg; pick BEST OF 3 to play 3 legs. In Turf, the most points after five rounds wins. 2 to 4 players.',
+  },
+
+  yacht: {
+    objective: 'Roll five dice and fill all 13 boxes on your sheet for the highest total.',
+    howToPlay: [
+      'On your turn you get up to 3 rolls. After a roll, tap dice to hold them, then roll the rest again.',
+      'Then bank the dice in one open box. Every open box shows what it would score right now; a box that does not fit scores 0.',
+      'Number boxes add up that face. 3 and 4 of a kind add all five dice. Full house is 25, a short run of four is 30, a long run of five is 40, five of a kind (a Yacht) is 50, and Chance adds all five dice.',
+      'Reach 63 in the six number boxes to earn a 35 point bonus.',
+    ],
+    win: 'When every sheet is full, the highest total wins. 2 to 4 players.',
+  },
+
+  lazysusan: {
+    objective: 'Take pieces off the turning plate before anyone else can.',
+    howToPlay: [
+      'Everyone has a gate on the edge of the plate. Tap when a piece is inside your gate to take it.',
+      'A dumpling is worth 1 point and the steamed bun is worth 3. A tap on nothing costs 1 point and a short wait.',
+      'A chili costs 2 points and freezes your chopsticks, so leave it.',
+      'Every new plate turns the other way. The last piece on a plate is gold: worth double, and the plate speeds up.',
+    ],
+    win: 'First to 15 points with two players, 12 with three, 10 with four.',
+  },
+
   bluff: {
     objective: 'Liar’s dice — bluff about the hidden dice and call your opponent’s bluffs.',
     howToPlay: [
@@ -479,8 +675,41 @@ export const GAME_RULES = {
       'Tap an arrow to send it sliding off the board along the way its head points.',
       'It only leaves if nothing is in its path — tap a blocked arrow and it bumps, flashes red and costs a life.',
       'Clear the arrows that are in the way first. You have 3 lives per round.',
+      'Diagonal arrows fly corner to corner; only cells on their diagonal block them. Some diagonals bend like a snake, but the head still flies straight along its diagonal. Hooked arrows fly to the edge, turn once the way the hook points, and run along it — both legs must be clear.',
+      'The host picks the difficulty: easy (straight arrows), medium (adds diagonals), hard (adds hooks), or mixed (easy, then medium, then hard).',
+      'Solo: a 170-level campaign in chapters of ten (no mistakes earns three stars). A chapter turns gold at 24 of its 30 stars; it is a goal, never a lock. Each chapter opens on a light lesson board with one new piece, then climbs with every piece you have met so far. Each new arrow type gets a three-tap practice lesson the first time you meet it. Endless is open from the start in easy, medium and hard; boards mix in the pieces you have learned, and many sit on shaped boards where empty space is an edge.',
+      'Later solo levels add sleeping arrows (drawn hollow: one wakes when an arrow touching it leaves) and double arrows (one curved body with two heads; it slides out as one piece, so everything ahead of it must be clear).',
+      'Later solo levels add mirrors and crates. A mirror turns a straight arrow a quarter turn as it passes (a plain diagonal cannot cross one); a crate blocks until its number of arrows have left the board, counting down with every clear.',
+      'Mid-campaign chapters add portals. An arrow that enters a portal ring comes out of its partner ring (the one with the same letter), still heading the same way, and its whole route must be clear. A dashed ring is exit-only: arrows come out of it but cannot go in, and crossing it does nothing. A hooked pair turns the arrow a quarter turn clockwise as it comes out.',
+      'Tunnel floors (a chapter of their own) are fixed tiles with chevrons: a piece crosses one only the way the chevrons point, and from any other side it is a solid wall, so those routes always cross the right way.',
+      'Most campaign boards are not rectangles: empty space counts as an edge, so an arrow that reaches it leaves the board. Big boards open fitted — drag to move around and pinch, scroll or double-tap to zoom, or use the zoom buttons or the plus, minus and arrow keys.',
+      'The last six solo chapters add twists of their own, and endless boards use them too (hard endless boards run up to twenty columns by twenty-eight rows). Diagonals go through portals keeping their slant, slide past a mirror whose bar runs their way, and cross slanted tunnel floors the way the chevrons point. A flat mirror bounces a diagonal like a ball off a wall; a straight arrow only runs along it. A zig-zag diagonal (bank shot) bounces once off the first wall it hits; a railed diagonal (glide) slides along that wall. An elbow flies as many cells as its dots, then turns the way its hook curls; a swerve flies as many cells as its dots, then steps one lane over and carries on.',
+      'Solo: not sure where an arrow goes? Press and hold it (or hover it with a mouse) to see its route to the edge. Letting go sends nothing.',
+      'Campaign stars also unlock avatar rewards for your profile: a first backdrop at 25 stars, a full set of crown, gold frame and pet at 400.',
     ],
-    win: 'First to clear their whole board wins the round; running out of lives loses it. Boards get bigger each round (easy, medium, hard) — win 2 of the 3 to take the match.',
+    win: 'First to clear their whole board wins the round; running out of lives loses it. Win 2 of the 3 rounds to take the match.',
+  },
+
+  updraft: {
+    objective: 'Race your rival up the same tower of platforms — first to 400 m wins.',
+    howToPlay: [
+      'Your hopper bounces on its own. Drag left or right anywhere on the tower or the band below it to steer (←/→ or A/D on a keyboard; TILT can be switched on on phones).',
+      'Fly off one side of the screen and you come back on the other. Coiled platforms launch you higher; dashed ones crumble after one bounce.',
+      'Your rival climbs an identical tower at the same time and shows as a dashed ghost, with both heights on the rail at the right.',
+      'In CHAOS mode (the host picks it in the lobby) a gold ◆ pickup sends your rival a hazard: crumbling platforms, a gust of wind or fog — each announced a second before it hits.',
+    ],
+    win: 'Reach the 400 m flag first to take the round. Fall off the bottom and your rival only has to climb past your height; if both fall, or the 2-minute clock runs out, the higher climb wins. Win 2 rounds to take the match.',
+  },
+
+  updraftduo: {
+    objective: 'Climb twin towers together and both reach the 300 m flag before time runs out.',
+    howToPlay: [
+      'You each climb your own copy of the same tower. Steer by dragging left or right; bouncing is automatic.',
+      'Every 50 m a gate blocks your way. Only your partner can open it — by grabbing the matching ⚷ key on their tower (or climbing past their own gate there). Your keys open their gates.',
+      'Call out when you are stuck: the gate label says whose key you need.',
+      'The team shares 3 lives. A fall costs one and puts you back at the last gate you passed.',
+    ],
+    win: 'You clear the run when both of you reach the flag within 3 minutes. Running out of lives or time ends the run. Cleared runs count for both of you.',
   },
 
   tron: {
@@ -581,7 +810,7 @@ export const GAME_RULES = {
       'You get up to 6 guesses. Once one player finishes, the other has 90 seconds to finish too.',
       'At the end both words are revealed and every mark is checked against them.',
     ],
-    win: 'Solve in fewer guesses than your opponent to win the round; on equal guesses the faster solve wins. Both fail: draw. First to 3 round wins takes the match.',
+    win: 'Solve in fewer guesses than your opponent to win the round; on equal guesses the faster solve wins. Both fail: draw. First to 3 round wins takes the match. Solo, play a set of 5 words: 6 points for solving on the first guess down to 1 on the sixth, so 30 is a perfect set.',
   },
 
   wordcoop: {
@@ -592,7 +821,7 @@ export const GAME_RULES = {
       'Your partner sees every clue, so talk through each row and plan the next guess together.',
       'If your partner is offline for 20 seconds you can keep playing solo. Your streak, best streak and losses carry over between words.',
     ],
-    win: 'Guess the word before all six rows are used. You both win or lose together.',
+    win: 'Guess the word before all six rows are used. You both win or lose together. Solo, keep solving words one after another; your streak ends at the first word you miss.',
   },
 
   hunch: {
@@ -611,10 +840,11 @@ export const GAME_RULES = {
     howToPlay: [
       'On each step you both lock in a word at once; neither of you sees the other word until both are in.',
       'Step 1: type any word you like. After that, type a word that links the two words just revealed — PIZZA and MOON might lead to CHEESE.',
+      'Step 1 can never score: if you both open with the same word, you both pick new opening words.',
       'Keep bridging the latest pair until you both type the same word. Plurals and capitals do not matter, and no word can be used twice in a chain.',
       'You can take back a locked word until your partner locks theirs.',
     ],
-    win: 'Converge in 1–2 steps for ★★★, 3–4 for ★★, 5–8 for ★. After 8 steps the chain is lost. A match is 5 chains, 15 stars at most.',
+    win: 'Converge in 2 steps for ★★★, 3–4 for ★★, 5–8 for ★. After 8 steps the chain is lost. A match is 5 chains, 15 stars at most.',
   },
 
   lanterns: {
@@ -651,14 +881,17 @@ export const GAME_RULES = {
   },
 
   wirecrossed: {
-    objective: 'Defuse the bomb together. One of you holds the device, the other holds the only manual for it.',
+    objective: 'Defuse the bombs together. One of you holds the device, the other holds the only manual for it.',
     howToPlay: [
-      'The Tech sees the bomb: a clock, strike lights and three or four modules. The Handbook sees a manual written for this exact bomb. Neither screen shows the other.',
+      'Pick a mode: either of you taps EASY, MEDIUM or HARD and the other accepts. A mode is a short run of levels that ends in MODE CLEARED. CHANGE MODE lets you pick again between bombs.',
+      'The Tech sees the bomb: a clock, strike lights and a few modules. The Handbook sees a manual written for this exact bomb. Neither screen shows the other.',
       'Talk it through (voice works best; the quick-phrase buttons help without it). The Handbook reads the rules, the Tech describes the device and acts.',
-      'WIRES: cut the one wire the manual picks. GLYPHS: press the four symbols in the order of the one manual column that holds all four. LEVER: tap it, or hold it and let go when the clock shows the digit for the strip colour. PIPES: steer to the flag; only the Handbook can see the walls.',
-      'A wrong move is a strike and takes 15 seconds off the clock. Roles swap on every new bomb, and each defused bomb raises the level.',
+      'WIRES: cut the wire the manual picks (later tiers: more wires, AND rules, and striped wires that count as both colours, cut in order). GLYPHS: press the symbols in the order of the one manual column that holds them all (later tiers: five symbols, and two pages picked by the serial, with mirrored symbols). LEVER: tap it, or hold it and let go when the LAST digit of the clock shows the digit for the strip colour (later tiers: more tap rules, and a strip that changes after 2 seconds of holding). PIPES: steer to the flag through walls only the Handbook can see (later tiers: a bigger grid, no flag on the device, one-way valves and a fuel limit). PATCH BAY: tap a plug, then the socket the manual routes it to (later tiers: a second routing column picked by an indicator, and a bay that starts tangled, where a cable lying under another cable will not come out until you unplug the top one first). SWITCHBOARD: flip the switches until the board matches the target the manual picks from the lights, without ever matching a short circuit on the way (later tiers: more short circuits, and a switch that is locked until another is up, so the order of your flips matters). PULSE: a lamp flashes colours in a loop; read the pattern starting after the pause, the Handbook finds it in the codebook, and the Tech dials that frequency and presses TX (at the top tier a long flash counts as two of that colour). RELAY: each stage shows a word and a number above four keys; the Handbook has a rule for every stage and word, some naming a key\'s label, some its position, some asking what you pressed earlier, so keep a log (at the top tier a wrong press sends you back to stage 1 with new displays). CALL SIGN: read the letter wheels aloud; exactly one call sign on the Handbook\'s list can be spelled with one letter from each wheel, so turn the wheels to it and TRANSMIT (at the top tier the wheels are shifted forward by the serial\'s last digit, so the Handbook shifts them back).',
+      'PRESSURE GAUGE (Medium level 3 and Hard levels 2-3): a gauge that is never solved fills from 10% to 100% by itself. Once it reaches AMBER (50%) the Tech must vent it with the valve (A, B or C) the manual picks for the zone; venting in GREEN or with the wrong valve is a strike, and if it reaches 100% it bursts, which is a strike too. Later tiers fill faster, and at the top tier the right valve moves on one step after every vent. It keeps running even with the timers off.',
+      'A wrong move is a strike and takes 15 seconds off the clock. Later levels can add modifiers: SCRAMBLED PAGES puts the manual tabs in a different order from the device; ERRATA puts a red slip on one manual page that replaces a rule (the struck-through rule is no longer true); SHORT FUSE makes a strike cost 25 seconds; BLACKOUT darkens the device panel for 3 seconds every 25 seconds (you can still act, and the clock and colour letters stay visible); and SWAP, on the hardest level, trades the Tech and Handbook roles once at half time, with a banner telling you which one you are now.',
+      'A boom retries the same level with a new bomb. A defuse moves up a level, and roles swap on every bomb. Your best time and fewest booms for each mode are kept until NEW MATCH.',
     ],
-    win: 'Solve every module before the clock runs out or the third strike. You both win or both go boom.',
+    win: 'Solve every module before the clock runs out or the third strike, then clear every level of the mode. You both win or both go boom.',
   },
 
   wordrace: {
@@ -669,7 +902,7 @@ export const GAME_RULES = {
       'You get up to 6 guesses. During play you only see how many rows your opponent has used, the greens in their best row, and whether they solved.',
       'After the first solve the other player has 30 seconds to finish (60 seconds after a fail). The next round starts by itself a few seconds after the reveal.',
     ],
-    win: 'Solve when your opponent fails, use fewer guesses, or solve faster on an equal guess count. Both misses draw. First to 3 round wins takes the match.',
+    win: 'Solve when your opponent fails, use fewer guesses, or solve faster on an equal guess count. Both misses draw. First to 3 round wins takes the match. Solo, race the 3-minute clock: solve as many words as you can, and a miss just moves you on to the next word.',
   },
 
   wordhunt: {
@@ -692,7 +925,7 @@ export const GAME_RULES = {
       'Scoring: 3 letters = 1, 4 = 2, 5 = 4, 6 = 7, 7 = 11 points; all 7 letters earns +5 bingo.',
       'Press FINISH EARLY when you cannot find more words — the round ends when both players finish.',
     ],
-    win: 'Play for 90 seconds. Higher score wins; equal scores use total words as the tie-breaker. First to 2 round wins takes the match.',
+    win: 'Play for 90 seconds. Higher score wins; equal scores use total words as the tie-breaker. First to 2 round wins takes the match. Solo, play one 90-second rack and beat your best score.',
   },
 
   spyfair: {
@@ -774,6 +1007,86 @@ export const GAME_RULES = {
     win: 'Claim 10 of the 18 pairs to win instantly. If the board fills first, whoever claimed more pairs wins — 9–9 is a draw.',
   },
 
+  pairs4: {
+    objective: 'Find more matching pairs than your opponent on a 4×4 grid of 8 hidden pairs.',
+    howToPlay: [
+      'Tap any two face-down cards to flip them.',
+      'Match the pair and you claim it — plus you immediately go again.',
+      'Miss, and both cards stay face-up for a moment, then flip back down and the turn passes to your opponent.',
+    ],
+    win: 'Claim 5 of the 8 pairs to win instantly. If the board fills at 4–4, it is a draw.',
+  },
+
+  verbalmemory: {
+    objective: 'Remember every word that has come up in this run.',
+    howToPlay: [
+      'Words appear one at a time.',
+      'Tap SEEN if the word already came up in this run, NEW if it did not (or press S / N).',
+      'Online, both players get the same stream of words at the same moment.',
+    ],
+    win: 'A wrong answer costs one of 3 lives. Solo, beat your best score; online, the higher score once both of you are out wins the round.',
+  },
+
+  nback: {
+    objective: 'Keep track of where the light was a few steps ago.',
+    howToPlay: [
+      'Each step lights one cell of a 3×3 grid.',
+      'Tap MATCH (or press Space) when the lit cell is the same as the one n steps back. Start at 1-back.',
+      'A good block of 20 steps raises n; the score counts every right call, worth n points each.',
+    ],
+    win: 'A miss or a false MATCH costs one of 3 lives. Solo, beat your best; online, both play the same stream and the higher score wins.',
+  },
+
+  cupshuffle: {
+    objective: 'Follow the ball through the shuffle.',
+    howToPlay: [
+      'Watch which cup the ball is under before the cups come down.',
+      'Follow that cup while the cups swap places.',
+      'Tap the cup with the ball. Each level adds swaps and speed, and more cups.',
+    ],
+    win: 'A wrong cup costs a life (3 in solo). Online, both play the same shuffle; a slip only loses once the other player clears that level, and if you both slip the faster total clear time wins.',
+  },
+
+  whatchanged: {
+    objective: 'Spot what changed, from memory.',
+    howToPlay: [
+      'Study the scene of objects.',
+      'It blinks out and comes back with one change: something moved, was swapped, or vanished.',
+      'Tap where it changed (either spot of a move counts). Each level adds objects.',
+    ],
+    win: 'A wrong spot costs a life (3 in solo). Online, both get the same scenes; a slip only loses once the other player clears that level.',
+  },
+
+  kimsgame: {
+    objective: 'Find the object that went missing.',
+    howToPlay: [
+      'Study the tray of objects.',
+      'A cloth covers it; the tray comes back shuffled with one object gone.',
+      'Pick the missing one from six. The tray grows every level.',
+    ],
+    win: 'A wrong pick costs a life (3 in solo). Online, both get the same trays; a slip only loses once the other player clears that level.',
+  },
+
+  nametags: {
+    objective: 'Put every name back on its face.',
+    howToPlay: [
+      'Study the faces and their name tags.',
+      'The tags come off and the faces shuffle.',
+      'Pick a name, then tap the face it belongs to. Each level adds a face.',
+    ],
+    win: 'A wrong match costs a life (3 in solo). Online, both get the same faces; a slip only loses once the other player clears that level.',
+  },
+
+  splitsignal: {
+    objective: 'Rebuild one pattern together, from two halves.',
+    howToPlay: [
+      'Each of you sees only your own half of the lit tiles.',
+      'Then both of you tap the tiles you saw on one shared board.',
+      'Tapping a blank tile, or one you did not see, costs a shared life and deals a new pattern.',
+    ],
+    win: 'Co-op: you have 3 lives together. Every level you clear adds a tile and a point for both of you.',
+  },
+
   sim: {
     objective: 'Color connecting lines between six dots — but never complete a triangle of your own color.',
     howToPlay: [
@@ -826,7 +1139,7 @@ export const GAME_RULES = {
       'Towers glide any number of squares straight or diagonally FORWARD only — never sideways or back.',
       'Land on the color that strands your rival’s matching tower behind a wall of blockers.',
     ],
-    win: 'First tower to reach the opponent’s home row wins the round. Best of three rounds takes the match.',
+    win: 'First tower to reach the opponent’s home row wins the round. First to 3 round wins takes the match.',
   },
 
   onitama: {

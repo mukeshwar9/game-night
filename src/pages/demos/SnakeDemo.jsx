@@ -91,14 +91,14 @@ export default function SnakeDemo() {
       {winner && (
         <div className="flex justify-center gap-2">
           {!matchWinner && (
-            <button onClick={reset} className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95">
+            <button onClick={reset} className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press">
               NEXT ROUND
             </button>
           )}
           {matchWinner && (
             <button
               onClick={() => { setScoreX(0); setScoreO(0); reset() }}
-              className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+              className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
             >
               PLAY AGAIN
             </button>

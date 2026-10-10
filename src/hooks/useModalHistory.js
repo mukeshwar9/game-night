@@ -38,7 +38,9 @@ function endSettling() {
   settle()
 }
 
-export default function useModalHistory(onClose) {
+// `enabled` (fixed for the overlay's lifetime) skips all of it, for a confirm
+// that a back gesture itself opened.
+export default function useModalHistory(onClose, enabled = true) {
   const pushedRef = useRef(false)
   const onCloseRef = useRef(onClose)
 
@@ -47,6 +49,7 @@ export default function useModalHistory(onClose) {
   }, [onClose])
 
   useEffect(() => {
+    if (!enabled) return undefined
     if (pendingBack) {
       pendingBack = false // adopt the marker the outgoing effect left behind
     } else {
@@ -85,5 +88,7 @@ export default function useModalHistory(onClose) {
         }, 0)
       }
     }
+    // Mount-only by design; `enabled` is fixed for the overlay's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

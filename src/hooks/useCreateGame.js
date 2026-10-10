@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { ref, set } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { generateGameId } from '../lib/gameLogic'
-import { freshGameState, getGameConfig } from '../lib/games'
+import { freshGameState, getGameConfig, buildPartyRoom, PARTY_LOBBY } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
 import { recordRoom } from '../lib/profile'
 import { recordPlay } from '../lib/analytics'
+import { trackRoomCreated } from '../lib/track'
 import { toast } from 'sonner'
 import { waitForModalHistory } from './useModalHistory'
 
@@ -16,7 +17,11 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(null)
 
-  const createGame = async (gameType) => {
+  // `initial`: optional room fields written with the new room (a race's
+  // arrowsDifficulty, say). Only a plain object counts, so a click event passed
+  // by mistake adds nothing.
+  const createGame = async (gameType, initial = null) => {
+    const extra = initial && Object.getPrototypeOf(initial) === Object.prototype ? initial : null
     const playerName = getPlayerName(profile)
     if (!playerName) { onMissingName?.(); return }
 
@@ -28,7 +33,9 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
       const now = Date.now()
       let gameData
 
-      if (cfg.nPlayer) {
+      if (gameType === PARTY_LOBBY.type) {
+        gameData = buildPartyRoom({ name: playerName, avatar, playerId: myId, now })
+      } else if (cfg.nPlayer) {
         gameData = {
           gameType,
           status: 'waiting',
@@ -38,6 +45,7 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
           players: { [myId]: { name: playerName, joinedAt: now, playerId: myId, online: true, avatar } },
           ...freshGameState(gameType),
           ...(['typing', 'math'].includes(gameType) ? { hostUid: myId } : {}),
+          ...extra,
         }
       } else {
         gameData = {
@@ -48,11 +56,13 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
           lastActivityAt: now,
           players: { X: { name: playerName, joinedAt: now, playerId: myId, avatar } },
           ...freshGameState(gameType),
+          ...extra,
         }
       }
 
       await set(ref(db, `games/${gameId}`), gameData)
       recordPlay(gameType, 'multi')
+      trackRoomCreated(gameType, 'private')
       if (!cfg.nPlayer) {
         sessionStorage.setItem(`game-${gameId}`, JSON.stringify({ symbol: 'X', name: playerName }))
       }
@@ -67,5 +77,8 @@ export default function useCreateGame({ profile, avatar, onMissingName }) {
     }
   }
 
-  return { createGame, loading }
+  // START A PARTY: a party-first room in its lobby (src/lib/partyLogic.js).
+  const createParty = () => createGame(PARTY_LOBBY.type)
+
+  return { createGame, createParty, loading }
 }

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import BattleshipBoard from '../components/BattleshipBoard'
+import BattleshipTabs from '../components/BattleshipTabs'
+import useBattleshipView from '../hooks/useBattleshipView'
+import useTapConfirm from '../hooks/useTapConfirm'
 import {
   FLEET_SPEC,
   shipCells,
@@ -58,6 +61,11 @@ export default function BattleshipDemo() {
   const done = phase === 'done'
   const playerWon = done && allSunk(botFleet ?? {}, playerShots)
   const myTurn = phase === 'battle' && turn === 'me' && !done
+  const [view, setView] = useBattleshipView({ phase, myTurn })
+  // Touch has no hover: the first tap on a cell previews the ship footprint,
+  // a second tap on the same cell places it.
+  const confirm = useTapConfirm({ disabled: phase !== 'placing' })
+  const previewCell = confirm.pending ?? hoverCell
 
   const draftCells = useMemo(() => fleetCellMap(draft), [draft])
 
@@ -69,16 +77,18 @@ export default function BattleshipDemo() {
   // Hover preview — whole-ship footprint while placing, live-updates on rotate.
   const selectedSize = selected ? FLEET_SPEC.find(s => s.ship === selected)?.size : null
   const preview = useMemo(() => {
-    if (phase !== 'placing' || !selected || hoverCell == null || selectedSize == null) return null
+    if (phase !== 'placing' || !selected || previewCell == null || selectedSize == null) return null
     const orient = draft[selected]?.orient ?? 'h'
-    const row = Math.floor(hoverCell / 10)
-    const cells = shipCells(selectedSize, orient, hoverCell)
+    const row = Math.floor(previewCell / 10)
+    const cells = shipCells(selectedSize, orient, previewCell)
       .filter(c => c >= 0 && c < 100 && (orient !== 'h' || Math.floor(c / 10) === row))
-    const valid = canPlace(draft, selected, orient, hoverCell)
+    const valid = canPlace(draft, selected, orient, previewCell)
     return { cells, valid }
-  }, [phase, selected, hoverCell, selectedSize, draft])
+  }, [phase, selected, previewCell, selectedSize, draft])
 
-  // Bot driver: fires whenever it's the bot's turn.
+  // Bot driver: fires whenever it's the bot's turn. A hit keeps `turn` on
+  // 'bot', which React treats as no change, so the effect also keys on
+  // botShots: every bot shot schedules the next one.
   useEffect(() => {
     if (turn !== 'bot' || phase !== 'battle') return
     botTimerRef.current = setTimeout(() => {
@@ -98,7 +108,7 @@ export default function BattleshipDemo() {
       })
     }, BOT_DELAY_MS)
     return () => clearTimeout(botTimerRef.current)
-  }, [turn, phase, playerFleet]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [turn, phase, playerFleet, botShots])
 
   useEffect(() => () => clearTimeout(botTimerRef.current), [])
 
@@ -196,15 +206,20 @@ export default function BattleshipDemo() {
         <p className="font-pixel text-[10px] text-retro-win text-glow-win text-center">{banner}</p>
       )}
 
-      <div className="grid sm:grid-cols-2 gap-4 justify-items-center">
+      {phase !== 'placing' && (
+        <BattleshipTabs view={view} onView={setView} targetAlert={myTurn} />
+      )}
+
+      <div className="space-y-4">
         {/* Targeting */}
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+        <div className={cn('space-y-1 w-full', (phase === 'placing' || view !== 'target') && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">TARGETING</p>
           <BattleshipBoard
             shots={toMap(playerShots)}
             lastCell={playerShots[playerShots.length - 1]?.cell}
             onCell={handleShoot}
             disabled={!myTurn}
+            zoomable
             accent="p1"
           />
           <div className="flex flex-wrap gap-1.5 pt-1">
@@ -225,13 +240,13 @@ export default function BattleshipDemo() {
         </div>
 
         {/* Your waters */}
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+        <div className={cn('space-y-1 w-full', phase !== 'placing' && view !== 'fleet' && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR WATERS</p>
           <BattleshipBoard
             shots={toMap(botShots)}
             fleetCells={playerFleetCells}
             lastCell={botShots[botShots.length - 1]?.cell}
-            onCell={phase === 'placing' ? placeShip : undefined}
+            onCell={phase === 'placing' ? (cell) => confirm.tap(cell, () => placeShip(cell)) : undefined}
             disabled={phase !== 'placing'}
             accent="p2"
             preview={phase === 'placing' ? preview : null}
@@ -266,7 +281,7 @@ export default function BattleshipDemo() {
                   onClick={() => !placed && setSelected(ship)}
                   disabled={placed}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition-all active:scale-[0.98]',
+                    'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition press-card',
                     isSelected && !placed
                       ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                       : placed
@@ -304,19 +319,19 @@ export default function BattleshipDemo() {
             <button
               onClick={rotateSelected}
               disabled={!selected}
-              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95 disabled:opacity-40"
+              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press disabled:opacity-40"
             >
               ⟳ ROTATE
             </button>
             <button
               onClick={() => { setDraft(randomFleet()); setSelected(null); setPlaceError('') }}
-              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press"
             >
               ⚄ RANDOM
             </button>
             <button
               onClick={() => { setDraft({}); setSelected('carrier'); setPlaceError('') }}
-              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 active:scale-95"
+              className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 press"
             >
               ✕ CLEAR
             </button>
@@ -325,7 +340,7 @@ export default function BattleshipDemo() {
           <button
             onClick={handleReady}
             disabled={!draftValid}
-            className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+            className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
           >
             {draftValid ? 'READY — BATTLE STATIONS' : `PLACE ${5 - Object.keys(draft).length} MORE`}
           </button>
@@ -342,7 +357,7 @@ export default function BattleshipDemo() {
           </p>
           <button
             onClick={reset}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
           >
             PLAY AGAIN
           </button>

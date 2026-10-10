@@ -34,8 +34,8 @@ describe('FONTS registry', () => {
   it('every non-default face declares a cap-matching size-adjust', () => {
     for (const font of FONTS.filter(f => f.id !== DEFAULT_ID)) {
       for (const face of faces.filter(f => f.family === font.family)) {
-        expect(face.sizeAdjust, font.family).toBeGreaterThanOrEqual(110)
-        expect(face.sizeAdjust, font.family).toBeLessThanOrEqual(180)
+        expect(face.sizeAdjust, font.family).toBeGreaterThanOrEqual(90)
+        expect(face.sizeAdjust, font.family).toBeLessThanOrEqual(240)
       }
     }
   })

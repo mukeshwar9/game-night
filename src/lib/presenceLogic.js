@@ -10,6 +10,9 @@
 //                                          cleared when the seat reconnects
 //   offlineAt: number                     party seats: server time the last
 //                                          connection dropped
+//   awayAt:    number                     server time the app was sent to the
+//                                          background (native shell); cleared
+//                                          when the seat reconnects
 //
 // A second tab closing, or a late onDisconnect from a dead socket, flips the
 // legacy `online` to false while another connection is still open — so the
@@ -32,6 +35,16 @@ export function isSeatOnline(node) {
   if (hasLiveConn(node)) return true
   if (typeof node.leftAt === 'number') return false
   return node.online !== false
+}
+
+// The seat's player put the app in the background (switched to another app,
+// locked the phone) and hasn't come back yet. Still offline for every rule
+// (abandon timers, CLAIM WIN); only the wording differs: STEPPED AWAY, not
+// OFFLINE, since they most likely return in a moment.
+export function seatAway(node) {
+  if (!node || typeof node !== 'object' || hasLiveConn(node)) return false
+  if (typeof node.leftAt === 'number') return false
+  return typeof node.awayAt === 'number'
 }
 
 // The seat's player tapped LEAVE mid-match and hasn't come back.

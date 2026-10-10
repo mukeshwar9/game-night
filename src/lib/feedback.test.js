@@ -3,7 +3,7 @@ import {
   FEEDBACK_COOLDOWN_MS, FEEDBACK_MAX_LENGTH,
   normalizeFeedbackType, normalizeFeedbackStatus, normalizeFeedbackItem, normalizeFeedbackList,
   countFeedback, feedbackCooldownLeft, buildErrorFeedbackMessage,
-  saveFeedbackDraft, readFeedbackDraft, clearFeedbackDraft,
+  saveFeedbackDraft, readFeedbackDraft, clearFeedbackDraft, buildReport, sortReports,
 } from './feedback'
 
 describe('normalizeFeedbackType / normalizeFeedbackStatus', () => {
@@ -115,5 +115,62 @@ describe('feedback drafts', () => {
   it('never pre-selects the report type in the form', () => {
     saveFeedbackDraft({ type: 'report', message: 'hello there friend' })
     expect(readFeedbackDraft()?.type).toBe('bug')
+  })
+})
+
+describe('buildReport', () => {
+  it('quotes a chat message, as before', () => {
+    expect(buildReport({ gameId: 'AB12CD', targetName: 'Bob', text: 'rude words' }))
+      .toMatchObject({ message: 'Chat report — Bob: "rude words"', page: '/game/AB12CD' })
+  })
+
+  it('names the player for a profile report, which needs no room', () => {
+    expect(buildReport({ context: 'profile', targetName: 'Bob' }))
+      .toMatchObject({ message: 'Profile report — Bob', page: '/friends' })
+  })
+
+  it('reports a drawing with its word and the room', () => {
+    expect(buildReport({ context: 'drawing', gameId: 'AB12CD', targetName: 'Bob', text: 'cat' }))
+      .toMatchObject({ message: 'Drawing report — Bob (cat)', page: '/game/AB12CD' })
+  })
+
+  it('reports something said in voice with the reason (no audio is recorded)', () => {
+    expect(buildReport({ context: 'voice', gameId: 'AB12CD', targetName: 'Bob', text: 'hateful or abusive' }))
+      .toMatchObject({ message: 'Voice report — Bob (hateful or abusive)', page: '/game/AB12CD' })
+  })
+
+  it('falls back to a chat report for an unknown context and caps lengths', () => {
+    expect(buildReport({ context: 'nope', gameId: 'X', targetName: 'n'.repeat(80), text: 't'.repeat(500) }).message.startsWith('Chat report —')).toBe(true)
+    const r = buildReport({ gameId: 'X', targetName: 'n'.repeat(80), text: 't'.repeat(500) })
+    expect(r.who).toHaveLength(40)
+    expect(r.quoted).toHaveLength(200)
+    expect(r.message.length).toBeLessThanOrEqual(FEEDBACK_MAX_LENGTH)
+  })
+
+  it('carries the chat lines around a chat report, capped, and none for other reports', () => {
+    expect(buildReport({ gameId: 'X', targetName: 'Bob', text: 'hi', chatContext: 'Ann: hey\nBob: hi' }).chatContext).toBe('Ann: hey\nBob: hi')
+    expect(buildReport({ gameId: 'X', targetName: 'Bob', text: 'hi', chatContext: 'c'.repeat(2000) }).chatContext).toHaveLength(1000)
+    expect(buildReport({ context: 'profile', targetName: 'Bob', chatContext: 'Ann: hey' }).chatContext).toBe('')
+  })
+})
+
+describe('report triage in the admin inbox', () => {
+  const rep = (id, over = {}) => normalizeFeedbackItem(id, { type: 'report', message: 'Chat report — x', status: 'open', createdAt: 1, ...over })
+
+  it('keeps the chat context and a normalized triage record', () => {
+    const r = rep('a', { chatContext: 'Ann: hi', triage: { category: 'sexual', severity: 2.5, supported: 0.9, priority: 0.8, junk: 1 } })
+    expect(r.chatContext).toBe('Ann: hi')
+    expect(r.triage).toEqual({ category: 'sexual', severity: 2.5, supported: 0.9, priority: 0.8 })
+    expect(rep('b').triage).toBeNull()
+  })
+
+  it('sorts open reports by triage priority, untriaged after, closed last', () => {
+    const items = [
+      rep('low', { triage: { priority: 0.1 }, createdAt: 5 }),
+      rep('none', { createdAt: 9 }),
+      rep('high', { triage: { priority: 0.9 }, createdAt: 2 }),
+      rep('done', { status: 'done', triage: { priority: 1 }, createdAt: 3 }),
+    ]
+    expect(sortReports(items).map(i => i.id)).toEqual(['high', 'low', 'none', 'done'])
   })
 })

@@ -76,7 +76,7 @@ export default function SantoriniBoard({
   return (
     <div className="w-full max-w-[380px] sm:max-w-[420px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         <div className="flex items-center justify-center gap-2 pb-1.5">
@@ -122,12 +122,12 @@ export default function SantoriniBoard({
                 disabled={disabled}
                 onClick={() => tap(i)}
                 className={cn(
-                  'aspect-square rounded-sm transition-all duration-100 select-none',
+                  'aspect-square rounded-sm transition duration-100 select-none',
                   'relative flex items-end justify-center overflow-hidden outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
                   dark ? 'bg-retro-surface' : 'bg-retro-card',
                   'border border-retro-border/40',
-                  !disabled && 'cursor-pointer hover:brightness-125 active:scale-95',
+                  !disabled && 'cursor-pointer hover:brightness-125 press',
                   isSel && 'ring-2 ring-inset ring-retro-p1 shadow-neon-p1',
                   isDest && 'ring-2 ring-inset ring-retro-p1/70',
                   isMoveOpt && stage === 'move' && 'ring-2 ring-inset ring-retro-cta/60 bg-retro-tint-cta/20',

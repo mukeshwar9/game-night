@@ -8,11 +8,11 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 const LAZY = Symbol.for('react.lazy')
-let GAME_TYPES, getGameConfig, runPigSeedProtocol
+let GAME_TYPES, getGameConfig, runPigSeedProtocol, runPigRoomEffect, runPigRollResolver
 
 beforeAll(async () => {
   ;({ GAME_TYPES, getGameConfig } = await import('../../lib/games'))
-  ;({ runPigSeedProtocol } = await import('./pigSeedProtocol'))
+  ;({ runPigSeedProtocol, runPigRoomEffect, runPigRollResolver } = await import('./pigSeedProtocol'))
 })
 
 describe('registry components are code-split', () => {
@@ -33,12 +33,47 @@ describe('per-game room fields', () => {
   it('seeds rolls for both Pig variants only', () => {
     const seeded = GAME_TYPES.filter(c => c.rollFace).map(c => c.type).sort()
     expect(seeded).toEqual(['dice', 'dice-big'])
-    for (const t of seeded) expect(getGameConfig(t).roomEffect).toBe(runPigSeedProtocol)
+    for (const t of seeded) expect(getGameConfig(t).roomEffect).toBe(runPigRoomEffect)
   })
 
   it('tracks Blockade moves by counter and tightens Chain Reaction', () => {
     expect(getGameConfig('blockade').moveCountKey).toBe('blockadeMoves')
     expect(GAME_TYPES.filter(c => c.compactLayout).map(c => c.type)).toEqual(['chainreaction'])
+  })
+})
+
+describe('runPigRollResolver', () => {
+  const room = {
+    gameType: 'dice', status: 'playing', currentTurn: 'X', diceSeed: 'ab'.repeat(32),
+    diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceRollIndex: 3,
+    diceRoll: { i: 3, by: 'X', at: 1_700_000_000_123 },
+  }
+
+  it('resolves a pending roll once per request, from either seat', async () => {
+    const transact = vi.fn(async fn => fn({ ...room }))
+    const memo = {}
+    runPigRollResolver({ game: room, mySymbol: 'O', memo, transact })
+    runPigRollResolver({ game: room, mySymbol: 'O', memo, transact })
+    expect(transact).toHaveBeenCalledTimes(1)
+    const next = await transact.mock.results[0].value
+    expect(next.diceRollIndex).toBe(4)
+  })
+
+  it('leaves rooms with nothing pending, spectators and finished rooms alone', () => {
+    const transact = vi.fn(async () => {})
+    runPigRollResolver({ game: { ...room, diceRollIndex: 4 }, mySymbol: 'X', memo: {}, transact })
+    runPigRollResolver({ game: room, mySymbol: null, memo: {}, transact })
+    runPigRollResolver({ game: { ...room, status: 'finished' }, mySymbol: 'X', memo: {}, transact })
+    expect(transact).not.toHaveBeenCalled()
+  })
+
+  it('retries after a failed transaction', async () => {
+    const transact = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({})
+    const memo = {}
+    runPigRollResolver({ game: room, mySymbol: 'X', memo, transact })
+    await Promise.resolve(); await Promise.resolve()
+    runPigRollResolver({ game: room, mySymbol: 'X', memo, transact })
+    expect(transact).toHaveBeenCalledTimes(2)
   })
 })
 

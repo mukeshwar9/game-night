@@ -385,7 +385,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
             }}
           >
             <div ref={(el) => { npcBobRefs.current[i] = el }} className={cn(sim.npcs[i].moving && 'pg-walk-bob')}>
-              <Avatar id={def.avatar} tile={false} size={40} animate />
+              <Avatar id={def.avatar} tile={false} size={48} view="hero" animate />
             </div>
           </div>
         ))}
@@ -401,7 +401,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
           }}
         >
           <div ref={avatarBobRef} className={cn('relative', sim.moving && 'pg-walk-bob')}>
-            <Avatar id={avatarId} tile={false} size={40} animate />
+            <Avatar id={avatarId} tile={false} size={48} view="hero" animate />
             {emote && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 pointer-events-none">
                 <div key={emote.key} className="text-lg" style={{ animation: 'emote-float 1.6s ease-out forwards' }}>
@@ -441,8 +441,10 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
         />
       </div>
 
-      {/* HUD — fixed to the viewport, unaffected by the camera pan */}
-      <p className="absolute top-[max(0.5rem,env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-20 font-pixel text-[8px] text-retro-dim bg-retro-surface/80 px-2 py-1 rounded whitespace-nowrap">
+      {/* HUD — fixed to the viewport, unaffected by the camera pan. On a
+          phone the top edge belongs to BACK and the audio/settings icons (the
+          hint ran underneath them), so the hint drops above the bottom HUD. */}
+      <p className="absolute top-[max(0.5rem,env(safe-area-inset-top))] max-sm:top-auto max-sm:bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+3.75rem)] left-1/2 -translate-x-1/2 z-20 font-pixel text-[8px] text-retro-dim bg-retro-surface/80 px-2 py-1 rounded whitespace-nowrap">
         <span className="kbd-hint">ARROWS · WASD · SHIFT SPRINT · DRAG · 1-4 EMOTE</span><span className="touch-hint">DRAG TO WALK · TAP AN EMOTE</span>
       </p>
 
@@ -453,14 +455,14 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
       {display.stationType ? (
         <button
           onClick={() => enterStation(display.stationType)}
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[8px] rounded shadow-neon-cta active:scale-95"
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-cta text-retro-bg font-pixel text-[8px] rounded shadow-neon-cta press"
         >
           ENTER TO PLAY {(getGameConfig(display.stationType).label || '').toUpperCase()}
         </button>
       ) : display.nearNpcKind === 'daily' ? (
         <button
           onClick={goToDaily}
-          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-surface border border-retro-cta/60 text-retro-cta font-pixel text-[8px] rounded active:scale-95"
+          className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 bg-retro-surface border border-retro-cta/60 text-retro-cta font-pixel text-[8px] rounded press"
         >
           PRESS ENTER FOR DAILY
         </button>
@@ -472,7 +474,7 @@ export default function PlaygroundWorld({ avatarId, controlsEnabled = true }) {
             key={g}
             onClick={() => fireEmote(g)}
             aria-label={`Emote ${g}`}
-            className="w-11 h-11 rounded bg-retro-surface border border-retro-border text-base flex items-center justify-center active:scale-95"
+            className="w-11 h-11 rounded bg-retro-surface border border-retro-border text-base flex items-center justify-center press"
           >
             {g}
           </button>

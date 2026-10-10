@@ -1,5 +1,5 @@
 import { commit, verifyReveal } from './commit'
-import { has } from './dictionary'
+import { has, isAnswerWord } from './dictionary'
 import { isBannedWord } from './wordDenylist'
 
 export const MAX_GUESSES = 6
@@ -221,6 +221,17 @@ export function secretWordProblem(word) {
   if (isBannedWord(w)) return 'NOT ALLOWED — PICK ANOTHER WORD'
   if (!isValidGuess(w)) return 'NOT IN WORD LIST'
   return null
+}
+
+// A legal secret outside the ~1,500-word answer list (LASSI, ZOOEY…) is
+// usually a word the guesser has never met, so picking rare words became the
+// winning strategy. The setter is warned once and must confirm; null for an
+// everyday word or one secretWordProblem already refuses.
+export const RARE_SECRET_WARNING = 'RARE WORD — THEY MAY NOT KNOW IT. LOCK IN AGAIN TO KEEP IT'
+export function secretWordWarning(word) {
+  const w = String(word ?? '').trim()
+  if (secretWordProblem(w)) return null
+  return isAnswerWord(w) ? null : RARE_SECRET_WARNING
 }
 
 export function isAllowedSecret(word) {

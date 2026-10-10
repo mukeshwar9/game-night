@@ -1,3 +1,4 @@
+const { setGlobalOptions } = require('firebase-functions/v2');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const logger = require('firebase-functions/logger');
 const { initializeApp } = require('firebase-admin/app');
@@ -5,8 +6,48 @@ const { getDatabase } = require('firebase-admin/database');
 
 initializeApp();
 
+// Caps concurrent instances of every function, so an abusive burst of room or
+// invite writes cannot run up the bill. Each function also sets its own cap.
+setGlobalOptions({ maxInstances: 10 });
+
 // Server-authoritative match results -> leaderboard (see results.js, README.md).
 exports.creditMatchResults = require('./results').creditMatchResults;
+exports.sendInvitePush = require('./push').sendInvitePush;
+exports.sendFriendRequestPush = require('./push').sendFriendRequestPush;
+exports.sendJoinedPush = require('./push').sendJoinedPush;
+// Clears a deleted account's rows, including the server-only leaderboard row.
+exports.cleanupDeletedAccount = require('./deleteAccount').cleanupDeletedAccount;
+// Daily summary of yesterday's error reports, with an alert when it looks bad.
+// Payments (Paddle, sandbox until configured): checkout + portal links, the
+// signature-verified webhook that writes entitlements/{uid}, and the admin
+// allowlist sync. See billing.js and README.md.
+const billing = require('./billing')
+exports.createCheckout = billing.createCheckout
+exports.createPortalSession = billing.createPortalSession
+exports.paddleWebhook = billing.paddleWebhook
+exports.syncAdminAccess = billing.syncAdminAccess
+// Indian buyers pay in rupees through Razorpay (test mode until configured;
+// answers 503 without its keys). See razorpay.js.
+const razorpay = require('./razorpay')
+exports.createRazorpayOrder = razorpay.createRazorpayOrder
+exports.verifyRazorpayPayment = razorpay.verifyRazorpayPayment
+exports.razorpayWebhook = razorpay.razorpayWebhook
+// Guest -> Google account merge and the cosmetic sign-up badge (accountMerge.js).
+const accountMerge = require('./accountMerge')
+exports.mergeGuestAccount = accountMerge.mergeGuestAccount
+exports.claimSavedBadge = accountMerge.claimSavedBadge
+exports.errorDigest = require('./errorDigest').errorDigest;
+// Party voice chat through the Cloudflare Realtime SFU (off until VOICE_ENABLED=1
+// and the Cloudflare secrets are bound). See voice.js.
+const voice = require('./voice')
+exports.voiceSfu = voice.voiceSfu
+exports.voiceOnBlock = voice.voiceOnBlock
+exports.voiceOnRemove = voice.voiceOnRemove
+// Room chat: keeps each log bounded and, once a TypeSafe key is configured,
+// moderates new lines and triages player reports with Jev (chatModeration.js).
+const chatModeration = require('./chatModeration')
+exports.moderateChatMessage = chatModeration.moderateChatMessage
+exports.triageReport = chatModeration.triageReport
 const { errorsCutoffKey, isExpiredErrorDay } = require('./lib/core.cjs');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -48,7 +89,7 @@ async function deleteKeys(ref, keys) {
   }
 }
 
-// Requires Blaze (pay-as-you-go) plan. Runs daily and deletes:
+// Requires Blaze (pay-as-you-go) plan. Runs hourly and deletes:
 //  - games with no activity in the last 24 hours. Keying off lastActivityAt
 //    (falling back to createdAt for older rooms that never got one) lets a
 //    recurring "crew room" survive as long as it gets played at least once a
@@ -60,7 +101,9 @@ async function deleteKeys(ref, keys) {
 //  - the results/ record (match epochs, see results.js) of every room deleted
 //    this run.
 //  - error-telemetry buckets (errors/{UTC day}) older than the last 14 days.
-exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeconds: 540 }, async () => {
+// Hourly, so it keeps up with ad-scale room creation (each run handles at most
+// MAX_PAGES x PAGE rooms per query).
+exports.cleanupStaleGames = onSchedule({ schedule: 'every 1 hours', timeoutSeconds: 540, maxInstances: 1 }, async () => {
   const db = getDatabase();
   const now = Date.now();
   const cutoff = now - DAY_MS;
@@ -78,6 +121,9 @@ exports.cleanupStaleGames = onSchedule({ schedule: 'every 24 hours', timeoutSeco
   const deletedGames = new Set([...idle, ...legacy]);
   await deleteKeys(gamesRef, [...deletedGames]);
   await deleteKeys(db.ref('results'), [...deletedGames]);
+  // Party voice: the client directory and the server's session records.
+  await deleteKeys(db.ref('voice'), [...deletedGames]);
+  await deleteKeys(db.ref('voiceSessions'), [...deletedGames]);
 
   // Listings are few (the lobby shows at most 100), so read them all and check
   // each one's room status directly.

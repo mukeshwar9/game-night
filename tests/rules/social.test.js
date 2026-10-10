@@ -2,13 +2,43 @@
 // and the friend graph: friendships need a pending request, and a recipient
 // can only clear requests, never forge one.
 import { afterAll, afterEach, beforeAll, describe, it } from 'vitest'
-import { assertFails, assertSucceeds, dbAs, seed, rulesEnvFor } from './helpers.js'
+import { assertFails, assertSucceeds, dbAs, seed, rulesEnvFor, gameNode, partyNode } from './helpers.js'
+import { DEFAULTS, encodeAvatar, defaultKitAvatar } from '../../src/lib/avatarKit/catalog.js'
 
 const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
 const as = (uid) => dbAs(T.env, uid)
 const put = (path, value) => seed(T.env, path, value)
 
 describe('users (private half)', () => {
+  it('holds push tokens owner-only with shape check', async () => {
+    const tok = { token: 'fcm-token-abc-1234567890-long-enough-value', at: 1 }
+    await assertSucceeds(as('alice').ref('users/alice/fcmTokens/ab12').set(tok))
+    await assertFails(as('bob').ref('users/alice/fcmTokens/ab12').set(tok))
+    await assertFails(as('bob').ref('users/alice/fcmTokens/ab12').get())
+    await assertFails(as('alice').ref('users/alice/fcmTokens/ab12').set({ token: 'short', at: 1 }))
+    await assertFails(as('alice').ref('users/alice/fcmTokens/ab12').set({ token: tok.token }))
+  })
+
+  it('tags a push token with its platform: web, ios or android, nothing else', async () => {
+    const tok = { token: 'fcm-token-abc-1234567890-long-enough-value', at: 1 }
+    const at = (hash) => as('alice').ref(`users/alice/fcmTokens/${hash}`)
+    for (const platform of ['web', 'ios', 'android']) {
+      await assertSucceeds(at(`p-${platform}`).set({ ...tok, platform }))
+    }
+    // Records written before the field existed stay valid.
+    await assertSucceeds(at('legacy').set(tok))
+    await assertSucceeds(at('with-ua').set({ ...tok, ua: 'Mozilla/5.0', platform: 'web' }))
+    for (const bad of ['windows', 'iOS', '', 'web ']) {
+      await assertFails(at('bad').set({ ...tok, platform: bad }))
+    }
+    await assertFails(at('bad').set({ ...tok, platform: 1 }))
+    await assertFails(at('bad').set({ ...tok, platform: true }))
+    await assertFails(at('bad').set({ ...tok, platform: { os: 'ios' } }))
+    // Still owner-only, and other keys are still refused.
+    await assertFails(as('bob').ref('users/alice/fcmTokens/p-ios').set({ ...tok, platform: 'ios' }))
+    await assertFails(at('bad').set({ ...tok, platform: 'ios', extra: 1 }))
+  })
+
   it('is readable and writable by its owner only', async () => {
     await put('users/alice', { displayName: 'Alice', code: 'ABC234', stats: { wins: 3 } })
     await assertSucceeds(as('alice').ref('users/alice').get())
@@ -40,6 +70,30 @@ describe('profiles (public half)', () => {
     await assertFails(as('alice').ref('profiles/alice').set({ ...pub, code: 'ABC234' }))
     await assertFails(as('alice').ref('profiles/alice').set({ ...pub, displayName: '' }))
     await assertFails(as('alice').ref('profiles/alice').set({ ...pub, displayName: 'x'.repeat(41) }))
+  })
+})
+
+// Avatars are one string per player: the 'K1…' kit form (25 characters) lives in the same
+// fields the old 'shape.tone' ids did, under the same 200-character cap.
+describe('kit avatar strings', () => {
+  const kit = encodeAvatar({ ...DEFAULTS, hat: 'halo', hairColor: 'holo', frame: 'neon' })
+
+  it('is stored in the private and public profile, and survives an update', async () => {
+    await put('users/alice', { displayName: 'Alice', code: 'ABC234' })
+    await assertSucceeds(as('alice').ref('users/alice/avatar').set(kit))
+    await assertSucceeds(as('alice').ref('profiles/alice').set({ displayName: 'Alice', nameLower: 'alice', avatar: kit, updatedAt: 1 }))
+    await assertSucceeds(as('alice').ref('profiles/alice').update({ avatar: defaultKitAvatar('alice'), updatedAt: 2 }))
+  })
+
+  it('stays under the 200-character cap on profiles and invites', async () => {
+    await assertFails(as('alice').ref('profiles/alice').set({ displayName: 'Alice', nameLower: 'alice', avatar: `K1${'0'.repeat(199)}`, updatedAt: 1 }))
+    await put('friends/alice/bob', { since: 1 })
+    await assertSucceeds(as('bob').ref('invites/alice/i1').set({ gameId: 'ABC123', gameType: 'hex', fromUid: 'bob', fromName: 'Bob', fromAvatar: kit, at: 1 }))
+    await assertFails(as('bob').ref('invites/alice/i2').set({ gameId: 'ABC123', gameType: 'hex', fromUid: 'bob', fromName: 'Bob', fromAvatar: `K1${'0'.repeat(199)}`, at: 1 }))
+  })
+
+  it('is never longer than the 32 characters the leaderboard copy keeps', () => {
+    if (kit.length > 32) throw new Error(`kit avatar is ${kit.length} chars`)
   })
 })
 
@@ -91,5 +145,133 @@ describe('friend requests and friendships', () => {
     await put('friends/alice/bob', { since: 1 })
     await assertFails(as('bob').ref('invites/alice/i1').set({ gameId: 'x'.repeat(41), fromUid: 'bob', fromName: 'Bob', at: 1 }))
     await assertSucceeds(as('bob').ref('invites/alice/i1').set({ gameId: 'ABC123', gameType: 'hex', fromUid: 'bob', fromName: 'Bob', fromAvatar: 'kid.p2', at: 1 }))
+  })
+})
+
+// "+ ADD AS FRIEND" on the result screen: a request by uid, carrying the room it
+// came from. The rules only take it between two players seated in that room.
+describe('friend requests by uid (via a shared room)', () => {
+  const req = (viaGame = 'g1') => ({ name: 'Bob', at: Date.now(), viaGame })
+
+  it('lets a seated player send one to the other seat of a 2P room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set(req()))
+    await assertSucceeds(as('alice').ref('friendRequests/bob/alice').set({ name: 'Alice', at: Date.now(), viaGame: 'g1' }))
+  })
+
+  it('lets party players (seated by uid) send one to each other', async () => {
+    await put('games/p1', partyNode({ uids: ['alice', 'bob'], status: 'playing' }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set(req('p1')))
+  })
+
+  it('denies a stranger who is not seated in the room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('mallory').ref('friendRequests/alice/mallory').set({ name: 'Mal', at: Date.now(), viaGame: 'g1' }))
+  })
+
+  it('denies a spectator of the room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished', extra: { spectators: { carol: { c1: { name: 'Carol', at: 1 } } } } }))
+    await assertFails(as('carol').ref('friendRequests/alice/carol').set({ name: 'Carol', at: Date.now(), viaGame: 'g1' }))
+    // ...and a seated player cannot reach the spectator either.
+    await assertFails(as('alice').ref('friendRequests/carol/alice').set({ name: 'Alice', at: Date.now(), viaGame: 'g1' }))
+  })
+
+  it('denies a target who was never in that room, and a room that does not exist', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('bob').ref('friendRequests/dave/bob').set(req()))
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set(req('nope')))
+  })
+
+  it('denies using a room the sender is in to reach someone from a different room', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await put('games/g2', gameNode({ x: 'dave', o: 'erin', status: 'finished' }))
+    await assertFails(as('bob').ref('friendRequests/dave/bob').set(req('g1')))
+    await assertFails(as('bob').ref('friendRequests/dave/bob').set(req('g2')))
+  })
+
+  it('denies a request to yourself, and one across a block', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('alice').ref('friendRequests/alice/alice').set({ name: 'Alice', at: Date.now(), viaGame: 'g1' }))
+    await put('blocks/alice/bob', { name: 'Bob', at: 1 })
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set(req()))
+  })
+
+  it('refuses a malformed viaGame', async () => {
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', at: Date.now(), viaGame: 7 }))
+    await assertFails(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', at: Date.now(), viaGame: 'x'.repeat(41) }))
+  })
+
+  it('leaves the code-based request (no viaGame) and accepting a uid request unchanged', async () => {
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', code: 'ABC234', at: Date.now() }))
+    await put('games/g1', gameNode({ x: 'alice', o: 'bob', status: 'finished' }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set(req()))
+    await assertSucceeds(as('alice').ref().update({
+      'friends/alice/bob': { since: 2 }, 'friends/bob/alice': { since: 2 }, 'friendRequests/alice/bob': null,
+    }))
+  })
+})
+
+describe('blocks (synced block list)', () => {
+  const blocked = { name: 'Mal', at: Date.now() }
+  const invite = (from) => ({ gameId: 'g1', gameType: 'tictactoe', fromUid: from, fromName: 'Bob', at: 1 })
+
+  it('is owner-only to read and write, with a shape check', async () => {
+    await assertSucceeds(as('alice').ref('blocks/alice/mal').set(blocked))
+    await assertSucceeds(as('alice').ref('blocks/alice').get())
+    await assertFails(as('bob').ref('blocks/alice').get())
+    await assertFails(as('bob').ref('blocks/alice/bob').set(blocked))
+    await assertFails(as('alice').ref('blocks/alice/alice').set(blocked))
+    await assertFails(as('alice').ref('blocks/alice/mal').set({ name: 'x'.repeat(41), at: 1 }))
+    await assertFails(as('alice').ref('blocks/alice/mal').set({ name: 'Mal' }))
+    await assertFails(as('alice').ref('blocks/alice/mal').set({ ...blocked, junk: 1 }))
+    await assertSucceeds(as('alice').ref('blocks/alice/mal').remove())
+  })
+
+  it('refuses a friend request from someone the recipient blocked', async () => {
+    await put('blocks/alice/mal', blocked)
+    await assertFails(as('mal').ref('friendRequests/alice/mal').set({ name: 'Mal', at: Date.now() }))
+    await assertSucceeds(as('bob').ref('friendRequests/alice/bob').set({ name: 'Bob', at: Date.now() }))
+  })
+
+  it('refuses a friend request to someone the sender blocked', async () => {
+    await put('blocks/mal/alice', { name: 'Alice', at: 1 })
+    await assertFails(as('mal').ref('friendRequests/alice/mal').set({ name: 'Mal', at: Date.now() }))
+  })
+
+  it('still lets the blocked sender withdraw a request and the recipient clear one', async () => {
+    await put('friendRequests/alice/mal', { name: 'Mal', at: 1 })
+    await put('blocks/alice/mal', blocked)
+    await assertSucceeds(as('alice').ref('friendRequests/alice/mal').remove())
+    await put('friendRequests/alice/mal', { name: 'Mal', at: 1 })
+    await assertSucceeds(as('mal').ref('friendRequests/alice/mal').remove())
+  })
+
+  it('refuses an invite from a blocked friend, in either direction', async () => {
+    await put('friends/alice/bob', { since: 1 })
+    await put('friends/bob/alice', { since: 1 })
+    await assertSucceeds(as('bob').ref('invites/alice/i0').set(invite('bob')))
+    await put('blocks/alice/bob', { name: 'Bob', at: 1 })
+    await assertFails(as('bob').ref('invites/alice/i1').set(invite('bob')))
+    await put('blocks/alice/bob', null)
+    await put('blocks/bob/alice', { name: 'Alice', at: 1 })
+    await assertFails(as('bob').ref('invites/alice/i2').set(invite('bob')))
+  })
+
+  it('lets the recipient dismiss an invite while a block exists', async () => {
+    await put('invites/alice/i1', invite('bob'))
+    await put('blocks/alice/bob', { name: 'Bob', at: 1 })
+    await assertSucceeds(as('alice').ref('invites/alice/i1').remove())
+  })
+})
+
+describe('party invites', () => {
+  it('accepts kind party with a head-count, rejects other kinds and bad counts', async () => {
+    await put('friends/alice/bob', { since: 1 })
+    const base = { gameId: 'ABC123', gameType: 'party', fromUid: 'bob', fromName: 'Bob', at: 1 }
+    await assertSucceeds(as('bob').ref('invites/alice/i1').set({ ...base, kind: 'party', size: 2, cap: 4 }))
+    await assertFails(as('bob').ref('invites/alice/i2').set({ ...base, kind: 'game' }))
+    await assertFails(as('bob').ref('invites/alice/i3').set({ ...base, kind: 'party', size: 0 }))
+    await assertFails(as('bob').ref('invites/alice/i4').set({ ...base, kind: 'party', cap: 99 }))
   })
 })

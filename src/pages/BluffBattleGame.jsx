@@ -441,7 +441,7 @@ export default function BluffBattleGame({
             <button
               onClick={handleRoll}
               disabled={busy}
-              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+              className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press disabled:opacity-40"
             >
               ROLL DICE
             </button>
@@ -497,12 +497,12 @@ export default function BluffBattleGame({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setBidQty(q => Math.max(1, q - 1))}
-                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 press"
                     >−</button>
                     <span className="font-pixel text-base text-retro-cta text-glow-cta w-6 text-center">{bidQty}</span>
                     <button
                       onClick={() => setBidQty(q => Math.min(myDiceCount + opDiceCount, q + 1))}
-                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 press"
                     >+</button>
                   </div>
                 </div>
@@ -511,12 +511,12 @@ export default function BluffBattleGame({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setBidFace(f => Math.max(1, f - 1))}
-                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 press"
                     >−</button>
                     <span className="text-2xl leading-none text-retro-cta text-glow-cta w-7 text-center">{DIE_GLYPH[bidFace]}</span>
                     <button
                       onClick={() => setBidFace(f => Math.min(FACES, f + 1))}
-                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 active:scale-90"
+                      className="w-11 h-11 font-pixel text-xs border border-retro-border rounded text-retro-text hover:border-retro-p1/50 press"
                     >+</button>
                   </div>
                 </div>
@@ -525,14 +525,14 @@ export default function BluffBattleGame({
                 <button
                   onClick={handleBid}
                   disabled={busy}
-                  className="flex-1 max-w-[10rem] py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-40"
+                  className="flex-1 max-w-[10rem] py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press disabled:opacity-40"
                 >
                   RAISE BID
                 </button>
                 <button
                   onClick={handleCallLiar}
                   disabled={busy || !lastBid}
-                  className="flex-1 max-w-[10rem] py-2.5 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 hover:bg-retro-tint-p2 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-default"
+                  className="flex-1 max-w-[10rem] py-2.5 border-2 border-retro-p2 text-retro-p2 font-pixel text-[10px] rounded hover:shadow-neon-p2 hover:bg-retro-tint-p2 transition press disabled:opacity-30 disabled:cursor-default"
                 >
                   CALL LIAR!
                 </button>
@@ -567,7 +567,7 @@ export default function BluffBattleGame({
           <button
             onClick={handleConcedeLostSecret}
             disabled={conceding}
-            className="min-h-11 px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+            className="min-h-11 px-6 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-p1 transition press disabled:opacity-50"
           >
             {conceding ? 'CONCEDING…' : 'CONCEDE ROUND'}
           </button>
@@ -612,7 +612,7 @@ function RevealPanel({
       <div className="text-center space-y-2">
         <button
           onClick={onNextRound}
-          className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition-all active:scale-95"
+          className="px-6 py-2.5 font-pixel text-[10px] border-2 border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 hover:bg-retro-tint-p1 transition press"
         >
           NEXT ROUND
         </button>

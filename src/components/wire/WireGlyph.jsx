@@ -1,6 +1,11 @@
 // WIRE CROSSED keypad glyphs: 24 original line marks, drawn in currentColor
 // so they theme with whatever text colour the button or manual cell uses.
-// Ids index GLYPH_PATHS (see GLYPH_COUNT in src/lib/wireLogic.js).
+// Ids 0-23 index GLYPH_PATHS (see GLYPH_COUNT in src/lib/wireLogic.js). Ids
+// 24-31 are the mirror image (scaleX(-1)) of the base glyphs in MIRRORABLE, in
+// that order: the mirror of base glyph b is 24 + MIRRORABLE.indexOf(b). All
+// eight have no left-right symmetry, so the flip is visible.
+import { GLYPH_MIRROR_FIRST } from '../../lib/wireLogic'
+import { MIRRORABLE } from './glyphs'
 
 const GLYPH_PATHS = [
   'M12 3v18M5 9h14',
@@ -23,13 +28,15 @@ const GLYPH_PATHS = [
   'M12 4l8 8-8 8-8-8z',
   'M12 4l8 8-8 8-8-8zM9 12h6',
   'M4 6h16M4 12h10M4 18h16',
-  'M6 20V9a6 6 0 0 1 12 0v11',
+  'M6 20V9a6 6 0 0 1 12 0v11M6 15h6',
   'M12 3v4M12 17v4M6 12a6 6 0 1 0 12 0a6 6 0 1 0-12 0',
   'M4 20l8-16 8 16zM12 11v5',
   'M5 12c0-4 3-7 7-7s7 3 7 7-3 7-7 7M12 12h7',
 ]
 
 export default function WireGlyph({ id, size = 28, className }) {
+  const mirrored = id >= GLYPH_MIRROR_FIRST
+  const base = mirrored ? MIRRORABLE[id - GLYPH_MIRROR_FIRST] : id
   return (
     <svg
       width={size}
@@ -37,10 +44,11 @@ export default function WireGlyph({ id, size = 28, className }) {
       viewBox="0 0 24 24"
       fill="none"
       className={className}
+      style={mirrored ? { transform: 'scaleX(-1)' } : undefined}
       aria-hidden="true"
     >
       <path
-        d={GLYPH_PATHS[id] || ''}
+        d={GLYPH_PATHS[base] || ''}
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"

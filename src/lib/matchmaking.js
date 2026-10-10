@@ -3,11 +3,16 @@ import { db } from './firebase'
 import { freshGameState, getGameConfig, GAME_TYPES } from './games'
 import { isSeatOnline } from './presenceLogic'
 import { partyJoinPlan } from './roomLogic'
+import { fetchServerNow } from '../hooks/useServerClock'
+import { displayNameFor } from './moderationLogic'
 export const PUBLIC_ROOM_TTL_MS = 24 * 60 * 60 * 1000
 // Public lobby: base 2P games plus the N-player races (`race: true`), which
 // list as a 1v1 while their host waits alone; other party games stay
 // invite-only.
-const isPublicCfg = cfg => !!cfg && !cfg.variantOf && (!cfg.nPlayer || !!cfg.race)
+// Peer-to-peer real-time games (`p2p`) stay out of the public lobby: without a
+// TURN relay they often fail to connect on mobile carriers, and strangers would
+// see each other's IP address. Friends and private invite links still work.
+const isPublicCfg = cfg => !!cfg && !cfg.variantOf && !cfg.p2p && (!cfg.nPlayer || !!cfg.race)
 export function getPublicGameTypes() { return GAME_TYPES.filter(isPublicCfg) }
 export function isPublicGameType(gameType) { return isPublicCfg(getGameConfig(gameType)) }
 // Who a public room is waiting with: the X seat of a 2P room with O still
@@ -25,24 +30,36 @@ export function listingHost(game) {
   if (!x?.playerId || game.players.O) return null
   return { uid: x.playerId, name: x.name, avatar: x.avatar ?? null, online: isSeatOnline(game.presence?.X) }
 }
+// Clock slack allowed on a listing's dates; the rules bound them the same way
+// (database.rules.json matchmaking), so poisoned rows already in the database
+// drop out here too instead of sorting to the top of the lobby forever.
+const LISTING_SLACK_MS = 5 * 60 * 1000
 export function normalizePublicRooms(raw, now = Date.now()) {
-  return Object.entries(raw || {}).map(([gameId, room]) => ({ ...room, gameId })).filter(room => room.visibility === 'public' && isPublicGameType(room.gameType) && typeof room.hostUid === 'string' && typeof room.createdAt === 'number' && typeof room.expiresAt === 'number' && room.expiresAt > now && room.hostOnline !== false).sort((a, b) => a.createdAt - b.createdAt)
+  return Object.entries(raw || {}).map(([gameId, room]) => ({ ...room, gameId, hostName: displayNameFor(room?.hostName) })).filter(room => room.visibility === 'public' && isPublicGameType(room.gameType) && typeof room.hostUid === 'string' && typeof room.createdAt === 'number' && room.createdAt <= now + LISTING_SLACK_MS && typeof room.expiresAt === 'number' && room.expiresAt > now && room.expiresAt <= now + PUBLIC_ROOM_TTL_MS + LISTING_SLACK_MS && room.hostOnline !== false).sort((a, b) => a.createdAt - b.createdAt)
 }
 export function publicRoomEntry({ gameId, gameType, hostUid, hostName, hostAvatar, now = Date.now() }) {
   return { gameId, gameType, visibility: 'public', hostUid, hostName: hostName || 'PLAYER', hostAvatar: hostAvatar || null, hostOnline: true, createdAt: now, updatedAt: now, expiresAt: now + PUBLIC_ROOM_TTL_MS }
 }
-export async function createPublicRoom({ gameId, gameType, playerId, playerName, playerAvatar, now = Date.now() }) {
+export async function createPublicRoom({ gameId, gameType, playerId, playerName, playerAvatar, now: given, initial = null }) {
   if (!db) throw new Error('Firebase is not configured')
+  // Server time: the rules reject dates more than a few minutes ahead of it.
+  const now = given ?? await fetchServerNow()
   if (!isPublicGameType(gameType)) throw new Error('Game is not eligible for public matchmaking')
   const party = !!getGameConfig(gameType)?.nPlayer
   const game = party
-    ? { gameType, visibility: 'public', status: 'waiting', scores: {}, createdAt: now, lastActivityAt: now, players: { [playerId]: { name: playerName, joinedAt: now, playerId, online: true, avatar: playerAvatar } }, ...freshGameState(gameType) }
-    : { gameType, visibility: 'public', status: 'waiting', scores: { X: 0, O: 0 }, createdAt: now, lastActivityAt: now, players: { X: { name: playerName, joinedAt: now, playerId, avatar: playerAvatar } }, ...freshGameState(gameType) }
+    ? { gameType, visibility: 'public', status: 'waiting', scores: {}, createdAt: now, lastActivityAt: now, players: { [playerId]: { name: playerName, joinedAt: now, playerId, online: true, avatar: playerAvatar } }, ...freshGameState(gameType), ...initial }
+    : { gameType, visibility: 'public', status: 'waiting', scores: { X: 0, O: 0 }, createdAt: now, lastActivityAt: now, players: { X: { name: playerName, joinedAt: now, playerId, avatar: playerAvatar } }, ...freshGameState(gameType), ...initial }
   const entry = publicRoomEntry({ gameId, gameType, hostUid: playerId, hostName: playerName, hostAvatar: playerAvatar, now })
   await set(ref(db, `games/${gameId}`), game)
   try { await set(ref(db, `matchmaking/${gameId}`), entry) } catch (error) { await remove(ref(db, `games/${gameId}`)); throw error }
   await onDisconnect(ref(db, `matchmaking/${gameId}`)).remove()
   return game
+}
+// One look at the open rooms (QUICK MATCH from a game's own hub).
+export async function listPublicRoomsOnce() {
+  if (!db) return []
+  const snapshot = await get(query(ref(db, 'matchmaking'), orderByChild('createdAt'), limitToLast(100)))
+  return normalizePublicRooms(snapshot.val())
 }
 export function subscribePublicRooms(callback) {
   if (!db) return () => {}
@@ -61,7 +78,7 @@ export function isListableRoom(game, now = Date.now()) {
 export async function republishPublicRoom({ gameId, game }) {
   if (!db || !isListableRoom(game)) return false
   const host = listingHost(game)
-  const entry = { ...publicRoomEntry({ gameId, gameType: game.gameType, hostUid: host.uid, hostName: host.name, hostAvatar: host.avatar, now: game.createdAt }), updatedAt: Date.now() }
+  const entry = { ...publicRoomEntry({ gameId, gameType: game.gameType, hostUid: host.uid, hostName: host.name, hostAvatar: host.avatar, now: game.createdAt }), updatedAt: await fetchServerNow() }
   await set(ref(db, `matchmaking/${gameId}`), entry)
   await onDisconnect(ref(db, `matchmaking/${gameId}`)).remove()
   return true

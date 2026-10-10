@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
   PIG_TARGET, rollDie, applyDiceMove, applyDiceBigMove,
-  generateSeedHex, commitSeed, deriveSeed, rollFaceAsync,
+  generateSeedHex, commitSeed, deriveSeed, rollFace, rollFacePair, rollFaces,
+  pendingRoll, resolvePendingRoll, lastRollMatches,
 } from './diceLogic'
 
 afterEach(() => {
@@ -229,44 +230,109 @@ describe('applyDiceBigMove bank', () => {
 // ---------------------------------------------------------------------------
 // Deterministic rolls (anti-cheat)
 // ---------------------------------------------------------------------------
-describe('deterministic seeded rolls', () => {
-  it('rollFaceAsync is stable for a given seed+index', async () => {
-    const seed = await deriveSeed(await generateSeedHex(), await generateSeedHex())
-    const a = await rollFaceAsync(seed, 0)
-    const b = await rollFaceAsync(seed, 0)
-    expect(a).toBe(b)
+describe('fair seeded rolls', () => {
+  const AT = 1_700_000_000_000
+
+  it('rollFace is stable for a given seed, index and server time', async () => {
+    const seed = await deriveSeed(generateSeedHex(), generateSeedHex())
+    const a = rollFace(seed, 0, AT)
+    expect(rollFace(seed, 0, AT)).toBe(a)
     expect(a).toBeGreaterThanOrEqual(1)
     expect(a).toBeLessThanOrEqual(6)
+    const pair = rollFacePair(seed, 0, AT)
+    expect(pair).toHaveLength(2)
+    expect(pair[0]).toBe(a)
   })
 
-  it('different seeds produce (very likely) different first faces', async () => {
-    const s1 = await deriveSeed('aaaa', 'bbbb')
-    const s2 = await deriveSeed('cccc', 'dddd')
-    // Not strictly guaranteed distinct, but with 32-bit hashes the chance
-    // of a collision on a single face is ~1/6 — pick a few indices to be safe.
-    let diffs = 0
-    for (let i = 0; i < 6; i++) {
-      if (await rollFaceAsync(s1, i) !== await rollFaceAsync(s2, i)) diffs++
-    }
-    expect(diffs).toBeGreaterThan(0)
-  })
-
-  it('applyDiceMove uses the deterministic face when a seed is set', async () => {
-    // Find an index whose deterministic face is safe (≠ 1) so the trail is
-    // populated; the bust branch (face === 1) is covered by the legacy bust tests.
+  it('the seed alone does not predict a roll: the server time changes the faces', async () => {
+    // Regression: faces used to be H(seed : index), so every client could
+    // compute every future roll from the diceSeed stored in the room.
     const seed = await deriveSeed('a1b2c3d4e5f6a1b2', '0123456789abcdef')
-    let idx = 0
-    while (await rollFaceAsync(seed, idx) === 1) idx++
-    const expected = await rollFaceAsync(seed, idx)
-    const game = { diceSeed: seed, diceRollIndex: idx, diceTurnScore: 0, currentTurn: 'X' }
+    const faces = new Set()
+    for (let ms = 0; ms < 60; ms++) faces.add(rollFace(seed, 0, AT + ms))
+    expect(faces.size).toBe(6)
+  })
+
+  it('every face is equally likely (no modulo bias)', () => {
+    const counts = [0, 0, 0, 0, 0, 0]
+    const n = 60_000
+    for (let i = 0; i < n; i++) counts[rollFace('seed', i, AT) - 1]++
+    // Chi-square with 5 degrees of freedom; 20.5 is the 0.1% critical value.
+    const chi = counts.reduce((sum, c) => sum + (c - n / 6) ** 2 / (n / 6), 0)
+    expect(chi).toBeLessThan(20.5)
+  })
+
+  it('skips hash bytes of 252 and up instead of folding them onto 1–4', () => {
+    // 1 + (byte % 6) over all 256 bytes would make 1–4 likelier than 5–6.
+    for (let i = 0; i < 2000; i++) {
+      const [d] = rollFaces('s', i, AT)
+      expect(d).toBeGreaterThanOrEqual(1)
+      expect(d).toBeLessThanOrEqual(6)
+    }
+  })
+
+  it('applyDiceMove uses the fair face when a seed is set', () => {
+    const seed = 'cd'.repeat(32)
+    let at = AT
+    while (rollFace(seed, 0, at) === 1) at++
+    const expected = rollFace(seed, 0, at)
+    const game = { diceSeed: seed, diceRollIndex: 0, diceTurnScore: 0, currentTurn: 'X' }
     const { updates } = applyDiceMove(game, 'roll', 'X', expected)
     expect(updates.diceLast).toBe(expected)
-    expect(updates.diceRollIndex).toBe(idx + 1)
+    expect(updates.diceRollIndex).toBe(1)
     expect(updates.diceRolls).toEqual([expected])
     expect(updates.currentTurn).toBe('X')
   })
+})
 
-  it('applyDiceMove refuses a seeded roll without a precomputed face (no insecure fallback)', async () => {
+describe('roll requests', () => {
+  const room = (extra = {}) => ({
+    gameType: 'dice', status: 'playing', currentTurn: 'X', diceSeed: 'ef'.repeat(32),
+    diceScoreX: 10, diceScoreO: 0, diceTurnScore: 5, diceRollIndex: 7, diceRolls: [5],
+    diceRoll: { i: 7, by: 'X', at: 1_700_000_000_555 }, ...extra,
+  })
+
+  it('pendingRoll is the request only while it is for the current roll', () => {
+    expect(pendingRoll(room())).toEqual({ i: 7, by: 'X', at: 1_700_000_000_555 })
+    expect(pendingRoll(room({ diceRollIndex: 8 }))).toBeNull()
+    expect(pendingRoll(room({ diceRoll: null }))).toBeNull()
+    expect(pendingRoll(room({ diceRoll: { i: 7, by: 'Z', at: 1 } }))).toBeNull()
+  })
+
+  it('resolvePendingRoll applies the faces the request fixes', () => {
+    const cur = room()
+    const face = rollFace(cur.diceSeed, 7, cur.diceRoll.at)
+    const next = resolvePendingRoll(cur)
+    expect(next.diceRollIndex).toBe(8)
+    expect(next.diceLast).toBe(face)
+    expect(next.diceTurnScore).toBe(face === 1 ? 0 : 5 + face)
+    expect(next.diceRoll).toEqual(cur.diceRoll)
+    expect(lastRollMatches(next)).toBe(true)
+    expect(lastRollMatches({ ...next, diceLast: face === 6 ? 5 : face + 1 })).toBe(false)
+  })
+
+  it('resolvePendingRoll rolls two dice for PIG BIG', () => {
+    const cur = room({ gameType: 'dice-big' })
+    const next = resolvePendingRoll(cur, { isBig: true })
+    expect(next.diceLast).toEqual(rollFacePair(cur.diceSeed, 7, cur.diceRoll.at))
+    expect(lastRollMatches(next, { isBig: true })).toBe(true)
+  })
+
+  it('resolvePendingRoll aborts once resolved, or when the request no longer fits', () => {
+    const resolved = resolvePendingRoll(room())
+    expect(resolvePendingRoll(resolved)).toBeUndefined()
+    expect(resolvePendingRoll(room({ currentTurn: 'O' }))).toBeUndefined()
+    expect(resolvePendingRoll(room({ status: 'finished' }))).toBeUndefined()
+    expect(resolvePendingRoll(room({ diceSeed: null }))).toBeUndefined()
+  })
+
+  it('lastRollMatches has nothing to check before the first roll', () => {
+    expect(lastRollMatches(room({ diceRollIndex: 0, diceLast: null }))).toBeNull()
+  })
+})
+
+describe('seed protocol', () => {
+  it('applyDiceMove refuses a seeded roll without a fair face (no insecure fallback)', async () => {
     const seed = await deriveSeed('a1b2c3d4e5f6a1b2', '0123456789abcdef')
     const game = { diceSeed: seed, diceRollIndex: 0, diceTurnScore: 0, currentTurn: 'X' }
     expect(applyDiceMove(game, 'roll', 'X')).toBeNull()

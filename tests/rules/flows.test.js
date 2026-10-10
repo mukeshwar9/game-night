@@ -7,6 +7,8 @@ import { buildSwitchUpdates } from '../../src/hooks/room/roomUpdates.js'
 import { freshGameState, firstMoverUpdates, lobbySwitchOverrides } from '../../src/lib/games.js'
 import { kickPatch, nightSwitchSeating, roomHostUid, rotateWinnerStays } from '../../src/lib/nightLogic.js'
 import { finishRaceRound, startRaceRound, toggleRaceReady } from '../../src/lib/raceLogic.js'
+import { harvestDecided, harvestEntry, pulpRaceEntry } from '../../src/lib/pulpLogic.js'
+import { DEFAULT_FC_CONFIG, FC_ONLINE_TARGET, FC_SETTLE_MS, entryAt, fcDecided, fcRaceEntry } from '../../src/lib/firstCutLogic.js'
 import { partyJoinPlan } from '../../src/lib/roomLogic.js'
 
 const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
@@ -62,7 +64,7 @@ describe('winner stays and kicks', () => {
   it('lets NEW MATCH rotate the loser into the queue', async () => {
     const room = gameNode({
       x: 'alice', o: 'bob', status: 'finished',
-      extra: { winner: 'X', scores: { X: 3, O: 1 }, partyRoom: true, queue: { carol: queued('carol', 5) } },
+      extra: { winner: 'X', scores: { X: 3, O: 1 }, partyRoom: true, queue: { carol: queued('carol', 5) }, spectators: { carol: { c1: { name: 'carol', at: 5 } } } },
     })
     await put('games/g1', room)
     await assertSucceeds(as('bob').ref('games/g1').update({
@@ -145,5 +147,72 @@ describe('race rounds', () => {
     await assertSucceeds(as('bob').ref('games/g1').set(done))
     const after = await read('games/g1')
     if (after.winner !== 'alice' || after.scores.alice !== 1) throw new Error('wrong result')
+  })
+
+  it('Pulp Rush: each racer syncs only their own slice stats; the top score wins', async () => {
+    const lobby = partyNode({ uids: ['alice', 'bob'], gameType: 'pulprush' })
+    await put('games/g1', startRaceRound(lobby, params({ gameType: 'pulprush', force: true, durationMs: 45000 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/stats/r1/alice').update({ score: 14, sliced: 11, best: 3, rot: 0, dropped: 2 }))
+    await assertFails(as('alice').ref('games/g1/round/stats/r1/bob').update({ score: 0 }))
+    await assertSucceeds(as('bob').ref('games/g1/round/stats/r1/bob').update({ score: 9, sliced: 9, best: 2, rot: 1, dropped: 4 }))
+    const done = finishRaceRound(await read('games/g1'), { gameType: 'pulprush', roundId: 'r1', now: 50000, entryOf: pulpRaceEntry, force: true })
+    await assertSucceeds(as('bob').ref('games/g1').set(done))
+    const after = await read('games/g1')
+    if (after.winner !== 'alice') throw new Error('wrong result')
+  })
+
+  it('First Cut: each racer reports only their own cuts and blocks; the fifth settled cut ends the round', async () => {
+    const cfg = { ...DEFAULT_FC_CONFIG }
+    const lobby = partyNode({ uids: ['alice', 'bob'], gameType: 'firstcut' })
+    await put('games/g1', startRaceRound(lobby, params({
+      gameType: 'firstcut', force: true, durationMs: 75000, extras: { firstcutConfig: cfg },
+    })))
+    const fruit = []
+    let twin = -1
+    for (let i = 0; fruit.length < FC_ONLINE_TARGET || twin < 0; i++) {
+      const e = entryAt(7, cfg, i)
+      if (e.hit && fruit.length < FC_ONLINE_TARGET) fruit.push(i)
+      else if (!e.hit && twin < 0) twin = i
+    }
+    const mine = (id) => `games/g1/round/stats/r1/${id}`
+    await assertSucceeds(as('alice').ref(mine('alice')).update({ v: 1, [`t/${fruit[0]}`]: 310 }))
+    await assertFails(as('alice').ref(mine('bob')).update({ [`t/${fruit[0]}`]: 100 }))
+    await assertFails(as('alice').ref(`${mine('bob')}/j/${twin}`).set(true))
+    await assertSucceeds(as('bob').ref(mine('bob')).update({ v: 1, [`j/${twin}`]: true }))
+    await assertSucceeds(as('alice').ref(mine('alice')).update(Object.fromEntries(fruit.slice(1).map(k => [`t/${k}`, 310]))))
+
+    const cur = await read('games/g1')
+    const goAt = 1000 + 3000
+    const settled = goAt + entryAt(7, cfg, fruit[FC_ONLINE_TARGET - 1]).start + 310 + FC_SETTLE_MS
+    const finish = (now) => finishRaceRound(cur, {
+      gameType: 'firstcut', roundId: 'r1', now, entryOf: fcRaceEntry, decidedBy: fcDecided,
+    })
+    if (finish(settled - 1)) throw new Error('the fifth cut is not final yet')
+    const done = finish(settled)
+    if (!done) throw new Error('a settled fifth cut should end the round')
+    await assertSucceeds(as('bob').ref('games/g1').set(done))
+    const after = await read('games/g1')
+    if (after.winner !== 'alice' || after.scores.alice !== 1) throw new Error('wrong result')
+  })
+
+  it('First Cut: the host table setup only accepts the stored shape', async () => {
+    await put('games/g1', partyNode({ uids: ['alice', 'bob'], gameType: 'firstcut' }))
+    const cfg = (over) => ({ version: 1, flip: true, gold: false, pace: 'medium', ...over })
+    await assertSucceeds(as('alice').ref('games/g1/firstcutConfig').set(cfg()))
+    await assertFails(as('alice').ref('games/g1/firstcutConfig').set(cfg({ pace: 'warp' })))
+    await assertFails(as('alice').ref('games/g1/firstcutConfig').set(cfg({ flip: 'yes' })))
+    await assertFails(as('alice').ref('games/g1/firstcutConfig').set(cfg({ extra: 1 })))
+  })
+
+  it('Pulp Harvest: a full team basket ends the round early and both partners take it', async () => {
+    const lobby = partyNode({ uids: ['alice', 'bob'], gameType: 'pulpharvest' })
+    await put('games/g1', startRaceRound(lobby, params({ gameType: 'pulpharvest', force: true, durationMs: 60000 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/stats/r1/alice').update({ score: 70, sliced: 50, best: 4, rot: 0, dropped: 1 }))
+    await assertSucceeds(as('bob').ref('games/g1/round/stats/r1/bob').update({ score: 50, sliced: 40, best: 3, rot: 0, dropped: 1 }))
+    const done = finishRaceRound(await read('games/g1'), { gameType: 'pulpharvest', roundId: 'r1', now: 20000, entryOf: harvestEntry, decidedBy: harvestDecided })
+    if (!done) throw new Error('a full basket should end the round')
+    await assertSucceeds(as('alice').ref('games/g1').set(done))
+    const after = await read('games/g1')
+    if (after.scores.alice !== 1 || after.scores.bob !== 1) throw new Error('both partners should take the round')
   })
 })

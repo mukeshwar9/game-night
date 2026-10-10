@@ -1,4 +1,5 @@
 import { isBannedWord } from './wordDenylist'
+import { HANGWOMAN_ONLY_WORDS } from './decks/wordAllowList'
 
 export const MAX_WRONG = 6
 
@@ -343,6 +344,10 @@ function reject(reason, message) {
   return { ok: false, reason, message }
 }
 
+// Proper nouns (festivals, rivers) the dictionary rule also accepts here,
+// though Word Hunt never serves them.
+const HANGWOMAN_ONLY = new Set(HANGWOMAN_ONLY_WORDS)
+
 // Check a setter's word against `rule` ('dictionary' | 'any').
 // `dictionary` is { has(word) } (loadDictionary()); null while it loads.
 // Returns { ok: true, word } (uppercased, single-spaced) or
@@ -367,7 +372,7 @@ export function validateSetterWord(raw, { rule = WORD_RULE_DICTIONARY, dictionar
   }
   if (!any) {
     if (!dictionary) return reject('loading', 'LOADING WORDS…')
-    if (!dictionary.has(up)) {
+    if (!dictionary.has(up) && !HANGWOMAN_ONLY.has(up.toLowerCase())) {
       return reject('dictionary', 'NOT IN THE WORD LIST — TURN ON ANY WORD TO ALLOW IT')
     }
   }

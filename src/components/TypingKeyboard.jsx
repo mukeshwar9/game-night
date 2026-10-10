@@ -55,8 +55,8 @@ export default function TypingKeyboard({ onKey, disabled = false, artwork = fals
   // h-11 (44px) is the tap-target floor — never shrink below it, even on
   // short viewports (the M-52 compact mode used to drop to h-9/36px).
   const baseBtn = cn(
-    'h-11 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
-    'select-none active:scale-90',
+    'h-11 flex items-center justify-center font-pixel text-[10px] rounded border transition',
+    'select-none press',
   )
   const normalStyle = disabled
     ? 'border-retro-border text-retro-border bg-retro-card opacity-50 cursor-not-allowed'
@@ -72,7 +72,7 @@ export default function TypingKeyboard({ onKey, disabled = false, artwork = fals
     )
     if (artwork) {
       return (
-        <div key={raw + label} aria-hidden="true" className={cn(visual, 'cursor-default opacity-70 active:scale-100')}>
+        <div key={raw + label} aria-hidden="true" className={cn(visual, 'cursor-default opacity-70 no-press')}>
           {label}
         </div>
       )
@@ -106,7 +106,7 @@ export default function TypingKeyboard({ onKey, disabled = false, artwork = fals
       <div className="flex gap-1 justify-center">
         {PUNCT_LEFT.map(p => mkKey(p, p, 'w-9 flex-shrink-0'))}
         {artwork ? (
-          <div aria-hidden="true" className={cn(baseBtn, normalStyle, 'flex-1 cursor-default opacity-70 active:scale-100')}>SPACE</div>
+          <div aria-hidden="true" className={cn(baseBtn, normalStyle, 'flex-1 cursor-default opacity-70 no-press')}>SPACE</div>
         ) : (
           <button
             type="button"

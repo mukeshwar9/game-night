@@ -275,7 +275,7 @@ export default function HunchGame({
               type="button"
               onClick={play}
               disabled={playing || !inPlay || myLowest == null}
-              className="min-h-14 rounded bg-retro-cta text-retro-bg font-pixel text-[13px] tracking-widest hover:shadow-neon-cta active:scale-[0.98] disabled:opacity-40"
+              className="min-h-14 rounded bg-retro-cta text-retro-bg font-pixel text-[13px] tracking-widest hover:shadow-neon-cta press-card disabled:opacity-40"
             >{playing ? 'PLAYING…' : myLowest == null ? 'DONE' : `PLAY ${myLowest}`}</button>
             <button
               type="button"

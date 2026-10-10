@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { hEdgeIndex, vEdgeIndex, DB_SIZE } from '../lib/dotsAndBoxesLogic'
 import { joinLabel } from '../lib/a11yLabels'
+import useTapConfirm from '../hooks/useTapConfirm'
 
 // Screen-reader name for an edge, in dot coordinates (1-based, top-left).
 function edgeLabel(kind, row, col, owner, isLast) {
@@ -22,7 +23,7 @@ function EdgeLine({ kind, owner, hovered, turn, isLast }) {
     <span
       aria-hidden="true"
       className={cn(
-        'absolute rounded-full transition-all duration-100 pointer-events-none',
+        'absolute rounded-full transition-[width,height,background-color,box-shadow,opacity] duration-100 pointer-events-none',
         kind === 'h'
           ? cn('left-0 right-0 top-1/2 -translate-y-1/2', owner ? 'h-[6px]' : hovered ? 'h-1' : 'h-[2px]')
           : cn('top-0 bottom-0 left-1/2 -translate-x-1/2', owner ? 'w-[6px]' : hovered ? 'w-1' : 'w-[2px]'),
@@ -42,6 +43,15 @@ function EdgeLine({ kind, owner, hovered, turn, isLast }) {
 
 export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, currentTurn, lastMove = null, size = DB_SIZE }) {
   const [hoveredEdge, setHoveredEdge] = useState(null)
+  // 6x6 edges are ~33px bands: on touch a first tap arms the edge (it previews
+  // like a mouse hover) and a second tap draws it. The 4x4 board's 44px edges
+  // stay single-tap.
+  const confirm = useTapConfirm({ disabled, isOpen: (idx) => !board[idx] })
+  const armed = size > 4 ? confirm.pending : null
+  const draw = (idx) => {
+    if (size > 4) confirm.tap(idx, () => onMove(idx))
+    else onMove(idx)
+  }
 
   const xCount = boxes ? boxes.filter(b => b === 'X').length : 0
   const oCount = boxes ? boxes.filter(b => b === 'O').length : 0
@@ -68,7 +78,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       const col = (gc - 1) / 2
       const edgeIdx = hEdgeIndex(row, col, size)
       const owner = board[edgeIdx]
-      const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
+      const isHovered = (hoveredEdge === edgeIdx || armed === edgeIdx) && !disabled && !owner
 
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
@@ -76,7 +86,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             data-testid={`edge-h-${row}-${col}`}
             aria-label={edgeLabel('h', row, col, owner, edgeIdx === lastMove)}
             disabled={!!owner || disabled}
-            onClick={() => !owner && !disabled && onMove(edgeIdx)}
+            onClick={() => !owner && !disabled && draw(edgeIdx)}
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
@@ -99,7 +109,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
       const col = gc / 2
       const edgeIdx = vEdgeIndex(row, col, size)
       const owner = board[edgeIdx]
-      const isHovered = hoveredEdge === edgeIdx && !disabled && !owner
+      const isHovered = (hoveredEdge === edgeIdx || armed === edgeIdx) && !disabled && !owner
 
       cells.push(
         <div key={i} className="relative flex items-center justify-center">
@@ -107,7 +117,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
             data-testid={`edge-v-${row}-${col}`}
             aria-label={edgeLabel('v', row, col, owner, edgeIdx === lastMove)}
             disabled={!!owner || disabled}
-            onClick={() => !owner && !disabled && onMove(edgeIdx)}
+            onClick={() => !owner && !disabled && draw(edgeIdx)}
             onMouseEnter={() => setHoveredEdge(edgeIdx)}
             onMouseLeave={() => setHoveredEdge(null)}
             className={cn(
@@ -161,7 +171,7 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
     <div className="w-full max-w-sm mx-auto">
       <div
         className={cn(
-          'bg-retro-surface border-2 border-retro-border rounded p-[18px] transition-all duration-200',
+          'bg-retro-surface border-2 border-retro-border rounded p-[18px] transition duration-200',
           disabled && 'board-idle',
         )}
       >
@@ -183,6 +193,11 @@ export default function DotsAndBoxesBoard({ board, boxes, onMove, disabled, curr
         <span className="text-retro-dim">—</span>
         <span className="text-retro-p2 text-glow-p2">{oCount} O</span>
       </div>
+      {size > 4 && (
+        <p className="mt-1 text-center font-pixel text-[8px] text-retro-dim tracking-wider min-h-[1em]" aria-live="polite">
+          {armed != null ? 'TAP AGAIN TO DRAW' : '\u00a0'}
+        </p>
+      )}
     </div>
   )
 }

@@ -29,6 +29,17 @@ describe('plays and playsDaily', () => {
   })
 })
 
+describe('bootDaily', () => {
+  it('counts native boot times by one, for the app platforms and known buckets only', async () => {
+    await assertSucceeds(as('alice').ref(`bootDaily/${TODAY}/ios/lt2s`).set(increment))
+    await assertSucceeds(as('alice').ref(`bootDaily/${TODAY}/android/slow`).set(increment))
+    await assertFails(as('alice').ref(`bootDaily/${TODAY}/ios/lt2s`).set(50))
+    await assertFails(as('alice').ref(`bootDaily/${TODAY}/web/lt2s`).set(increment))
+    await assertFails(as('alice').ref(`bootDaily/${TODAY}/ios/lt3s`).set(increment))
+    await assertFails(as('alice').ref('bootDaily').get())
+  })
+})
+
 // The exact writes the app makes: analytics.js bump() is set(ref, increment(1))
 // on plays/{type}/{mode} and playsDailyPath(...); telemetry.js sendToFirebase
 // is set(push(errors/{dayKey(at)}), buildErrorReport({...})).
@@ -53,10 +64,9 @@ describe('the app’s own counter and error-report writes', () => {
       route: routeKey('/game/ABC123'), gameType: 'chainreaction4',
       build: buildIdFromUrl('https://game-night.web.app/assets/index-BCgFD2Nx.js'), ua: shortUserAgent(UA),
     })
-    const ref = as('alice').ref(`errors/${dayKey(at)}`).push()
-    await assertSucceeds(ref.set(report))
+    await assertSucceeds(as('alice').ref(`errors/${dayKey(at)}/alice-3`).set(report))
     const bare = buildErrorReport({ msg: 'boom', kind: 'error', at, uid: 'alice', route: routeKey('/'), build: buildIdFromUrl('http://127.0.0.1:5190/src/lib/telemetry.js'), ua: shortUserAgent('') })
-    await assertSucceeds(as('alice').ref(`errors/${dayKey(at)}`).push().set(bare))
+    await assertSucceeds(as('alice').ref(`errors/${dayKey(at)}/alice-4`).set(bare))
   })
 })
 
@@ -64,12 +74,16 @@ describe('errors', () => {
   const report = (uid, over = {}) => ({ at: Date.now(), kind: 'error', msg: 'boom', route: '/game/X', build: 'abc', ua: 'Chrome', uid, ...over })
 
   it('are create-only, capped, and stamped with the reporter', async () => {
-    await assertSucceeds(as('alice').ref(`errors/${TODAY}/e1`).set(report('alice')))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e1`).set(report('alice')))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e2`).set(report('bob')))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e3`).set(report('alice', { msg: 'x'.repeat(301) })))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e4`).set(report('alice', { extra: 1 })))
-    await assertFails(as('alice').ref(`errors/${TODAY}/e5`).set(report('alice', { at: 1 })))
+    await assertSucceeds(as('alice').ref(`errors/${TODAY}/alice-1`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-1`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-2`).set(report('bob')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-3`).set(report('alice', { msg: 'x'.repeat(301) })))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-4`).set(report('alice', { extra: 1 })))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-5`).set(report('alice', { at: 1 })))
+    // Slots are per account: no other id, no other account's slot, at most 20 a day.
+    await assertFails(as('alice').ref(`errors/${TODAY}/e6`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/bob-1`).set(report('alice')))
+    await assertFails(as('alice').ref(`errors/${TODAY}/alice-20`).set(report('alice')))
   })
 
   it('are readable by admins only', async () => {
@@ -100,6 +114,13 @@ describe('feedback cooldown and chat reports', () => {
     await put('users/alice/lastFeedbackAt', 1)
     await assertFails(file('alice', 'f2', { ...r, text: 'x'.repeat(201) }))
   })
+
+  it('accepts the chat lines around a reported message, capped at 1000 characters', async () => {
+    const r = item('alice', { type: 'report', message: 'Chat report — BOB: "rude"', gameId: 'ABC123', targetUid: 'bob', targetName: 'Bob', text: 'rude', chatContext: 'Ann: hi\nBob: rude' })
+    await assertSucceeds(file('alice', 'f1', r))
+    await put('users/alice/lastFeedbackAt', 1)
+    await assertFails(file('alice', 'f2', { ...r, chatContext: 'x'.repeat(1001) }))
+  })
 })
 
 describe('leaderboard', () => {
@@ -111,7 +132,7 @@ describe('leaderboard', () => {
 })
 
 describe('matchmaking listings for race rooms', () => {
-  const listing = (host) => ({ gameId: 'g1', gameType: 'reaction', visibility: 'public', hostUid: host, hostName: 'Alice', hostOnline: true, createdAt: 1, updatedAt: 1, expiresAt: 2 })
+  const listing = (host) => ({ gameId: 'g1', gameType: 'reaction', visibility: 'public', hostUid: host, hostName: 'Alice', hostOnline: true, createdAt: Date.now(), updatedAt: Date.now(), expiresAt: Date.now() + 3_600_000 })
 
   it('lets the only seated player list a public race room', async () => {
     await put('games/g1', partyNode({ uids: ['alice'], gameType: 'reaction', extra: { visibility: 'public' } }))
@@ -129,5 +150,17 @@ describe('matchmaking listings for race rooms', () => {
   it('lets anyone clear the listing of a room that no longer exists', async () => {
     await put('matchmaking/g1', listing('alice'))
     await assertSucceeds(as('mallory').ref('matchmaking/g1').remove())
+  })
+})
+
+// Written by the errorDigest function (Admin SDK bypasses rules); clients only read.
+describe('errorDigests', () => {
+  it('is readable by admins only and never client-written', async () => {
+    await put('users/boss', { displayName: 'Boss', admin: true })
+    await put('errorDigests/2026-09-29', { day: '2026-09-29', total: 3 })
+    await assertFails(as('alice').ref('errorDigests').get())
+    await assertSucceeds(as('boss').ref('errorDigests').get())
+    await assertFails(as('boss').ref('errorDigests/2026-09-30').set({ total: 1 }))
+    await assertFails(as('alice').ref('errorDigests/2026-09-29').remove())
   })
 })

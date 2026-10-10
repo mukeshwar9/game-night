@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { serverNow } from '../lib/serverClock'
+import { LEVEL_COUNTDOWN_MS } from '../lib/levelRaceLogic'
 import {
   normalizeChimpLayout, CHIMP_START_LEVEL,
-  evaluateChimpTap, buildChimpAdvance,
+  evaluateChimpTap, buildChimpAdvance, resolveChimpLevel, buildChimpReplay,
 } from '../lib/chimpLogic'
 import ChimpBoard from '../components/ChimpBoard'
 import GameStatus from '../components/GameStatus'
@@ -35,13 +36,18 @@ export default function ChimpGame({
   const opProgress = game[`chimpProgress${opKey}`] ?? 0
   const myDone     = game[`chimpDone${myKey}`]     ?? false
   const opDone     = game[`chimpDone${opKey}`]     ?? false
+  // A slip records the wrong cell; the level still waits for the other player.
+  const myFail     = game[`chimpFail${myKey}`]     ?? null
+  const opFail     = game[`chimpFail${opKey}`]     ?? null
+  const myOut      = myDone || myFail != null
+  const opOut      = opDone || opFail != null
 
   // Start round 1's memorize clock when the room actually starts playing (join, lobby
   // START, play again), not when it was created — otherwise the numbers had already
   // expired for both players by the time O joined. First client to see it wins.
   useEffect(() => {
     if (game.status !== 'playing' || game.chimpRoundStartedAt != null) return
-    runTransaction(ref(db, `games/${gameId}/chimpRoundStartedAt`), cur => cur ?? serverNow()).catch(() => {})
+    runTransaction(ref(db, `games/${gameId}/chimpRoundStartedAt`), cur => cur ?? serverNow() + LEVEL_COUNTDOWN_MS).catch(() => {})
   }, [gameId, game.status, game.chimpRoundStartedAt])
 
   // Taps land faster than the Firebase echo re-renders myProgress, so the next tap
@@ -50,8 +56,7 @@ export default function ChimpGame({
   const roundSig = `${level}:${layout.join(',')}`
   const sentRef = useRef({ sig: null, progress: 0, busy: false })
 
-  const prevDoneX = useRef(game.chimpDoneX ?? false)
-  const prevDoneO = useRef(game.chimpDoneO ?? false)
+  const resolvedRef = useRef(null) // the level outcome this client already acted on
   const [claimBusy, runClaim] = useBusy()
 
   // --- Opponent-idle claim ---
@@ -59,7 +64,8 @@ export default function ChimpGame({
   // render). Never initialized with Date.now() here to satisfy react-hooks/purity.
   const opIdleSinceRef = useRef(null)
   const [opIdleMs, setOpIdleMs] = useState(0)
-  const claimEligible = game.status === 'playing' && !!mySymbol && myDone && !opDone
+  // Finished my level (cleared or slipped) while the opponent, online but idle, has not.
+  const claimEligible = game.status === 'playing' && !!mySymbol && myOut && !opOut
 
   // Single combined effect: restarts on any relevant state change, recording the
   // new session start time via a ref and resetting the display state via a
@@ -76,7 +82,7 @@ export default function ChimpGame({
       }
     }, 1000)
     return () => { clearTimeout(reset); clearInterval(interval) }
-  }, [claimEligible, opProgress, opDone, level, myDone, game.status])
+  }, [claimEligible, opProgress, opDone, opFail, level, myDone, myFail, game.status])
 
   const claimReady     = claimEligible && opIdleMs >= CLAIM_IDLE_MS
   const showClaimHint  = claimEligible && !claimReady && opIdleMs >= CLAIM_HINT_MS
@@ -89,9 +95,17 @@ export default function ChimpGame({
   //   2. Targeted update() for status + scores (same pattern as handleCellClick).
   // useBusy's synchronous guard prevents a second in-flight call while the first
   // is pending (and drives the CLAIMING… button state).
+  // I slipped and the opponent stopped playing: their level ends where they are, as
+  // a slip with no wrong cell, and the progress tiebreak settles the round.
+  const endIdleLevel = () => runClaim(async () => {
+    if (game.status !== 'playing' || game[`chimpFail${myKey}`] == null || game[`chimpDone${opKey}`]) return
+    await runTransaction(ref(db, `games/${gameId}/chimpFail${opKey}`), cur => (cur == null ? -1 : undefined))
+  }, () => toast.error('CLAIM FAILED — CHECK CONNECTION'))
+
   const claimIdleRound = () => runClaim(async () => {
     // Local pre-condition re-check before any network call
     if (game.status !== 'playing' || !game[`chimpDone${myKey}`] || game[`chimpDone${opKey}`]) return
+    if (game[`chimpFail${opKey}`] != null) return
     // Atomic CAS: only write winner if the slot is still empty
     let claimed = false
     await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
@@ -131,7 +145,7 @@ export default function ChimpGame({
     try {
       await update(ref(db, `games/${gameId}`), {
         ...buildChimpAdvance(currentLevel),
-        chimpRoundStartedAt: serverNow(),
+        chimpRoundStartedAt: serverNow() + LEVEL_COUNTDOWN_MS,
       })
     } catch {
       // The round patch failed to land after the level CAS succeeded — revert
@@ -145,46 +159,71 @@ export default function ChimpGame({
     }
   }
 
-  // Also trigger from the watcher side (the player who finishes second)
+  // The level resolves once both players have an outcome (resolveChimpLevel). Every
+  // write below is guarded by a CAS, so both clients can run this safely.
+  const outcome = resolveChimpLevel({
+    doneX: game.chimpDoneX ?? false, doneO: game.chimpDoneO ?? false,
+    failX: game.chimpFailX ?? null, failO: game.chimpFailO ?? null,
+    progressX: game.chimpProgressX ?? 0, progressO: game.chimpProgressO ?? 0,
+    timeX: game.chimpTimeX ?? 0, timeO: game.chimpTimeO ?? 0,
+  })
+  const outcomeKey = game.status === 'playing' && outcome.type !== 'pending'
+    ? `${roundSig}:${outcome.type}:${outcome.winner ?? ''}` : null
+
+  const resolveWin = async (winner) => {
+    const loser = winner === 'X' ? 'O' : 'X'
+    let claimed = false
+    await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
+      if (currentWinner != null) return  // abort — already resolved
+      claimed = true
+      return winner
+    })
+    if (!claimed) return
+    const miss = game[`chimpFail${loser}`]
+    await update(ref(db, `games/${gameId}`), {
+      status: 'finished',
+      [`scores/${winner}`]: (game.scores?.[winner] || 0) + 1,
+      // The end screen shows the loser's board with the slip marked.
+      chimpMiss: miss != null && miss >= 0 ? { by: loser, cell: miss } : null,
+    })
+  }
+
+  const replayLevel = async () => {
+    const started = game.chimpRoundStartedAt ?? null
+    let claimed = false
+    await runTransaction(ref(db, `games/${gameId}/chimpRoundStartedAt`), cur => {
+      if ((cur ?? null) !== started) return  // abort — another client already replayed
+      claimed = true
+      return serverNow() + LEVEL_COUNTDOWN_MS
+    })
+    if (!claimed) return
+    await update(ref(db, `games/${gameId}`), buildChimpReplay(level))
+  }
+
   useEffect(() => {
-    const doneX = game.chimpDoneX ?? false
-    const doneO = game.chimpDoneO ?? false
-    if (doneX && doneO && (!prevDoneX.current || !prevDoneO.current)) {
-      tryAdvanceLevel()
-    }
-    prevDoneX.current = doneX
-    prevDoneO.current = doneO
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tryAdvanceLevel is recreated every render and intentionally reads fresh state from the closure; the prevDoneX/prevDoneO refs already dedupe repeat calls
-  }, [game.chimpDoneX, game.chimpDoneO])
+    if (!outcomeKey || resolvedRef.current === outcomeKey) return
+    resolvedRef.current = outcomeKey
+    const act = outcome.type === 'advance' ? tryAdvanceLevel()
+      : outcome.type === 'win' ? resolveWin(outcome.winner)
+        : replayLevel()
+    Promise.resolve(act).catch(() => toast.error('ROUND UPDATE FAILED — CHECK CONNECTION'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on outcomeKey (one per level outcome); the actions read fresh state from this render
+  }, [outcomeKey])
 
   const handleCellClick = async (cellIndex) => {
     if (sentRef.current.sig !== roundSig) sentRef.current = { sig: roundSig, progress: 0, busy: false }
-    if (!mySymbol || myDone || game.status !== 'playing' || sentRef.current.busy) return
+    if (!mySymbol || myOut || game.status !== 'playing' || sentRef.current.busy) return
 
     const progress = Math.max(myProgress, sentRef.current.progress)
     const tap = evaluateChimpTap({ layout, progress, level, cellIndex })
     if (!tap.valid) return
 
     if (!tap.correct) {
+      // A slip ends my level, not the round: the opponent still has to clear it.
       sentRef.current.busy = true
-      sounds.lose()
+      sounds.miss()
       try {
-        // Atomic CAS on winner (mirrors claimIdleRound): if both players
-        // mis-tap on the same instant, only the first write to land wins the
-        // round and bumps the score — the second aborts as a no-op instead of
-        // double-bumping both scores / racing the winner field last-write-wins.
-        let claimed = false
-        await runTransaction(ref(db, `games/${gameId}/winner`), currentWinner => {
-          if (currentWinner != null) return  // abort — already resolved
-          claimed = true
-          return opKey
-        })
-        if (!claimed) return
-        await update(ref(db, `games/${gameId}`), {
-          status: 'finished',
-          [`scores/${opKey}`]: (game.scores?.[opKey] || 0) + 1,
-          chimpMiss: { by: myKey, cell: cellIndex },
-        })
+        await update(ref(db, `games/${gameId}`), { [`chimpFail${myKey}`]: cellIndex })
       } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
       finally { sentRef.current.busy = false }
       return
@@ -195,11 +234,14 @@ export default function ChimpGame({
 
     if (tap.done) {
       try {
+        // Clear time (server clock, from the shared round start) breaks a tie
+        // when both players later slip on the same level with equal progress.
+        const startedAt = game.chimpRoundStartedAt ?? serverNow()  // the reveal's start (after the countdown)
         await update(ref(db, `games/${gameId}`), {
           [`chimpProgress${myKey}`]: tap.newProgress,
           [`chimpDone${myKey}`]: true,
+          [`chimpTime${myKey}`]: (game[`chimpTime${myKey}`] ?? 0) + Math.max(0, serverNow() - startedAt),
         })
-        await tryAdvanceLevel()
       } catch { toast.error('MOVE FAILED — CHECK CONNECTION') }
     } else {
       try {
@@ -249,13 +291,26 @@ export default function ChimpGame({
   return (
     <div className="space-y-4">
       {!mySymbol && <SpectatorCard game={game} />}
+      {mySymbol && myFail != null && !opOut && (
+        <p className="font-pixel text-[9px] text-center text-retro-danger leading-relaxed" role="status">
+          YOU SLIPPED — {(game.players?.[opKey]?.name || 'OPPONENT').toUpperCase()} MUST CLEAR LEVEL {level} TO WIN
+        </p>
+      )}
+      {mySymbol && opFail != null && !myOut && (
+        <p className="font-pixel text-[9px] text-center text-retro-win text-glow-win leading-relaxed" role="status">
+          {(game.players?.[opKey]?.name || 'OPPONENT').toUpperCase()} SLIPPED — CLEAR THIS LEVEL TO WIN
+        </p>
+      )}
       <ChimpBoard
         // Remount per round so the memorize countdown (and its local-fallback
         // start-time ref) resets cleanly instead of needing derived-state
         // reconciliation inside the board component.
         key={`${level}-${layout.join(',')}`}
         onMove={handleCellClick}
-        disabled={!mySymbol || myDone}
+        disabled={!mySymbol || myOut}
+        // The layout stays hidden from a slipped player until the level resolves, so
+        // they cannot call the numbers out to the other player.
+        reveal={false}
         chimpLayout={layout}
         myProgress={myProgress}
         opProgress={opProgress}
@@ -273,11 +328,11 @@ export default function ChimpGame({
       )}
       {claimReady && (
         <button
-          onClick={claimIdleRound}
+          onClick={myFail != null ? endIdleLevel : claimIdleRound}
           disabled={claimBusy}
-          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50 disabled:cursor-default"
+          className="w-full py-2 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta press disabled:opacity-50 disabled:cursor-default"
         >
-          {claimBusy ? 'CLAIMING…' : 'CLAIM ROUND — OPPONENT IDLE'}
+          {claimBusy ? 'CLAIMING…' : myFail != null ? 'END LEVEL — OPPONENT IDLE' : 'CLAIM ROUND — OPPONENT IDLE'}
         </button>
       )}
       {/* No in-play SWITCH GAME: the room header's switch icon covers it

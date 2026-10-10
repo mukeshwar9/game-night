@@ -201,7 +201,7 @@ export default function CheckersDemo() {
       {!done && (
         <button
           onClick={reset}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+          className="w-full min-h-11 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press"
         >
           ↺ NEW GAME
         </button>
@@ -217,7 +217,7 @@ export default function CheckersDemo() {
           </p>
           <button
             onClick={reset}
-            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+            className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
           >
             PLAY AGAIN
           </button>

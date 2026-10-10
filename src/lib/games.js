@@ -2,15 +2,15 @@ import { lazyWithRetry } from './lazyWithRetry'
 // ChimpBoard is used only from ChimpGame (custom component), not directly via registry
 import {
   TicTacToeIcon, ConnectFourIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, ReefIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, ReefIcon, PulpIcon,
   TypingIcon, MathIcon,
   GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon, TwoTruthsIcon, BluffIcon,
   WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
   TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon,
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
-  PasswordIcon, AnagramsIcon, ArrowsIcon,
+  PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, SideKickIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -18,7 +18,12 @@ import {
 import { LanternsIcon, DockingIcon } from '../components/GameIcons'
 import { CodeWordsIcon, JustOneIcon } from '../components/GameIcons'
 import { HunchIcon, ConvergeIcon } from '../components/GameIcons'
-import { WireCrossedIcon, AnimalStackIcon } from '../components/GameIcons'
+import {
+  VerbalMemoryIcon, NBackIcon, CupShuffleIcon, WhatChangedIcon, KimsGameIcon, NameTagsIcon, SplitSignalIcon,
+} from '../components/GameIcons'
+import { memLevelStart, memStreamStart, newSeed } from './memoryRaceLogic'
+import { WireCrossedIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, PartyIcon } from '../components/GameIcons'
+import { FORTS as BIRDSEYE_FORTS, freshDuel, nextFortIndex } from './birdseyeCore'
 import { getWinner, normalizeBoard } from './gameLogic'
 import { getConnectFourWinner, getConnectFourDrop, CF_BOARD_SIZE, CF5 } from './connectFourLogic'
 import {
@@ -72,12 +77,14 @@ import {
   dbConfig,
   applyEdgeMove,
   getDotsAndBoxesWinner,
+  boxMargin,
 } from './dotsAndBoxesLogic'
 import {
   SOS_CELL_COUNT,
   normalizeSosLines,
   applySosMove,
   getSosWinner,
+  sosMargin,
 } from './sosLogic'
 import { normalizeSimonSequence, applySimonMove } from './simonLogic'
 import {
@@ -87,7 +94,12 @@ import {
 import { generateSeed } from './mathLogic'
 import { startStackMatch } from './animalStackCore'
 import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
+import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, updraftFreshState } from './updraftConfig'
 import { ARCHERY_SEATS, archeryFormat } from './archeryLogic'
+import {
+  createRound as createDartsRound, normalizeCfg as normalizeDartsCfg,
+  MIN_PLAYERS as DARTS_MIN_PLAYERS, MAX_PLAYERS as DARTS_MAX_PLAYERS,
+} from './dartsLogic'
 import { generateGrid } from './wordhuntGrid'
 import { nextWireBomb } from './wireMatchLogic'
 import {
@@ -108,18 +120,20 @@ import {
   BK_START_O,
   applyBlockadeMove,
 } from './blockadeLogic'
-import { applyDiceMove, rollFaceAsync, rollFacePairAsync } from './diceLogic'
-import { runPigSeedProtocol } from '../hooks/room/pigSeedProtocol'
+import { applyDiceMove, generateSeedHex, rollFace, rollFacePair } from './diceLogic'
+import { createRound as createYachtRound, MIN_PLAYERS as YACHT_MIN_PLAYERS, MAX_PLAYERS as YACHT_MAX_PLAYERS } from './yachtLogic'
+import { createRound as createSusanRound, MIN_PLAYERS as SUSAN_MIN_PLAYERS, MAX_PLAYERS as SUSAN_MAX_PLAYERS } from './lazySusanRound'
+import { runPigRoomEffect } from '../hooks/room/pigSeedProtocol'
 import { seatOrder as seatOrderWL, pickSpectrumIndex } from './wavelengthLogic'
 import {
-  PAIRS_CELL_COUNT,
+  PAIRS_CELL_COUNT, PAIRS_QUICK_CELL_COUNT,
   generatePairsDeck,
   normalizePairsDeck,
   normalizePairsFlipped,
   applyPairsMove,
   getPairsWinner,
 } from './pairsLogic'
-import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS } from './sketchLogic'
+import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS, sketchChatLock } from './sketchLogic'
 import { scaledMs } from './timerScale'
 import {
   INITIAL_PITS,
@@ -133,6 +147,7 @@ import { getTicTacToe4Winner } from './tictactoe4Logic'
 import { applyDiceBigMove } from './diceLogic'
 import { getHexWinner, HEX_CELL_COUNT, applyHexMove, getMoveIndex as getHexMoveIndex } from './hexLogic'
 import { generateNumber } from './numberMemoryLogic'
+import { DISC_LAND_MS } from './motion'
 
 // Board and page components load on demand: the registry sits in the entry
 // chunk (Home renders the picker from it), so eager imports here would pull
@@ -199,6 +214,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     getWinner,
     BoardComponent: Board,
+    focus: true,
   },
   {
     type: 'sim', label: 'SIM',
@@ -211,6 +227,7 @@ export const GAME_TYPES = [
     getMoveIndex: simMoveIndex,
     getWinner: getSimWinner,
     BoardComponent: SimBoard,
+    focus: true,
   },
   {
     type: 'chomp', label: 'CHOMP',
@@ -222,6 +239,7 @@ export const GAME_TYPES = [
     boardSize: CHOMP_CELL_COUNT,
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     BoardComponent: ChompBoard,
+    focus: true,
     applyMove: ({ board, index, symbol }) => {
       const moved = applyChompMove(board, index)
       if (!moved) return null
@@ -249,6 +267,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: BreakthroughBoard,
+    focus: true,
     applyMove: ({ board, move, symbol }) => {
       const moved = applyBreakthroughMove(board, move, symbol)
       if (!moved) return null
@@ -278,6 +297,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: AtaxxBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const moved = applyAtaxxMove(board, move, symbol)
       if (!moved) return null
@@ -309,6 +329,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: KamisadoBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const forced = game.kamisadoColor ?? null
       const res = applyKamisadoMove(board, move, symbol, forced, { towers: game.kamisadoTowers })
@@ -347,6 +368,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: OnitamaBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const hands = { handX: game.onitamaHandX, handO: game.onitamaHandO, spare: game.onitamaSpare }
       const res = applyOnitamaMove(board, move, symbol, hands)
@@ -383,6 +405,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.place) ? move.place : -1,
     BoardComponent: QuartoBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const res = applyQuartoMove(board, move, symbol, {
         unplaced: game.quartoUnplaced,
@@ -417,6 +440,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.worker) && Number.isInteger(move.to) ? move.worker : -1,
     BoardComponent: SantoriniBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const res = applyStMove(
         { board, workers: game.santoriniWorkers },
@@ -450,6 +474,7 @@ export const GAME_TYPES = [
     getMoveIndex: (_, move) =>
       move && Number.isInteger(move.from) && Number.isInteger(move.to) ? move.from : -1,
     BoardComponent: LoaBoard,
+    focus: true,
     applyMove: ({ board, move, symbol }) => {
       const res = applyLoaMove(board, move, symbol)
       if (!res) return null
@@ -477,6 +502,7 @@ export const GAME_TYPES = [
     // Standard placement: payload = cell index.
     getMoveIndex: (board, i) => (!board[i] && Number.isInteger(i) ? i : -1),
     BoardComponent: YavalathBoard,
+    focus: true,
     applyMove: ({ board, index, symbol }) => {
       const res = applyYavalathMove(board, index, symbol)
       if (!res) return null
@@ -505,6 +531,7 @@ export const GAME_TYPES = [
     boardSize: UT_CELL_COUNT,
     getMoveIndex: (board, move) => (board[move] ? -1 : move),
     BoardComponent: UltimateTttBoard,
+    focus: true,
     applyMove: ({ board, game, index, symbol }) => {
       const uWon = normalizeUWon(game.uWon)
       const active = game.uActiveBoard ?? -1
@@ -536,6 +563,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     getWinner: getTicTacToe4Winner,
     BoardComponent: Board,
+    focus: true,
     boardProps: () => ({ cols: 4 }),
   },
   {
@@ -550,6 +578,8 @@ export const GAME_TYPES = [
     getMoveIndex: getConnectFourDrop,
     getWinner: getConnectFourWinner,
     BoardComponent: ConnectFourBoard,
+    focus: true,
+    landMs: DISC_LAND_MS,
   },
   {
     type: 'connectfour5', label: 'C4 FIVE', desc: 'five in a row on 9×7',
@@ -562,6 +592,8 @@ export const GAME_TYPES = [
     getMoveIndex: (board, col) => getConnectFourDrop(board, col, CF5),
     getWinner: (board) => getConnectFourWinner(board, CF5),
     BoardComponent: ConnectFourBoard,
+    focus: true,
+    landMs: DISC_LAND_MS,
     boardProps: () => ({ cols: 9, rows: 7 }),
   },
   {
@@ -579,6 +611,8 @@ export const GAME_TYPES = [
       return getConnectFourDrop(board, move?.col)
     },
     BoardComponent: ConnectFourBoard,
+    focus: true,
+    landMs: DISC_LAND_MS,
     applyMove: ({ board, move, symbol }) => {
       const res = applyConnectFourPopMove(board, move, symbol)
       if (!res) return null
@@ -609,8 +643,10 @@ export const GAME_TYPES = [
     boardSize: DB_EDGE_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: DotsAndBoxesBoard,
+    focus: true,
     applyMove: dotsAndBoxesMove(DB_SIZE),
     boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT), size: DB_SIZE }),
+    resultMargin: (game, sym) => withUnit(boxMargin(normalizeBoard(game.boxes, DB_BOX_COUNT), sym, DB_SIZE), BOX_UNIT),
   },
   {
     type: 'dotsandboxes4', label: 'DOTS & BOXES 4×4',
@@ -623,8 +659,10 @@ export const GAME_TYPES = [
     boardSize: DB_EDGE_COUNT_CLASSIC,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: DotsAndBoxesBoard,
+    focus: true,
     applyMove: dotsAndBoxesMove(DB_SIZE_CLASSIC),
     boardProps: (game) => ({ boxes: normalizeBoard(game.boxes, DB_BOX_COUNT_CLASSIC), size: DB_SIZE_CLASSIC }),
+    resultMargin: (game, sym) => withUnit(boxMargin(normalizeBoard(game.boxes, DB_BOX_COUNT_CLASSIC), sym, DB_SIZE_CLASSIC), BOX_UNIT),
   },
   {
     type: 'sos', label: 'SOS',
@@ -638,6 +676,7 @@ export const GAME_TYPES = [
       return board[move.index] ? -1 : move.index
     },
     BoardComponent: SosBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const lines = normalizeSosLines(game.sosLines)
       const applied = applySosMove(board, lines, move.index, move.letter, symbol)
@@ -657,6 +696,7 @@ export const GAME_TYPES = [
       }
     },
     boardProps: (game) => ({ sosLines: normalizeSosLines(game.sosLines) }),
+    resultMargin: (game, sym) => withUnit(sosMargin(normalizeSosLines(game.sosLines), sym), ['S-O-S', 'S-O-S']),
   },
   {
     type: 'simon', label: 'SIMON',
@@ -664,9 +704,13 @@ export const GAME_TYPES = [
     badge: 'SQ', maxWidth: 'max-w-xs',
     category: 'memory',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
     boardSize: 0,
     getMoveIndex: (_, padIndex) => padIndex,
     BoardComponent: SimonBoard,
+    focus: true,
     applyMove: ({ game, move, symbol }) => applySimonMove(game, move, symbol),
     boardProps: (game) => ({
       simonSequence: normalizeSimonSequence(game.simonSequence),
@@ -679,13 +723,18 @@ export const GAME_TYPES = [
     // SimonBoard plays each pad's own tone on tap; the generic move blip on top
     // of it made every press sound twice.
     quietMoves: true,
+    // Pass-and-play hides the board until the next player taps ready (BotBoardDemo).
+    handoffGate: true,
   },
   {
     type: 'chimp', label: 'CHIMP TEST',
     desc: 'recall numbered tiles fast', Icon: ChimpIcon,
-    badge: 'CT', maxWidth: 'max-w-xs',
+    badge: 'CT', maxWidth: 'max-w-sm',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
     custom: true, simultaneous: true,
     Page: lazyWithRetry(() => import('../pages/ChimpGame')),
   },
@@ -695,6 +744,9 @@ export const GAME_TYPES = [
     badge: 'NM', maxWidth: 'max-w-xs',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
     custom: true, simultaneous: true,
     Page: lazyWithRetry(() => import('../pages/NumberMemoryGame')),
   },
@@ -711,11 +763,93 @@ export const GAME_TYPES = [
   {
     type: 'aim', label: 'AIM TRAINER',
     desc: 'click targets fast', Icon: AimIcon,
-    badge: 'AT', maxWidth: 'max-w-xs',
+    badge: 'AT', maxWidth: 'max-w-sm',
     category: 'reflex',
     durationMin: 2, tags: ['quick', 'skill'], solo: true,
     custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/AimTrainerGame')),
+  },
+  {
+    type: 'chopchop', label: 'CHOP CHOP',
+    desc: 'knock out crates, dodge the beams', Icon: ChopChopIcon,
+    badge: 'CC', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 1, tags: ['quick', 'frantic', 'skill'], solo: true,
+    // N-player race on one shared seeded stack (chopLogic.js / RaceShell).
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/ChopChopGame')),
+  },
+  {
+    type: 'firstcut', label: 'FIRST CUT',
+    desc: 'cut the fruit, leave the lookalikes', Icon: FirstCutIcon,
+    badge: 'FC', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 3, tags: ['quick', 'frantic', 'skill', 'party'], solo: true,
+    // Everyone watches one plate and swings a katana at the fruit, not the
+    // lookalikes (firstCutLogic.js). Online it is an N-player race on RaceShell:
+    // every client plays the same seeded timetable and reports its own cut times.
+    // LocalPage: /local/firstcut puts 2-4 players round one phone.
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8, localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/FirstCutGame')),
+    localBlurb: 'ONE PHONE · EVERYONE CUTS AT ONCE',
+    LocalPage: lazyWithRetry(() => import('../pages/FirstCutDemo').then(m => ({ default: m.FirstCutLocal }))),
+  },
+  {
+    type: 'bamboozle', label: 'BAMBOOZLE',
+    desc: 'hide behind the boulders, dodge the poles', Icon: BamboozleIcon,
+    badge: 'BZ', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 3, tags: ['quick', 'frantic', 'party'], solo: true,
+    // N-player survival race on one shared seeded garden (bamboozleLogic.js /
+    // RaceShell): every phone runs only its own dodger, the others show as
+    // ghosts. /solo/bamboozle is you against 1-3 bots; /local/bamboozle is 2-4
+    // people on one phone (LocalPage), with the GRAB twist that needs contact.
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8, localMaxPlayers: 4,
+    soloLabel: 'PLAY VS BOTS', soloBadge: '1P', soloBlurb: 'You against one to three bots in the garden.',
+    Page: lazyWithRetry(() => import('../pages/BamboozleGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/BamboozleDemo').then(m => ({ default: m.BamboozleLocal }))),
+  },
+  {
+    type: 'sidekick', label: 'SIDE KICK',
+    desc: 'race bikes · kick rivals off the road', Icon: SideKickIcon,
+    badge: 'SK', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 6, tags: ['skill', 'frantic', 'party'], solo: true,
+    // N-player race (sideKickLogic.js / RaceShell): 2-4 riders, bots in empty seats,
+    // a three-race cup on 3/2/1/0 points. Each phone sims its own bike; rivals are
+    // ghosts from ~10 Hz reports under `round/stats`. /solo/sidekick is one rider
+    // against three bots. One phone is not offered: the chase view needs the whole screen.
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/SideKickGame')),
+  },
+  {
+    type: 'pulprush', label: 'PULP RUSH',
+    desc: 'slice the produce, dodge the rot', Icon: PulpIcon,
+    badge: 'PR', maxWidth: 'max-w-sm',
+    classicLabel: 'DUEL', classicBlurb: 'Same throws for everyone. Highest score wins.',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
+    // N-player race on one shared seeded course (pulpLogic.js / RaceShell);
+    // same-device split screen + TWO-TONE co-op live on its /solo page.
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/PulpRushGame')),
+  },
+  {
+    type: 'pulpharvest', label: 'PULP HARVEST',
+    desc: 'fill one basket together', Icon: PulpIcon,
+    badge: 'PH', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    variantOf: 'pulprush', variantLabel: 'CO-OP',
+    variantBlurb: 'Same throws, one team basket, shared hearts.',
+    durationMin: 2, tags: ['quick', 'frantic'],
+    custom: true, focusPage: true, simultaneous: true, race: true, coop: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    Page: lazyWithRetry(() => import('../pages/PulpHarvestGame')),
   },
   {
     type: 'reef', label: 'REEF RUN',
@@ -747,16 +881,52 @@ export const GAME_TYPES = [
   },
   {
     type: 'arrows', label: 'ARROWS PUZZLE',
-    desc: 'race to clear the arrows', Icon: ArrowsIcon,
+    desc: 'slide every arrow off the board', Icon: ArrowsIcon,
     badge: 'AR', maxWidth: 'max-w-sm',
-    category: 'reflex',
+    // Mostly a thinking puzzle (the race is the 2-player mode), so it sits with
+    // the board games and gets their calmer in-game track.
+    category: 'board',
     addedAt: '2026-09-19',
-    durationMin: 4, tags: ['quick', 'skill'],
+    durationMin: 4, tags: ['quick', 'skill'], solo: true,
+    // Solo opens the ARROWS hub (campaign, endless, tutorial, races), not just
+    // a bot, so the play sheet names it as such.
+    soloTitle: ' — solo or 2 players', soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '170 puzzle levels, endless boards, or race a bot.',
     custom: true, realtime: true,
     Page: lazyWithRetry(() => import('../pages/ArrowsGame')),
+    // HOW TO PLAY adds the arrow types, each with a replayable lesson.
+    RulesExtra: lazyWithRetry(() => import('../components/ArrowTypes')),
     matchTarget: 2,
     nextRound: arrowsNextRound,
     hidePlayerCards: true,
+  },
+  {
+    type: 'updraft', label: 'UPDRAFT',
+    desc: 'race up the same sky tower', Icon: UpdraftIcon,
+    badge: 'UD', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    // Ghost race (Arrows model): both seats climb one seeded tower, each
+    // simulating only its own hopper; progress rides `updraft` in Firebase.
+    durationMin: 4, tags: ['quick', 'frantic', 'skill'], solo: true,
+    classicLabel: 'VERSUS',
+    classicBlurb: 'Race your rival up the same tower. First to 400 m wins; CHAOS pickups sabotage them.',
+    custom: true, realtime: true,
+    Page: lazyWithRetry(() => import('../pages/UpdraftGame')),
+    matchTarget: UPDRAFT_MATCH_TARGET,
+    hidePlayerCards: true,
+  },
+  {
+    type: 'updraftduo', label: 'UPDRAFT CO-OP',
+    desc: 'climb twin towers together', Icon: UpdraftIcon,
+    badge: 'UC', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    variantOf: 'updraft', variantLabel: 'CO-OP',
+    variantBlurb: 'Twin towers: your keys open your partner\'s gates. Three shared lives, both reach 300 m to win.',
+    // Co-op: both seats share the result (runs cleared credit both scores).
+    durationMin: 4, tags: ['frantic', 'skill'], solo: false,
+    custom: true, realtime: true, coop: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/UpdraftCoopGame')),
   },
   {
     type: 'pong', label: 'PONG',
@@ -764,7 +934,7 @@ export const GAME_TYPES = [
     badge: 'PG', maxWidth: 'max-w-md',
     category: 'reflex', hidePlayerCards: true,
     durationMin: 5, tags: ['frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/PongGame')),
   },
   {
@@ -773,7 +943,7 @@ export const GAME_TYPES = [
     badge: 'SN', maxWidth: 'max-w-md',
     category: 'reflex',
     durationMin: 4, tags: ['frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/SnakeGame')),
   },
   {
@@ -783,7 +953,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/TronGame')),
   },
   {
@@ -793,7 +963,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/SumoGame')),
   },
   {
@@ -803,7 +973,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-04',
     durationMin: 2, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/SpaceduelGame')),
   },
   {
@@ -813,7 +983,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-07-11',
     durationMin: 3, tags: ['quick', 'frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/PaintGame')),
   },
   {
@@ -823,16 +993,23 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-14',
     durationMin: 3, tags: ['frantic', 'skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/PacmacGame')),
     hidePlayerCards: true,
   },
   {
     type: 'visualmemory', label: 'VISUAL MEMORY',
     desc: 'remember the lit tiles', Icon: VisualMemoryIcon,
-    badge: 'VM', maxWidth: 'max-w-xs',
+    badge: 'VM', maxWidth: 'max-w-sm',
     category: 'memory',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    // A solo run (beat your best), not a CPU opponent: the options sheet, the /solo
+    // header and the tab title say so instead of "vs AI".
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    // Online: a simultaneous duel page (same pattern for both, shared reveal).
+    // Pass-and-play keeps the turn-based board below (`localBoard`).
+    custom: true, simultaneous: true, localBoard: true,
+    Page: lazyWithRetry(() => import('../pages/VisualMemoryGame')),
     boardSize: 0,
     getMoveIndex: (_, cellIndex) => cellIndex,
     BoardComponent: VisualMemoryBoard,
@@ -845,6 +1022,7 @@ export const GAME_TYPES = [
       finished: game.status === 'finished',
       vmDeadline: game.vmDeadline ?? null,
     }),
+    handoffGate: true,
   },
   {
     type: 'gomoku', label: 'GOMOKU',
@@ -858,6 +1036,7 @@ export const GAME_TYPES = [
     getMoveIndex: (board, i) => (board[i] ? -1 : i),
     getWinner: getGomokuWinner,
     BoardComponent: GomokuBoard,
+    focus: true,
   },
   {
     type: 'gomokuswap', label: 'GOMOKU SWAP',
@@ -874,6 +1053,7 @@ export const GAME_TYPES = [
     getMoveIndex: getGomokuMoveIndex,
     getWinner: getGomokuWinner,
     BoardComponent: GomokuBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const moved = applyGomokuMove(board, move, symbol, !!game.pieSwap)
       if (!moved) return null
@@ -898,6 +1078,7 @@ export const GAME_TYPES = [
     boardSize: REVERSI_SIZE,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: ReversiBoard,
+    focus: true,
     applyMove: ({ board, index, symbol }) => {
       const moved = applyReversiMove(board, index, symbol)
       if (!moved) return null
@@ -930,6 +1111,7 @@ export const GAME_TYPES = [
       return index
     },
     BoardComponent: ChainReactionBoard,
+    focus: true,
     // M-46: the tallest non-realtime board — Game.jsx tightens the vertical
     // rhythm so board+status still fit a 667px viewport (iPhone SE).
     compactLayout: true,
@@ -940,7 +1122,7 @@ export const GAME_TYPES = [
   {
     type: 'chainreaction6', label: 'CHAIN REACTION 6×8',
     desc: 'compact chain reaction', Icon: ChainReactionIcon,
-    badge: 'CR6', maxWidth: 'max-w-xs',
+    badge: 'CR6', maxWidth: 'max-w-sm',
     category: 'board',
     addedAt: '2026-07-11',
     durationMin: 4, tags: ['quick', 'thinky'], solo: true,
@@ -952,6 +1134,7 @@ export const GAME_TYPES = [
       return index
     },
     BoardComponent: ChainReactionBoard,
+    focus: true,
     applyMove: ({ board, game, index, symbol }) =>
       applyChainReactionMove({ board, game, index, symbol, cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }),
     boardProps: (game) => ({ crLastMove: game.crLastMove ?? null, cols: CR_COLS_CLASSIC, rows: CR_ROWS_CLASSIC }),
@@ -965,7 +1148,7 @@ export const GAME_TYPES = [
     durationMin: 8, tags: ['thinky', 'party'],
     // N-player variant: rides the uid-keyed room model (lobby → host start),
     // NOT the X/O seat flow. Colors deal by join order: X O A B → p1..p4.
-    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/ChainReaction4Game')),
     startRound: (players) => {
       // Same seat order the lobby displays (playersToSeatList): joinedAt, then
@@ -1005,6 +1188,7 @@ export const GAME_TYPES = [
       return -1
     },
     BoardComponent: BlockadeBoard,
+    focus: true,
     // Pawn moves never touch `board` (only wall placements do), so opponent
     // moves are detected by this counter instead of the filled-cell count.
     moveCountKey: 'blockadeMoves',
@@ -1028,6 +1212,7 @@ export const GAME_TYPES = [
       return board[move.index] ? -1 : move.index
     },
     BoardComponent: OrderChaosBoard,
+    focus: true,
     applyMove: ({ board, move, symbol }) => {
       const applied = applyOrderChaosMove(board, move.index, move.letter)
       if (!applied) return null
@@ -1049,9 +1234,10 @@ export const GAME_TYPES = [
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
     // Rolls come from the room's shared seed (commit-reveal coin flip in
-    // roomEffect); Game.jsx gates rolls on it and verifies the opponent's.
-    rollFace: rollFaceAsync,
-    roomEffect: runPigSeedProtocol,
+    // roomEffect) and the server time of each roll request (diceLogic.js);
+    // Game.jsx gates rolls on the seed and verifies every resolved roll.
+    rollFace,
+    roomEffect: runPigRoomEffect,
     applyMove: ({ game, move, symbol }) => {
       const action = typeof move === 'string' ? move : move?.action
       const face = typeof move === 'string' ? undefined : move?.face
@@ -1077,9 +1263,11 @@ export const GAME_TYPES = [
     getMoveIndex: () => 0,
     BoardComponent: DiceBoard,
     // Rolls come from the room's shared seed (commit-reveal coin flip in
-    // roomEffect); Game.jsx gates rolls on it and verifies the opponent's.
-    rollFace: rollFacePairAsync,
-    roomEffect: runPigSeedProtocol,
+    // roomEffect) and the server time of each roll request (diceLogic.js);
+    // Game.jsx gates rolls on the seed and verifies every resolved roll.
+    rollFace: rollFacePair,
+    bigDice: true,
+    roomEffect: runPigRoomEffect,
     applyMove: ({ game, move, symbol }) => {
       const action = typeof move === 'string' ? move : move?.action
       const face = typeof move === 'string' ? undefined : move?.face
@@ -1109,6 +1297,7 @@ export const GAME_TYPES = [
     getMoveIndex: getHexMoveIndex,
     getWinner: getHexWinner,
     BoardComponent: HexBoard,
+    focus: true,
     applyMove: ({ board, game, move, symbol }) => {
       const moved = applyHexMove(board, move, symbol, !!game.pieSwap)
       if (!moved) return null
@@ -1180,12 +1369,24 @@ export const GAME_TYPES = [
   {
     type: 'battleship', label: 'BATTLESHIP',
     desc: 'sink the hidden fleet', Icon: BattleshipIcon,
-    badge: 'BS', maxWidth: 'max-w-3xl',
+    badge: 'BS', maxWidth: 'max-w-md',
     category: 'board',
     addedAt: '2026-08-21',
     durationMin: 8, tags: ['thinky'], solo: true,
     custom: true,
     Page: lazyWithRetry(() => import('../pages/BattleshipGame')),
+  },
+  {
+    type: 'faceoff', label: 'FACE OFF',
+    desc: 'ask, flip, name the hidden face', Icon: FaceOffIcon,
+    badge: 'FO', maxWidth: 'max-w-sm',
+    category: 'board',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['thinky', 'quick'], solo: true,
+    // The page draws its own seats (secret face + faces left), so the shell's
+    // player cards are hidden. Everything lives in `round` (faceoffLogic.js).
+    custom: true, focusPage: true, hidePlayerCards: true,
+    Page: lazyWithRetry(() => import('../pages/FaceOffGame')),
   },
   {
     type: 'mancala', label: 'MANCALA',
@@ -1197,6 +1398,7 @@ export const GAME_TYPES = [
     boardSize: 0,
     getMoveIndex: (_, pit) => pit,
     BoardComponent: MancalaBoard,
+    focus: true,
     applyMove: ({ game, index, symbol }) => {
       const pits = normalizePits(game.mancalaPits)
       const moved = applyMancalaMove(pits, index, symbol)
@@ -1241,8 +1443,73 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-22',
     durationMin: 5, tags: ['skill'], solo: true,
-    custom: true, realtime: true,
+    custom: true, realtime: true, p2p: true,
     Page: lazyWithRetry(() => import('../pages/AirHockeyGame')),
+  },
+  {
+    type: 'puckrush', label: 'PUCK RUSH',
+    desc: 'sling every puck through the gap', Icon: PuckRushIcon,
+    badge: 'PK', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['skill', 'quick'], solo: true,
+    custom: true, realtime: true, p2p: true,
+    Page: lazyWithRetry(() => import('../pages/PuckRushGame')),
+  },
+  {
+    type: 'stickyfingers', label: 'STICKY FINGERS',
+    desc: 'grab the loot, outlast rival grips, stash it first', Icon: StickyFingersIcon,
+    badge: 'ST', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['skill', 'quick'], solo: true,
+    // Online is a 2-player duel on the pong family's peer-to-peer transport
+    // (X hosts the sim). Solo against 1–3 bots and 2–4 people on one phone run
+    // the same sim offline: /solo/stickyfingers and /local/stickyfingers.
+    custom: true, realtime: true, p2p: true, localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/StickyFingersGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/StickyFingersDemo').then(m => ({ default: m.StickyFingersLocal }))),
+  },
+  {
+    type: 'bonkbuggies', label: 'BONK BUGGIES',
+    desc: 'bonk their helmet, save your own', Icon: BonkBuggiesIcon,
+    badge: 'BG', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 3, tags: ['skill', 'quick', 'frantic'], solo: true,
+    // Real-time physics duel (bonkLogic.js): X hosts the sim, first to 5 points.
+    custom: true, realtime: true, p2p: true,
+    Page: lazyWithRetry(() => import('../pages/BonkBuggiesGame')),
+  },
+  {
+    type: 'quiver', label: 'QUIVER',
+    desc: 'a limited quiver, one spinning wheel, everyone shoots at once', Icon: QuiverIcon,
+    badge: 'QV', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 4, tags: ['skill', 'quick'], solo: true,
+    // Online is a 2-player duel on the pong family's peer-to-peer transport
+    // (X hosts the sim). Solo against 1–3 bots (or as a team against the
+    // wheel) and 2–4 people on one phone run the same sim offline:
+    // /solo/quiver and /local/quiver.
+    custom: true, realtime: true, p2p: true, localMaxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/QuiverGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/QuiverDemo').then(m => ({ default: m.QuiverLocal }))),
+  },
+  {
+    type: 'fenderbender', label: 'FENDER BENDER',
+    desc: 'shove rivals off the road · up to 4 on one phone', Icon: FenderBenderIcon,
+    badge: 'FD', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 5, tags: ['skill', 'party', 'quick'], solo: true,
+    // Online it is a two-car duel on the pong stack (host sim, WebRTC
+    // snapshots). The LocalPage seats 2-4 people on one phone, or one person
+    // against bots, on the same sim with no network.
+    custom: true, realtime: true, p2p: true, localMaxPlayers: 4,
+    localBlurb: 'ONE PHONE · EVERYONE DRIVES AT ONCE',
+    Page: lazyWithRetry(() => import('../pages/FenderBenderGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/FenderBenderDemo')),
   },
   {
     type: 'artillery', label: 'ARTILLERY',
@@ -1251,7 +1518,7 @@ export const GAME_TYPES = [
     category: 'reflex',
     addedAt: '2026-08-22',
     durationMin: 8, tags: ['skill', 'thinky'], solo: true,
-    custom: true,
+    custom: true, focusPage: true,
     Page: lazyWithRetry(() => import('../pages/ArtilleryGame')),
   },
   {
@@ -1260,7 +1527,7 @@ export const GAME_TYPES = [
     badge: 'AR', maxWidth: 'max-w-md',
     category: 'reflex', addedAt: '2026-09-27',
     durationMin: 8, tags: ['skill', 'quick'], solo: true,
-    custom: true, waitForStart: true,
+    custom: true, focusPage: true, waitForStart: true,
     localMaxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/ArcheryGame')),
     LocalPage: lazyWithRetry(() => import('../pages/ArcheryDemo').then(m => ({ default: m.ArcheryLocal }))),
@@ -1271,7 +1538,7 @@ export const GAME_TYPES = [
     badge: 'AR4', maxWidth: 'max-w-md',
     category: 'reflex', addedAt: '2026-09-27',
     durationMin: 10, tags: ['skill', 'party'],
-    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/ArcheryGame')),
     startRound: (players, game = {}) => {
       const ordered = Object.values(players || {}).filter(p => p?.playerId)
@@ -1288,6 +1555,59 @@ export const GAME_TYPES = [
     },
   },
   {
+    type: 'darts', label: 'STEADY HAND',
+    desc: 'hold, aim, let go · race to zero or own the board', Icon: DartsIcon,
+    badge: 'DT', maxWidth: 'max-w-md',
+    category: 'reflex', addedAt: '2026-10-10',
+    durationMin: 8, tags: ['skill', 'party'], solo: true,
+    // Rides the uid-keyed room model (lobby → host START), like Yacht. The
+    // lobby picks and the match are one object under `round` (dartsLogic.js):
+    // an append-only list of landing points that every client replays.
+    // Solo (vs a bot) and pass-and-play 2–4 run the same replay offline via
+    // LocalPage — see supportsLocalPlay.
+    custom: true, focusPage: true, nPlayer: true, minPlayers: DARTS_MIN_PLAYERS, maxPlayers: DARTS_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/DartsGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/DartsDemo')),
+    startRound: (players, game = {}) => {
+      // Turn order is the lobby's seat order: joinedAt, then uid.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, DARTS_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < DARTS_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createDartsRound(seats, normalizeDartsCfg(game.round?.dCfg)) }
+    },
+  },
+  {
+    type: 'minigolf', label: 'MINIGOLF',
+    desc: 'pull, putt, sink it', Icon: MinigolfIcon,
+    badge: 'MG', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-09-27',
+    durationMin: 10, tags: ['skill', 'party'], solo: true,
+    // Turn-based putting for 2–4 on the uid-keyed room model (lobby → host
+    // START, like Chain Reaction 4P). The room stores only each stroke's
+    // integer inputs; every client replays them through the deterministic sim
+    // (minigolfLogic.replayCourse), so there is no turn pointer to keep in sync.
+    // Solo (PAR RUN / VS BOT) and pass-and-play 2–4 run the same replay
+    // offline via LocalPage — see supportsLocalPlay.
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/MinigolfGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/MinigolfLocal')),
+    startRound: (players) => {
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, 4)
+      if (seats.length < 2) return null
+      return {
+        golfOrder: seats.map(p => p.playerId),
+        golfShots: null, golfSkip: null, golfAway: null,
+      }
+    },
+  },
+  {
     type: 'animalstack', label: 'ANIMAL STACK',
     desc: 'drop animals, don\'t topple the tower', Icon: AnimalStackIcon,
     badge: 'AS', maxWidth: 'max-w-md',
@@ -1297,10 +1617,24 @@ export const GAME_TYPES = [
     // 2-4 seat uid-keyed room (lobby → START), turn-based physics replayed
     // deterministically on every client over RTDB — see animalStackRoom.js.
     // LocalPage: /local/animalstack is its own 2-4 player pass-and-play page.
-    custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 4, localMaxPlayers: 4,
+    custom: true, focusPage: true, nPlayer: true, minPlayers: 2, maxPlayers: 4, localMaxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/AnimalStackGame')),
     LocalPage: lazyWithRetry(() => import('../pages/AnimalStackDemo').then(m => ({ default: m.AnimalStackLocal }))),
     startRound: (players) => startStackMatch(players, generateSeed()),
+  },
+  {
+    type: 'birdseye', label: 'BIRDSEYE',
+    desc: 'sling the flock, ride the shot', Icon: BirdseyeIcon,
+    badge: 'BE', maxWidth: 'max-w-md',
+    category: 'reflex',
+    addedAt: '2026-10-06',
+    durationMin: 5, tags: ['skill', 'quick'], solo: true,
+    // Solo is World 1's five forts (/solo/birdseye). Online is a 2P duel on
+    // one fort, Artillery's model: the room stores bsFort + an append-only
+    // bsShots list and every client replays it (birdseyeLogic.replayDuel).
+    soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: `${BIRDSEYE_FORTS.length} farm forts to topple. Ride the shot from the beak.`,
+    custom: true, focusPage: true,
+    Page: lazyWithRetry(() => import('../pages/BirdseyeGame')),
   },
   {
     type: 'wirecrossed', label: 'WIRE CROSSED',
@@ -1325,6 +1659,54 @@ export const GAME_TYPES = [
     // first mover to pick; the page renders MatchScoreRail itself.
     custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 3,
     Page: lazyWithRetry(() => import('../pages/TwoTruthsGame')),
+  },
+  {
+    type: 'yacht', label: 'YACHT',
+    desc: 'five dice, three rolls, thirteen boxes', Icon: YachtIcon,
+    badge: 'YT', maxWidth: 'max-w-sm',
+    category: 'dicebluff',
+    addedAt: '2026-10-10',
+    durationMin: 8, tags: ['luck', 'thinky'], solo: true,
+    // Rides the uid-keyed room model (lobby → host START), like Chain
+    // Reaction 4P. The whole match is one object under `round` (yachtLogic.js).
+    custom: true, focusPage: true, nPlayer: true, minPlayers: YACHT_MIN_PLAYERS, maxPlayers: YACHT_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/YachtGame')),
+    startRound: (players) => {
+      // Turn order is the lobby's seat order: joinedAt, then uid.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, YACHT_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < YACHT_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createYachtRound(seats, generateSeedHex()) }
+    },
+  },
+  {
+    type: 'lazysusan', label: 'LAZY SUSAN',
+    desc: 'tap when the food reaches your gate', Icon: LazySusanIcon,
+    badge: 'LS', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-10',
+    durationMin: 2, tags: ['skill', 'quick', 'party'], solo: true,
+    // One shared turning plate, 2-4 seats on the uid-keyed room model (lobby →
+    // host START). The match is one object under `round` (lazySusanLogic.js);
+    // a taken piece is a write-once claim, so the first writer owns it.
+    // LocalPage: /local/lazysusan is 2-4 on one phone, /solo/lazysusan a bot.
+    custom: true, focusPage: true, nPlayer: true, minPlayers: SUSAN_MIN_PLAYERS, maxPlayers: SUSAN_MAX_PLAYERS, localMaxPlayers: SUSAN_MAX_PLAYERS,
+    Page: lazyWithRetry(() => import('../pages/LazySusanGame')),
+    LocalPage: lazyWithRetry(() => import('../pages/LazySusanDemo').then(m => ({ default: m.LazySusanLocal }))),
+    startRound: (players, _room, ctx) => {
+      // Seat order is the lobby's: joinedAt, then uid. startAt is the server
+      // time the transaction was built at, so the countdown is shared.
+      const seats = Object.values(players || {})
+        .filter(p => p && p.playerId && p.online !== false)
+        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0) || String(a.playerId).localeCompare(String(b.playerId)))
+        .slice(0, SUSAN_MAX_PLAYERS)
+        .map(p => p.playerId)
+      if (seats.length < SUSAN_MIN_PLAYERS) return null
+      return { board: null, currentTurn: null, scores: {}, round: createSusanRound(seats, generateSeed(), ctx?.now ?? Date.now()) }
+    },
   },
   {
     type: 'bluff', label: 'BLUFF BATTLE',
@@ -1428,6 +1810,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-07-04',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Five words. Fewer guesses, more points.',
     custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/WordDuelGame')),
   },
@@ -1437,7 +1820,8 @@ export const GAME_TYPES = [
     badge: 'WC', maxWidth: 'max-w-md',
     category: 'word',
     addedAt: '2026-09-18',
-    durationMin: 4, tags: ['quick', 'thinky'], solo: false,
+    durationMin: 4, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Solve word after word. One miss ends the streak.',
     // coop: partners never "claim a win" from each other (Game.jsx skips the
     // abandoned-opponent banner); the page lets the online partner play on.
     custom: true, hidePlayerCards: true, coop: true,
@@ -1451,8 +1835,11 @@ export const GAME_TYPES = [
     addedAt: '2026-09-26',
     // Co-op: both lock a word at once until the two words match. Stars and
     // the chain history live in `round` (ConvergeGame); scores count chains.
+    // `quiet` while words are being written: agreeing a word in chat would
+    // make every chain a free ★★★.
     durationMin: 6, tags: ['quick'], solo: false,
     custom: true, simultaneous: true, coop: true, hidePlayerCards: true,
+    quiet: (game) => game?.status === 'playing' && game?.round?.phase === 'write',
     Page: lazyWithRetry(() => import('../pages/ConvergeGame')),
   },
   {
@@ -1462,13 +1849,15 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Three minutes. Solve as many words as you can.',
     custom: true, simultaneous: true, matchTarget: 3, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/WordRaceGame')),
   },
   {
     type: 'wordhunt', label: 'WORD HUNT',
     desc: 'race to find the most words', Icon: WordHuntIcon,
-    badge: 'WH', maxWidth: 'max-w-md',
+    // Desktop: grid beside the score and word list (WordHuntGame).
+    badge: 'WH', maxWidth: 'max-w-md lg:max-w-3xl',
     category: 'word',
     addedAt: '2026-07-11',
     durationMin: 2, tags: ['quick', 'thinky'], solo: true,
@@ -1483,7 +1872,8 @@ export const GAME_TYPES = [
     addedAt: '2026-09-18',
     // Co-op since the D1 decision: partners share one team score over 12
     // rounds, so there is no opponent to claim a win from. solo: false —
-    // there is no bot clue-giver, so VS AI would dead-end.
+    // the /solo/password demo's bot guesser ignores the clue, so VS AI is not
+    // offered and the demo stays off the solo shelf (OFF_SHELF, pages/demos/partyBlurbs.js).
     durationMin: 12, tags: ['thinky'], solo: false,
     custom: true, coop: true, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/PasswordGame')),
@@ -1495,6 +1885,7 @@ export const GAME_TYPES = [
     category: 'word',
     addedAt: '2026-09-18',
     durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'One rack, 90 seconds. Find every word you can.',
     custom: true, simultaneous: true, hidePlayerCards: true, matchTarget: 2,
     Page: lazyWithRetry(() => import('../pages/AnagramsGame')),
   },
@@ -1510,6 +1901,79 @@ export const GAME_TYPES = [
     custom: true, simultaneous: true, coop: true, quiet: true, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/HunchGame')),
   },
+  // ── Memory shelf additions (docs/design/MEMORY-GAMES-SHAPE.md) ──
+  // Solo runs on /solo/:type (MemoryRunSolo) and online duels on one engine
+  // (MemoryDuelGame, room node `mem`): same seeded deal for both, shared 3-2-1.
+  {
+    type: 'verbalmemory', label: 'VERBAL MEMORY',
+    desc: 'seen it before, or new?', Icon: VerbalMemoryIcon,
+    badge: 'VB', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'nback', label: 'N-BACK',
+    desc: 'match the cell n steps back', Icon: NBackIcon,
+    badge: 'NB', maxWidth: 'max-w-xs',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'cupshuffle', label: 'CUP SHUFFLE',
+    desc: 'follow the ball under the cups', Icon: CupShuffleIcon,
+    badge: 'CS', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 2, tags: ['quick'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'whatchanged', label: 'WHAT CHANGED?',
+    desc: 'spot the change from memory', Icon: WhatChangedIcon,
+    badge: 'WC', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'kimsgame', label: 'LOST & FOUND',
+    desc: "what's missing from the tray?", Icon: KimsGameIcon,
+    badge: 'LF', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['quick', 'thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'nametags', label: 'NAME TAGS',
+    desc: 'put the names back on the faces', Icon: NameTagsIcon,
+    badge: 'NT', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    durationMin: 3, tags: ['thinky'], solo: true,
+    soloRun: true, soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: 'Beat your best run. No waiting.',
+    custom: true, simultaneous: true,
+    Page: lazyWithRetry(() => import('../pages/MemoryDuelGame')),
+  },
+  {
+    type: 'splitsignal', label: 'SPLIT SIGNAL',
+    desc: 'two halves, one pattern — co-op', Icon: SplitSignalIcon,
+    badge: 'SS', maxWidth: 'max-w-sm',
+    category: 'memory', addedAt: '2026-10-02',
+    // Co-op: the team's cleared levels are both players' score.
+    durationMin: 4, tags: ['thinky'], solo: false,
+    custom: true, simultaneous: true, coop: true,
+    Page: lazyWithRetry(() => import('../pages/SplitSignalGame')),
+  },
   {
     type: 'pairs', label: 'PAIRS',
     desc: 'match the hidden pairs', Icon: PairsIcon,
@@ -1517,9 +1981,50 @@ export const GAME_TYPES = [
     category: 'memory',
     addedAt: '2026-07-11',
     durationMin: 6, tags: ['thinky'], solo: true,
+    classicLabel: '6×6',
+    classicBlurb: '18 pairs. First to 10 clinches.',
     boardSize: PAIRS_CELL_COUNT,
     getMoveIndex: (board, index) => (board[index] ? -1 : index),
     BoardComponent: PairsBoard,
+    focus: true,
+    applyMove: ({ board, game, index, symbol }) => {
+      const deck = normalizePairsDeck(game.pairsDeck)
+      const flipped = normalizePairsFlipped(game.pairsFlipped)
+      const applied = applyPairsMove(board, deck, flipped, index, symbol)
+      if (!applied) return null
+      return {
+        updates: {
+          board: applied.board,
+          pairsFlipped: applied.flipped,
+          currentTurn: applied.turnStays ? symbol : (symbol === 'X' ? 'O' : 'X'),
+          // GO AGAIN! is for a match only — a first flip also keeps the turn, but that
+          // is just the middle of a turn, not a bonus one.
+          extraTurn: applied.matched ? true : null,
+          pairsDeadline: null, // every flip restarts the mover's idle window
+        },
+        result: getPairsWinner(applied.board),
+      }
+    },
+    boardProps: (game) => ({
+      deck: normalizePairsDeck(game.pairsDeck),
+      flipped: normalizePairsFlipped(game.pairsFlipped),
+      finished: game.status === 'finished',
+      pairsDeadline: game.pairsDeadline ?? null,
+    }),
+  },
+  {
+    type: 'pairs4', label: 'PAIRS 4×4',
+    desc: 'a quick 16-card memory duel', Icon: PairsIcon,
+    badge: 'PR4', maxWidth: 'max-w-sm',
+    category: 'memory',
+    addedAt: '2026-10-02',
+    durationMin: 2, tags: ['quick', 'thinky'], solo: true,
+    variantOf: 'pairs', variantLabel: '4×4',
+    variantBlurb: '8 pairs on big cards. First to 5 clinches.',
+    boardSize: PAIRS_QUICK_CELL_COUNT,
+    getMoveIndex: (board, index) => (board[index] ? -1 : index),
+    BoardComponent: PairsBoard,
+    focus: true,
     applyMove: ({ board, game, index, symbol }) => {
       const deck = normalizePairsDeck(game.pairsDeck)
       const flipped = normalizePairsFlipped(game.pairsFlipped)
@@ -1554,6 +2059,8 @@ export const GAME_TYPES = [
     durationMin: 10, tags: ['thinky'],
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/SketchGame')),
+    // Room chat is off for the artist mid-round (the word could be typed out).
+    chatLocked: (game, uid) => sketchChatLock(game?.round, uid),
     // `game` (the room) is passed by Game.jsx's START: offline seats are left
     // out of the drawing order, and the first choose window follows the
     // room's timer scale (null = timers off, the coordinator advances).
@@ -1594,6 +2101,9 @@ export const GAME_TYPES = [
     addedAt: '2026-09-26',
     durationMin: 15, tags: ['thinky', 'party'], solo: false,
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
+    // `quiet` from the clues to the guess: the clue-givers know the word, so
+    // typed chat would let anyone hand it to the guesser.
+    quiet: (game) => game?.status === 'playing' && JUST_ONE_QUIET_PHASES.has(game?.round?.phase),
     Page: lazyWithRetry(() => import('../pages/JustOneGame')),
     // no startRound — JustOneGame deals its own sealed cards
   },
@@ -1617,7 +2127,24 @@ export const getNewGames = (entries, now = new Date()) =>
     .sort((a, b) => String(b.entry.addedAt).localeCompare(String(a.entry.addedAt)) || a.i - b.i)
     .map(({ entry }) => entry)
 
-export const getGameConfig = (type) => GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0]
+// The party lobby (party-first rooms, src/lib/partyLogic.js): a room starts
+// here and comes back here between games. Not a catalogue game, so it lives
+// outside GAME_TYPES (the picker, search, counts and HOW TO PLAY all walk the
+// registry) but resolves through getGameConfig like any room type.
+export const PARTY_LOBBY = {
+  type: 'party', label: 'PARTY', desc: 'pick a game together', category: 'party',
+  nPlayer: true, minPlayers: 1, maxPlayers: 4, custom: true, hidePlayerCards: true, Icon: PartyIcon,
+  Page: lazyWithRetry(() => import('../pages/PartyLobby')),
+}
+
+export const getGameConfig = (type) => (type === PARTY_LOBBY.type ? PARTY_LOBBY : GAME_TYPES.find(t => t.type === type) ?? GAME_TYPES[0])
+
+// Whether this build knows `type`. getGameConfig falls back to the first entry
+// (TIC TAC TOE) for an unknown type, so a room opened by an older build after a
+// newer one switched it to a game this build doesn't have would render, and
+// write, as tic-tac-toe. The room shell checks this first and asks for an
+// update instead.
+export const isKnownGameType = (type) => typeof type === 'string' && (type === PARTY_LOBBY.type || GAME_TYPES.some(t => t.type === type))
 
 // 2P turn-based games: one seat must act first, so the waiting room (and
 // rematch) asks who starts. Real-time, party, and simultaneous races skip
@@ -1637,6 +2164,8 @@ export function supportsLocalPlay(gameType) {
   // A custom game can opt in with its own pass-and-play page (`LocalPage`),
   // rendered by Demo.jsx's local route instead of the generic board engine.
   if (cfg.LocalPage) return true
+  // A custom online page that keeps a turn-based board for pass-and-play.
+  if (cfg.localBoard && cfg.BoardComponent) return true
   return !!cfg.BoardComponent && !cfg.custom && !cfg.nPlayer && !cfg.simultaneous && !cfg.realtime
 }
 
@@ -1653,6 +2182,9 @@ export function firstMoverUpdates(gameType, symbol) {
   }
   if (gameType === 'bluff') {
     return { 'bluffRound/turn': symbol }
+  }
+  if (gameType === 'faceoff') {
+    return { 'round/fTurn': symbol }
   }
   if (gameType === 'password') {
     // Password's first clue-giver is `starter` (PasswordGame reads it when it
@@ -1694,7 +2226,7 @@ export const GAME_CATEGORIES = [
   { id: 'memory',    label: 'MEMORY', full: 'MEMORY' },
   { id: 'word',      label: 'WORD',   full: 'WORD GAMES' },
   { id: 'dicebluff', label: 'DICE',   full: 'DICE & BLUFF' },
-  { id: 'party',     label: 'PARTY',  full: 'PARTY · 3–8 PLAYERS' },
+  { id: 'party',     label: 'PARTY',  full: 'PARTY · 2–8 PLAYERS' },
 ]
 
 export const getPlayerTag = (cfg) =>
@@ -1713,7 +2245,11 @@ const FIELD_NULLS = {
   chimpProgressX: null, chimpProgressO: null,
   chimpDoneX: null, chimpDoneO: null,
   chimpRoundStartedAt: null, chimpMiss: null,
+  chimpFailX: null, chimpFailO: null, chimpTimeX: null, chimpTimeO: null,
   vmLevel: null, vmPattern: null, vmClicked: null, vmClears: null, vmMiss: null,
+  vmClickedX: null, vmClickedO: null, vmDoneX: null, vmDoneO: null, vmFailX: null, vmFailO: null,
+  vmTimeX: null, vmTimeO: null, vmRoundStartedAt: null,
+  mem: null,
   numRound: null,
   reactionTimesX: null, reactionTimesO: null,
   aimTimesX: null, aimTimesO: null, aimMissesX: null, aimMissesO: null,
@@ -1721,7 +2257,7 @@ const FIELD_NULLS = {
   aimScoreX: null, aimScoreO: null,
   aimHitsX: null, aimHitsO: null,
   aimFriendlyX: null, aimFriendlyO: null,
-  typingConfig: null, mathConfig: null,
+  typingConfig: null, mathConfig: null, firstcutConfig: null,
   typingPassage: null, typingStartedAt: null,
   typingFinishedAtX: null, typingFinishedAtO: null,
   typingProgressX: null, typingProgressO: null,
@@ -1740,14 +2276,16 @@ const FIELD_NULLS = {
   wordhuntDoneX: null, wordhuntDoneO: null,
   wordhuntReadyX: null, wordhuntReadyO: null,
   diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceLast: null,
-  diceRolls: null, diceRollIndex: null,
+  diceRolls: null, diceRollIndex: null, diceRoll: null,
   diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
   diceSeedCommitter: null, diceSeedResets: null, // Pig seed-loss recovery (pigSeedProtocol.js)
   bluffRound: null,
   wire: null, // wirecrossed
   pongScoreX: null, pongScoreO: null, pongMode: null, signaling: null, matchLength: null,
-  arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null,
+  arrowsRound: null, arrowsSeed: null, arrowsStartedAt: null, arrowsDifficulty: null,
   arrowsGoneX: null, arrowsGoneO: null, arrowsLivesX: null, arrowsLivesO: null,
+  // updraft / updraftduo: the whole round (seed, start, seats, hazards, keys).
+  updraft: null,
   // Retired shared-board keys: still nulled so rooms from before the race
   // rework shed them on the next reset.
   arrowsLevel: null, arrowsCleared: null,
@@ -1776,12 +2314,18 @@ const FIELD_NULLS = {
   pairsDeck: null, pairsFlipped: null, pairsDeadline: null,
   mancalaPits: null, mancalaLast: null,
   airhockeyScoreX: null, airhockeyScoreO: null,
+  bonkScoreX: null, bonkScoreO: null,
   artillerySeed: null, artilleryShots: null,
+  // BIRDSEYE duel: the fort being played and the append-only shot list.
+  bsFort: null, bsShots: null,
   archeryFormat: null, archerySeed: null, archeryShots: null,
   archeryPhase: null, archeryTied: null, archeryShootOffShots: null,
   archerySeatUids: null, archeryTurnStartedAt: null,
   // Animal Stack: the whole match (seats, hearts, drops, checkpoint) in one node.
   stack: null,
+  // Minigolf per-match inputs (minigolfLogic.replayCourse). The lobby picks
+  // golfCourse / golfClock are room-level house rules and stay out of here.
+  golfOrder: null, golfShots: null, golfSkip: null, golfAway: null,
   minesSeed: null, minesStartedAt: null,
   minesRevealedX: null, minesRevealedO: null,
   minesDeadX: null, minesDeadO: null,
@@ -1789,10 +2333,14 @@ const FIELD_NULLS = {
   // N-player races (raceLogic.js): the last round's ranking. The live round
   // itself sits in `round`.
   raceResult: null,
+  // Cup races (raceLogic CUP_RACES_BY_GAME): how many races of the cup have been run.
+  cupRaces: null,
   herdCow: null,
   chatLog: null,
-  // emote currently leaks across game switches — clear it too.
+  // emote currently leaks across game switches — clear it too. `emotes` is
+  // the reaction list that replaced it (old clients still write `emote`).
   emote: null,
+  emotes: null,
   // Ataxx ply counter for the anti-cycle move cap (getAtaxxWinner).
   ataxxMoves: null,
   // Kamisado forced-color chain: color index 0-7 the current mover must play
@@ -1815,6 +2363,21 @@ const FIELD_NULLS = {
   // deliberately NOT here: they survive switches and NEW MATCH.
   nightMark: null,
   kicked: null,
+  // Arrival (arrivalLogic.js): the 3·2·1 stamp of this match's first move, and
+  // the anonymous "someone opened your link" signals. Both belong to one
+  // match's start, so a rematch or a switch drops them.
+  startsAt: null,
+  arriving: null,
+}
+
+const MEMORY_STREAM_TYPES = new Set(['verbalmemory', 'nback'])
+const MEMORY_LEVEL_TYPES = new Set(['cupshuffle', 'whatchanged', 'kimsgame', 'nametags'])
+const JUST_ONE_QUIET_PHASES = new Set(['clues', 'compare', 'guess', 'judging'])
+
+/** Does the room hide typed chat right now? Registry `quiet` is either a
+ * flag (HUNCH: always) or a function of the room (CONVERGE: while writing). */
+export function isQuietRoom(cfg, game) {
+  return typeof cfg?.quiet === 'function' ? !!cfg.quiet(game) : !!cfg?.quiet
 }
 
 export function freshGameState(gameType, previous = null) {
@@ -1823,6 +2386,11 @@ export function freshGameState(gameType, previous = null) {
     const keep = previous?.gameType === 'archery4' ? previous : null
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
       archeryFormat: archeryFormat(keep?.archeryFormat) }
+  }
+  if (gameType === 'darts') {
+    // The lobby picks (game, start score, throw, legs, Nerves) ride a rematch.
+    const keep = previous?.gameType === 'darts' && previous.round?.dCfg ? normalizeDartsCfg(previous.round.dCfg) : null
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: keep ? { dCfg: keep } : null }
   }
   if (cfg.nPlayer) {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
@@ -1861,7 +2429,8 @@ export function freshGameState(gameType, previous = null) {
       chimpDoneX: false, chimpDoneO: false,
       // Stamped (server time) by the first client that sees the room playing — a
       // creation-time stamp had already expired round 1 by the time O joined.
-      chimpRoundStartedAt: null, chimpMiss: null }
+      chimpRoundStartedAt: null, chimpMiss: null,
+      chimpFailX: null, chimpFailO: null, chimpTimeX: 0, chimpTimeO: 0 }
   }
   if (gameType === 'pong') {
     // currentTurn omitted (null) — Pong has no turns, so Game.jsx's move-sound
@@ -1909,11 +2478,15 @@ export function freshGameState(gameType, previous = null) {
       numRound: { phase: 'showing', level: 1, number: generateNumber(1) } }
   }
   if (gameType === 'visualmemory') {
+    // Online duel state (VisualMemoryGame). vmRoundStartedAt is stamped by the first
+    // client that sees the room playing; the pass-and-play board starts from
+    // currentTurn/vmClicked like before.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,
       currentTurn: 'X',
       vmLevel: VM_START_LEVEL,
       vmPattern: generateVmPattern(VM_START_LEVEL),
-      vmClicked: null }
+      vmClicked: null,
+      vmDoneX: false, vmDoneO: false, vmTimeX: 0, vmTimeO: 0 }
   }
   if (gameType === 'reversi') {
     return { ...FIELD_NULLS, boxes: null, round: null,
@@ -1937,7 +2510,7 @@ export function freshGameState(gameType, previous = null) {
     // branch and never got a seed, leaving every roll rejected.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: 'X',
       diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceLast: null,
-      diceRolls: [], diceRollIndex: 0,
+      diceRolls: [], diceRollIndex: 0, diceRoll: null,
       diceSeed: null, diceSeedCommitX: null, diceSeedRevealX: null, diceSeedB: null,
       diceSeedCommitter: null, diceSeedResets: null }
   }
@@ -1946,6 +2519,12 @@ export function freshGameState(gameType, previous = null) {
     // precedent). Everything else lives in round; no new top-level keys.
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
       round: { phase: 'placing' } }
+  }
+  if (gameType === 'faceoff') {
+    // currentTurn null: turns live in round.fTurn (Battleship precedent). The
+    // first seated client deals the faces by writing round.fSeed.
+    return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null,
+      round: { fTurn: 'X' } }
   }
   if (gameType === 'mancala') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,
@@ -2012,6 +2591,26 @@ export function freshGameState(gameType, previous = null) {
       board: Array(YV_CELL_COUNT).fill(''),
       currentTurn: 'X' }
   }
+  if (gameType === 'stickyfingers' || gameType === 'fenderbender' || gameType === 'quiver') {
+    // Realtime (pong family): the round lives in the host's sim, the room only
+    // holds the standard winner/scores.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'lazysusan') {
+    // The match is one `round` object written at START; nothing else to reset.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'puckrush') {
+    // Realtime (pong family): the round lives in the host's sim, the room only
+    // holds the standard winner/scores.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null }
+  }
+  if (gameType === 'bonkbuggies') {
+    // Realtime (pong family): the match lives in the host's sim; the room holds
+    // the points for spectators and the finished screen.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      bonkScoreX: 0, bonkScoreO: 0 }
+  }
   if (gameType === 'airhockey') {
     // Realtime (pong family): currentTurn null, page drives its own audio.
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
@@ -2024,6 +2623,12 @@ export function freshGameState(gameType, previous = null) {
       archerySeed: generateSeed(), archeryShots: null, archeryPhase: 'main',
       archeryTied: null, archeryShootOffShots: null, archerySeatUids: null,
       archeryTurnStartedAt: null }
+  }
+  if (gameType === 'birdseye') {
+    // PLAY AGAIN walks the five forts; a fresh room starts on 1-1.
+    const prevFort = previous?.gameType === 'birdseye' ? previous.bsFort : undefined
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null,
+      currentTurn: 'X', ...freshDuel(prevFort === undefined ? 0 : nextFortIndex(prevFort)) }
   }
   if (gameType === 'artillery') {
     return { ...FIELD_NULLS, board: null, boxes: null, round: null,
@@ -2046,10 +2651,17 @@ export function freshGameState(gameType, previous = null) {
   if (gameType === 'arrows') {
     // A decided/final match must never advance into a 4th round: fall back to
     // a fresh round-0 board (scores are zeroed separately by applyNewMatch).
-    const next = previous ? arrowsNextRound(previous) : null
+    // The host's difficulty pick rides along to the next round.
+    const keep = previous?.gameType === 'arrows' ? previous : null
+    const next = keep ? arrowsNextRound(keep) : null
     const arrowFields = next ?? arrowsFreshState()
     return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
-      ...arrowFields }
+      ...arrowFields, arrowsDifficulty: keep?.arrowsDifficulty ?? null }
+  }
+  if (gameType === 'updraft' || gameType === 'updraftduo') {
+    // A new seed every round; a versus rematch keeps the host's CHAOS/PURE pick.
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      ...updraftFreshState(previous, { coop: gameType === 'updraftduo' }) }
   }
   if (gameType === 'wordcoop') {
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null }
@@ -2063,8 +2675,9 @@ export function freshGameState(gameType, previous = null) {
       round: best ? { best } : null }
   }
   if (gameType === 'wirecrossed') {
-    // PLAY AGAIN passes the finished bomb: the level climbs and the streak
-    // carries. NEW MATCH / switching in starts over at level 1.
+    // New rooms begin on legacy generator v1 until both seats acknowledge the
+    // updated client; v2 then asks for one difficulty and runs two role-swapped bombs.
+    // Existing v1 rooms keep their old level climb until a new match.
     return { ...FIELD_NULLS, board: null, boxes: null, currentTurn: null, round: null,
       wire: nextWireBomb(previous?.wire, generateSeed()) }
   }
@@ -2096,13 +2709,40 @@ export function freshGameState(gameType, previous = null) {
         }
         : null }
   }
-  if (gameType === 'pairs') {
+  if (MEMORY_STREAM_TYPES.has(gameType) || MEMORY_LEVEL_TYPES.has(gameType)) {
+    // memoryRaceLogic.js: one seeded deal per level (or one stream) for both seats.
+    const seed = newSeed()
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      mem: MEMORY_STREAM_TYPES.has(gameType) ? memStreamStart(seed) : memLevelStart(1, seed) }
+  }
+  if (gameType === 'splitsignal') {
+    return { ...FIELD_NULLS, board: null, boxes: null, round: null, currentTurn: null,
+      mem: { level: 1, seed: newSeed(), startAt: null, lives: 3, found: null } }
+  }
+  if (gameType === 'pairs' || gameType === 'pairs4') {
+    const cells = gameType === 'pairs4' ? PAIRS_QUICK_CELL_COUNT : PAIRS_CELL_COUNT
     return { ...FIELD_NULLS, boxes: null, round: null, currentTurn: 'X',
-      board: Array(PAIRS_CELL_COUNT).fill(''),
-      pairsDeck: generatePairsDeck(),
+      board: Array(cells).fill(''),
+      pairsDeck: generatePairsDeck(cells / 2),
       pairsFlipped: null }
   }
   return { ...FIELD_NULLS, board: Array(cfg.boardSize).fill(''), boxes: null, round: null, currentTurn: 'X' }
+}
+
+// Result-screen margin for a finished round (registry `resultMargin(game,
+// viewerSymbol)`): `{ mine, theirs, total?, unit: [one, many] }`, or null when
+// the game can't say — the result screen then keeps its plain copy
+// (resultMoodLogic.js).
+export function resultMarginFor(game, viewerSymbol) {
+  return getGameConfig(game?.gameType)?.resultMargin?.(game, viewerSymbol) ?? null
+}
+const BOX_UNIT = ['box', 'boxes']
+const withUnit = (m, unit) => (m ? { ...m, unit } : null)
+
+// The reason room chat is locked for `uid` right now (registry `chatLocked`,
+// e.g. the Sketch artist mid-round), or null when they may type.
+export function chatLockFor(game, uid) {
+  return getGameConfig(game?.gameType)?.chatLocked?.(game, uid) ?? null
 }
 
 // Lobby (challenge-created room) support ------------------------------------
@@ -2120,7 +2760,22 @@ export function lobbySwitchOverrides(updates) {
   const out = { ...updates, status: 'waiting' }
   delete out.chatLog
   delete out.emote
+  delete out.emotes
   return out
+}
+
+// Builds a party-first room (Home START A PARTY, Friends INVITE): the creator
+// alone in the PARTY lobby, uid-keyed, hosting, capped at 4 (captain call D4).
+// `partyRoom` marks it so switches reseat everyone (nightLogic) and `removed`
+// / `partyCap` / `hostUid` last for the whole party.
+export function buildPartyRoom({ name, avatar, playerId, now = Date.now(), cap = 4 }) {
+  return {
+    gameType: PARTY_LOBBY.type, status: 'waiting', lobby: true,
+    partyRoom: true, partyCap: cap, hostUid: playerId,
+    scores: {}, createdAt: now, lastActivityAt: now,
+    players: { [playerId]: { name, joinedAt: now, playerId, online: true, avatar: avatar ?? null } },
+    ...freshGameState(PARTY_LOBBY.type),
+  }
 }
 
 // Builds the room doc for a friend challenge (Friends.jsx) — same X-seat/

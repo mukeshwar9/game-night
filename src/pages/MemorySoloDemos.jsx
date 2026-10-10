@@ -1,5 +1,10 @@
 // Single-player runs for the memory games on /solo/:type (see memorySoloLogic.js).
-// Each run grows until you slip; the score is kept as a per-device personal best.
+// Each run grows until you slip; the score is kept as a personal best on the device
+// and, signed in, on the account (memoryProgress.js).
+//
+// DAILY MEMORY (DailyMemory.jsx) reuses these runs with three props: `rand`, the
+// day's seeded stream so everyone gets the same deal; `single`, one attempt (no
+// PLAY AGAIN); and `onFinish(score)`, called once when the run ends.
 
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -8,78 +13,33 @@ import VisualMemoryBoard from '../components/VisualMemoryBoard'
 import ChimpBoard from '../components/ChimpBoard'
 import { BigNumber, MarkedAnswer } from '../components/NumberMemoryParts'
 import { sounds } from '../lib/sounds'
-import { readSoloBest, recordSoloBest } from '../lib/soloBest'
-import { showMsForLevel } from '../lib/numberMemoryLogic'
+import useRunBest from '../hooks/useRunBest'
+import { RunHeader, RunOver, StartGate, RunNote, ContinueButton } from '../components/memory/RunParts'
+
+const plural = (n, word) => `${word}${n === 1 ? '' : 'S'}`
+import { showMsForLevel, generateNumber } from '../lib/numberMemoryLogic'
+import { generateVmPattern, vmCellCount } from '../lib/visualMemoryLogic'
+import { generateChimpLayout, CHIMP_GRID } from '../lib/chimpLogic'
 import {
-  SOLO_LIVES,
   startSimonSolo, applySimonSoloPress,
-  startVmSolo, applyVmSoloTap, vmSoloScore,
-  startChimpSolo, applyChimpSoloTap, chimpSoloScore,
+  startVmSolo, applyVmSoloTap, vmSoloScore, continueVmSolo,
+  startChimpSolo, applyChimpSoloTap, chimpSoloScore, continueChimpSolo,
   startNumberSolo, submitNumberSolo, numberSoloScore,
 } from '../lib/memorySoloLogic'
 
-const plural = (n, word) => `${word}${n === 1 ? '' : 'S'}`
 
 // Pause after a cleared round before the next one starts, so the success registers.
 const NEXT_ROUND_MS = 700
 
-// Score + best + lives strip shared by every run.
-function RunHeader({ scoreLabel, score, best, lives = null }) {
-  return (
-    <div className="flex items-center justify-between rounded border border-retro-border bg-retro-surface px-3 py-2 font-pixel text-[9px]">
-      <span className="text-retro-text">{scoreLabel} <span className="text-retro-cta text-glow-cta">{score}</span></span>
-      {lives !== null && (
-        <span className="flex items-center gap-1" aria-label={`${lives} of ${SOLO_LIVES} lives left`}>
-          {Array.from({ length: SOLO_LIVES }, (_, i) => (
-            <span key={i} aria-hidden="true" className={i < lives ? 'text-retro-danger' : 'text-retro-border'}>♥</span>
-          ))}
-        </span>
-      )}
-      <span className="text-retro-dim">BEST {best}</span>
-    </div>
-  )
-}
-
-function RunOver({ result, score, unit, isNewBest, onRestart }) {
-  return (
-    <div className="space-y-3 text-center" role="status">
-      <p className="font-pixel text-[10px] text-retro-text">{result}</p>
-      <p className="font-pixel text-base text-retro-cta text-glow-cta">{score} {unit}</p>
-      {isNewBest && <p className="font-pixel text-[9px] text-retro-win text-glow-win">NEW PERSONAL BEST!</p>}
-      <button
-        type="button"
-        onClick={onRestart}
-        className="px-6 py-2.5 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
-      >
-        PLAY AGAIN
-      </button>
-    </div>
-  )
-}
-
-// Personal best for a run type. `finish(score)` is called from the tap handler that
-// ended the run; it saves the score if it beats the best and plays the matching sound.
-function useRunBest(type) {
-  const [best, setBest] = useState(() => readSoloBest(type))
-  const [isNewBest, setIsNewBest] = useState(false)
-  const finish = (score) => {
-    const beat = recordSoloBest(type, score)
-    setIsNewBest(beat)
-    if (beat) { setBest(score); sounds.win() } else sounds.lose()
-  }
-  const reset = () => setIsNewBest(false)
-  return { best, isNewBest, finish, reset }
-}
-
-export function SimonSolo() {
-  const [run, setRun] = useState(() => startSimonSolo())
+export function SimonSolo({ rand = Math.random, single = false, onFinish } = {}) {
+  const [run, setRun] = useState(() => startSimonSolo(rand))
   const [shown, setShown] = useState(run) // what the board shows (lags a cleared round briefly)
   const [pausing, setPausing] = useState(false)
-  const { best, isNewBest, finish, reset } = useRunBest('simon')
+  const { best, isNewBest, finish, reset } = useRunBest('simon', onFinish)
 
   const press = (pad) => {
     if (pausing || run.over) return
-    const next = applySimonSoloPress(run, pad)
+    const next = applySimonSoloPress(run, pad, rand)
     setRun(next)
     if (next.over) finish(next.score)
     if (!next.over && next.seq.length > run.seq.length) {
@@ -91,11 +51,15 @@ export function SimonSolo() {
       setShown(next)
     }
   }
-  const restart = () => { const r = startSimonSolo(); setRun(r); setShown(r); reset() }
+  const restart = () => { const r = startSimonSolo(rand); setRun(r); setShown(r); reset() }
+  const [started, setStarted] = useState(single) // DAILY MEMORY already had its start tap
 
   return (
     <div className="space-y-4">
       <RunHeader scoreLabel="SCORE" score={run.score} best={best} />
+      {!started ? (
+        <StartGate title="WATCH, THEN REPEAT" how="THE PADS FLASH A SEQUENCE. TAP IT BACK IN ORDER — ONE PAD LONGER EVERY ROUND." onStart={() => setStarted(true)} />
+      ) : (
       <SimonBoard
         onMove={press}
         disabled={pausing || run.over}
@@ -105,104 +69,126 @@ export function SimonSolo() {
         finished={run.over}
         waitingLabel={pausing ? 'NICE! ONE MORE PAD…' : null}
       />
+      )}
       {run.over && (
-        <RunOver result="WRONG PAD — RUN OVER" score={run.score} unit={plural(run.score, 'PAD')} isNewBest={isNewBest} onRestart={restart} />
+        <RunOver type="simon" result="WRONG PAD — RUN OVER" score={run.score} unit={plural(run.score, 'PAD')} isNewBest={isNewBest} onRestart={restart} single={single} />
       )}
     </div>
   )
 }
 
-export function VisualMemorySolo() {
-  const [run, setRun] = useState(() => startVmSolo())
+export function VisualMemorySolo({ rand = Math.random, single = false, onFinish } = {}) {
+  const gen = level => generateVmPattern(level, vmCellCount(level), rand)
+  const [run, setRun] = useState(() => startVmSolo(gen))
   const [flash, setFlash] = useState(null)
   const score = vmSoloScore(run)
-  const { best, isNewBest, finish, reset } = useRunBest('visualmemory')
+  const { best, isNewBest, finish, reset } = useRunBest('visualmemory', onFinish)
 
   const tap = (cell) => {
-    const next = applyVmSoloTap(run, cell)
+    const next = applyVmSoloTap(run, cell, gen)
     if (next === run) return
     if (next.over) finish(vmSoloScore(next))
-    else if (next.lostLife) { sounds.miss(); setFlash(`MISSED — ${next.lives} ${next.lives === 1 ? 'LIFE' : 'LIVES'} LEFT, NEW PATTERN`) }
+    else if (next.lostLife) { sounds.miss(); setFlash('SLIP! ONE LIFE GONE') }
     else if (next.level > run.level) { sounds.go(); setFlash(null) }
     else sounds.step()
     setRun(next)
   }
-  const restart = () => { setRun(startVmSolo()); setFlash(null); reset() }
+  const restart = () => { setRun(startVmSolo(gen)); setFlash(null); reset() }
+  const carryOn = () => { setRun(r => continueVmSolo(r, gen)); setFlash(null) }
+  const [started, setStarted] = useState(single) // DAILY MEMORY already had its start tap
 
   return (
     <div className="space-y-4">
-      <RunHeader scoreLabel="LEVELS" score={score} best={best} lives={run.lives} />
-      {flash && !run.over && <p className="font-pixel text-[8px] text-center text-retro-danger">{flash}</p>}
+      <RunHeader scoreLabel="CLEARED" score={score} best={best} lives={run.lives} />
+      <RunNote>{!run.over && flash}</RunNote>
+      {!started ? (
+        <StartGate title="REMEMBER THE LIT TILES" how="TILES LIGHT UP FOR A MOMENT. TAP EVERY ONE THAT WAS LIT, IN ANY ORDER. 3 LIVES." onStart={() => setStarted(true)} />
+      ) : (
       <VisualMemoryBoard
+        // A fresh board per deal, so the reveal always starts clean.
+        key={run.pattern.join(',')}
         onMove={tap}
-        disabled={run.over}
+        disabled={run.over || run.paused}
         vmPattern={run.pattern}
         vmClicked={run.clicked}
         vmLevel={run.level}
         vmMiss={run.miss}
-        finished={run.over}
+        finished={run.over || run.paused}
         mySymbol="X"
       />
+      )}
+      {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
-        <RunOver result={`OUT OF LIVES ON LEVEL ${run.level}`} score={score} unit={plural(score, 'LEVEL')} isNewBest={isNewBest} onRestart={restart} />
+        <RunOver type="visualmemory" result={`OUT OF LIVES ON LEVEL ${run.level}`} score={score} unit={plural(score, 'LEVEL')} isNewBest={isNewBest} onRestart={restart} single={single} />
       )}
     </div>
   )
 }
 
-export function ChimpSolo() {
-  const [run, setRun] = useState(() => startChimpSolo())
+export function ChimpSolo({ rand = Math.random, single = false, onFinish } = {}) {
+  const gen = level => generateChimpLayout(level, CHIMP_GRID, rand)
+  const [run, setRun] = useState(() => startChimpSolo(gen))
   const [flash, setFlash] = useState(null)
   const score = chimpSoloScore(run)
-  const { best, isNewBest, finish, reset } = useRunBest('chimp')
+  const { best, isNewBest, finish, reset } = useRunBest('chimp', onFinish)
 
   const tap = (cell) => {
-    const next = applyChimpSoloTap(run, cell)
+    const next = applyChimpSoloTap(run, cell, gen)
     if (next === run) return
     if (next.over) finish(chimpSoloScore(next))
-    else if (next.lostLife) { sounds.miss(); setFlash(`WRONG ORDER — ${next.lives} ${next.lives === 1 ? 'LIFE' : 'LIVES'} LEFT, NEW LAYOUT`) }
+    else if (next.lostLife) { sounds.miss(); setFlash('SLIP! ONE LIFE GONE') }
     else if (next.level > run.level) { sounds.go(); setFlash(null) }
     else sounds.step()
     setRun(next)
   }
-  const restart = () => { setRun(startChimpSolo()); setFlash(null); reset() }
+  const restart = () => { setRun(startChimpSolo(gen)); setFlash(null); reset() }
+  const carryOn = () => { setRun(r => continueChimpSolo(r, gen)); setFlash(null) }
+  const [started, setStarted] = useState(single) // DAILY MEMORY already had its start tap
 
   return (
     <div className="space-y-4">
       <RunHeader scoreLabel="NUMBERS" score={score} best={best} lives={run.lives} />
-      {flash && !run.over && <p className="font-pixel text-[8px] text-center text-retro-danger">{flash}</p>}
+      <RunNote>{!run.over && flash}</RunNote>
+      {!started ? (
+        <StartGate title="NUMBERS, THEN BLANKS" how="REMEMBER WHERE EACH NUMBER IS. THEY HIDE WHEN YOU TAP 1 — TAP THE REST IN ORDER. 3 LIVES." onStart={() => setStarted(true)} />
+      ) : (
       <ChimpBoard
         // Remount per layout so the memorize timer restarts with each new deal.
         key={run.over ? 'over' : `${run.level}-${run.layout.join(',')}`}
         onMove={tap}
-        disabled={run.over}
+        disabled={run.over || run.paused}
         chimpLayout={run.layout}
         myProgress={run.progress}
         myDone={false}
         chimpLevel={run.level}
-        reveal={run.over}
+        reveal={run.over || run.paused}
         missCell={run.miss}
         solo
       />
+      )}
+      {run.paused && !run.over && <ContinueButton lives={run.lives} onContinue={carryOn} />}
       {run.over && (
-        <RunOver result={`OUT OF LIVES AT ${run.level} NUMBERS`} score={score} unit={plural(score, 'NUMBER')} isNewBest={isNewBest} onRestart={restart} />
+        <RunOver type="chimp" result={`OUT OF LIVES AT ${run.level} NUMBERS`} score={score} unit={plural(score, 'NUMBER')} isNewBest={isNewBest} onRestart={restart} single={single} />
       )}
     </div>
   )
 }
 
-export function NumberMemorySolo() {
-  const [run, setRun] = useState(() => startNumberSolo())
+export function NumberMemorySolo({ rand = Math.random, single = false, onFinish } = {}) {
+  const gen = level => generateNumber(level, rand)
+  const [run, setRun] = useState(() => startNumberSolo(gen))
   const [input, setInput] = useState('')
   const [msLeft, setMsLeft] = useState(() => showMsForLevel(1))
   const inputRef = useRef(null)
   const score = numberSoloScore(run)
-  const { best, isNewBest, finish, reset } = useRunBest('numbermemory')
+  const { best, isNewBest, finish, reset } = useRunBest('numbermemory', onFinish)
   const showMs = showMsForLevel(run.level)
+  const [started, setStarted] = useState(single) // DAILY MEMORY already had its start tap
+  const [cheer, setCheer] = useState(null) // "CORRECT!" beat between levels
 
   // Memorize window, then recall.
   useEffect(() => {
-    if (run.phase !== 'showing') return undefined
+    if (!started || run.phase !== 'showing') return undefined
     const end = Date.now() + showMs
     const tick = setInterval(() => {
       const left = end - Date.now()
@@ -213,7 +199,13 @@ export function NumberMemorySolo() {
       }
     }, 100)
     return () => clearInterval(tick)
-  }, [run.phase, run.level, run.number, showMs])
+  }, [started, run.phase, run.level, run.number, showMs])
+
+  useEffect(() => {
+    if (!cheer) return undefined
+    const t = setTimeout(() => setCheer(null), 1200)
+    return () => clearTimeout(t)
+  }, [cheer])
 
   useEffect(() => {
     if (run.phase === 'recall') inputRef.current?.focus()
@@ -221,13 +213,13 @@ export function NumberMemorySolo() {
 
   const submit = () => {
     if (run.phase !== 'recall' || !input.trim()) return
-    const next = submitNumberSolo(run, input)
+    const next = submitNumberSolo(run, input, gen)
     if (next.over) finish(numberSoloScore(next))
-    else sounds.go()
+    else { sounds.go(); setCheer(`CORRECT! NEXT: ${next.level} DIGITS`) }
     setRun(next)
     setInput('')
   }
-  const restart = () => { setRun(startNumberSolo()); setInput(''); reset() }
+  const restart = () => { setRun(startNumberSolo(gen)); setInput(''); reset() }
 
   return (
     <div className="space-y-4">
@@ -236,14 +228,26 @@ export function NumberMemorySolo() {
         <span className="text-retro-cta text-glow-cta">LEVEL {run.level}</span>
         <span className="text-retro-dim">{run.level} DIGIT{run.level > 1 ? 'S' : ''}</span>
       </div>
+      <p className="font-pixel text-[9px] text-center text-retro-win text-glow-win min-h-[1.5em]" aria-live="polite">{cheer}</p>
 
-      {run.phase === 'showing' && (
+      {!started && (
+        <StartGate title="HOLD THE NUMBER" how="A NUMBER FLASHES, THEN HIDES. TYPE IT BACK — ONE DIGIT LONGER EVERY LEVEL." onStart={() => setStarted(true)} />
+      )}
+
+      {started && run.phase === 'showing' && (
         <div className="bg-retro-surface border border-retro-border rounded p-4 text-center space-y-3">
           <p className="font-pixel text-[8px] text-retro-dim">MEMORIZE THIS NUMBER</p>
           <BigNumber number={run.number} className="text-retro-cta text-glow-cta" />
           <div className="h-1.5 rounded-full bg-retro-card overflow-hidden" aria-hidden="true">
             <div className="h-full bg-retro-cta" style={{ width: `${(msLeft / showMs) * 100}%` }} />
           </div>
+          <button
+            type="button"
+            onClick={() => setRun(r => (r.phase === 'showing' ? { ...r, phase: 'recall' } : r))}
+            className="w-full py-2.5 min-h-11 bg-retro-surface border-2 border-retro-border text-retro-cta font-pixel text-[9px] rounded hover:border-retro-cta/60 press"
+          >
+            GOT IT
+          </button>
         </div>
       )}
 
@@ -268,7 +272,7 @@ export function NumberMemorySolo() {
           <button
             type="submit"
             disabled={!input.trim()}
-            className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+            className="w-full py-3 min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded hover:shadow-neon-cta press disabled:opacity-40"
           >
             SUBMIT
           </button>
@@ -285,7 +289,7 @@ export function NumberMemorySolo() {
               <MarkedAnswer answer={run.answer} number={run.number} />
             </p>
           </div>
-          <RunOver result={`MISSED AT ${run.level} ${plural(run.level, 'DIGIT')}`} score={score} unit={plural(score, 'DIGIT')} isNewBest={isNewBest} onRestart={restart} />
+          <RunOver type="numbermemory" result={`MISSED AT ${run.level} ${plural(run.level, 'DIGIT')}`} score={score} unit={plural(score, 'DIGIT')} isNewBest={isNewBest} onRestart={restart} single={single} />
         </>
       )}
     </div>

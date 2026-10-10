@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  normalizeChimpLayout, evaluateChimpTap, buildChimpAdvance,
+  normalizeChimpLayout, evaluateChimpTap, buildChimpAdvance, resolveChimpLevel, buildChimpReplay,
   generateChimpLayout, chimpMemorizeMs, CHIMP_GRID, CHIMP_START_LEVEL,
 } from './chimpLogic'
 
@@ -118,5 +118,37 @@ describe('level ceiling', () => {
   it('memorize window grows with the level', () => {
     expect(chimpMemorizeMs(CHIMP_START_LEVEL)).toBe(5000)
     expect(chimpMemorizeMs(10)).toBeGreaterThan(chimpMemorizeMs(5))
+  })
+})
+
+describe('resolveChimpLevel', () => {
+  it('waits while anyone is still playing — a slip alone does not end the round', () => {
+    expect(resolveChimpLevel({ failX: 3 })).toEqual({ type: 'pending' })
+    expect(resolveChimpLevel({ doneO: true })).toEqual({ type: 'pending' })
+    expect(resolveChimpLevel({ failX: 3, doneO: false })).toEqual({ type: 'pending' })
+  })
+  it('advances when both clear', () => {
+    expect(resolveChimpLevel({ doneX: true, doneO: true })).toEqual({ type: 'advance' })
+  })
+  it('gives the round to the one who cleared when the other slipped', () => {
+    expect(resolveChimpLevel({ doneX: true, failO: 0 })).toEqual({ type: 'win', winner: 'X' })
+    expect(resolveChimpLevel({ failX: 7, doneO: true })).toEqual({ type: 'win', winner: 'O' })
+  })
+  it('a cell index of 0 still counts as a slip', () => {
+    expect(resolveChimpLevel({ failX: 0, failO: 0, progressX: 1 })).toEqual({ type: 'win', winner: 'X' })
+  })
+  it('both slipped: more numbers in order wins, then the faster total, then a replay', () => {
+    expect(resolveChimpLevel({ failX: 1, failO: 2, progressX: 2, progressO: 4 })).toEqual({ type: 'win', winner: 'O' })
+    expect(resolveChimpLevel({ failX: 1, failO: 2, progressX: 2, progressO: 2, timeX: 9000, timeO: 12000 })).toEqual({ type: 'win', winner: 'X' })
+    expect(resolveChimpLevel({ failX: 1, failO: 2, progressX: 2, progressO: 2, timeX: 9000, timeO: 9000 })).toEqual({ type: 'replay' })
+  })
+})
+
+describe('buildChimpReplay', () => {
+  it('keeps the level, deals a new layout and clears both outcomes', () => {
+    const patch = buildChimpReplay(6)
+    expect(patch.chimpLayout).toHaveLength(6)
+    expect(patch).toMatchObject({ chimpProgressX: 0, chimpProgressO: 0, chimpDoneX: false, chimpDoneO: false, chimpFailX: null, chimpFailO: null })
+    expect(patch.chimpLevel).toBeUndefined()
   })
 })

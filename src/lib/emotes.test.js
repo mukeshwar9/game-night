@@ -33,3 +33,18 @@ describe('emotes registry', () => {
     }
   })
 })
+
+describe('premium emote pack', () => {
+  it('is flagged premium, in the pixel pack, and distinct from the free emotes', async () => {
+    const { EMOTES_PREMIUM } = await import('./emotes')
+    const { PACKS } = await import('./premiumCatalog')
+    const glyphs = EMOTES_PREMIUM.map(e => e.glyph)
+    expect(new Set(glyphs).size).toBe(glyphs.length)
+    expect(new Set(EMOTES_PREMIUM.map(e => e.id)).size).toBe(EMOTES_PREMIUM.length)
+    for (const e of EMOTES_PREMIUM) {
+      expect(e).toMatchObject({ kind: 'emote', premium: true })
+      expect(PACKS.some(p => p.id === e.pack && p.kind === 'emote')).toBe(true)
+      expect(EMOTES_PICKER_ALL, `${e.glyph} would be free twice`).not.toContain(e.glyph)
+    }
+  })
+})

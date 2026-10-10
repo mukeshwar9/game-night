@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CATEGORY_TRACK, DEFAULT_MUSIC_VOLUME, chordTones, hz, midi, normalizeMusicVolume, parseHits, parseLine,
-  resolveMusicOn, roomMusicScene, trackForScene, volumeToGain,
+  ENGINE_RETRY_MS, blockLabel, engineRetryDelay, musicStatus, resolveMusicOn, roomMusicScene, trackForScene, volumeToGain,
 } from './musicLogic'
 import { GAME_CATEGORIES } from './games'
 import TRACKS from './musicTracks'
@@ -49,6 +49,9 @@ describe('trackForScene', () => {
     expect(trackForScene(undefined, { theme: 'matcha' })).toBe('coin')
     expect(trackForScene('lobby', { theme: 'synthwave' })).toBe('neon')
     expect(trackForScene('lobby', { theme: 'grid' })).toBe('neon')
+    expect(trackForScene('lobby', { theme: 'shoreline' })).toBe('shore')
+    // In a game SHORELINE still plays the game's own track.
+    expect(trackForScene('game', { category: 'board', theme: 'shoreline' })).toBe('think')
   })
 
   it('waiting rooms get the lounge loop', () => {
@@ -92,11 +95,31 @@ describe('roomMusicScene', () => {
 })
 
 describe('preferences', () => {
-  it('music defaults on, unless turned off or game sounds are off', () => {
-    expect(resolveMusicOn(null, false)).toBe(true)
-    expect(resolveMusicOn(null, true)).toBe(false)
-    expect(resolveMusicOn('off', false)).toBe(false)
-    expect(resolveMusicOn('on', true)).toBe(true)
+  it('music defaults on and only the music choice turns it off (not the SFX mute)', () => {
+    expect(resolveMusicOn(null)).toBe(true)
+    expect(resolveMusicOn('on')).toBe(true)
+    expect(resolveMusicOn('off')).toBe(false)
+  })
+
+  it('musicStatus ranks off, blocked, failed, then whether the context is running', () => {
+    const base = { on: true, blocked: [], failed: false, running: true }
+    expect(musicStatus(base)).toBe('playing')
+    expect(musicStatus({ ...base, running: false })).toBe('needs-tap')
+    expect(musicStatus({ ...base, failed: true, running: false })).toBe('failed')
+    expect(musicStatus({ ...base, blocked: ['voice'], failed: true })).toBe('blocked')
+    expect(musicStatus({ ...base, on: false, blocked: ['voice'] })).toBe('off')
+  })
+
+  it('names blockers for the player', () => {
+    expect(blockLabel(['voice'])).toBe('VOICE CHAT')
+    expect(blockLabel(['videoCall', 'voice'])).toBe('VIDEO CALL LAYOUT + VOICE CHAT')
+    expect(blockLabel(['other'])).toBe('OTHER')
+  })
+
+  it('backs off between engine retries, then gives up', () => {
+    expect(engineRetryDelay(0)).toBe(ENGINE_RETRY_MS[0])
+    expect(ENGINE_RETRY_MS.every((ms, i) => i === 0 || ms > ENGINE_RETRY_MS[i - 1])).toBe(true)
+    expect(engineRetryDelay(ENGINE_RETRY_MS.length)).toBeNull()
   })
 
   it('normalizes a stored volume', () => {

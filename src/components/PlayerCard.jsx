@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import Avatar from './Avatar'
 import PixelDots from './loading/PixelDots'
 
-export default function PlayerCard({ name, symbol, isActive, isMe, score, online, avatar }) {
+export default function PlayerCard({ name, symbol, isActive, isMe, score, online, away = false, avatar, popIn = false, arriving = false }) {
   const isX = symbol === 'X'
   // Empty O seat pre-game (no name, no avatar) — an inviting open slot,
   // not an error state. X is always filled (creator), so this only ever
@@ -11,21 +11,24 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
 
   if (isOpenSeat) {
     return (
-      <div className="flex items-center gap-2.5 px-3 py-2.5 border-2 border-dashed border-retro-border rounded">
-        <div className="w-9 h-9 flex items-center justify-center rounded flex-shrink-0 border border-dashed border-retro-border">
+      <div data-seat-card={symbol} className="flex items-center gap-2.5 px-3 py-2.5 border-2 border-dashed border-retro-border rounded">
+        <div className="seat-breathe w-9 h-9 flex items-center justify-center rounded flex-shrink-0 border border-dashed border-retro-border">
           <span className="font-pixel text-base text-retro-dim">?</span>
         </div>
         <div className="text-left min-w-0 flex-1">
-          <p className="font-mono text-sm text-retro-dim truncate">OPEN SEAT</p>
-          <p className="font-mono text-[10px] text-retro-dim mt-0.5 truncate">share to fill</p>
+          <p className="font-mono text-sm text-retro-dim truncate">{arriving ? 'ON THE WAY' : 'SAVING THIS SEAT'}</p>
+          <p className="font-mono text-[10px] text-retro-dim mt-0.5 truncate">{arriving ? 'someone has your link' : 'for a friend'}</p>
         </div>
       </div>
     )
   }
 
+  // data-seat-card: reactions and chat lines float from this card
+  // (ReactionFloats.jsx).
   return (
-    <div className={cn(
-      'flex items-center gap-2.5 px-3 py-2.5 border-2 rounded transition-all duration-200',
+    <div data-seat-card={symbol} className={cn(
+      'flex items-center gap-2.5 px-3 py-2.5 border-2 rounded transition duration-200',
+      popIn && 'seat-pop',
       isActive
         ? isX
           ? 'border-retro-p1 bg-retro-tint-p1/60 shadow-neon-p1'
@@ -55,12 +58,15 @@ export default function PlayerCard({ name, symbol, isActive, isMe, score, online
           </span>
         )}
         {online !== undefined && (
-          <div className={cn(
-            'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-retro-bg',
-            online
-              ? 'bg-retro-win shadow-glow-dot'
-              : 'bg-retro-dim',
-          )} />
+          <div
+            className={cn(
+              'absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-retro-bg',
+              online
+                ? 'bg-retro-win shadow-glow-dot'
+                : away ? 'bg-retro-cta' : 'bg-retro-dim',
+            )}
+            title={online ? 'Online' : away ? 'Stepped away' : 'Offline'}
+          />
         )}
       </div>
 

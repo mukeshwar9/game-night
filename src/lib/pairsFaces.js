@@ -28,19 +28,23 @@ export const PAIRS_FACE_NAMES = {
   wizard: 'wizard',
   invader: 'space invader',
   cat: 'cat',
-  ninja: 'ninja',
+  sword: 'sword',
   skull: 'skull',
   ghost: 'ghost',
 }
 
+// Faces that left the deck but may still sit in a room dealt before the change.
+const LEGACY_FACE_NAMES = { ninja: 'ninja' }
+
 // CSS colour expression for a face's card colour (opacity optional).
 export function pairsFaceColor(face, alpha) {
-  const v = `var(--pair-${PAIRS_FACES.includes(face) ? face : 'ghost'})`
+  const known = PAIRS_FACES.includes(face) || face in LEGACY_FACE_NAMES
+  const v = `var(--pair-${known ? face : 'ghost'})`
   return alpha === undefined ? `rgb(${v})` : `rgb(${v} / ${alpha})`
 }
 
 export function pairsFaceName(face) {
-  return PAIRS_FACE_NAMES[face] || 'card'
+  return PAIRS_FACE_NAMES[face] || LEGACY_FACE_NAMES[face] || 'card'
 }
 
 // The 8×8 silhouette rows ('#' ink, 'o' knock-out, '.' empty) for a face.

@@ -24,7 +24,7 @@ export function mulberry32(seed) {
 // Range reduction: wrap into [0, 2π) using floor() (exact for our magnitudes),
 // then fold quadrants. Taylor of sin to x^19 keeps error < 1e-12 on [0, π/2].
 // ---------------------------------------------------------------------------
-const TWO_PI = 6.283185307179586
+export const TWO_PI = 6.283185307179586
 const INV_TWO_PI = 1 / TWO_PI
 
 // Reciprocal odd factorials: 1/1!, 1/3!, ... 1/19!

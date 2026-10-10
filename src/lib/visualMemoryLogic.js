@@ -45,10 +45,11 @@ export function normalizeVmArray(raw) {
 
 // Returns `level` unique random cell indices from a `gridSize`-cell grid (never more
 // than the grid holds, so it always terminates).
-export function generateVmPattern(level, gridSize = vmCellCount(level)) {
+// `rand` lets the daily memory challenge deal the same patterns to everyone.
+export function generateVmPattern(level, gridSize = vmCellCount(level), rand = Math.random) {
   const cells = Array.from({ length: gridSize }, (_, i) => i)
   for (let i = cells.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = Math.floor(rand() * (i + 1))
     ;[cells[i], cells[j]] = [cells[j], cells[i]]
   }
   return cells.slice(0, Math.min(level, gridSize))
@@ -89,4 +90,38 @@ export function applyVmMove(game, cellIndex, symbol) {
   }
 
   return { updates: { vmClicked: newClicked }, result: null }
+}
+
+// ── Simultaneous duel (VisualMemoryGame) ──
+// Both players get the SAME pattern at the same moment (server-clock reveal) and
+// recall it on their own boards; the level resolves through resolveLevelRace once
+// both have cleared or slipped. Replaces the turn-based duel where the waiting
+// player stared at a dark grid for the whole of the other player's turn.
+
+// How long each player has to recall after the reveal ends; whoever has not finished
+// by then is counted as a slip with no wrong cell (-1).
+export const VM_RECALL_MS = 30000
+
+// One tap on my own board. Returns { valid: false } for a repeat or out-of-range tap,
+// { valid: true, correct: false } for a wrong tile, or { valid: true, correct: true,
+// clicked, done } for a right one.
+export function evaluateVmDuelTap({ pattern, clicked, level, cell }) {
+  const pat = normalizeVmArray(pattern)
+  const got = normalizeVmArray(clicked)
+  if (!pat.length || cell < 0 || cell >= vmCellCount(level) || got.includes(cell)) return { valid: false }
+  if (!pat.includes(cell)) return { valid: true, correct: false }
+  const next = [...got, cell]
+  return { valid: true, correct: true, clicked: next, done: next.length === pat.length }
+}
+
+// Patch for the next level (both cleared) or a replay of this one (dead-even double slip).
+export function buildVmDuelLevel(level, startAt) {
+  return {
+    vmLevel: level,
+    vmPattern: generateVmPattern(level),
+    vmClickedX: null, vmClickedO: null,
+    vmDoneX: false, vmDoneO: false,
+    vmFailX: null, vmFailO: null,
+    vmRoundStartedAt: startAt,
+  }
 }

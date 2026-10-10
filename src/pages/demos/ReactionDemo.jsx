@@ -99,7 +99,7 @@ export default function ReactionDemo() {
           </p>
         )}
         <button onClick={reset}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95">
+          className="w-full py-2 font-pixel text-[9px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press">
           PLAY AGAIN
         </button>
       </div>
@@ -116,7 +116,7 @@ export default function ReactionDemo() {
           phase === 'ready'     ? 'bg-retro-win/20 border-retro-win shadow-neon-win' :
           phase === 'too_early' ? 'bg-retro-p2/15 border-retro-p2/50' :
                                   'bg-retro-surface border-retro-border',
-          'active:scale-[0.98] cursor-pointer',
+          'press-card cursor-pointer',
         )}
       >
         <p className={cn(

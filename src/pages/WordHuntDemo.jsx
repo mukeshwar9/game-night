@@ -11,7 +11,9 @@ import {
   compareHunt, topMissedWords, neighborsOf, COUNTDOWN_MS, ROUND_MS, MATCH_WINS, MIN_WORD_LENGTH, CELL_COUNT,
 } from '../lib/wordhuntLogic'
 import { loadDictionary } from '../lib/wordhuntDictionary'
-import { planBotFinds, botFindsBy, tallyWins, matchWinner } from '../lib/wordBotsLogic'
+import { planBotFinds, botFindsBy, tallyWins, matchWinner, wordBotLevel, WORD_BOT_LEVEL_IDS } from '../lib/wordBotsLogic'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -118,6 +120,8 @@ export default function WordHuntDemo() {
 
   const [winners, setWinners] = useState([])
   const [round, setRound] = useState(null) // { grid, solutions, plan, startedAt }
+  const [level, setLevel] = useBotDifficulty('wordhunt', WORD_BOT_LEVEL_IDS)
+  const chips = <CpuDifficultyChips levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} />
   const [myWords, setMyWords] = useState([])
   const [lastResult, setLastResult] = useState(null)
   const [now, setNow] = useState(() => Date.now())
@@ -163,7 +167,7 @@ export default function WordHuntDemo() {
     if (!dict) return
     const grid = ensurePlayableGrid(generateGrid(randSeed()), dict)
     const solutions = solveGrid(grid, dict)
-    const plan = planBotFinds(solutions, { durationMs: ROUND_MS })
+    const plan = planBotFinds(solutions, { durationMs: ROUND_MS, recall: wordBotLevel(level).findRecall })
     const at = Date.now()
     setRound({ grid, solutions, plan, startedAt: at })
     setNow(at)
@@ -332,7 +336,7 @@ export default function WordHuntDemo() {
               type="button"
               onClick={retryDictionary}
               disabled={retrying}
-              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-50"
+              className="mt-2 px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-50"
             >
               {retrying ? 'RETRYING…' : 'RETRY'}
             </button>
@@ -354,10 +358,11 @@ export default function WordHuntDemo() {
         <button
           type="button"
           onClick={startRound}
-          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95"
+          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
         >
           READY
         </button>
+        {chips}
       </div>
     )
   }
@@ -424,7 +429,7 @@ export default function WordHuntDemo() {
             <button
               type="button"
               onClick={newMatch}
-              className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta active:scale-95"
+              className="px-5 py-2 font-pixel text-[10px] bg-retro-cta text-retro-bg rounded hover:shadow-neon-cta press"
             >
               NEW MATCH
             </button>
@@ -434,12 +439,13 @@ export default function WordHuntDemo() {
             <button
               type="button"
               onClick={nextRound}
-              className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 active:scale-95"
+              className="px-5 py-2 font-pixel text-[10px] border border-retro-p1 text-retro-p1 rounded hover:shadow-neon-p1 press"
             >
               NEXT ROUND — NEW GRID
             </button>
           </div>
         )}
+        {chips}
       </div>
     )
   }
@@ -494,12 +500,12 @@ export default function WordHuntDemo() {
           enterKeyHint="done"
           aria-label="Type a word"
           placeholder="OR TYPE A WORD…"
-          className="min-w-0 flex-1 min-h-11 rounded border border-retro-border bg-retro-card px-3 font-pixel text-xs tracking-widest text-retro-text placeholder:text-retro-dim focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta"
+          className="min-w-0 flex-1 min-h-11 rounded border border-retro-border bg-retro-card px-3 font-pixel text-xs tracking-widest text-retro-text placeholder:text-retro-dim placeholder:font-mono placeholder:tracking-normal focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-cta"
         />
         <button
           type="submit"
           disabled={!typed}
-          className="min-h-11 rounded bg-retro-cta px-3 font-pixel text-[9px] text-retro-bg active:scale-95 disabled:opacity-50"
+          className="min-h-11 rounded bg-retro-cta px-3 font-pixel text-[9px] text-retro-bg press disabled:opacity-50"
         >
           ENTER
         </button>

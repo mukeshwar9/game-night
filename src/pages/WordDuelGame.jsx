@@ -6,7 +6,7 @@ import {
   compareResults, getKeyboardState, MAX_GUESSES, WORD_LENGTH, MATCH_WINS,
   verifyOpponentRound, verifyGradedBoard, decideDuelRound,
   applyGrading, applyDuelGuess, applySelfDone, nextDuelRound, normalizeGuessList,
-  guessProblem, secretWordProblem, getFinishGraceEndsAt, applyFinishTimeout,
+  guessProblem, secretWordProblem, secretWordWarning, getFinishGraceEndsAt, applyFinishTimeout,
   DUEL_FINISH_GRACE_MS,
 } from '../lib/wordduelLogic'
 import { sounds } from '../lib/sounds'
@@ -15,6 +15,7 @@ import GameStatus from '../components/GameStatus'
 import { cn } from '@/lib/utils'
 import { getGameConfig } from '@/lib/games'
 import { shareResult } from '@/lib/shareCard'
+import { shareCurrentUrl } from '@/lib/platform'
 import PixelDots from '@/components/loading/PixelDots'
 import OfflineNotice from '@/components/loading/OfflineNotice'
 import useBusy from '@/hooks/useBusy'
@@ -25,6 +26,8 @@ import RoundTimer from '@/components/RoundTimer'
 import WordFeedback from '@/components/WordFeedback'
 import MatchScoreRail from '@/components/MatchScoreRail'
 import { toast } from 'sonner'
+import { getAnswerList } from '@/lib/dictionary'
+import { pickCpuSecret } from '@/lib/wordBotsLogic'
 
 const STORAGE_PREFIX = 'wordduel-word-'
 // A setter who never commits, or an opponent whose tab closed leaving a guess
@@ -110,7 +113,7 @@ function ShareButton({ onClick, busy }) {
       onClick={onClick}
       disabled={busy}
       className="px-6 py-2.5 min-w-[6.5rem] border-2 border-retro-border text-retro-text font-pixel text-xs
-        rounded hover:border-retro-p1/50 hover:text-retro-p1 transition-all active:scale-95 disabled:opacity-50"
+        rounded hover:border-retro-p1/50 hover:text-retro-p1 transition press disabled:opacity-50"
     >
       {busy ? 'BUILDING…' : 'SHARE'}
     </button>
@@ -125,7 +128,7 @@ function ClaimBox({ message, onClick, busy, label = 'CLAIM ROUND' }) {
         type="button"
         onClick={onClick}
         disabled={busy}
-        className="min-h-11 px-6 py-2.5 border-2 border-retro-p2 text-retro-p2 font-bold text-xs uppercase rounded hover:shadow-neon-p2 transition-all active:scale-95 disabled:opacity-50"
+        className="min-h-11 px-6 py-2.5 border-2 border-retro-p2 text-retro-p2 font-bold text-xs uppercase rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
       >
         {busy ? 'CLAIMING…' : label}
       </button>
@@ -168,6 +171,7 @@ export default function WordDuelGame({
 
   const [settingWord, setSettingWord] = useState('')
   const [settingFeedback, setSettingFeedback] = useState(null)
+  const [rareWarned, setRareWarned] = useState('') // the rare secret already warned about
   const [currentGuess, setCurrentGuess] = useState('')
   const [guessFeedback, setGuessFeedback] = useState(null)
   const [cheatDetected, setCheatDetected] = useState(false)
@@ -321,6 +325,12 @@ export default function WordDuelGame({
     if (problem) {
       sounds.miss?.()
       setSettingFeedback(prev => ({ message: problem, id: (prev?.id || 0) + 1 }))
+      return
+    }
+    const warning = secretWordWarning(word)
+    if (warning && rareWarned !== word) {
+      setRareWarned(word)
+      setSettingFeedback(prev => ({ message: warning, tone: 'info', id: (prev?.id || 0) + 1 }))
       return
     }
     setSettingFeedback(null)
@@ -705,18 +715,32 @@ export default function WordDuelGame({
         {!myCommit ? (
           <>
             <WordInput value={settingWord} />
-            <WordFeedback message={settingFeedback?.message} tone="bad" id={settingFeedback?.id} />
-            <button
-              className={cn(
-                'min-h-11 px-6 py-2.5 rounded font-pixel text-[10px] cursor-pointer',
-                'bg-retro-cta text-retro-bg hover:shadow-neon-cta active:scale-95 transition-all',
-                'disabled:opacity-50 disabled:cursor-default',
-              )}
-              onClick={handleSetWord}
-              disabled={locking || settingWord.length !== WORD_LENGTH}
-            >
-              {locking ? 'LOCKING…' : 'LOCK IN'}
-            </button>
+            <WordFeedback message={settingFeedback?.message} tone={settingFeedback?.tone || 'bad'} id={settingFeedback?.id} />
+            <div className="flex gap-2">
+              {/* SUGGEST deals an everyday word from the answer list. */}
+              <button
+                type="button"
+                className="min-h-11 px-4 py-2.5 rounded border-2 border-retro-border font-pixel text-[10px] text-retro-text hover:border-retro-cta press transition disabled:opacity-50"
+                onClick={() => {
+                  setSettingWord(pickCpuSecret(getAnswerList(), { used: [settingWord] }).toUpperCase())
+                  setSettingFeedback(null)
+                }}
+                disabled={locking}
+              >
+                SUGGEST
+              </button>
+              <button
+                className={cn(
+                  'min-h-11 px-6 py-2.5 rounded font-pixel text-[10px] cursor-pointer',
+                  'bg-retro-cta text-retro-bg hover:shadow-neon-cta press transition',
+                  'disabled:opacity-50 disabled:cursor-default',
+                )}
+                onClick={handleSetWord}
+                disabled={locking || settingWord.length !== WORD_LENGTH}
+              >
+                {locking ? 'LOCKING…' : 'LOCK IN'}
+              </button>
+            </div>
             <div className="w-full">
               <WordKeyboard keyState={{}} onKey={handleSettingKey} disabled={locking} enterLabel="Lock in word" />
             </div>
@@ -844,7 +868,7 @@ export default function WordDuelGame({
       headline: shareHeadline,
       sub: `${allScores.X} – ${allScores.O}`,
       accentVar: shareAccent,
-      url: window.location.href,
+      url: shareCurrentUrl(),
     })
     if (!ok) toast.error("COULDN'T BUILD SHARE CARD — TRY AGAIN")
   })
@@ -919,7 +943,7 @@ export default function WordDuelGame({
         {!matchWinner && !proposal && (
           <button
             className="px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs
-              rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-50"
+              rounded hover:shadow-neon-cta transition press disabled:opacity-50"
             onClick={handleNextRound}
             disabled={actionBusy || !result}
           >
@@ -929,7 +953,7 @@ export default function WordDuelGame({
         {onNewMatch && !proposal && (
           <button
             className={cn(
-              'px-6 py-2.5 font-pixel text-xs rounded transition-all active:scale-95 disabled:opacity-50',
+              'px-6 py-2.5 font-pixel text-xs rounded transition press disabled:opacity-50',
               matchWinner
                 ? 'bg-retro-cta text-retro-bg hover:shadow-neon-cta'
                 : 'border-2 border-retro-border text-retro-text hover:border-retro-p1/50 hover:text-retro-p1',

@@ -21,12 +21,12 @@ import { cn } from '@/lib/utils'
 
 const BEST_KEY = 'animalstack-climb' // soloBest key → height ×10 (one decimal)
 const TEXT_TOK = { p1: 'text-retro-p1', p2: 'text-retro-p2', p3: 'text-retro-p3', p4: 'text-retro-p4' }
-const CTA = 'min-h-11 px-6 py-3 bg-retro-cta text-retro-bg font-pixel text-xs rounded transition-all active:scale-95 disabled:opacity-50 hover:shadow-neon-cta'
-const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition-all active:scale-95 hover:border-retro-p1/50 hover:text-retro-p1'
+const CTA = 'min-h-11 px-6 py-3 bg-retro-cta text-retro-bg font-pixel text-xs rounded transition press disabled:opacity-50 hover:shadow-neon-cta'
+const SEC = 'min-h-11 px-5 py-2.5 border-2 border-retro-border text-retro-text font-pixel text-[10px] rounded transition press hover:border-retro-p1/50 hover:text-retro-p1'
 
 function Toggle({ label, on, onChange }) {
   return (
-    <label className="flex items-center justify-between py-2 border-b border-retro-border/60 font-mono text-xs text-retro-text cursor-pointer">
+    <label className="flex items-center justify-between min-h-11 py-2 border-b border-retro-border/60 font-mono text-xs text-retro-text cursor-pointer">
       <span>{label}</span>
       <input type="checkbox" checked={on} onChange={e => onChange(e.target.checked)} className="w-5 h-5 accent-[rgb(var(--c-win))]" />
     </label>
@@ -42,7 +42,7 @@ function SoloPicker({ onStart }) {
         <button
           key={id}
           onClick={() => onStart({ mode: 'bot', level: id })}
-          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left active:scale-[0.98] transition-all"
+          className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left press-card transition"
         >
           <span className="font-pixel text-[10px] text-retro-cta w-16">{L.label}</span>
           <span className="font-mono text-[11px] text-retro-dim">{L.blurb}</span>
@@ -51,7 +51,7 @@ function SoloPicker({ onStart }) {
       <p className="font-pixel text-[9px] text-retro-dim tracking-widest text-center pt-2">SOLO HEIGHT CHASE</p>
       <button
         onClick={() => onStart({ mode: 'climb' })}
-        className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left active:scale-[0.98] transition-all"
+        className="w-full min-h-14 flex items-center gap-3 px-3 py-2 border border-retro-border rounded bg-retro-card hover:border-retro-cta/50 text-left press-card transition"
       >
         <span className="font-pixel text-[10px] text-retro-cta w-16">CLIMB</span>
         <span className="font-mono text-[11px] text-retro-dim">one tower, no timer{best > 0 ? ` · best ${best.toFixed(1)} m` : ''}</span>
@@ -231,7 +231,8 @@ function OfflineMatch({ setup, onExit }) {
     return () => clearInterval(id)
   }, [timed, turnKey])
 
-  // Bot turn: score candidates a few per frame, glide the piece over, drop.
+  // Bot turn: score candidates in short (8ms) slices so a slow phone keeps
+  // animating between them, glide the piece over, drop.
   useEffect(() => {
     if (phase !== 'aim' || !current?.bot) return
     const level = current.bot, L = BOT_LEVELS[level]
@@ -241,7 +242,7 @@ function OfflineMatch({ setup, onExit }) {
     const chunk = () => {
       if (cancelled) return
       const t0 = performance.now()
-      while (i < cands.length && performance.now() - t0 < 24) {
+      while (i < cands.length && performance.now() - t0 < 8) {
         const s = scoreCandidate(m.state, cands[i], L.cap) + Math.random() * 0.2
         if (s > bestScore) { bestScore = s; best = cands[i] }
         i++
@@ -309,7 +310,7 @@ function OfflineMatch({ setup, onExit }) {
       />
 
       {phase === 'gate' && (
-        <div className="fixed inset-0 z-50 bg-retro-bg/95 flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="fixed inset-0 z-50 bg-retro-bg/95 flex flex-col items-center justify-center gap-4 p-8 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] text-center">
           <span className={cn('text-6xl leading-none', TEXT_TOK[PLAYER_TOKENS[match.turn]])}>{PLAYER_GLYPHS[match.turn]}</span>
           <p className={cn('font-pixel text-sm', TEXT_TOK[PLAYER_TOKENS[match.turn]])}>PASS TO {current.name}</p>
           <p className="font-mono text-xs text-retro-dim">tower {top.toFixed(1)} m · {match.state.length} animals</p>
@@ -318,7 +319,7 @@ function OfflineMatch({ setup, onExit }) {
       )}
 
       {phase === 'toppled' && match.lastToppler != null && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-2" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-2">
           <p className="font-pixel text-[9px] text-retro-dim tracking-widest">TOWER {match.round - 1} TOPPLED BY</p>
           <p className={cn('font-pixel text-sm', TEXT_TOK[PLAYER_TOKENS[match.lastToppler]])}>
             {PLAYER_GLYPHS[match.lastToppler]} {players[match.lastToppler].name} {match.hearts[match.lastToppler] > 0 ? '−♥' : 'IS OUT'}
@@ -329,7 +330,7 @@ function OfflineMatch({ setup, onExit }) {
       )}
 
       {phase === 'over' && (
-        <div className="border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3" style={{ animation: 'modal-pop 0.28s ease-out' }}>
+        <div className="modal-pop border-2 border-retro-border bg-retro-card rounded p-4 text-center space-y-3">
           {n === 1 ? (
             <>
               <p className="font-pixel text-[10px] text-retro-dim tracking-widest">RUN OVER</p>
@@ -357,8 +358,8 @@ function OfflineMatch({ setup, onExit }) {
       )}
 
       <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
-        DRAG TO AIM · ⟲ ROTATES 15° · DROP LETS GO<br />
-        <span className="kbd-hint">←/→ AIM · ↑/R ROTATE · SPACE DROPS · </span>ANY ANIMAL IN THE WATER = TOPPLE
+        DRAG TO AIM · ⟲ ⟳ TURN 15° · DROP LETS GO<br />
+        <span className="kbd-hint">←/→ AIM · ↑/↓ TURN · SPACE DROPS · </span>ANY ANIMAL IN THE WATER = TOPPLE
       </p>
     </div>
   )

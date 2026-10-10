@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { isFamilySafe } from './wordDenylist'
 import { commit, verifyReveal } from './commit'
 import {
   STATEMENT_COUNT, MIN_STATEMENT_LENGTH, MAX_STATEMENT_LENGTH, DEFAULT_MATCH_TARGET, WRITING_DEADLINE_MS,
@@ -10,6 +11,7 @@ import {
   canEndWriting, canEndGuessing, canForfeitOpponentReveal, revealKey, verifyRoundReveals,
   judgeRound, finishRevealedRound, endStalledRound, applyRoundScores,
   settleRevealedGame, settleStalledGame, advanceGame, AUTO_ADVANCE_MS, autoAdvanceAt,
+  TOPICS, topicForRound, nextStarter,
 } from './twoTruthsLogic'
 
 const GOOD = ['I have been to Peru', 'I can juggle five balls', 'I once met a famous chef']
@@ -530,5 +532,34 @@ describe('autoAdvanceAt', () => {
 
   it('is null before the round is scored', () => {
     expect(autoAdvanceAt(normalizeRound({ startedAt: 5 }))).toBeNull()
+  })
+})
+
+describe('writing prompts', () => {
+  it('gives both players the same topic for a round, and varies by round', () => {
+    expect(topicForRound('ABC123', 1)).toBe(topicForRound('ABC123', 1))
+    const seen = new Set(Array.from({ length: 12 }, (_, i) => topicForRound('ABC123', i + 1).id))
+    expect(seen.size).toBeGreaterThan(3)
+  })
+
+  it('ships clean, family-safe topics with several starters each', () => {
+    for (const topic of TOPICS) {
+      expect(topic.starters.length).toBeGreaterThanOrEqual(3)
+      for (const starter of [topic.label, ...topic.starters]) {
+        expect(findBannedWord(starter), starter).toBeNull()
+        for (const word of starter.toLowerCase().match(/[a-z]+/g)) expect(isFamilySafe(word), word).toBe(true)
+        expect(starter.length).toBeLessThan(MAX_STATEMENT_LENGTH - 10)
+      }
+    }
+  })
+
+  it('INSPIRE ME offers a starter not already used in a statement', () => {
+    const topic = TOPICS[0]
+    const first = nextStarter(topic, ['', '', ''])
+    expect(first).toBe(`${topic.starters[0]} `)
+    const second = nextStarter(topic, [`${first}sushi`, '', ''])
+    expect(second).toBe(`${topic.starters[1]} `)
+    expect(nextStarter(topic, ['', '', ''], 2)).toBe(`${topic.starters[2]} `)
+    expect(nextStarter(null, [])).toBeNull()
   })
 })

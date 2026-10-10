@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   MASK, DISPLAY_NAME_MAX, MUTED_CAP,
-  moderateText, sanitizeDisplayName, NAME_REJECT_MESSAGES,
-  parseMutedMap, toggleMutedMap, mutedList,
+  moderateText, sanitizeDisplayName, NAME_REJECT_MESSAGES, displayNameFor, moderateRoomNames,
+  parseMutedMap, toggleMutedMap, mutedList, unsyncedMutes,
 } from './moderationLogic'
 
 describe('moderateText', () => {
@@ -128,5 +128,73 @@ describe('mute map', () => {
     const map = { a: { name: 'A', at: 1 }, b: { name: 'B', at: 3 }, c: { name: 'C', at: 2 } }
     expect(mutedList(map).map(m => m.uid)).toEqual(['b', 'c', 'a'])
     expect(mutedList(null)).toEqual([])
+  })
+})
+
+describe('displayNameFor', () => {
+  it('passes a clean name through', () => {
+    expect(displayNameFor('Cheeky Yeti')).toBe('Cheeky Yeti')
+  })
+  it('masks denied words and keeps the rest', () => {
+    expect(displayNameFor('big fuck')).toBe(`big ${MASK}`)
+  })
+  it('never returns an empty or all-mask name', () => {
+    expect(displayNameFor('')).toBe('PLAYER')
+    expect(displayNameFor('   ')).toBe('PLAYER')
+    expect(displayNameFor(undefined)).toBe('PLAYER')
+    expect(displayNameFor(42)).toBe('PLAYER')
+    expect(displayNameFor('fuck', 'GUEST')).toBe('GUEST')
+  })
+  it('clamps to the display-name cap and strips invisible characters', () => {
+    expect(displayNameFor('x'.repeat(200))).toHaveLength(20)
+    expect(displayNameFor('Bo​b')).toBe('Bob')
+  })
+})
+
+describe('moderateRoomNames', () => {
+  const room = () => ({
+    gameType: 'tictactoe',
+    players: { X: { name: 'Alice', playerId: 'a' }, O: { name: 'shit head', playerId: 'b' } },
+    queue: { c: { name: 'Carol', playerId: 'c' } },
+    spectators: { s: { conn1: { name: 'fuck', at: 1 } } },
+    chatLog: {
+      m1: { by: 'a', name: 'Alice', text: 'hi', ts: 1 },
+      m2: { by: 'b', name: 'Alice', text: 'i am alice', ts: 2 },
+      m3: { by: 's', name: 'Zed', text: 'hello', ts: 3 },
+      m4: { by: 'unknown', name: 'fuck off', text: 'x', ts: 4 },
+    },
+  })
+  it('masks seat, queue and spectator names', () => {
+    const out = moderateRoomNames(room())
+    expect(out.players.O.name).toBe(`${MASK} head`)
+    expect(out.players.X.name).toBe('Alice')
+    expect(out.queue.c.name).toBe('Carol')
+    expect(out.spectators.s.conn1.name).toBe('PLAYER')
+  })
+  it('labels chat with the sender’s recorded name, not the message’s own', () => {
+    const out = moderateRoomNames(room())
+    expect(out.chatLog.m1.name).toBe('Alice')
+    expect(out.chatLog.m2.name).toBe(`${MASK} head`)
+    expect(out.chatLog.m3.name).toBe('PLAYER')
+    expect(out.chatLog.m4.name).toBe(`${MASK} off`)
+  })
+  it('does not mutate its input and tolerates a sparse room', () => {
+    const input = room()
+    moderateRoomNames(input)
+    expect(input.players.O.name).toBe('shit head')
+    expect(moderateRoomNames(null)).toBe(null)
+    expect(moderateRoomNames({ gameType: 'x' })).toEqual({ gameType: 'x', players: undefined, queue: undefined })
+  })
+})
+
+describe('unsyncedMutes', () => {
+  it('returns the local mutes the synced list lacks', () => {
+    const local = { a: { name: 'A', at: 1 }, b: { name: 'B', at: 2 } }
+    expect(unsyncedMutes(local, { a: { name: 'A', at: 1 } })).toEqual({ b: { name: 'B', at: 2 } })
+  })
+  it('handles empty or missing maps', () => {
+    expect(unsyncedMutes({}, { a: { name: '', at: 1 } })).toEqual({})
+    expect(unsyncedMutes({ a: { name: '', at: 1 } }, null)).toEqual({ a: { name: '', at: 1 } })
+    expect(unsyncedMutes(null, null)).toEqual({})
   })
 })

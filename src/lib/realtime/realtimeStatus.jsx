@@ -15,7 +15,7 @@ import useBusy from '@/hooks/useBusy'
 import { dropPrompt } from './connectionLogic'
 import { claimAbandonedRound } from './claimWin'
 
-const btn = 'min-h-11 px-4 py-2 font-pixel text-[10px] rounded active:scale-95 disabled:opacity-50'
+const btn = 'min-h-11 px-4 py-2 font-pixel text-[10px] rounded press disabled:opacity-50'
 
 function RetryButton({ retry }) {
   return (

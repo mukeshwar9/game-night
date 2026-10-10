@@ -48,7 +48,7 @@ import {
   crDimsFromLength,
 } from './chainReactionLogic'
 import { computeBotMove as botBlockade, legalPawnMoves as bkLegalPawnMoves } from './blockadeLogic'
-import { computePairsBotMove } from './pairsLogic'
+import { computePairsBotMove, observePairsFlip, normalizePairsDeck } from './pairsLogic'
 import {
   neighbors, HEX_CELL_COUNT, HEX_SIZE, canHexSwap, SWAP_ACTION as HEX_SWAP_ACTION,
 } from './hexLogic'
@@ -1806,10 +1806,14 @@ const HARD_BOTS = {
   'dice-big': botDiceHard,
 }
 
+// Bots with their own three-level model instead of the shared easy/hard wrappers.
+// Pairs plays from a memory of the cards it has seen (pairsLogic.js PAIRS_BOT_LEVELS).
+const MEMORY_BOTS = new Set(['pairs', 'pairs4'])
+
 // The difficulty levels a type actually distinguishes — what a picker should
-// offer. ['normal'] alone means the type has no easy/hard variants (Pairs, a
-// memory game, keeps its own bot).
+// offer. ['normal'] alone means the type has no easy/hard variants.
 export function botDifficulties(type) {
+  if (MEMORY_BOTS.has(type)) return [...BOT_DIFFICULTIES]
   const levels = []
   if (EASY_TYPES.has(type)) levels.push('easy')
   levels.push('normal')
@@ -1822,6 +1826,7 @@ export function botDifficulties(type) {
 
 export function pickBotMove(type, game, botSymbol, difficulty = DEFAULT_BOT_DIFFICULTY) {
   const level = normalizeDifficulty(difficulty)
+  if (MEMORY_BOTS.has(type)) return computePairsBotMove(game, botSymbol, level)
   if (level === 'easy') {
     const move = pickEasyMove(type, game, botSymbol)
     if (move !== undefined) return move
@@ -1829,4 +1834,17 @@ export function pickBotMove(type, game, botSymbol, difficulty = DEFAULT_BOT_DIFF
     return HARD_BOTS[type](game, botSymbol)
   }
   return pickNormalMove(type, game, botSymbol)
+}
+
+// Called by the demo harness after every applied move (the player's and the bot's),
+// with the move's cell index. Returns extra local state for bots that learn from
+// what they see — the Pairs bot remembers turned-up faces — or null.
+export function observeDemoMove(type, game, index, difficulty = DEFAULT_BOT_DIFFICULTY) {
+  if (!MEMORY_BOTS.has(type) || index == null || index < 0) return null
+  const count = (game.pairsFlipCount ?? 0) + 1
+  const face = normalizePairsDeck(game.pairsDeck)[index]
+  return {
+    pairsFlipCount: count,
+    pairsBotMemory: observePairsFlip(game.pairsBotMemory, index, face, count, normalizeDifficulty(difficulty)),
+  }
 }

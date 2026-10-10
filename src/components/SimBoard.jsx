@@ -23,7 +23,7 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
   return (
     <div className="w-full max-w-[340px] sm:max-w-[400px] mx-auto">
       <div className={cn(
-        'relative bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'relative bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         {/* Board geometry: SVG viewBox 0 0 100 100, preserveAspectRatio keeps
@@ -94,8 +94,8 @@ export default function SimBoard({ board, onMove, disabled, winningLine = [], la
                 onClick={() => clickable && onMove(i)}
                 className={cn(
                   'absolute -translate-x-1/2 -translate-y-1/2 w-[14%] h-[14%] max-w-12 max-h-12 rounded-full',
-                  'flex items-center justify-center transition-all duration-100 touch-manipulation',
-                  clickable && 'cursor-pointer hover:bg-retro-tint-cta/40 active:scale-90',
+                  'flex items-center justify-center transition duration-100 touch-manipulation',
+                  clickable && 'cursor-pointer hover:bg-retro-tint-cta/40 press',
                   !clickable && 'cursor-default',
                 )}
                 style={{ left: `${mid.x}%`, top: `${mid.y}%` }}

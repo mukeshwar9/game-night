@@ -4,6 +4,9 @@
 // word. Fewer steps earn more stars; after CONVERGE_MAX_STEPS steps the
 // chain is lost. A match is CONVERGE_CHAINS chains.
 //
+// Step 1 never scores: the same opening word (agreed in chat, say) just
+// restarts the chain ('sameStart'), so the fastest convergence is step 2.
+//
 // The match lives in `games/{id}/round`; each lock is one runTransaction on
 // the room. The partner's locked word sits in the room until both are in —
 // the page hides it (co-op: peeking only spoils your own game).
@@ -21,7 +24,7 @@ export const CONVERGE_MAX_LEN = 16
 
 const SEATS = ['X', 'O']
 
-/** Stars for a chain that converged on step `steps` (1-based). */
+/** Stars for a chain that converged on step `steps` (2 or more). */
 export function starsFor(steps) {
   if (steps <= 2) return 3
   if (steps <= 4) return 2
@@ -124,6 +127,9 @@ export function lockWord(rawRound, { player, word, at = 0 }) {
   const chain = [...r.chain, { X: pending.X, O: pending.O }]
   const steps = chain.length
   const converged = sameWord(pending.X, pending.O)
+  if (converged && steps === 1) {
+    return serialize({ ...r, chain: [], pending: null, last: { kind: 'sameStart', word: pending.X, steps: 0, at } })
+  }
   if (!converged && steps < CONVERGE_MAX_STEPS) {
     return serialize({ ...r, chain, pending: null, last: { kind: 'reveal', steps, at } })
   }

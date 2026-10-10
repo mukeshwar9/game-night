@@ -22,6 +22,20 @@ test('two players converge on a word', async ({ browser }) => {
     }
   })
 
+  await test.step('typed chat is hidden while words are written', async () => {
+    // Agreeing a word in chat would make every chain a free ★★★.
+    await expect(alice.page.getByRole('button', { name: /^Open chat/ })).toHaveCount(0)
+  })
+
+  await test.step('the same opening word does not score', async () => {
+    await lockIn(alice.page, 'cat')
+    await lockIn(bob.page, 'cats')
+    for (const { page } of [alice, bob]) {
+      await expect(page.getByText(/You both opened with CAT/)).toBeVisible()
+      await expect(page.getByText('STARS 0/15')).toBeVisible()
+    }
+  })
+
   await test.step('a locked word stays hidden and can be changed', async () => {
     await lockIn(alice.page, 'planet')
     await expect(bob.page.getByText('ALICE: LOCKED')).toBeVisible()
@@ -54,12 +68,17 @@ test('two players converge on a word', async ({ browser }) => {
       await expect(page.getByText('Same word in 2 steps.')).toBeVisible()
       await expect(page.getByText('STARS 3/15')).toBeVisible()
     }
+    // Between chains the chat is back.
+    await expect(alice.page.getByRole('button', { name: /^Open chat/ })).toBeVisible()
   })
 
   await test.step('the match ends after five chains and PLAY AGAIN keeps the best', async () => {
     for (const [c, word] of [[2, 'sun'], [3, 'tea'], [4, 'cat'], [5, 'dog']]) {
       await alice.page.getByRole('button', { name: `START CHAIN ${c}` }).click()
       await expect(bob.page.getByRole('textbox', { name: 'Your word' })).toBeEnabled()
+      await lockIn(alice.page, 'pizza')
+      await lockIn(bob.page, 'moon')
+      await expect(alice.page.getByText(/^Bridge/)).toBeVisible()
       await lockIn(alice.page, word)
       await lockIn(bob.page, word)
     }

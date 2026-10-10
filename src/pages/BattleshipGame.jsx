@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { ref, update, runTransaction } from 'firebase/database'
 import { db } from '../lib/firebase'
 import BattleshipBoard from '../components/BattleshipBoard'
+import BattleshipTabs from '../components/BattleshipTabs'
+import useBattleshipView from '../hooks/useBattleshipView'
+import useTapConfirm from '../hooks/useTapConfirm'
 import GameStatus from '../components/GameStatus'
 import SpectatorCard from '../components/SpectatorCard'
 import OfflineNotice from '../components/loading/OfflineNotice'
@@ -101,6 +104,8 @@ export default function BattleshipGame({
   const oppShots = useMemo(() => shots.filter(s => s.by === opp), [shots, opp])
   const turn = round.turn ?? 'X'
   const myTurn = phase === 'battle' && turn === me
+  const [view, setView] = useBattleshipView({ phase, myTurn })
+  const confirm = useTapConfirm({ disabled: !!secret })
   const pendingGrade = shots.some(s => !s.result && s.by !== me)
   const lastMyShot = myShots[myShots.length - 1]
   const lastOppShot = oppShots[oppShots.length - 1]
@@ -274,15 +279,17 @@ export default function BattleshipGame({
 
   // Hover preview — whole-ship footprint while placing, live-updates on rotate.
   const selectedSize = selected ? FLEET_SPEC.find(s => s.ship === selected)?.size : null
+  // Touch has no hover: the first tap previews the footprint, a second places it.
+  const previewCell = confirm.pending ?? hoverCell
   const preview = useMemo(() => {
-    if (!selected || hoverCell == null || selectedSize == null) return null
+    if (!selected || previewCell == null || selectedSize == null) return null
     const orient = draft[selected]?.orient ?? 'h'
-    const row = Math.floor(hoverCell / 10)
-    const cells = shipCells(selectedSize, orient, hoverCell)
+    const row = Math.floor(previewCell / 10)
+    const cells = shipCells(selectedSize, orient, previewCell)
       .filter(c => c >= 0 && c < 100 && (orient !== 'h' || Math.floor(c / 10) === row))
-    const valid = canPlace(draft, selected, orient, hoverCell)
+    const valid = canPlace(draft, selected, orient, previewCell)
     return { cells, valid }
-  }, [selected, hoverCell, selectedSize, draft])
+  }, [selected, previewCell, selectedSize, draft])
 
   const rotateSelected = () => {
     if (!selected) return
@@ -401,7 +408,7 @@ export default function BattleshipGame({
             RIVALS ARE DEPLOYING THEIR FLEETS…
           </p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
             {['X', 'O'].map(sym => (
               <div key={sym} className="space-y-1">
                 <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
@@ -443,7 +450,7 @@ export default function BattleshipGame({
           <BattleshipBoard
             shots={{}}
             fleetCells={myFleetCells}
-            onCell={placeShip}
+            onCell={(cell) => confirm.tap(cell, () => placeShip(cell))}
             disabled={!!secret}
             preview={secret ? null : preview}
             onHoverCell={secret ? undefined : setHoverCell}
@@ -463,7 +470,7 @@ export default function BattleshipGame({
                     onClick={() => !placed && setSelected(ship)}
                     disabled={placed}
                     className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition-all active:scale-[0.98]',
+                      'w-full flex items-center justify-between px-3 py-2 rounded border-2 transition press-card',
                       isSelected && !placed
                         ? 'border-retro-cta text-retro-cta shadow-neon-cta'
                         : placed
@@ -501,19 +508,19 @@ export default function BattleshipGame({
               <button
                 onClick={rotateSelected}
                 disabled={!selected}
-                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95 disabled:opacity-40"
+                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press disabled:opacity-40"
               >
                 ⟳ ROTATE
               </button>
               <button
                 onClick={randomize}
-                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 active:scale-95"
+                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p1/50 press"
               >
                 ⚄ RANDOM
               </button>
               <button
                 onClick={clearDock}
-                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 active:scale-95"
+                className="flex-1 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2/50 press"
               >
                 ✕ CLEAR
               </button>
@@ -522,7 +529,7 @@ export default function BattleshipGame({
             <button
               onClick={handleReady}
               disabled={!draftValid || readying}
-              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta active:scale-95 disabled:opacity-40"
+              className="w-full py-2.5 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
             >
               {readying ? 'COMMITTING…' : draftValid ? 'READY — LOCK IN FLEET' : `PLACE ${5 - Object.keys(draft).length} MORE`}
             </button>
@@ -565,7 +572,7 @@ export default function BattleshipGame({
                 <button
                   onClick={handleClaimStall}
                   disabled={claiming}
-                  className="px-4 py-1.5 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded active:scale-95 disabled:opacity-40"
+                  className="px-4 py-1.5 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded press disabled:opacity-40"
                 >
                   {claiming ? 'CLAIMING…' : 'CLAIM WIN — RIVAL WENT AFK'}
                 </button>
@@ -588,8 +595,10 @@ export default function BattleshipGame({
       )}
 
       {/* Grids */}
-      <div className="grid sm:grid-cols-2 gap-4 justify-items-center">
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+      <BattleshipTabs view={view} onView={setView} targetAlert={myTurn && !matchOver} />
+
+      <div className="space-y-4">
+        <div className={cn('space-y-1 w-full', view !== 'target' && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">
             TARGETING {myTurn && !matchOver && <span className="text-retro-cta">· YOUR SHOT</span>}
           </p>
@@ -599,6 +608,7 @@ export default function BattleshipGame({
             lastCell={lastMyShot?.cell}
             onCell={handleShoot}
             disabled={!myTurn || pendingGrade || myShotPending || shooting || matchOver}
+            zoomable
             accent={me === 'X' ? 'p1' : 'p2'}
           />
           {/* Enemy silhouettes */}
@@ -620,7 +630,7 @@ export default function BattleshipGame({
           </div>
         </div>
 
-        <div className="space-y-1 w-full max-w-sm md:max-w-md">
+        <div className={cn('space-y-1 w-full', view !== 'fleet' && 'hidden')}>
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR WATERS</p>
           <BattleshipBoard
             shots={myWatersShots}
@@ -661,7 +671,7 @@ export default function BattleshipGame({
         <button
           onClick={handleConcede}
           disabled={conceding}
-          className="w-full py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-danger hover:text-retro-danger active:scale-95 disabled:opacity-40"
+          className="w-full py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-danger hover:text-retro-danger press disabled:opacity-40"
         >
           {conceding ? 'CONCEDING…' : 'CONCEDE THE BATTLE'}
         </button>
@@ -678,7 +688,7 @@ export default function BattleshipGame({
           <button
             onClick={handleConcede}
             disabled={conceding}
-            className="px-4 py-2 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded active:scale-95 disabled:opacity-40"
+            className="px-4 py-2 bg-retro-danger text-retro-bg font-pixel text-[9px] rounded press disabled:opacity-40"
           >
             {conceding ? 'CONCEDING…' : 'CONCEDE'}
           </button>
@@ -706,7 +716,7 @@ export default function BattleshipGame({
           {onNewMatch && !proposal && (
             <button
               onClick={onNewMatch}
-              className="mb-2 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              className="mb-2 px-6 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
             >
               NEW MATCH
             </button>

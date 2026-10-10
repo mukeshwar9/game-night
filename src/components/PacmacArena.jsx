@@ -254,8 +254,8 @@ const PacmacArena = forwardRef(function PacmacArena(
           </p>
           <div className="mt-1.5 h-1 w-full rounded-full bg-retro-card border border-retro-border overflow-hidden" aria-hidden="true">
             <div
-              className="h-full bg-retro-cta transition-[width] duration-300"
-              style={{ width: `${((START_PELLETS - left) / START_PELLETS) * 100}%` }}
+              className="h-full w-full origin-left bg-retro-cta transition-transform duration-300"
+              style={{ transform: `scaleX(${(START_PELLETS - left) / START_PELLETS})` }}
             />
           </div>
           <p className="mt-1 font-pixel text-[8px] tracking-widest text-retro-dim">{left} LEFT</p>

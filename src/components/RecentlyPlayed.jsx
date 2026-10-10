@@ -1,20 +1,12 @@
 import { useState } from 'react'
-import { getRooms, getStats } from '../lib/profile'
-import { getGameConfig, GAME_TYPES } from '../lib/games'
-import { buildRecentPlays, getRecentPlays, formatAgo, modeLabel } from '../lib/recentPlays'
+import { getGameConfig } from '../lib/games'
+import { formatAgo, modeLabel } from '../lib/recentPlays'
+import { readRecent } from '../lib/recentRail'
 import { cn } from '@/lib/utils'
-
-function readRecent() {
-  return buildRecentPlays({
-    plays: getRecentPlays(),
-    rooms: getRooms(),
-    statsTypes: Object.keys(getStats()?.byGame ?? {}),
-    known: new Set(GAME_TYPES.map(t => t.type)),
-  })
-}
+import { GameArt } from './GameArt'
 
 // Home's JUMP BACK IN rail: the last games this browser played, each tagged
-// with how (vs CPU / same device / online) and when. `onSelect(type, mode)`
+// with how (vs CPU or solo / same device / online) and when. `onSelect(type, mode)`
 // lets Home resume a solo or pass-and-play game directly. Renders nothing
 // until something has been played.
 export default function RecentlyPlayed({ onSelect, loadingType }) {
@@ -39,19 +31,20 @@ export default function RecentlyPlayed({ onSelect, loadingType }) {
                 onClick={() => onSelect(type, mode)}
                 disabled={!!loadingType}
                 className={cn(
-                  'shrink-0 snap-start w-[calc((100%-1rem)/3)] min-w-[104px] min-h-[88px] flex flex-col items-start gap-1.5 p-2.5 text-left border rounded transition-all active:scale-95',
+                  'shrink-0 snap-start w-[calc((100%-1rem)/3)] min-w-[104px] min-h-[88px] flex flex-col items-start gap-1.5 p-2.5 text-left border rounded transition press',
                   isLoading
                     ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
                     : 'border-retro-border bg-retro-card hover:border-retro-cta/50',
                   loadingType && !isLoading && 'opacity-40',
                 )}
               >
-                <span className={cn('w-6 h-6 flex items-center justify-center', isLoading ? 'text-retro-cta' : 'text-retro-dim')} aria-hidden="true">
+                <span className={cn('relative w-6 h-6 shrink-0 rounded overflow-hidden flex items-center justify-center', isLoading ? 'text-retro-cta' : 'text-retro-dim')} aria-hidden="true">
                   {Icon && <Icon />}
+                  <GameArt type={cfg?.variantOf || type} className="absolute inset-0 w-full h-full block" />
                 </span>
                 <span className="font-pixel text-[9px] text-retro-text leading-snug line-clamp-2">{cfg?.label}</span>
                 <span className="font-mono text-[10px] leading-tight text-retro-dim max-w-full mt-auto">
-                  <span className="block truncate">{modeLabel(mode)}</span>
+                  <span className="block truncate">{modeLabel(mode, !!cfg?.soloRun)}</span>
                   {ago && <span className="block truncate">{ago}</span>}
                 </span>
               </button>

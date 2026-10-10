@@ -4,11 +4,12 @@
 // the room node in plaintext while the board is live.
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
 // Reads the room straight from the Database emulator ("owner" bypasses rules).
 async function readRoom(roomUrl) {
   const id = roomUrl.split('/').pop()
-  const res = await fetch(`http://127.0.0.1:9000/games/${id}.json?ns=demo-game-night-default-rtdb`, {
+  const res = await fetch(`${DB_ORIGIN}/games/${id}.json?ns=demo-game-night-default-rtdb`, {
     headers: { Authorization: 'Bearer owner' },
   })
   return res.json()
@@ -83,7 +84,10 @@ test('four players play a Code Words board to a win', async ({ browser }) => {
   await test.step('a clue that is on the board is rejected', async () => {
     const boardWord = await card(hana.page, 0).getAttribute('data-word')
     await hana.page.getByRole('textbox', { name: 'Your one-word clue' }).fill(boardWord)
-    await hana.page.getByRole('radio', { name: '2 cards' }).click()
+    const two = hana.page.getByRole('radio', { name: '2 cards' })
+    // Count buttons meet the 44 px tap floor (they were 40 px).
+    expect((await two.boundingBox()).height).toBeGreaterThanOrEqual(44)
+    await two.click()
     await hana.page.getByRole('button', { name: 'GIVE CLUE' }).click()
     await expect(hana.page.getByText("THAT'S ON THE BOARD")).toBeVisible()
   })

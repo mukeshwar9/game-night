@@ -1,9 +1,12 @@
 // Renders a shareable result card to a canvas in the active retro theme and
-// shares it via the Web Share API (file share), falling back to a PNG download.
+// shares it through src/lib/share.js (file share), falling back to a PNG download
+// on the web.
 // No backend — the card is drawn client-side from live CSS theme vars.
 
 import { toast } from 'sonner'
 import { getFont, getStoredFont } from './font'
+import { isNative, resolveShareOrigin } from './platform'
+import { shareImage } from './share'
 
 function themeColor(name, fallback) {
   try {
@@ -221,9 +224,11 @@ function fitText(ctx, str, x, y, maxWidth, font, px) {
   ctx.fillText(str, x, y)
 }
 
-// Hands a rendered card to the native share sheet (file share), falling back
-// to a PNG download. Never rejects: true on success (or a user-cancelled share
-// sheet), false on a real failure.
+// Hands a rendered card to the share sheet (src/lib/share.js), falling back to
+// a PNG download on the web. Never rejects: true on success (or a
+// user-cancelled share sheet), false on a real failure. The native shell has
+// no downloads (a blob link goes nowhere there), so a failed share is a
+// failure, never a "saved" toast.
 async function shareCanvas(canvas, text) {
   const blob = await new Promise(res => canvas.toBlob(res, 'image/png'))
   if (!blob) {
@@ -231,20 +236,9 @@ async function shareCanvas(canvas, text) {
     return false
   }
 
-  const file = new File([blob], 'game-night.png', { type: 'image/png' })
-
-  // Prefer native share with the image (mobile share sheet → iMessage/WhatsApp/…)
-  if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-    try {
-      await navigator.share({ files: [file], title: 'Game Night', text })
-      return true
-    } catch (err) {
-      // User-cancelled the native share sheet is not a failure — Safari sometimes
-      // reports this as NotAllowedError instead of AbortError when dismissed.
-      if (err?.name === 'AbortError' || err?.name === 'NotAllowedError') return true
-      // Any other share failure — fall through to download
-    }
-  }
+  const outcome = await shareImage({ blob, filename: 'game-night.png', text })
+  if (outcome !== 'unavailable') return true
+  if (isNative) return false
 
   // Fallback: download the PNG
   const objUrl = URL.createObjectURL(blob)
@@ -268,7 +262,7 @@ export async function shareResult({ gameLabel, headline, sub, accentVar, url }) 
   try {
     try { await document.fonts?.ready } catch { /* font fallback is fine */ }
 
-    const shareUrl = url || window.location.origin
+    const shareUrl = url || resolveShareOrigin()
     const canvas = await drawCard({ brand: 'Game Night', gameLabel, headline, sub, accentVar, url: shareUrl })
     const text = `${headline} — ${gameLabel} on Game Night. ${shareUrl}`
     return await shareCanvas(canvas, text)
@@ -285,7 +279,7 @@ export async function shareRecap({ title, sub, rows, url }) {
   try {
     try { await document.fonts?.ready } catch { /* font fallback is fine */ }
 
-    const shareUrl = url || window.location.origin
+    const shareUrl = url || resolveShareOrigin()
     const canvas = await drawRecapCard({ brand: 'Game Night', title, sub, rows, url: shareUrl })
     const lines = (rows || []).map(r => `${r.label}: ${r.value}`).join(' · ')
     const text = `${title}${sub ? ` (${sub})` : ''} — ${lines} on Game Night. ${shareUrl}`

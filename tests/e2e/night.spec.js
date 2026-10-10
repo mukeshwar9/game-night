@@ -7,10 +7,11 @@
 // out for the waiting player, and the host kicks and locks.
 import { test, expect } from '@playwright/test'
 import { completeOnboarding, createRoom, expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { DB_ORIGIN } from './emulator.js'
 
 // Same emulator + namespace as .env.emulator. `Bearer owner` is the RTDB
 // emulator's admin token (bypasses rules) — used only to fast-forward matches.
-const DB_URL = 'http://127.0.0.1:9000'
+const DB_URL = DB_ORIGIN
 const NS = 'demo-game-night-default-rtdb'
 const admin = { Authorization: 'Bearer owner' }
 
@@ -130,8 +131,8 @@ test('game night: party match, switch to a 2P game with winner stays, host kick 
   })
 
   await test.step('NEW MATCH: winner stays, the loser swaps out for the queue', async () => {
+    // A party room's host starts the next match directly (no proposal).
     await hana.page.getByRole('button', { name: 'NEW MATCH' }).click()
-    await gus.page.getByRole('button', { name: 'ACCEPT' }).click()
     await expect(gia.page.getByText('YOUR TURN')).toBeVisible()
     await expect(hana.page.getByText("GIA'S TURN")).toBeVisible()
     for (const { page } of everyone) await expect(page.getByTestId('night-queue')).toContainText('Gus')
@@ -147,7 +148,8 @@ test('game night: party match, switch to a 2P game with winner stays, host kick 
     const controls = hana.page.getByTestId('host-controls')
     await controls.getByRole('button', { name: 'Remove Gus' }).click()
     await hana.page.getByRole('dialog', { name: 'REMOVE GUS?' }).getByRole('button', { name: 'REMOVE' }).click()
-    await expect(gus.page.getByText("YOU'RE SPECTATING THIS MATCH.")).toBeVisible()
+    // In a party room a removal lasts for the whole party.
+    await expect(gus.page.getByText("YOU'RE OUT OF THIS PARTY.")).toBeVisible()
     await expect(gus.page.getByRole('button', { name: 'JOIN THE LINE' })).toHaveCount(0)
     await expect(gia.page.getByTestId('night-queue')).toContainText('NOBODY WAITING')
 
@@ -157,6 +159,7 @@ test('game night: party match, switch to a 2P game with winner stays, host kick 
     const room = await readRoom(request, gameId)
     expect(room.locked).toBe(true)
     expect(room.kicked[uid.Gus]).toBe(true)
+    expect(room.removed[uid.Gus]).toBe(true)
     expect(room.queue ?? null).toBeNull()
   })
 

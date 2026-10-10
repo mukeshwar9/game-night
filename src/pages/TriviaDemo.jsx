@@ -39,7 +39,7 @@ export default function TriviaDemo() {
 
   const [qNum, setQNum] = useState(0)
   const [phase, setPhase] = useState('question')
-  const [qStartAt, setQStartAt] = useState(null)
+  const [qStartAt, setQStartAt] = useState(() => Date.now())
   const [answers, setAnswers] = useState({})
   const [deltas, setDeltas] = useState({})
   const [scores, setScores] = useState(FRESH_SCORES)
@@ -211,7 +211,7 @@ export default function TriviaDemo() {
                         onClick={() => handlePick(idx)}
                         disabled={iAnswered}
                         className={cn(
-                          'min-h-14 px-2 py-2 rounded border-2 transition-all active:scale-[0.98]',
+                          'min-h-14 px-2 py-2 rounded border-2 transition press-card',
                           'flex flex-col items-center justify-center gap-1',
                           picked
                             ? 'border-retro-cta text-retro-cta shadow-neon-cta'
@@ -312,7 +312,7 @@ export default function TriviaDemo() {
           </div>
           <button
             onClick={playAgain}
-            className="px-5 py-2 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta active:scale-95"
+            className="px-5 py-2 font-pixel text-[10px] border border-retro-cta text-retro-cta rounded hover:shadow-neon-cta press"
           >
             PLAY AGAIN
           </button>

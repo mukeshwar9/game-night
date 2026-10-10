@@ -12,12 +12,12 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
   return (
     <div className="w-full max-w-[340px] sm:max-w-[380px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         <div
           className="grid gap-1 sm:gap-1.5"
-          style={{ gridTemplateColumns: `repeat(${CHOMP_COLS}, 1fr)` }}
+          style={{ gridTemplateColumns: `repeat(${CHOMP_COLS}, minmax(0, 1fr))` }}
         >
           {board.map((cell, i) => {
             const eaten = cell === 'eaten'
@@ -36,7 +36,7 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
                 disabled={!clickable}
                 onClick={() => clickable && onMove(i)}
                 className={cn(
-                  'aspect-square rounded transition-all duration-150 select-none',
+                  'aspect-square min-w-0 overflow-hidden rounded transition duration-150 select-none',
                   'flex items-center justify-center font-pixel text-[10px]',
                   'border-2 outline-none',
                   'focus-visible:ring-2 focus-visible:ring-retro-cta',
@@ -46,7 +46,7 @@ export default function ChompBoard({ board, onMove, disabled, lastMove = null })
                         // Chocolate squares — poison gets a skull; the rest
                         // read as a bar via the card/surface tokens.
                         'bg-retro-card border-retro-border cursor-pointer',
-                        'hover:border-retro-cta hover:bg-retro-tint-cta active:scale-95',
+                        'hover:border-retro-cta hover:bg-retro-tint-cta press',
                       ],
                   // M-47 parity: ring the most recent bite.
                   !eaten && i === lastMove && 'ring-2 ring-inset ring-retro-cta/70',

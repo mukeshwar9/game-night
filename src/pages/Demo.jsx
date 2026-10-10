@@ -2,26 +2,31 @@ import { Suspense, useState, useRef, useEffect } from 'react';
 import LoadingLine from '../components/loading/LoadingLine';
 import {
   TicTacToeIcon, HangwomanIcon, DotsAndBoxesIcon, SosIcon,
-  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, ReactionIcon, AimIcon, ReefIcon, TypingIcon, MathIcon,
+  SimonIcon, ChimpIcon, NumberMemoryIcon, VisualMemoryIcon, VerbalMemoryIcon, NBackIcon, CupShuffleIcon, WhatChangedIcon, KimsGameIcon, NameTagsIcon, ReactionIcon, AimIcon, ReefIcon, PulpIcon, TypingIcon, MathIcon,
   ConnectFourIcon, GomokuIcon, ReversiIcon, OrderChaosIcon, DiceIcon,
   TwoTruthsIcon, BluffIcon, WavelengthIcon, FibbageIcon, SpyfairIcon, PongIcon, SnakeIcon,
-  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
+  TronIcon, SumoIcon, SpaceDuelIcon, ChainReactionIcon, WordDuelIcon, WordCoopIcon, PasswordIcon, WordRaceIcon, AnagramsIcon, BlockadeIcon, PairsIcon,
   WordHuntIcon, PaintIcon, SketchIcon, PacmacIcon,
   HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, SideKickIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon, ArrowsIcon, AnimalStackIcon, MinigolfIcon, BirdseyeIcon, UpdraftIcon,
 } from '../components/GameIcons';
-import { getGameConfig, GAME_CATEGORIES, supportsLocalPlay } from '../lib/games'
+import { getGameConfig, supportsLocalPlay } from '../lib/games'
+import { canFocusPage } from '../lib/focusLogic'
+import { FocusPlay } from '../components/FocusStage'
 import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
-import CategoryTabs from '../components/CategoryTabs';
-import { Link, useParams } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import GamePickerSheet from '../components/GamePickerSheet';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import HeadlineGames from '../components/HeadlineGames';
+import { isAdVisit, isHeadlineGame } from '../lib/adLanding';
+import { parseBeat } from '../lib/soloChallengeLogic'
 import { VideoCallShell } from '../components/VideoCallLayout';
-import { PARTY_BLURB } from './demos/partyBlurbs';
+import { OFF_SHELF, PARTY_BLURB } from './demos/partyBlurbs';
 import { lazyWithRetry } from '../lib/lazyWithRetry';
+import { scrollBehavior } from '../hooks/useMotionPref';
 
 // Demos outside this file load on demand: the hub only needs the picker,
 // and a /solo/:type deep link downloads just the one game it opens.
@@ -30,6 +35,7 @@ const PartyGameCard = lazyWithRetry(() => import('./demos/PartyGameCard'))
 const ReactionDemo = lazyWithRetry(() => import('./demos/ReactionDemo'))
 const TypingDemo = lazyWithRetry(() => import('./demos/TypingDemo'))
 const AimTrainerDemo = lazyWithRetry(() => import('./demos/AimTrainerDemo'))
+const PulpRushDemo = lazyWithRetry(() => import('./demos/PulpRushDemo'))
 const ReefDemo = lazyWithRetry(() => import('./demos/ReefDemo'))
 const MathDemo = lazyWithRetry(() => import('./demos/MathDemo'))
 const SnakeDemo = lazyWithRetry(() => import('./demos/SnakeDemo'))
@@ -40,6 +46,7 @@ const WavelengthDemo = lazyWithRetry(() => import('./WavelengthDemo'))
 const FibbageDemo = lazyWithRetry(() => import('./FibbageDemo'))
 const SpyfairDemo = lazyWithRetry(() => import('./SpyfairDemo'))
 const SpaceduelDemo = lazyWithRetry(() => import('./SpaceduelDemo'))
+const UpdraftDemo = lazyWithRetry(() => import('./UpdraftDemo'))
 const PaintDemo = lazyWithRetry(() => import('./PaintDemo'))
 const PacmacDemo = lazyWithRetry(() => import('./PacmacDemo'))
 const MineRaceDemo = lazyWithRetry(() => import('./MineRaceDemo'))
@@ -47,18 +54,34 @@ const BattleshipDemo = lazyWithRetry(() => import('./BattleshipDemo'))
 const MancalaDemo = lazyWithRetry(() => import('./MancalaDemo'))
 const CheckersDemo = lazyWithRetry(() => import('./CheckersDemo'))
 const AirHockeyDemo = lazyWithRetry(() => import('./AirHockeyDemo'))
+const PuckRushDemo = lazyWithRetry(() => import('./PuckRushDemo'))
+const StickyFingersDemo = lazyWithRetry(() => import('./StickyFingersDemo'))
+const BonkBuggiesDemo = lazyWithRetry(() => import('./BonkBuggiesDemo'))
+const QuiverDemo = lazyWithRetry(() => import('./QuiverDemo'))
+const FenderBenderDemo = lazyWithRetry(() => import('./FenderBenderDemo'))
+const SideKickDemo = lazyWithRetry(() => import('./SideKickDemo'))
+const YachtDemo = lazyWithRetry(() => import('./YachtDemo'))
+const DartsLocal = lazyWithRetry(() => import('./DartsDemo'))
+const FaceOffDemo = lazyWithRetry(() => import('./FaceOffDemo'))
+const ChopChopDemo = lazyWithRetry(() => import('./ChopChopDemo'))
+const LazySusanDemo = lazyWithRetry(() => import('./LazySusanDemo'))
+const FirstCutDemo = lazyWithRetry(() => import('./FirstCutDemo'))
+const BamboozleDemo = lazyWithRetry(() => import('./BamboozleDemo'))
 const ArtilleryDemo = lazyWithRetry(() => import('./ArtilleryDemo'))
 const ArcheryDemo = lazyWithRetry(() => import('./ArcheryDemo'))
 const AnimalStackDemo = lazyWithRetry(() => import('./AnimalStackDemo'))
+const MinigolfLocal = lazyWithRetry(() => import('./MinigolfLocal'))
+const BirdseyeSolo = lazyWithRetry(() => import('./BirdseyeSolo'))
 const TriviaDemo = lazyWithRetry(() => import('./TriviaDemo'))
 const HerdDemo = lazyWithRetry(() => import('./HerdDemo'))
-const ArrowsDemo = lazyWithRetry(() => import('./ArrowsDemo'))
+const ArrowsSolo = lazyWithRetry(() => import('./ArrowsSolo'))
 const HangmanDemo = lazyWithRetry(() => import('./HangmanDemo'))
-const WordDuelDemo = lazyWithRetry(() => import('./WordDuelDemo'))
-const WordRaceDemo = lazyWithRetry(() => import('./WordRaceDemo'))
+const WordSoloRun = lazyWithRetry(() => import('./WordSoloRun'))
+const PasswordDemo = lazyWithRetry(() => import('./PasswordDemo'))
 const WordHuntDemo = lazyWithRetry(() => import('./WordHuntDemo'))
-const AnagramsDemo = lazyWithRetry(() => import('./AnagramsDemo'))
+const AnagramsSolo = lazyWithRetry(() => import('./AnagramsSolo'))
 // Memory solo runs share one chunk.
+const MemoryRunSolo = lazyWithRetry(() => import('./MemoryRunSolo'))
 const SimonSolo = lazyWithRetry(() => import('./MemorySoloDemos').then(m => ({ default: m.SimonSolo })))
 const VisualMemorySolo = lazyWithRetry(() => import('./MemorySoloDemos').then(m => ({ default: m.VisualMemorySolo })))
 const ChimpSolo = lazyWithRetry(() => import('./MemorySoloDemos').then(m => ({ default: m.ChimpSolo })))
@@ -86,11 +109,14 @@ const DEMOS = [
   { type: 'sos',          short: 'SOS',           Icon: SosIcon,          Component: () => <BotBoardDemo type="sos" />          },
   { type: 'dotsandboxes',  short: 'DOTS &\nBOXES',  Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes" />  },
   { type: 'dotsandboxes4', short: 'DOTS\n4×4',      Icon: DotsAndBoxesIcon,   Component: () => <BotBoardDemo type="dotsandboxes4" /> },
+  { type: 'yacht',         short: 'YACHT',          Icon: YachtIcon,          Component: YachtDemo },
+  { type: 'darts',         short: 'STEADY\nHAND',   Icon: DartsIcon,          Component: () => <DartsLocal mode="solo" /> },
   { type: 'dice',          short: 'PIG',            Icon: DiceIcon,           Component: () => <BotBoardDemo type="dice" />          },
   { type: 'chainreaction', short: 'CHAIN\nREACTION',Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction" /> },
   { type: 'chainreaction6',short: 'CHAIN\n6×8',     Icon: ChainReactionIcon,  Component: () => <BotBoardDemo type="chainreaction6" /> },
   { type: 'blockade',      short: 'BLOCKADE',       Icon: BlockadeIcon,       Component: () => <BotBoardDemo type="blockade" /> },
   { type: 'pairs',         short: 'PAIRS',          Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs" /> },
+  { type: 'pairs4',        short: 'PAIRS\n4×4',     Icon: PairsIcon,          Component: () => <BotBoardDemo type="pairs4" /> },
   { type: 'hex',           short: 'HEX',            Icon: HexIcon,            Component: () => <BotBoardDemo type="hex" /> },
   { type: 'sim',           short: 'SIM',            Icon: SimIcon,            Component: () => <BotBoardDemo type="sim" /> },
   { type: 'chomp',         short: 'CHOMP',          Icon: ChompIcon,          Component: () => <BotBoardDemo type="chomp" /> },
@@ -106,12 +132,26 @@ const DEMOS = [
   { type: 'mancala',       short: 'MANCALA',        Icon: MancalaIcon,        Component: MancalaDemo },
   { type: 'checkers',      short: 'CHECKERS',       Icon: CheckersIcon,       Component: CheckersDemo },
   { type: 'airhockey',     short: 'AIR\nHOCKEY',    Icon: AirHockeyIcon,      Component: AirHockeyDemo },
+  { type: 'faceoff',       short: 'FACE\nOFF',      Icon: FaceOffIcon,        Component: FaceOffDemo },
+  { type: 'puckrush',      short: 'PUCK\nRUSH',     Icon: PuckRushIcon,       Component: PuckRushDemo },
+  { type: 'stickyfingers', short: 'STICKY\nFINGERS', Icon: StickyFingersIcon,  Component: StickyFingersDemo },
+  { type: 'bonkbuggies',   short: 'BONK\nBUGGIES',  Icon: BonkBuggiesIcon,    Component: BonkBuggiesDemo },
+  { type: 'quiver',        short: 'QUIVER',          Icon: QuiverIcon,         Component: QuiverDemo },
+  { type: 'fenderbender',  short: 'FENDER\nBENDER',  Icon: FenderBenderIcon,   Component: FenderBenderDemo },
+  { type: 'sidekick',      short: 'SIDE\nKICK',      Icon: SideKickIcon,       Component: SideKickDemo },
   { type: 'artillery',     short: 'ARTIL-\nLERY',   Icon: ArtilleryIcon,      Component: ArtilleryDemo },
   { type: 'archery',       short: 'ARCHERY',         Icon: ArcheryIcon,        Component: ArcheryDemo },
   { type: 'animalstack',   short: 'ANIMAL\nSTACK',  Icon: AnimalStackIcon,    Component: AnimalStackDemo },
+  { type: 'minigolf',      short: 'MINI-\nGOLF',    Icon: MinigolfIcon,       Component: () => <MinigolfLocal mode="solo" /> },
+  { type: 'birdseye',      short: 'BIRDS-\nEYE',    Icon: BirdseyeIcon,       Component: BirdseyeSolo, subheading: 'FIVE FARM FORTS' },
   // Skill bots
   { type: 'reaction',     short: 'REACTION\nTIME',Icon: ReactionIcon,     Component: ReactionDemo     },
   { type: 'aim',          short: 'AIM\nTRAINER',  Icon: AimIcon,          Component: AimTrainerDemo   },
+  { type: 'chopchop',     short: 'CHOP\nCHOP',    Icon: ChopChopIcon,     Component: ChopChopDemo     },
+  { type: 'lazysusan',    short: 'LAZY\nSUSAN',    Icon: LazySusanIcon,    Component: LazySusanDemo },
+  { type: 'firstcut',     short: 'FIRST\nCUT',    Icon: FirstCutIcon,     Component: FirstCutDemo     },
+  { type: 'bamboozle',    short: 'BAMBOO-\nZLE',  Icon: BamboozleIcon,    Component: BamboozleDemo    },
+  { type: 'pulprush',     short: 'PULP\nRUSH',    Icon: PulpIcon,         Component: PulpRushDemo     },
   { type: 'reef',         short: 'REEF\nRUN',      Icon: ReefIcon,         Component: ReefDemo         },
   { type: 'typing',       short: 'TYPING\nRACE',  Icon: TypingIcon,       Component: TypingDemo       },
   { type: 'math',         short: 'MENTAL\nMATH',  Icon: MathIcon,         Component: MathDemo         },
@@ -123,18 +163,27 @@ const DEMOS = [
   { type: 'paint',        short: 'PAINT\nTURF',   Icon: PaintIcon,        Component: PaintDemo        },
   { type: 'pacmac',       short: 'PAC\nMAC',      Icon: PacmacIcon,       Component: PacmacDemo       },
   { type: 'minesweeper',  short: 'MINE\nRACE',    Icon: MinesIcon,        Component: MineRaceDemo     },
-  { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsDemo        },
+  { type: 'arrows',       short: 'ARROWS',        Icon: ArrowsIcon,       Component: ArrowsSolo, heading: 'ARROWS', subheading: 'PUZZLE · SOLO OR 2 PLAYERS' },
+  { type: 'updraft',      short: 'UPDRAFT',       Icon: UpdraftIcon,      Component: UpdraftDemo       },
   // Memory — single-player runs (grow until you slip, beat your best)
   { type: 'simon',        short: 'SIMON',         Icon: SimonIcon,        Component: SimonSolo,        solo: true },
   { type: 'numbermemory', short: 'NUM\nMEMORY',   Icon: NumberMemoryIcon, Component: NumberMemorySolo, solo: true },
   { type: 'visualmemory', short: 'VIS\nMEMORY',   Icon: VisualMemoryIcon, Component: VisualMemorySolo, solo: true },
   { type: 'chimp',        short: 'CHIMP\nTEST',   Icon: ChimpIcon,        Component: ChimpSolo,        solo: true },
+  { type: 'verbalmemory', short: 'VERBAL\nMEMORY', Icon: VerbalMemoryIcon, Component: () => <MemoryRunSolo type="verbalmemory" />, solo: true },
+  { type: 'nback',        short: 'N-BACK',        Icon: NBackIcon,        Component: () => <MemoryRunSolo type="nback" />,        solo: true },
+  { type: 'cupshuffle',   short: 'CUP\nSHUFFLE',  Icon: CupShuffleIcon,   Component: () => <MemoryRunSolo type="cupshuffle" />,   solo: true },
+  { type: 'whatchanged',  short: 'WHAT\nCHANGED', Icon: WhatChangedIcon,  Component: () => <MemoryRunSolo type="whatchanged" />,  solo: true },
+  { type: 'kimsgame',     short: 'LOST &\nFOUND', Icon: KimsGameIcon,     Component: () => <MemoryRunSolo type="kimsgame" />,     solo: true },
+  { type: 'nametags',     short: 'NAME\nTAGS',    Icon: NameTagsIcon,     Component: () => <MemoryRunSolo type="nametags" />,     solo: true },
   // Solo / hangwoman
   { type: 'hangwoman',    short: 'HANGWOMAN',     Icon: HangwomanIcon,    Component: HangmanDemo      },
-  { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: WordDuelDemo     },
-  { type: 'wordrace',     short: 'WORD\nRACE',    Icon: WordRaceIcon,     Component: WordRaceDemo     },
+  { type: 'wordduel',     short: 'WORD\nDUEL',    Icon: WordDuelIcon,     Component: () => <WordSoloRun mode="wordduel" />, solo: true },
+  { type: 'wordrace',     short: 'WORD\nRACE',    Icon: WordRaceIcon,     Component: () => <WordSoloRun mode="wordrace" />, solo: true },
+  { type: 'wordcoop',     short: 'WORD\nCO-OP',   Icon: WordCoopIcon,     Component: () => <WordSoloRun mode="wordcoop" />, solo: true },
+  { type: 'password',     short: 'PASS\nWORD',    Icon: PasswordIcon,     Component: PasswordDemo     },
   { type: 'wordhunt',     short: 'WORD\nHUNT',    Icon: WordHuntIcon,     Component: WordHuntDemo     },
-  { type: 'anagrams',     short: 'ANA-\nGRAMS',   Icon: AnagramsIcon,     Component: AnagramsDemo     },
+  { type: 'anagrams',     short: 'ANA-\nGRAMS',   Icon: AnagramsIcon,     Component: AnagramsSolo, solo: true },
   // Party cards (2+ players only)
   { type: 'twotruths',    short: 'TWO\nTRUTHS',   Icon: TwoTruthsIcon,    Component: () => <PartyGameCard type="twotruths" />   },
   { type: 'bluff',        short: 'BLUFF',         Icon: BluffIcon,        Component: () => <PartyGameCard type="bluff" />       },
@@ -145,6 +194,10 @@ const DEMOS = [
   { type: 'trivia',       short: 'TRIVIA\nBLITZ', Icon: TriviaIcon,       Component: TriviaDemo       },
   { type: 'sketch',       short: 'SKETCH',        Icon: SketchIcon,       Component: () => <PartyGameCard type="sketch" />      },
 ]
+
+// What the SWITCH GAME popup offers: the solo shelf, every demo you can
+// actually play alone. OFF_SHELF demos stay reachable by deep link only.
+const SOLO_PICKER_TYPES = DEMOS.map(d => d.type).filter(type => !OFF_SHELF.has(type))
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -163,23 +216,27 @@ function LocalPlayPage({ routeType }) {
   }, [routeType])
 
   return (
-    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
-      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="border border-retro-border rounded p-4 bg-retro-card space-y-1">
+    <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="-mx-2 sm:mx-0 border border-retro-border rounded p-2 sm:p-4 bg-retro-card space-y-1">
           <h1 className="font-pixel text-xs text-retro-text text-center tracking-wider">
             {cfg.label}
           </h1>
           <p className="font-pixel text-[9px] text-retro-dim text-center">
-            PASS & PLAY · ONE SCREEN, TAKE TURNS{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
+            {cfg.localBlurb || 'PASS & PLAY · ONE SCREEN, TAKE TURNS'}{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>
-              {cfg.LocalPage ? <cfg.LocalPage /> : <BotBoardDemo type={routeType} mode="local" />}
+              {cfg.LocalPage ? (
+                canFocusPage(cfg)
+                  ? <FocusPlay label={cfg.label}><cfg.LocalPage mode="local" /></FocusPlay>
+                  : <cfg.LocalPage mode="local" />
+              ) : <BotBoardDemo type={routeType} mode="local" />}
             </Suspense>
           </div>
         </div>
       </div>
-    </div></VideoCallShell>
+    </main></VideoCallShell>
   )
 }
 
@@ -195,8 +252,8 @@ function SoloNotAvailable({ routeType }) {
   const cfg = getGameConfig(routeType)
   const known = cfg?.type === routeType
   return (
-    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
-      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="border border-retro-border rounded p-6 bg-retro-card text-center space-y-3">
           <p className="font-pixel text-[10px] text-retro-p2 text-glow-p2 tracking-wider">NO SOLO DEMO</p>
           <p className="font-mono text-xs text-retro-dim leading-relaxed">
@@ -207,20 +264,20 @@ function SoloNotAvailable({ routeType }) {
           <div className="flex flex-col gap-2 pt-1">
             <Link
               to="/"
-              className="min-h-11 flex items-center justify-center px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition-all active:scale-95"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 bg-retro-cta text-retro-bg font-pixel text-xs rounded hover:shadow-neon-cta transition press"
             >
               CREATE A ROOM →
             </Link>
             <Link
               to="/demo"
-              className="min-h-11 flex items-center justify-center px-5 py-2.5 border border-retro-border text-retro-dim font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-text transition-all active:scale-95"
+              className="min-h-11 flex items-center justify-center px-5 py-2.5 border border-retro-border text-retro-dim font-pixel text-xs rounded hover:border-retro-p1/50 hover:text-retro-text transition press"
             >
               ALL DEMOS
             </Link>
           </div>
         </div>
       </div>
-    </div></VideoCallShell>
+    </main></VideoCallShell>
   )
 }
 
@@ -243,10 +300,11 @@ export default function Demo({ mode }) {
 
 function DemoHub() {
   const { type: routeType } = useParams()
+  const { search, state } = useLocation()
   const hasRouteType = !!routeType && DEMOS.some(d => d.type === routeType)
   const initialType = hasRouteType ? routeType : 'tictactoe'
   const [selected, setSelected] = useState(initialType)
-  const [activeCat, setActiveCat] = useState(() => getGameConfig(initialType)?.category || 'board')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const active = DEMOS.find(d => d.type === selected)
   useMusicScene('game', selected)
 
@@ -262,73 +320,92 @@ function DemoHub() {
     if (!(selected in PARTY_BLURB)) { recordPlay(selected, 'solo'); recordRecentPlay(selected, 'solo') }
   }, [selected])
 
-  const demoCounts = {}
-  for (const d of DEMOS) {
-    const cat = getGameConfig(d.type)?.category
-    if (cat) demoCounts[cat] = (demoCounts[cat] || 0) + 1
-  }
-  const demoCategories = GAME_CATEGORIES.map(c => ({ ...c, count: demoCounts[c.id] || 0 })).filter(c => c.count > 0)
-  const shown = DEMOS.filter(d => getGameConfig(d.type)?.category === activeCat)
-  // Board-first: a deep link (/solo/:type — the catalog's PRACTICE VS AI) is
-  // an intent to play *that* game, so the board renders at the top and the
-  // picker becomes a "more games" section below it. The bare hub keeps the
-  // picker on top but scrolls the chosen board into view on every pick.
-  const boardFirst = hasRouteType
+  // Campaign traffic on a headline game (/solo/:type from an ad) sees the
+  // curated strip below the board; everyone else switches through the popup.
+  const beat = hasRouteType ? parseBeat(search) : null
+  const adLanding = hasRouteType && isHeadlineGame(routeType) && isAdVisit(search, state)
   const boardRef = useRef(null)
   const pick = (type) => {
     setSelected(type)
-    requestAnimationFrame(() => boardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    requestAnimationFrame(() => boardRef.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }))
   }
 
-  const picker = (
-    <div className="space-y-2">
-      <CategoryTabs categories={demoCategories} active={activeCat} onSelect={setActiveCat} />
-      <div className="grid grid-cols-4 gap-2">
-        {shown.map(({ type, short, Icon, solo }) => (
-          <button
-            key={type}
-            onClick={() => pick(type)}
-            aria-pressed={selected === type}
-            className={cn(
-              'flex flex-col items-center gap-1 p-2 rounded border transition-all active:scale-95',
-              selected === type
-                ? 'border-retro-cta text-retro-cta shadow-neon-cta bg-retro-tint-cta'
-                : 'border-retro-border text-retro-dim hover:border-retro-p1/50 hover:text-retro-text bg-retro-card',
-            )}
-          >
-            <Icon />
-            <span className="font-pixel text-[8px] text-center leading-tight whitespace-pre-line">{short}</span>
-            {type in PARTY_BLURB && <span className="font-pixel text-[8px] text-retro-p2">2+ PLAYERS</span>}
-            {solo && <span className="font-pixel text-[8px] text-retro-dim">SOLO</span>}
-          </button>
-        ))}
-      </div>
-    </div>
+  // Board-first: the game is the page. Switching lives in the shared
+  // "play another game" popup (search + categories), not an inline grid.
+  const switchButton = (
+    <button
+      type="button"
+      onClick={() => setPickerOpen(true)}
+      aria-haspopup="dialog"
+      className="shrink-0 min-h-11 px-3 inline-flex items-center gap-2 rounded border border-retro-p1 text-retro-p1 font-pixel text-[9px] tracking-wider hover:shadow-neon-p1 transition press"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+      SWITCH GAME
+    </button>
   )
 
   // Active demo — key forces fresh mount on game switch
   const board = (
-    <div key={selected} ref={boardRef} className="scroll-mt-20 border border-retro-border rounded p-4 bg-retro-card">
+    <div key={selected} ref={boardRef} data-demo-board className="scroll-mt-3 -mx-2 sm:mx-0 border border-retro-border rounded p-2 sm:p-4 bg-retro-card">
       <p className="font-pixel text-xs text-retro-text text-center tracking-wider mb-4">
-        {active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
+        {getGameConfig(active.type)?.label || active.short.replace('\n', ' ')}{active.solo ? ' · SOLO RUN' : ''}
       </p>
       <Suspense fallback={<DemoFallback />}>
-        <active.Component />
+        {canFocusPage(getGameConfig(active.type))
+          ? <FocusPlay label={getGameConfig(active.type).label}><active.Component /></FocusPlay>
+          : <active.Component />}
       </Suspense>
     </div>
   )
 
   return (
-    <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center">
-      <div className="w-full max-w-sm space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="font-pixel text-sm text-retro-cta tracking-wider">PLAY SOLO</h1>
-          <span className="font-pixel text-[9px] text-retro-dim tracking-wider">VS CPU · NO WAITING</span>
+    <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
+      <div className="w-full max-w-md space-y-5 p-4 pt-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <h1 className="font-pixel text-sm text-retro-cta tracking-wider whitespace-nowrap">{active?.heading ?? 'PLAY SOLO'}</h1>
+            <p className="font-pixel text-[9px] text-retro-dim tracking-wider">{active?.subheading ?? (active?.solo ? 'BEAT YOUR BEST' : 'VS CPU')}<span className="max-sm:hidden"> · NO WAITING</span></p>
+          </div>
+          {switchButton}
         </div>
-        {boardFirst
-          ? <>{board}<p className="font-pixel text-[9px] text-retro-dim tracking-widest pt-2">MORE SOLO GAMES</p>{picker}</>
-          : <>{picker}{board}</>}
+        {beat && (
+          <p className="rounded border border-retro-win/60 bg-retro-tint-p1/20 px-3 py-2 text-center font-pixel text-[9px] tracking-wider text-retro-win" role="status">
+            A FRIEND SET {beat} — CAN YOU BEAT IT?
+          </p>
+        )}
+        {adLanding
+          ? (
+            <>
+              {board}
+              <Link
+                to="/games?intent=friend"
+                className="min-h-12 w-full flex items-center justify-center bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-widest rounded hover:shadow-neon-cta transition press-card"
+              >
+                PLAY WITH A FRIEND
+              </Link>
+              <HeadlineGames heading="MORE QUICK GAMES" current={routeType} />
+              <Link to="/demo" className="block min-h-11 py-3 text-center font-pixel text-[9px] text-retro-dim tracking-widest hover:text-retro-text">
+                SEE ALL SOLO GAMES →
+              </Link>
+            </>
+          )
+          : board}
       </div>
-    </div></VideoCallShell>
+      {pickerOpen && (
+        <GamePickerSheet
+          title="SWITCH SOLO GAME"
+          onSwitch={pick}
+          onClose={() => setPickerOpen(false)}
+          allowTypes={SOLO_PICKER_TYPES}
+          currentType={selected}
+        />
+      )}
+    </main></VideoCallShell>
   )
 }

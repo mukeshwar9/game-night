@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { YV_ROW_LENGTHS, YV_CELLS, yvIndexOf, normalizeYvBoard } from '../lib/yavalathLogic'
 import { cn } from '@/lib/utils'
 import { cellLabel } from '../lib/a11yLabels'
+import useTapConfirm from '../hooks/useTapConfirm'
 
 const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
 
@@ -14,6 +15,7 @@ export default function YavalathBoard({
   board: rawBoard, onMove, disabled, lastMove = null, mover = 'X', winningLine = [],
 }) {
   const board = useMemo(() => normalizeYvBoard(rawBoard), [rawBoard])
+  const { pending, tap } = useTapConfirm({ disabled, isOpen: (cell) => board[cell] === '' })
 
   // (row, col) → index and index → axial, derived once from YV_CELLS.
   const lookup = useMemo(() => {
@@ -52,7 +54,7 @@ export default function YavalathBoard({
   return (
     <div className="w-full max-w-[400px] sm:max-w-[440px] mx-auto">
       <div className={cn(
-        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition-all duration-200',
+        'bg-retro-bg border-2 border-retro-border rounded p-2 sm:p-3 transition duration-200',
         disabled && 'board-idle',
       )}>
         <div className="flex flex-col items-center gap-0.5">
@@ -77,12 +79,12 @@ export default function YavalathBoard({
                       ],
                     })}
                     disabled={disabled}
-                    onClick={() => !disabled && onMove(cell)}
+                    onClick={() => !disabled && tap(cell, () => onMove(cell))}
                     className={cn(
-                      'relative w-[10.5%] min-w-[30px] aspect-[1/0.87] select-none transition-all duration-100 outline-none',
+                      'relative w-[10.5%] min-w-[30px] aspect-[1/0.87] select-none transition duration-100 outline-none',
                       'flex items-center justify-center font-pixel text-xs sm:text-sm',
                       'focus-visible:ring-2 focus-visible:ring-retro-cta',
-                      !disabled && !v && 'cursor-pointer hover:brightness-125 active:scale-95',
+                      !disabled && !v && 'cursor-pointer hover:brightness-125 press',
                     )}
                     style={{ clipPath: HEX_CLIP, margin: '0 1px' }}
                   >
@@ -110,7 +112,9 @@ export default function YavalathBoard({
                         inset: isWin || isLast ? '2.5px' : '1.5px',
                         background: v
                           ? (v === 'X' ? 'rgb(var(--c-p1))' : 'rgb(var(--c-p2))')
-                          : isSuicide ? 'rgb(var(--c-tint-danger))' : 'rgb(var(--c-card))',
+                          : pending === cell
+                            ? `rgb(var(--c-${mover === 'O' ? 'p2' : 'p1'}) / 0.55)`
+                            : isSuicide ? 'rgb(var(--c-tint-danger))' : 'rgb(var(--c-card))',
                       }}
                     />
                     {v && (
@@ -130,8 +134,8 @@ export default function YavalathBoard({
             </div>
           ))}
         </div>
-        <p className="mt-2 text-center font-pixel text-[9px] text-retro-dim tracking-wider">
-          FOUR IN A ROW WINS · THREE IN A ROW LOSES
+        <p className="mt-2 text-center font-pixel text-[9px] text-retro-dim tracking-wider" aria-live="polite">
+          {pending != null ? 'TAP AGAIN TO PLACE' : 'FOUR IN A ROW WINS · THREE IN A ROW LOSES'}
         </p>
       </div>
     </div>

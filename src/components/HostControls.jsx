@@ -32,7 +32,9 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
     if (pending.kind === 'kick') {
       return {
         title: `REMOVE ${name}?`,
-        message: pending.member.where === 'queue'
+        message: game?.partyRoom
+          ? 'THEY’RE REMOVED FROM THIS PARTY AND CAN’T REJOIN IT.'
+          : pending.member.where === 'queue'
           ? 'THEY LEAVE THE LINE AND CAN’T REJOIN IT THIS MATCH.'
           : (nPlayer ? 'THEY LOSE THEIR SEAT AND CAN’T REJOIN THIS MATCH.' : 'THEY LOSE THEIR SEAT AND THE MATCH RESTARTS.'),
         confirmLabel: 'REMOVE',
@@ -56,9 +58,10 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
       <button
         onClick={() => setOpen(v => !v)}
         aria-expanded={open}
-        className="w-full flex items-center justify-center gap-2 font-pixel text-[9px] text-retro-dim hover:text-retro-text transition-colors py-2"
+        className="w-full flex items-center justify-center gap-2 font-pixel text-[9px] text-retro-dim hover:text-retro-text transition-colors min-h-11 py-2"
       >
-        HOST CONTROLS {open ? '▴' : '▾'}
+        {/* ▾/▴ aren't in the pixel fonts and rendered as a stray dot. */}
+        HOST CONTROLS <span aria-hidden="true" className={cn('inline-block transition-transform', open ? '-rotate-90' : 'rotate-90')}>›</span>
       </button>
 
       {open && (
@@ -66,7 +69,7 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
           <button
             onClick={() => setPending({ kind: 'lock' })}
             className={cn(
-              'w-full min-h-11 font-pixel text-[9px] rounded border-2 transition-all active:scale-95',
+              'w-full min-h-11 font-pixel text-[9px] rounded border-2 transition press',
               locked
                 ? 'border-retro-cta text-retro-cta bg-retro-tint-cta'
                 : 'border-retro-border text-retro-text hover:border-retro-p1/50',
@@ -90,16 +93,16 @@ export default function HostControls({ game, gameId, nPlayer, myUid, hostUid }) 
                     <button
                       onClick={() => setPending({ kind: 'host', member: m })}
                       aria-label={`Make ${m.name} host`}
-                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-border text-retro-dim hover:text-retro-text hover:border-retro-p1/50 transition-all active:scale-95"
+                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-border text-retro-dim hover:text-retro-text hover:border-retro-p1/50 transition press"
                     >
                       MAKE HOST
                     </button>
                     <button
                       onClick={() => setPending({ kind: 'kick', member: m })}
                       aria-label={`Remove ${m.name}`}
-                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-danger/60 text-retro-danger hover:bg-retro-tint-danger transition-all active:scale-95"
+                      className="min-h-9 px-2 font-pixel text-[8px] rounded border border-retro-danger/60 text-retro-danger hover:bg-retro-tint-danger transition press"
                     >
-                      KICK
+                      {game?.partyRoom ? 'REMOVE' : 'KICK'}
                     </button>
                   </>
                 )}

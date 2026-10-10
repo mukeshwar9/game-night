@@ -11,7 +11,7 @@ import { defineConfig, devices } from '@playwright/test'
 // the dev server: closer to what players run, immune to hot reloads from
 // concurrent edits, and fast enough to expose timing races the dev server
 // hides. CI uses it.
-const PORT = 5190
+const PORT = Number(process.env.E2E_PORT) || 5190
 const PREVIEW = process.env.E2E_PREVIEW === '1'
 
 export default defineConfig({
@@ -34,6 +34,9 @@ export default defineConfig({
       ? `npx vite build --mode emulator --outDir dist-e2e --emptyOutDir && npx vite preview --outDir dist-e2e --port ${PORT} --strictPort`
       : `npx vite --mode emulator --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
+    // A placeholder sandbox token so the Paddle checkout landing runs; the spec
+    // stubs Paddle.js itself, so nothing reaches Paddle.
+    env: { VITE_PADDLE_CLIENT_TOKEN: 'test_e2e_placeholder' },
     reuseExistingServer: false,
     timeout: PREVIEW ? 300_000 : 120_000,
   },

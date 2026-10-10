@@ -1,3 +1,5 @@
+import { haptic, hapticNotify } from './haptics'
+import { isNative } from './platform'
 import { getWinFx } from './displayPrefs'
 import { duckMusic, resumeAudio } from './audioContext'
 
@@ -25,9 +27,16 @@ function duckUnder(c, start, dur) {
   duckMusic(dur < 0.1 ? 0.7 : 0.55, Math.max(0, start - c.currentTime) + dur)
 }
 
-// Haptics disabled — keep audio, kill vibration.
-function vibrate() {
-  return
+// Haptics go through the native shell only (src/lib/haptics.js); web
+// vibration stays off. Both follow the player's HAPTICS switch, not the
+// sound switch: muted players can still feel moves.
+function vibrate(pattern) {
+  if (isNative) haptic(pattern)
+}
+
+// Outcomes use the platform's notification haptics (success / warning / error).
+function notice(type) {
+  if (isNative) hapticNotify(type)
 }
 
 function note(freq, start, dur, type = 'square', vol = 0.11) {
@@ -132,8 +141,11 @@ export const sounds = {
   go:    ()    => { seq([[880, 0, 0.06, 'sine', 0.15]]); vibrate(22) },
   miss:  ()    => { seq([[180, 0, 0.08, 'sawtooth', 0.12], [130, 0.09, 0.18, 'sawtooth', 0.09], [90, 0.25, 0.22, 'sawtooth', 0.07]]); vibrate(120) },
   // Flat held buzzer for a per-question timeout — distinct from miss()'s descending tone
-  buzz:  ()    => { seq([[140, 0, 0.28, 'sawtooth', 0.13]]); vibrate([0, 60, 40, 60]) },
+  buzz:  ()    => { seq([[140, 0, 0.28, 'sawtooth', 0.13]]); notice('WARNING') },
   move:  (sym) => { seq([[sym === 'X' ? 440 : 330, 0, 0.07]]); vibrate(9) },
+  // The finger's contact with a board whose piece lands later (landMs):
+  // a light tick now, the move's sound and haptic when the piece lands.
+  touch: ()    => { vibrate(6) },
   bust:  ()    => { seq([[200, 0, 0.08, 'sawtooth', 0.13], [120, 0.09, 0.16, 'sawtooth', 0.11], [70, 0.22, 0.26, 'sawtooth', 0.09]]); vibrate([0, 40, 60, 50]) },
   // Pig: each safe roll in a turn climbs a pentatonic (new octave every 5).
   // Distinct from `hit()` / `move()` — dice rattle + fifth ping.
@@ -176,6 +188,17 @@ export const sounds = {
   },
   // Short blip when the Pong ball bounces off a wall
   wall:  ()    => { seq([[300, 0, 0.04, 'square', 0.09]]); vibrate(5) },
+  // Minigolf: the putt (pitch rises with power), bumper boing, splash,
+  // portal sweep, lip-out rattle and the cup drop (longer run for a better score)
+  putt:  (power = 0.5) => { seq([[220 + power * 380, 0, 0.05, 'square', 0.1]]); vibrate(8) },
+  boing: ()    => { seq([[520, 0, 0.05, 'triangle', 0.12], [780, 0.05, 0.06, 'triangle', 0.1]]); vibrate(12) },
+  splash: ()   => { try { noise(ctx().currentTime, 0.25, 0.07, 900) } catch { /* audio unavailable */ } seq([[180, 0, 0.08, 'sawtooth', 0.07]]); vibrate(120) },
+  warp:  ()    => { seq([[400, 0, 0.05, 'sine', 0.1], [700, 0.05, 0.05, 'sine', 0.1], [1100, 0.1, 0.08, 'sine', 0.1]]); vibrate([0, 10, 30, 10]) },
+  rattle: ()   => { seq([[900, 0, 0.03, 'square', 0.07], [700, 0.05, 0.03, 'square', 0.07]]); vibrate([0, 15, 20, 15]) },
+  cup:   (good = false) => {
+    seq([[160, 0, 0.08, 'sine', 0.14], ...[523, 659, 784, 1047].slice(0, good ? 4 : 2).map((f, i) => [f, 0.12 + i * 0.08, 0.09, 'square', 0.08])])
+    vibrate([0, 30, 40, 60])
+  },
   // Tiny soft footstep tick — Playground world movement, throttled by the caller
   step:  ()    => { seq([[1500, 0, 0.02, 'square', 0.06]]); vibrate(0) },
   // Punchy low thump — Playground ball kick, distinct from wall()'s bright blip
@@ -186,18 +209,139 @@ export const sounds = {
     seq([[600 + step * 60, 0, 0.08, 'square', 0.12]])
     vibrate(6 + Math.min(step, 6) * 2)
   },
+  // One explicit note of a melodic streak (Arrows); haptic matches hit()
+  hitNote: (freq, streak = 0) => {
+    seq([[freq, 0, 0.08, 'square', 0.1]])
+    vibrate(6 + Math.min(streak, 6) * 2)
+  },
   join:  ()    => { seq([[440, 0, 0.06], [880, 0.08, 0.12]]); vibrate([0, 15, 30, 25]) },
-  win:   ()    => { if (!getWinFx()) return; winFanfare(); vibrate([0, 40, 30, 70]) },
+  win:   ()    => { if (!getWinFx()) return; winFanfare(); notice('SUCCESS') },
   // Bigger fanfare + longer rumble for clinching the whole match
   matchWin: () => {
     if (!getWinFx()) return
     matchWinFanfare()
     vibrate([0, 60, 40, 60, 40, 140])
   },
-  lose:  ()    => { seq([[330, 0, 0.12], [277, 0.14, 0.12], [220, 0.28, 0.35]]); vibrate(160) },
+  // A loss is not an error: two soft taps, never the platform's ERROR haptic.
+  lose:  ()    => { seq([[330, 0, 0.12], [277, 0.14, 0.12], [220, 0.28, 0.35]]); vibrate([0, 12, 90, 12]) },
   draw:  ()    => { seq([[392, 0, 0.14], [392, 0.18, 0.14, 'triangle', 0.07]]); vibrate([0, 30, 40, 30]) },
   drop:  ()    => { seq([[70, 0, 0.06, 'square', 0.17], [45, 0.04, 0.32, 'sawtooth', 0.15]]); vibrate(35) },
   bell:  ()    => seq([[98, 0, 1.8, 'sine', 0.16], [196, 0, 1.4, 'sine', 0.08]]),
+  // Sumo Arena: a stomp per push, a body-slam thud scaled by impact, a
+  // taiko heartbeat while someone teeters on the edge, the crowd, the
+  // shrinking-ring warning, the opening gong and the ring-out (whoosh, crash,
+  // roar). Mute, volume and native haptics all flow through seq/noise/vibrate.
+  sumoStomp: () => { seq([[120, 0, 0.05, 'square', 0.08], [72, 0.03, 0.07, 'sawtooth', 0.06]]); vibrate(6) },
+  sumoClash: (power = 0.5) => {
+    const p = Math.max(0, Math.min(1, power))
+    try { noise(ctx().currentTime, 0.1 + p * 0.12, 0.05 + p * 0.09, 420 + p * 260) } catch { /* audio unavailable */ }
+    seq([[150 - p * 50, 0, 0.09 + p * 0.06, 'triangle', 0.1 + p * 0.06], [60, 0.01, 0.12 + p * 0.08, 'sawtooth', 0.05 + p * 0.07]])
+    vibrate(10 + Math.round(p * 30))
+  },
+  sumoTension: (level = 0.5) => {
+    const l = Math.max(0, Math.min(1, level))
+    seq([[92, 0, 0.09, 'sine', 0.09 + l * 0.08], [78, 0.13, 0.11, 'sine', 0.07 + l * 0.07]])
+    vibrate(l > 0.85 ? 12 : 0)
+  },
+  sumoOoh: () => {
+    try {
+      const t = ctx().currentTime
+      noise(t, 0.45, 0.035, 520)
+      noise(t + 0.08, 0.5, 0.03, 760)
+    } catch { /* audio unavailable */ }
+    seq([[311, 0, 0.22, 'sine', 0.04], [277, 0.18, 0.3, 'sine', 0.04]])
+  },
+  sumoCrowd: (big = false) => {
+    try {
+      const t = ctx().currentTime
+      const n = big ? 5 : 3
+      for (let i = 0; i < n; i++) noise(t + i * 0.09, 0.45 + i * 0.08, (big ? 0.05 : 0.035) - i * 0.004, [700, 1100, 560, 900, 1300][i])
+    } catch { /* audio unavailable */ }
+  },
+  sumoShrink: () => { seq([[220, 0, 0.12, 'square', 0.07], [165, 0.15, 0.18, 'square', 0.07]]); vibrate([0, 20, 40, 20]) },
+  sumoGong: () => {
+    try { noise(ctx().currentTime, 0.08, 0.05, 2400) } catch { /* audio unavailable */ }
+    seq([[110, 0, 1.6, 'sine', 0.13], [221, 0, 1.1, 'sine', 0.07], [332, 0, 0.6, 'triangle', 0.035]])
+    vibrate(20)
+  },
+  sumoRingOut: () => {
+    seq([
+      [620, 0, 0.06, 'sawtooth', 0.06], [470, 0.05, 0.06, 'sawtooth', 0.06],
+      [340, 0.1, 0.07, 'sawtooth', 0.06], [230, 0.16, 0.08, 'sawtooth', 0.06],
+      [70, 0.26, 0.08, 'square', 0.16], [45, 0.3, 0.34, 'sawtooth', 0.14],
+    ])
+    try {
+      const t = ctx().currentTime
+      noise(t + 0.26, 0.3, 0.1, 380)
+      for (let i = 0; i < 5; i++) noise(t + 0.34 + i * 0.1, 0.55 + i * 0.1, 0.05 - i * 0.005, [800, 1150, 600, 950, 1350][i])
+    } catch { /* audio unavailable */ }
+    vibrate([0, 30, 60, 90])
+  },
+  // FENDER BENDER: a shove (soft or hard), a traffic hit, a wreck, a splash off
+  // the road and the horn. Mute, volume and native haptics flow through seq/noise.
+  fenderBump: (hard = false) => {
+    try { noise(ctx().currentTime, hard ? 0.16 : 0.09, hard ? 0.1 : 0.05, hard ? 900 : 1500) } catch { /* audio unavailable */ }
+    seq([[hard ? 120 : 150, 0, hard ? 0.14 : 0.08, 'sine', hard ? 0.16 : 0.09]])
+    vibrate(hard ? 26 : 8)
+  },
+  fenderCrash: () => {
+    try { noise(ctx().currentTime, 0.28, 0.14, 700) } catch { /* audio unavailable */ }
+    seq([[100, 0, 0.2, 'sine', 0.15], [70, 0.02, 0.16, 'sawtooth', 0.06]])
+    vibrate([0, 30, 20, 30])
+  },
+  fenderWreck: () => {
+    try {
+      const t = ctx().currentTime
+      noise(t, 0.7, 0.18, 380)
+      noise(t + 0.05, 0.45, 0.08, 1100)
+    } catch { /* audio unavailable */ }
+    seq([[90, 0, 0.5, 'sine', 0.17], [50, 0.02, 0.45, 'sawtooth', 0.08]])
+    vibrate([0, 60, 40, 90])
+  },
+  fenderSplash: () => {
+    try { noise(ctx().currentTime, 0.5, 0.1, 1800) } catch { /* audio unavailable */ }
+    seq([[300, 0, 0.12, 'sine', 0.05], [180, 0.08, 0.2, 'sine', 0.05]])
+    vibrate(60)
+  },
+  fenderHorn: () => { seq([[392, 0, 0.26, 'square', 0.07], [494, 0, 0.26, 'square', 0.07]]); vibrate(15) },
+  // SIDE KICK: the swing, a kick you land, a kick you take, a fall, the pop of
+  // unseating someone, the boost, the remount, the oil, the countdown and the flag.
+  sideKickCount: () => { seq([[440, 0, 0.14, 'square', 0.07]]) },
+  sideKickGo: () => { seq([[880, 0, 0.35, 'square', 0.08]]); vibrate(40) },
+  sideKickSwing: () => { try { noise(ctx().currentTime, 0.12, 0.08, 1800) } catch { /* audio unavailable */ } },
+  sideKickHit: () => {
+    try { noise(ctx().currentTime, 0.09, 0.1, 500) } catch { /* audio unavailable */ }
+    seq([[150, 0, 0.08, 'square', 0.1], [90, 0.06, 0.08, 'square', 0.08]])
+    vibrate(25)
+  },
+  sideKickHurt: () => {
+    seq([[110, 0, 0.1, 'sawtooth', 0.1], [70, 0.08, 0.14, 'sawtooth', 0.08]])
+    vibrate([0, 40, 30, 40])
+  },
+  sideKickFall: () => {
+    try { noise(ctx().currentTime, 0.5, 0.14, 240) } catch { /* audio unavailable */ }
+    seq([[220, 0, 0.2, 'sawtooth', 0.08], [110, 0.12, 0.2, 'sawtooth', 0.07], [45, 0.26, 0.26, 'sawtooth', 0.07]])
+    vibrate([0, 80, 40, 120])
+  },
+  sideKickPop: () => { seq([[523, 0, 0.1, 'square', 0.07], [784, 0.09, 0.16, 'square', 0.07]]) },
+  sideKickBoost: () => {
+    try { noise(ctx().currentTime, 0.35, 0.09, 700) } catch { /* audio unavailable */ }
+    seq([[180, 0, 0.14, 'sawtooth', 0.06], [340, 0.12, 0.14, 'sawtooth', 0.06], [520, 0.24, 0.16, 'sawtooth', 0.05]])
+    vibrate(30)
+  },
+  sideKickUp: (catchUp = false) => {
+    seq(catchUp
+      ? [[330, 0, 0.12, 'triangle', 0.07], [660, 0.11, 0.14, 'square', 0.06], [990, 0.22, 0.14, 'square', 0.05]]
+      : [[330, 0, 0.12, 'triangle', 0.07], [495, 0.1, 0.12, 'triangle', 0.06]])
+  },
+  sideKickOil: () => {
+    try { noise(ctx().currentTime, 0.3, 0.07, 900) } catch { /* audio unavailable */ }
+    vibrate(20)
+  },
+  sideKickFinish: () => {
+    seq([[523, 0, 0.18, 'square', 0.07], [659, 0.11, 0.18, 'square', 0.07], [784, 0.22, 0.18, 'square', 0.07], [1047, 0.33, 0.3, 'square', 0.08]])
+    vibrate([0, 30, 40, 30, 40, 90])
+  },
   // Animal Stack: rotate tick, release blip, landing thud scaled by impact,
   // topple sting, and the last-5-seconds timer tick.
   stackRotate: () => { seq([[880, 0, 0.03, 'square', 0.04]]); vibrate(4) },
@@ -205,8 +349,51 @@ export const sounds = {
   stackLand: (speed = 0.5) => { seq([[140 + speed * 40, 0, 0.08, 'triangle', 0.08 + speed * 0.06], [60, 0, 0.12, 'sawtooth', 0.05 + speed * 0.06]]); vibrate(8 + Math.round(speed * 14)) },
   stackTopple: () => { seq([[440, 0, 0.14], [330, 0.11, 0.14], [247, 0.22, 0.14], [165, 0.33, 0.2]]); vibrate([0, 60, 40, 120]) },
   stackTick: () => { seq([[1200, 0, 0.02, 'square', 0.03]]) },
-  // Archery cues stay behind this switch: vibrate() is intentionally disabled
-  // platform-wide until haptics are approved globally.
+  // Lazy Susan: a piece taken (higher for the bun), a tap on nothing, a chili,
+  // the plate reversing, the gold last bite, and the countdown tick.
+  susanGrab: (value = 1) => { seq([[520 + value * 90, 0, 0.05, 'triangle', 0.1], [900 + value * 120, 0.04, 0.07, 'triangle', 0.08]]); vibrate(8) },
+  susanBun: () => { seq([[660, 0, 0.08, 'triangle', 0.1], [990, 0.07, 0.14, 'triangle', 0.1]]); vibrate(14) },
+  susanMiss: () => { seq([[170, 0, 0.1, 'square', 0.06], [100, 0.08, 0.1, 'square', 0.05]]); vibrate(25) },
+  susanHot: () => { seq([[320, 0, 0.2, 'sawtooth', 0.06], [170, 0.15, 0.25, 'sawtooth', 0.06], [80, 0.35, 0.15, 'sawtooth', 0.05]]); vibrate([0, 40, 50, 60]) },
+  susanTurn: () => { seq([[1320, 0, 0.5, 'sine', 0.07], [1980, 0.05, 0.6, 'sine', 0.03]]); vibrate(15) },
+  susanLast: () => { seq([[880, 0, 0.1, 'triangle', 0.08], [1175, 0.09, 0.1, 'triangle', 0.08], [1568, 0.18, 0.25, 'triangle', 0.08]]); vibrate(10) },
+  susanTick: () => { seq([[440, 0, 0.07, 'square', 0.05]]) },
+  // BIRDSEYE: sling release, the bird's tap ability, impact thud scaled by
+  // impulse, a block breaking (glass rings higher) and a scarecrow popping.
+  birdLaunch: (power = 0.5) => { seq([[300 + power * 500, 0, 0.06, 'triangle', 0.1], [500 + power * 700, 0.05, 0.08, 'sine', 0.06]]); vibrate(10) },
+  birdAbility: () => { seq([[660, 0, 0.04, 'square', 0.07], [990, 0.04, 0.06, 'square', 0.06]]); vibrate(6) },
+  birdThud: (impulse = 10) => { const k = Math.min(1, impulse / 40); seq([[110 - k * 40, 0, 0.1, 'sawtooth', 0.06 + k * 0.08]]); vibrate(6 + Math.round(k * 20)) },
+  blockBreak: (glass = false) => { try { noise(ctx().currentTime, glass ? 0.12 : 0.18, glass ? 0.06 : 0.08, glass ? 3200 : 700) } catch { /* audio unavailable */ } vibrate(8) },
+  crowPop: () => { seq([[520, 0, 0.05, 'square', 0.09], [780, 0.05, 0.08, 'triangle', 0.08]]); vibrate([0, 20, 30, 20]) },
+  // Sticky Fingers: a glove closing, loot into a safe (bigger for bills and
+  // gems), a tug starting, winning one, an item snapping, the dye pack going off, the
+  // clock's last-seconds tick and the LAST CALL sting.
+  stickyGrab: () => { seq([[520, 0, 0.04, 'square', 0.04]]); vibrate(6) },
+  stickyCash: (big = false) => {
+    seq(big ? [[880, 0, 0.07, 'square', 0.09], [1318, 0.06, 0.14, 'square', 0.09]] : [[880, 0, 0.06, 'square', 0.07], [1175, 0.05, 0.08, 'square', 0.06]])
+    vibrate(big ? 14 : 8)
+  },
+  stickySnap: () => { try { noise(ctx().currentTime, 0.16, 0.08, 2400) } catch { /* audio unavailable */ } seq([[900, 0, 0.12, 'sawtooth', 0.05]]); vibrate(18) },
+  stickyTug: () => { seq([[200, 0, 0.1, 'sawtooth', 0.06], [240, 0.08, 0.1, 'sawtooth', 0.06]]); vibrate([0, 12, 30, 12]) },
+  stickyWon: () => { seq([[523, 0, 0.06, 'square', 0.07], [784, 0.05, 0.1, 'square', 0.07]]); vibrate(12) },
+  stickyDye: () => { seq([[160, 0, 0.28, 'sawtooth', 0.11], [110, 0.1, 0.25, 'sawtooth', 0.08]]); vibrate([0, 40, 50, 40]) },
+  stickyTick: () => { seq([[660, 0, 0.05, 'square', 0.05]]) },
+  stickyLast: () => { seq([[660, 0, 0.07, 'square', 0.08], [990, 0.08, 0.14, 'square', 0.08]]); vibrate([0, 20, 40, 20]) },
+  // Quiver: the throw's whoosh, an arrow biting into the wheel, a clink off a
+  // stuck arrow, stars (gold and bomb are bigger), the wheel reversing, the
+  // wheel clock's last-seconds tick and the sting for a fresh wheel.
+  quiverThrow: () => { seq([[620, 0, 0.1, 'sawtooth', 0.03]]); vibrate(5) },
+  quiverStick: () => { seq([[190, 0, 0.09, 'triangle', 0.1], [900, 0, 0.03, 'square', 0.02]]); vibrate(8) },
+  quiverClink: () => { seq([[1800, 0, 0.05, 'square', 0.05], [140, 0.02, 0.2, 'sawtooth', 0.06]]); vibrate([0, 25, 30, 25]) },
+  quiverStar: (big = false) => {
+    seq(big ? [[784, 0, 0.1, 'square', 0.06], [1175, 0.08, 0.12, 'square', 0.06], [1568, 0.18, 0.3, 'square', 0.06]] : [[880, 0, 0.09, 'square', 0.05], [1320, 0.07, 0.14, 'square', 0.04]])
+    vibrate(big ? 16 : 8)
+  },
+  quiverBomb: () => { seq([[110, 0, 0.45, 'sawtooth', 0.12], [60, 0.05, 0.5, 'square', 0.1]]); try { noise(ctx().currentTime, 0.3, 0.1, 500) } catch { /* audio unavailable */ } vibrate([0, 50, 40, 70]) },
+  quiverFlip: () => { seq([[330, 0, 0.2, 'triangle', 0.08], [660, 0.1, 0.18, 'triangle', 0.06]]); vibrate(10) },
+  quiverTick: () => { seq([[660, 0, 0.05, 'square', 0.05]]) },
+  quiverWheel: () => { seq([[240, 0, 0.25, 'triangle', 0.07], [520, 0.12, 0.2, 'triangle', 0.06]]) },
+  // Archery: draw, loose and hit taps (shell only, behind the HAPTICS switch).
   archeryDraw: () => { seq([[520, 0, 0.035, 'sine', 0.04]]); vibrate(4) },
   archeryLoose: () => { seq([[760, 0, 0.045, 'triangle', 0.08], [1120, 0.035, 0.06, 'sine', 0.05]]); vibrate(8) },
   archeryHit: (score = 0) => {
@@ -214,6 +401,52 @@ export const sounds = {
     else seq([[180, 0, 0.08, 'sawtooth', 0.08]])
     vibrate(score > 8 ? 10 : 5)
   },
+  // Darts: the throw's whoosh, the thud into the sisal, a miss off the board.
+  dartThrow: () => { try { noise(ctx().currentTime, 0.16, 0.05, 2600) } catch { /* audio unavailable */ } vibrate(4) },
+  dartThud: (big = false) => {
+    try { noise(ctx().currentTime, 0.09, big ? 0.14 : 0.1, big ? 900 : 1500) } catch { /* audio unavailable */ }
+    seq([[big ? 110 : 150, 0, 0.12, 'sine', 0.2]])
+    vibrate(big ? 18 : 10)
+  },
+  dartMiss: () => {
+    try { noise(ctx().currentTime, 0.12, 0.08, 500) } catch { /* audio unavailable */ }
+    seq([[90, 0, 0.18, 'triangle', 0.12]])
+    vibrate(30)
+  },
+  // First Cut: the katana's swish, the chop through a fruit, the blade stopping
+  // dead on a twin, an item landing on the plate, a gold fruit, a new rule card
+  // and the countdown tick. Mute, volume and native haptics flow through seq/noise.
+  cutSwish: () => { try { noise(ctx().currentTime, 0.15, 0.09, 2400) } catch { /* audio unavailable */ } vibrate(5) },
+  cutChop: () => {
+    try {
+      const t = ctx().currentTime
+      noise(t, 0.08, 0.13, 900)
+      noise(t + 0.03, 0.1, 0.05, 3200)
+    } catch { /* audio unavailable */ }
+    seq([[170, 0, 0.09, 'triangle', 0.14], [70, 0.02, 0.12, 'sawtooth', 0.08]])
+    vibrate(16)
+  },
+  cutClang: () => {
+    try { noise(ctx().currentTime, 0.03, 0.08, 3200) } catch { /* audio unavailable */ }
+    seq([[1870, 0, 0.32, 'triangle', 0.05], [2890, 0, 0.24, 'triangle', 0.04], [4120, 0, 0.16, 'triangle', 0.03]])
+    vibrate([0, 24, 40, 24])
+  },
+  cutLand: () => { seq([[220, 0, 0.05, 'triangle', 0.06], [150, 0.02, 0.07, 'triangle', 0.05]]) },
+  cutGold: () => { seq([[784, 0, 0.07, 'triangle', 0.1], [1047, 0.06, 0.07, 'triangle', 0.1], [1568, 0.12, 0.16, 'triangle', 0.09]]); vibrate([0, 10, 20, 18]) },
+  cutRule: () => { seq([[660, 0, 0.05, 'square', 0.07], [880, 0.07, 0.05, 'square', 0.07], [1175, 0.14, 0.09, 'square', 0.07]]) },
+  cutTick: (hi = false) => { seq([[hi ? 880 : 520, 0, 0.07, 'square', 0.07]]); vibrate(hi ? 18 : 6) },
+  // Bamboozle: a wall rattles, the poles land, a dodger is hit or knocked out, cover cracks and lands.
+  bzTick:  () => { seq([[760, 0, 0.04, 'triangle', 0.07]]) },
+  bzWarn:  () => { seq([[520, 0, 0.07, 'triangle', 0.12], [500, 0.14, 0.07, 'triangle', 0.12]]); try { noise(ctx().currentTime, 0.25, 0.06, 500) } catch { /* audio unavailable */ } vibrate(6) },
+  bzThunk: () => { seq([[130, 0, 0.22, 'sine', 0.3], [48, 0, 0.2, 'sine', 0.18]]); try { noise(ctx().currentTime, 0.16, 0.12, 900) } catch { /* audio unavailable */ } vibrate(12) },
+  bzOuch:  () => { seq([[420, 0, 0.2, 'square', 0.12], [110, 0.08, 0.14, 'square', 0.08]]); vibrate([0, 40, 30, 40]) },
+  bzOut:   () => { seq([[300, 0.1, 0.45, 'square', 0.12], [60, 0.2, 0.3, 'sawtooth', 0.08]]); vibrate([0, 60, 40, 120]) },
+  bzCoin:  () => { seq([[880, 0, 0.06, 'square', 0.1], [1320, 0.06, 0.1, 'square', 0.1]]); vibrate(5) },
+  bzHeal:  () => { seq([[520, 0.1, 0.12, 'triangle', 0.14], [780, 0.2, 0.12, 'triangle', 0.14], [1040, 0.3, 0.16, 'triangle', 0.14]]); vibrate([0, 15, 20, 25]) },
+  bzCrack: () => { try { noise(ctx().currentTime, 0.3, 0.1, 1600) } catch { /* audio unavailable */ } seq([[210, 0, 0.1, 'sawtooth', 0.06]]); vibrate(14) },
+  bzLand:  () => { seq([[90, 0, 0.15, 'sine', 0.3]]); vibrate(6) },
+  bzGrab:  () => { seq([[180, 0, 0.08, 'square', 0.12], [360, 0.05, 0.08, 'square', 0.1]]); vibrate(10) },
+  bzThrow: () => { try { noise(ctx().currentTime, 0.14, 0.1, 2400) } catch { /* audio unavailable */ } seq([[240, 0, 0.1, 'sawtooth', 0.08]]); vibrate(12) },
   // Soft two-note pop — default emoji reaction audio (haptics via reaction())
   emote: () => emoteAudio(),
   // Breathy descending hiss — shh reaction audio (haptics via reaction())
@@ -312,7 +545,7 @@ function shhAudio() {
 
 const DEFAULT_REACTION_HAPTIC = [0, 8, 8]
 
-// Distinct navigator.vibrate patterns per emoji — audio lives in REACTION_SOUNDS.
+// Distinct haptic patterns (navigator.vibrate syntax) per emoji — audio lives in REACTION_SOUNDS.
 const REACTION_HAPTICS = {
   '🔥': [0, 5, 10, 15, 20],
   '😂': [0, 8, 50, 8, 50, 8],

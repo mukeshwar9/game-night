@@ -5,18 +5,26 @@ import AvatarPicker, { DieIcon } from './AvatarPicker'
 import AuthErrorBanner from './AuthErrorBanner'
 import useBusy from '../hooks/useBusy'
 import { useMarkOnboardingOpen } from '../hooks/useOnboardingOpen'
-import { defaultAvatarForId, canonicalAvatar } from '../lib/avatars'
+import { defaultAvatarForId, canonicalAvatarId as canonicalAvatar } from '../lib/avatarKit'
 import { useAuth } from '../lib/AuthContext'
 import { setProfile } from '../lib/social'
 import { GAME_TYPES, getGameConfig } from '../lib/games'
 import { getPlayerId } from '../lib/playerId'
-import { UPGRADE_ERRORS, preloadGoogleSignIn } from '../lib/auth'
+import { preloadGoogleSignIn, canSignInWithGoogle, canSignInWithApple, upgradeMessage } from '../lib/auth'
+import { isInAppBrowser } from '../lib/uaLogic'
+import { isNative } from '../lib/platform'
+import OpenInBrowserHint from './OpenInBrowserHint'
+import AppleMark from './AppleMark'
 import { configError } from '../lib/firebase'
 import { markOnboarded } from '../lib/onboarding'
 import { NAME_MAX, initialName, suggestName, suggestNames, validateName } from '../lib/onboardingLogic'
 import { sounds } from '../lib/sounds'
 import { inviteSeatsLine } from '../lib/roomLogic'
+import { hostWaitingLine } from '../lib/arrivalLogic'
 import { cn } from '@/lib/utils'
+import { displayNameFor } from '../lib/moderationLogic'
+import { recordFunnel } from '../lib/analytics'
+import LegalLinks from './LegalLinks'
 
 // First-run flow, two steps: NAME, then LOOK. Shown to a brand-new visitor
 // on Home/Games/Online, and to someone opening an invite link (`invite` set:
@@ -34,6 +42,7 @@ export default function Onboarding({ onDone, invite = null }) {
   const gameCount = GAME_TYPES.filter(t => !t.variantOf).length
   const [step, setStep] = useState('name')
   const [googleBusy, runGoogle] = useBusy()
+  const [appleBusy, runApple] = useBusy()
   const [saving, runSave] = useBusy()
   const [suggestion] = useState(() => suggestName())
   const [chips, setChips] = useState(() => suggestNames(3, Math.random, suggestion))
@@ -62,7 +71,13 @@ export default function Onboarding({ onDone, invite = null }) {
     headingRef.current?.focus({ preventScroll: true })
   }, [step])
 
-  const showGoogle = !invite && isAnonymous && !configError
+  const canOfferGoogle = !invite && isAnonymous && !configError
+  // Google refuses OAuth inside Instagram/TikTok/Facebook webviews: hint instead.
+  // The store app is not one of those: it signs in through native sheets, and
+  // each provider shows only when it is available on this platform (auth.js).
+  const inApp = !isNative && isInAppBrowser()
+  const showGoogle = canOfferGoogle && !inApp && canSignInWithGoogle()
+  const showApple = canOfferGoogle && !inApp && canSignInWithApple()
   useEffect(() => (showGoogle ? preloadGoogleSignIn() : undefined), [showGoogle])
 
   const setName = (v) => { setNameInput(v); setShowError(false) }
@@ -85,18 +100,20 @@ export default function Onboarding({ onDone, invite = null }) {
     setStep('look')
   }
 
-  const handleGoogle = () => runGoogle(async () => {
-    const u = await upgrade()
+  const signIn = (provider, run) => run(async () => {
+    const u = await upgrade(provider)
     // undefined = a redirect was kicked off (mobile/standalone PWA); null = the
-    // popup was cancelled. Either way, stay put and stay silent.
+    // popup or native sheet was cancelled. Either way, stay put and stay silent.
     if (!u) return
     sounds.join()
-    // A Google name replaces an untouched default.
+    // A provider name replaces an untouched default (Apple shares none).
     setNameInput(prev => prev ?? (u.displayName ? validateName(u.displayName).name : null))
   }, (e) => {
-    console.error('Google sign-in failed:', e)
-    toast.error(UPGRADE_ERRORS[e?.code] || `SIGN-IN FAILED${e?.code ? ` (${e.code})` : ''}. PLEASE TRY AGAIN.`)
+    console.error(`${provider} sign-in failed:`, e)
+    toast.error(upgradeMessage(e, provider))
   })
+  const handleGoogle = () => signIn('google', runGoogle)
+  const handleApple = () => signIn('apple', runApple)
 
   const finish = () => runSave(async () => {
     const finalName = check.ok ? check.name : suggestion
@@ -107,6 +124,7 @@ export default function Onboarding({ onDone, invite = null }) {
       localStorage.setItem('playerAvatar', finalAvatar)
     } catch { /* quota */ }
     markOnboarded()
+    recordFunnel('named')
     try {
       await setProfile({ displayName: finalName, avatar: finalAvatar })
     } catch (e) {
@@ -152,15 +170,8 @@ export default function Onboarding({ onDone, invite = null }) {
                 WHAT SHOULD WE CALL YOU?
               </h1>
 
-              {/* Live preview — the card other players will see */}
-              <div className="flex items-center gap-3 bg-retro-card border border-retro-border rounded p-3" aria-hidden="true">
-                <Avatar id={selectedAvatar} size={44} />
-                <div className="min-w-0">
-                  <p className="font-pixel text-[8px] text-retro-dim tracking-widest">YOUR PLAYER CARD</p>
-                  <p className="font-pixel text-xs text-retro-text truncate mt-1.5">{check.name || '…'}</p>
-                </div>
-              </div>
-
+              {/* No player-card preview here: it repeated the name being typed
+                  one line below, and the look is the whole of the next step. */}
               <div className="space-y-1.5">
                 <label htmlFor={`${ids}-name`} className="sr-only">Your name</label>
                 <div className="flex gap-2">
@@ -191,7 +202,7 @@ export default function Onboarding({ onDone, invite = null }) {
                     type="button"
                     onClick={rollName}
                     aria-label="Suggest a random name"
-                    className="shrink-0 min-w-12 min-h-11 flex items-center justify-center border-2 border-retro-border rounded text-retro-cta hover:border-retro-cta transition-all active:scale-90"
+                    className="shrink-0 min-w-12 min-h-11 flex items-center justify-center border-2 border-retro-border rounded text-retro-cta hover:border-retro-cta transition press"
                   >
                     <DieIcon size={20} />
                   </button>
@@ -214,7 +225,7 @@ export default function Onboarding({ onDone, invite = null }) {
                       key={c}
                       type="button"
                       onClick={() => { sounds.move('O'); setName(c) }}
-                      className="min-h-9 px-2.5 rounded border border-retro-border bg-retro-surface font-mono text-xs text-retro-text hover:border-retro-cta transition-all active:scale-95"
+                      className="min-h-9 px-2.5 rounded border border-retro-border bg-retro-surface font-mono text-xs text-retro-text hover:border-retro-cta transition press"
                     >
                       {c}
                     </button>
@@ -227,18 +238,30 @@ export default function Onboarding({ onDone, invite = null }) {
               <button
                 type="button"
                 onClick={next}
-                className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-95"
+                className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition press"
               >
                 NEXT: PICK A LOOK →
               </button>
+              <LegalLinks lead="By playing you agree to the" contact={false} />
+              {canOfferGoogle && inApp && <OpenInBrowserHint />}
               {showGoogle && (
                 <button
                   type="button"
                   onClick={handleGoogle}
-                  disabled={googleBusy}
-                  className="w-full min-h-11 flex items-center justify-center gap-2 font-pixel text-[9px] text-retro-p1 hover:text-glow-p1 transition-all disabled:opacity-50"
+                  disabled={googleBusy || appleBusy}
+                  className="w-full min-h-11 flex items-center justify-center gap-2 border border-retro-p1 bg-retro-card text-retro-p1 rounded font-pixel text-[9px] transition press disabled:opacity-50"
                 >
                   <GoogleMark /> {googleBusy ? 'SIGNING IN…' : 'HAVE AN ACCOUNT? SIGN IN WITH GOOGLE'}
+                </button>
+              )}
+              {showApple && (
+                <button
+                  type="button"
+                  onClick={handleApple}
+                  disabled={googleBusy || appleBusy}
+                  className="w-full min-h-11 flex items-center justify-center gap-2 border border-retro-text bg-retro-text text-retro-bg rounded font-pixel text-[9px] transition press disabled:opacity-50"
+                >
+                  <AppleMark size={13} /> {appleBusy ? 'SIGNING IN…' : showGoogle ? 'SIGN IN WITH APPLE' : 'HAVE AN ACCOUNT? SIGN IN WITH APPLE'}
                 </button>
               )}
               {!isAnonymous && user?.email && (
@@ -259,7 +282,7 @@ export default function Onboarding({ onDone, invite = null }) {
               >
                 PICK YOUR LOOK
               </h1>
-              <p className="font-mono text-xs text-retro-dim">Tap a critter, build a person, or shuffle. You can change it any time in Settings.</p>
+              <p className="font-mono text-xs text-retro-dim">Build your character or shuffle. You can change it any time in Settings.</p>
             </div>
 
             <AvatarPicker value={selectedAvatar} onChange={setAvatar} name={check.name} previewSize={88} />
@@ -269,7 +292,7 @@ export default function Onboarding({ onDone, invite = null }) {
                 type="button"
                 onClick={() => setStep('name')}
                 disabled={saving}
-                className="min-h-12 px-4 border-2 border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:text-retro-text transition-all active:scale-95"
+                className="min-h-12 px-4 border-2 border-retro-border text-retro-dim font-pixel text-[10px] rounded hover:text-retro-text transition press"
               >
                 ← BACK
               </button>
@@ -277,7 +300,7 @@ export default function Onboarding({ onDone, invite = null }) {
                 type="button"
                 onClick={finish}
                 disabled={saving}
-                className="flex-1 min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition-all active:scale-95 disabled:opacity-60"
+                className="flex-1 min-h-12 bg-retro-cta text-retro-bg font-pixel text-sm tracking-widest rounded hover:shadow-neon-cta transition press disabled:opacity-60"
               >
                 {saving ? 'SAVING…' : invite ? 'JOIN GAME' : "LET'S PLAY"}
               </button>
@@ -296,7 +319,7 @@ function StepDots({ step }) {
       {[1, 2].map(i => (
         <span
           key={i}
-          className={cn('h-1.5 rounded-full transition-all', i === n ? 'w-8 bg-retro-cta' : 'w-4 bg-retro-border')}
+          className={cn('h-1.5 rounded-full transition-[width,background-color]', i === n ? 'w-8 bg-retro-cta' : 'w-4 bg-retro-border')}
         />
       ))}
     </div>
@@ -306,6 +329,8 @@ function StepDots({ step }) {
 function InviteCard({ invite, cfg }) {
   const Icon = cfg?.Icon
   const seats = inviteSeatsLine(invite)
+  // The host is already there: say so before the guest has committed.
+  const waiting = invite.party || !invite.hostName ? null : hostWaitingLine({ hostName: displayNameFor(invite.hostName), gameLabel: cfg?.label })
   return (
     <div className="bg-retro-card border-2 border-retro-cta/60 rounded p-4 space-y-3 text-center">
       <h2 className="font-pixel text-sm text-retro-cta text-glow-cta tracking-wider">YOU&apos;RE INVITED!</h2>
@@ -318,9 +343,10 @@ function InviteCard({ invite, cfg }) {
       {invite.hostName && (
         <div className="flex items-center justify-center gap-2">
           <Avatar id={invite.hostAvatar} size={28} />
-          <span className="font-mono text-xs text-retro-text truncate"><span className="text-retro-dim">HOSTED BY </span>{invite.hostName}</span>
+          <span className="font-mono text-xs text-retro-text truncate"><span className="text-retro-dim">HOSTED BY </span>{displayNameFor(invite.hostName)}</span>
         </div>
       )}
+      {waiting && <p data-testid="invite-host-waiting" className="font-pixel text-[9px] text-retro-text tracking-wider leading-relaxed">{waiting}</p>}
       {seats && <p className="font-pixel text-[9px] text-retro-dim tracking-wider leading-relaxed">{seats}</p>}
       <p className="font-mono text-[11px] text-retro-dim">
         ROOM <span className="text-retro-p1 tracking-widest">{invite.gameId}</span>

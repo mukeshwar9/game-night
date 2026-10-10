@@ -46,8 +46,8 @@ export default function LetterKeyboard({ guesses = {}, onGuess, disabled = false
                 disabled={tried || disabled}
                 aria-label={tried ? `${letter}, ${SPOKEN[state]}` : letter}
                 className={cn(
-                  'relative flex-1 min-w-0 h-11 flex items-center justify-center font-pixel text-[10px] rounded border transition-all',
-                  'select-none active:scale-90',
+                  'relative flex-1 min-w-0 h-11 flex items-center justify-center font-pixel text-[10px] rounded border transition',
+                  'select-none press',
                   state === 'hit' && 'border-retro-p1 text-retro-p1 shadow-neon-p1 bg-retro-tint-p1',
                   state === 'miss' && 'border-retro-border text-retro-dim bg-retro-card line-through opacity-60',
                   state === 'pending' && 'border-retro-cta text-retro-cta bg-retro-tint-cta arcade-blink',

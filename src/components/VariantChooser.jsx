@@ -13,7 +13,7 @@ export default function VariantChooser({ base, variants, onPick, onClose }) {
   ]
 
   return (
-    <BottomSheet onClose={onClose} ariaLabel={`${base.label} — pick a mode`} className="space-y-3">
+    <BottomSheet glass onClose={onClose} ariaLabel={`${base.label} — pick a mode`} className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-6 h-6 text-retro-cta flex items-center justify-center">{Icon && <Icon />}</span>
@@ -34,7 +34,7 @@ export default function VariantChooser({ base, variants, onPick, onClose }) {
             key={o.type}
             onClick={() => onPick(o.type)}
             className={cn(
-              'w-full text-left p-3 rounded border-2 transition-all active:scale-[0.98]',
+              'w-full text-left p-3 rounded border-2 transition press-card',
               'bg-retro-card hover:shadow-neon-cta',
               i === 0 ? 'border-retro-border hover:border-retro-cta/60' : 'border-retro-cta/40 hover:border-retro-cta',
             )}

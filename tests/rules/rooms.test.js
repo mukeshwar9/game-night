@@ -14,6 +14,7 @@ const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
 const as = (uid) => dbAs(T.env, uid)
 const put = (path, value) => seed(T.env, path, value)
 const seat = (uid, extra = {}) => ({ name: uid, joinedAt: 5, playerId: uid, ...extra })
+const lobbySeat = (uid) => ({ name: uid, joinedAt: 9, playerId: uid, online: true })
 
 describe('creating and deleting rooms', () => {
   it('lets a party room be created with the creator in a uid-keyed seat', async () => {
@@ -201,6 +202,16 @@ describe('2P presence', () => {
     await assertFails(as(BOB).ref('games/g1/presence/O/online').set(false))
   })
 
+  it('lets only the seat’s player stamp it away (app backgrounded), with a server-time stamp', async () => {
+    await put('games/g1', gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { presence: { X: { online: true, conns: { c1: 1 } } } } }))
+    await assertSucceeds(as(ALICE).ref('games/g1/presence/X/awayAt').set({ '.sv': 'timestamp' }))
+    await assertFails(as(BOB).ref('games/g1/presence/X/awayAt').set(5))
+    await assertFails(as(ALICE).ref('games/g1/presence/X/awayAt').set(Date.now() + 3_600_000))
+    await assertFails(as(ALICE).ref('games/g1/presence/X/awayAt').set('soon'))
+    // Reconnecting clears it alongside the new connection.
+    await assertSucceeds(as(ALICE).ref('games/g1/presence/X').update({ online: true, awayAt: null, 'conns/c2': 5 }))
+  })
+
   it('rejects a presence entry for a seat that does not exist', async () => {
     await put('games/g1', gameNode({ x: ALICE, o: BOB }))
     await assertFails(as(ALICE).ref('games/g1/presence/Z/online').set(true))
@@ -210,6 +221,22 @@ describe('2P presence', () => {
     const room = gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { presence: { X: { online: true, conns: { c1: 1 } }, O: { online: false, leftAt: 3 } } } })
     await put('games/g1', room)
     await assertSucceeds(as(ALICE).ref('games/g1').set({ ...room, status: 'finished', winner: 'X', scores: { X: 1, O: 0 } }))
+  })
+})
+
+describe('party presence', () => {
+  it('lets a party player stamp only their own seat away, and never creates a seat from it', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB], status: 'playing' }))
+    await assertSucceeds(as(ALICE).ref(`games/g1/players/${ALICE}/awayAt`).set({ '.sv': 'timestamp' }))
+    await assertFails(as(BOB).ref(`games/g1/players/${ALICE}/awayAt`).set(5))
+    await assertFails(as(CAROL).ref(`games/g1/players/${CAROL}/awayAt`).set(5))
+  })
+
+  it('accepts a whole-room transaction that carries another player’s away stamp unchanged', async () => {
+    const room = partyNode({ uids: [ALICE, BOB], status: 'playing' })
+    room.players[BOB].awayAt = 7
+    await put('games/g1', room)
+    await assertSucceeds(as(ALICE).ref('games/g1').set({ ...room, lastActivityAt: 9 }))
   })
 })
 
@@ -265,7 +292,7 @@ describe('spectators, chat and emotes', () => {
 
   it('lets a spectator chat as themselves and prune the log', async () => {
     await put('games/g1', { ...gameNode({ x: ALICE, o: BOB }), spectators: watching(CAROL), chatLog: { m1: msg(BOB) } })
-    await assertSucceeds(as(CAROL).ref('games/g1/chatLog').update({ m2: msg(CAROL), m1: null }))
+    await assertSucceeds(as(CAROL).ref('games/g1').update({ 'chatLog/m2': msg(CAROL), 'chatLog/m1': null, 'chatLast/carol': { '.sv': 'timestamp' } }))
     await assertFails(as(CAROL).ref('games/g1/chatLog/m3').set(msg(ALICE)))
   })
 
@@ -309,6 +336,29 @@ describe('the queue (game night)', () => {
     await assertFails(as(CAROL).ref('games/g3/queue/carol').set(entry(CAROL)))
     await put('games/g4', gameNode({ x: ALICE, o: BOB, extra: { partyRoom: true } }))
     await assertFails(as(CAROL).ref('games/g4/queue/mallory').set(entry(MALLORY)))
+  })
+
+  it('denies a member the party removed: no seat, no place in line, even after kicked is cleared', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB], extra: { partyRoom: true, removed: { [CAROL]: true } } }))
+    await assertFails(as(CAROL).ref('games/g1/players/carol').set(lobbySeat(CAROL)))
+    await put('games/g2', gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { partyRoom: true, removed: { [CAROL]: true } } }))
+    await assertFails(as(CAROL).ref('games/g2/queue/carol').set(entry(CAROL)))
+    await put('games/g3', partyNode({ uids: [ALICE, BOB], extra: { partyRoom: true, removed: { [MALLORY]: true } } }))
+    await assertSucceeds(as(CAROL).ref('games/g3/players/carol').set(lobbySeat(CAROL)))
+  })
+
+  it('lets the host remove a party member for the whole party; validates partyCap', async () => {
+    await put('games/g1', partyNode({ uids: [ALICE, BOB], extra: { partyRoom: true, partyCap: 4 } }))
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ 'kicked/bob': true, 'removed/bob': true, 'players/bob': null }))
+    await assertFails(as(ALICE).ref('games/g1/removed/carol').set('yes'))
+    await assertSucceeds(as(ALICE).ref('games/g1/partyCap').set(3))
+    await assertFails(as(ALICE).ref('games/g1/partyCap').set(1))
+    await assertFails(as(ALICE).ref('games/g1/partyCap').set(9))
+    await assertFails(as(ALICE).ref('games/g1/partyCap').set('4'))
+  })
+
+  it('lets a party lobby be created (game type party, cap 4)', async () => {
+    await assertSucceeds(as(ALICE).ref('games/p1').set(partyNode({ uids: [ALICE], gameType: 'party', extra: { partyRoom: true, partyCap: 4, hostUid: ALICE, lobby: true } })))
   })
 
   it('denies a member queueing an outsider', async () => {
@@ -388,6 +438,77 @@ describe('verified board games: moves on your own turn', () => {
   })
 })
 
+describe('Pig fair rolls', () => {
+  // A roll is a request stamped with the server's time; the faces come from
+  // H(diceSeed : i : at), so they only exist once the request is stored, and
+  // these rules keep the roller from backing out after seeing them.
+  const pig = (extra = {}) => gameNode({
+    x: ALICE, o: BOB, status: 'playing',
+    extra: {
+      gameType: 'dice', board: null, diceSeed: 'ab'.repeat(32), diceScoreX: 10, diceScoreO: 20,
+      diceTurnScore: 6, diceRollIndex: 4, diceRolls: [6], ...extra,
+    },
+  })
+  const ts = { '.sv': 'timestamp' }
+  const pending = { diceRoll: { i: 4, by: 'X', at: 1_700_000_000_000 } }
+
+  it('lets the player on turn request the next roll at the server time', async () => {
+    await put('games/g1', pig())
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: ts } }))
+  })
+
+  it('denies a request with a client-chosen time, for another roll, or by the wrong seat', async () => {
+    await put('games/g1', pig())
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: 1_700_000_000_000 } }))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: { i: 5, by: 'X', at: ts } }))
+    await assertFails(as(BOB).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: ts } }))
+    await assertFails(as(BOB).ref('games/g1').update({ diceRoll: { i: 4, by: 'O', at: ts } }))
+  })
+
+  it('never lets a pending request be replaced or cancelled', async () => {
+    await put('games/g1', pig(pending))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: { i: 4, by: 'X', at: ts } }))
+    await assertFails(as(ALICE).ref('games/g1/diceRoll').remove())
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRoll: null }))
+  })
+
+  it('denies banking while a roll is pending', async () => {
+    await put('games/g1', pig(pending))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceScoreX: 16, diceTurnScore: 0, diceRolls: null, currentTurn: 'O' }))
+  })
+
+  it('lets either player resolve the pending roll, keeping the request', async () => {
+    await put('games/g1', pig(pending))
+    await assertSucceeds(as(BOB).ref('games/g1').update({ diceLast: 3, diceTurnScore: 9, diceRolls: [6, 3], diceRollIndex: 5 }))
+  })
+
+  it('denies a roll without a request, or a resolution that rewrites the request', async () => {
+    await put('games/g1', pig())
+    await assertFails(as(ALICE).ref('games/g1').update({ diceLast: 6, diceTurnScore: 12, diceRollIndex: 5 }))
+    await put('games/g2', pig(pending))
+    await assertFails(as(ALICE).ref('games/g2').update({ diceLast: 6, diceRollIndex: 5, diceRoll: { i: 4, by: 'X', at: ts } }))
+  })
+
+  it('still lets a pending room be reset by a new match or a game switch', async () => {
+    await put('games/g1', pig(pending))
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ diceScoreX: 0, diceScoreO: 0, diceTurnScore: 0, diceRollIndex: 0, diceRoll: null, diceRolls: null }))
+    await put('games/g2', pig(pending))
+    await assertSucceeds(as(BOB).ref('games/g2').update({ gameType: 'tictactoe', board: Array(9).fill(''), diceScoreX: null, diceScoreO: null, diceTurnScore: null, diceRollIndex: null, diceRoll: null, diceRolls: null, diceSeed: null }))
+  })
+
+  it('denies resetting only the roll counter to escape a pending roll', async () => {
+    await put('games/g1', pig(pending))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRollIndex: 0, diceRoll: null }))
+    await assertFails(as(ALICE).ref('games/g1').update({ diceRollIndex: null, diceRoll: null }))
+  })
+
+  it('accepts a whole-room transaction that leaves the roll untouched', async () => {
+    await put('games/g1', pig(pending))
+    const room = (await as(ALICE).ref('games/g1').get()).val()
+    await assertSucceeds(as(ALICE).ref('games/g1').set({ ...room, lastActivityAt: 5 }))
+  })
+})
+
 describe('Pig seed recovery and server-only nodes', () => {
   it('counts seed resets up by one', async () => {
     await put('games/g1', gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { gameType: 'dice', diceSeedResets: 1 } }))
@@ -400,5 +521,31 @@ describe('Pig seed recovery and server-only nodes', () => {
     await put('results/g1', { epoch: 1 })
     await assertFails(as(ALICE).ref('results/g1').get())
     await assertFails(as(ALICE).ref('results/g1').set({ epoch: 2 }))
+  })
+})
+
+describe('Bonk Buggies room keys', () => {
+  const live = (extra = {}) => gameNode({ x: ALICE, o: BOB, status: 'playing', extra: { gameType: 'bonkbuggies', bonkScoreX: 0, bonkScoreO: 0, ...extra } })
+
+  it('lets the host publish points as they are scored and carry them into the finish', async () => {
+    await put('games/g1', live())
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ bonkScoreX: 3, bonkScoreO: 2 }))
+    await assertSucceeds(as(ALICE).ref('games/g1').update({ status: 'finished', winner: 'X', 'scores/X': 1, bonkScoreX: 5, bonkScoreO: 2 }))
+  })
+
+  it('lets the guest write them too (either client may finish the round)', async () => {
+    await put('games/g1', live())
+    await assertSucceeds(as(BOB).ref('games/g1').update({ status: 'finished', winner: 'O', 'scores/O': 1, bonkScoreX: 1, bonkScoreO: 5 }))
+  })
+
+  it('clears them when the room switches to another game', async () => {
+    await put('games/g1', live({ bonkScoreX: 4, bonkScoreO: 1 }))
+    await assertSucceeds(as(BOB).ref('games/g1').update({ gameType: 'tictactoe', board: Array(9).fill(''), bonkScoreX: null, bonkScoreO: null }))
+  })
+
+  it('keeps outsiders and unknown keys out', async () => {
+    await put('games/g1', live())
+    await assertFails(as(MALLORY).ref('games/g1').update({ bonkScoreX: 5 }))
+    await assertFails(as(ALICE).ref('games/g1').update({ bonkScoreZ: 1 }))
   })
 })

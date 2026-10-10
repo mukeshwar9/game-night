@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { GameArt } from './GameArt'
 import { supportsLocalPlay } from '../lib/games'
 import BottomSheet from './BottomSheet'
 
@@ -30,8 +31,8 @@ function Row({ onClick, label, blurb, primary, busy, disabled, badge }) {
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'group w-full min-h-14 text-left p-3 rounded border-2 transition-all active:scale-[0.98]',
-        'flex items-center gap-3 disabled:opacity-60 disabled:active:scale-100',
+        'group w-full min-h-14 text-left p-3 rounded border-2 transition press-card',
+        'flex items-center gap-3 disabled:opacity-60 ',
         primary
           ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta hover:shadow-none'
           : 'border-retro-border bg-retro-card hover:border-retro-cta/60 hover:shadow-neon-cta',
@@ -82,8 +83,9 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
           of being repeated across rows. */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded border-2 border-retro-cta/50 bg-retro-tint-cta text-retro-cta flex items-center justify-center shrink-0">
+          <span className="relative w-12 h-12 rounded-xl border-2 border-retro-cta/50 overflow-hidden bg-retro-tint-cta text-retro-cta flex items-center justify-center shrink-0">
             {Icon && <Icon />}
+            <GameArt type={game.variantOf || game.type} className="absolute inset-0 w-full h-full block" />
           </span>
           <div className="min-w-0">
             <p className="font-pixel text-[11px] text-retro-text tracking-widest truncate">{game.label}</p>
@@ -105,7 +107,6 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
         <>
           {showInvite && (
             <>
-              <GroupCaption>PLAY WITH A FRIEND</GroupCaption>
               <Row
                 onClick={() => onInvite(game)}
                 label="INVITE FRIEND"
@@ -113,14 +114,16 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                 badge="+"
                 busy={isBusy}
                 disabled={isBusy}
-                blurb="Create a private room and share the invite link."
+                blurb="Private room — send them the link."
               />
             </>
           )}
 
+          {/* The PLAY WITH A FRIEND / RIGHT NOW captions labelled two
+              groups of one and three rows; the primary row already stands
+              apart, so the list reads fine without them. */}
           {group2Rows > 0 && (
             <>
-              <GroupCaption>RIGHT NOW</GroupCaption>
               <div className="space-y-2">
                 {showPublic && (
                   <Row
@@ -128,16 +131,16 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                     label="PLAY PUBLIC"
                     badge="◍"
                     disabled={isBusy}
-                    blurb="Get matched with a waiting opponent."
+                    blurb="Join someone who's waiting."
                   />
                 )}
                 {showVsAi && (
                   <Row
                     onClick={() => onSolo(game)}
-                    label="PRACTICE VS AI"
-                    badge="AI"
+                    label={game.soloLabel ?? 'PRACTICE VS AI'}
+                    badge={game.soloBadge ?? 'AI'}
                     disabled={isBusy}
-                    blurb="Play instantly against the computer."
+                    blurb={game.soloBlurb ?? 'Start now against the computer.'}
                   />
                 )}
                 {showLocal && (
@@ -146,7 +149,7 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                     label="SAME DEVICE"
                     badge={game.localMaxPlayers ? `2-${game.localMaxPlayers}P` : '2P'}
                     disabled={isBusy}
-                    blurb="Hot-seat — pass the device between turns."
+                    blurb="Pass one device between turns."
                   />
                 )}
               </div>
@@ -165,7 +168,7 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
               onClick={() => onModes(game)}
               disabled={isBusy}
               className="flex-1 min-h-11 px-2 rounded border border-retro-border bg-transparent text-retro-dim
-                font-pixel text-[9px] tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition-all active:scale-95
+                font-pixel text-[9px] tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition press
                 disabled:opacity-60"
             >
               MORE MODES
@@ -176,7 +179,7 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
             disabled={isBusy}
             className={cn(
               'min-h-11 px-2 rounded border border-retro-border bg-transparent text-retro-dim font-pixel text-[9px]',
-              'tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition-all active:scale-95 disabled:opacity-60',
+              'tracking-wider hover:text-retro-cta hover:border-retro-cta/50 transition press disabled:opacity-60',
               !showModes && 'flex-1',
             )}
           >
