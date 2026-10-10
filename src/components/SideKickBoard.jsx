@@ -64,8 +64,8 @@ export function SideKickHud({ hud, toast, ordinalOf }) {
       </div>
       <div className={cn(chip, 'left-1/2 top-2.5 -translate-x-1/2 px-2 pb-1 pt-2 text-[9px] text-retro-text tabular-nums')} data-testid="sidekick-time">{hud.time}</div>
       <Rail rail={hud.rail} />
-      <div className={cn(chip, 'right-2.5 top-2.5 px-2.5 pb-1.5 pt-2.5 text-right text-base text-retro-text tabular-nums')}>
-        {String(hud.speed).padStart(3, '0')}<small className="mt-1 block text-[7px] text-retro-dim">KM/H</small>
+      <div className={cn(chip, 'right-2.5 top-2.5 px-2.5 pb-1 pt-2 text-right text-base text-retro-text tabular-nums')}>
+        {String(hud.speed).padStart(3, '0')}<small className="mt-0.5 block text-[7px] text-retro-dim">KM/H</small>
       </div>
       <div className={cn(chip, 'bottom-2.5 left-2.5 flex items-center gap-1.5 px-2 pb-1.5 pt-2 text-[7px] text-retro-dim')} data-testid="sidekick-pips" aria-label={`Balance ${hud.pips} of ${PIPS}`}>
         {Array.from({ length: PIPS }, (_, i) => (
@@ -118,7 +118,7 @@ function PadButton({ label, icon, fill = false, className, children, ...handlers
       type="button"
       aria-label={label}
       className={cn(
-        'press relative flex min-h-[68px] touch-none select-none flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border-2 font-pixel text-[8px] transition-colors',
+        'press relative flex min-h-[68px] touch-none select-none flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border-2 font-pixel text-[7px] leading-none transition-colors',
         'border-retro-border bg-retro-card/80 text-retro-text data-[down]:bg-retro-tint-p1',
         className,
       )}
@@ -128,7 +128,7 @@ function PadButton({ label, icon, fill = false, className, children, ...handlers
       <svg viewBox="0 0 30 30" className="h-6 w-6" aria-hidden="true">
         <path d={icon} fill={fill ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={fill ? 0 : 4.5} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span>{label}</span>
+      <span className="max-w-full px-0.5">{label}</span>
     </button>
   )
 }

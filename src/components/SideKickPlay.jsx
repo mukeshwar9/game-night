@@ -10,13 +10,13 @@ import { ordinal } from '../hooks/useSideKickRun'
  *
  * `run` is useSideKickRun's result, `controls` is useSideKickControls', `focus`
  * is useFocusMode's. `cover` is drawn over the road (setup, results, waiting).
- * `status` is one line of text above the road (race x of 3, track name).
+ * `status` is one line of text above the road (race x of 3, track name); `hideHud` clears the chips behind a setup sheet.
  */
-export default function SideKickPlay({ run, controls, focus, avatars, enabled = true, cover = null, status = null, className }) {
+export default function SideKickPlay({ run, controls, focus, avatars, enabled = true, cover = null, status = null, hideHud = false, className }) {
   const play = (
     <div className="space-y-2">
       <SideKickArena rendererRef={run.rendererRef} avatars={avatars}>
-        <SideKickHud hud={run.hud} toast={run.toast} ordinalOf={ordinal} />
+        {!hideHud && <SideKickHud hud={run.hud} toast={run.toast} ordinalOf={ordinal} />}
         {cover}
       </SideKickArena>
       <SideKickPad bind={controls.bind} hud={run.hud} enabled={enabled} />

@@ -232,9 +232,9 @@ export default function SideKickDemo() {
 
   return (
     <div className="mx-auto w-full max-w-sm">
-      <SideKickPlay run={run} controls={controls} focus={focus} avatars={avatars} enabled={phase === 'racing'} cover={cover} status={status} />
+      <SideKickPlay run={run} controls={controls} focus={focus} avatars={avatars} enabled={phase === 'racing'} cover={cover} status={status} hideHud={phase === 'idle'} />
       <p className="mt-2 text-center font-pixel text-[7px] leading-relaxed text-retro-dim">
-        HOLD STEER · TAP KICK TO HIT THE RIDER BESIDE YOU · KICKS TIRE YOU OUT · HOLD BOOST · KEYS: ← → A / D SPACE
+        HOLD STEER · TAP KICK L / R · HOLD BOOST · KEYS ← → A D SPACE
       </p>
     </div>
   )
