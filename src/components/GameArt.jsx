@@ -15,6 +15,8 @@ const ART_TYPES = new Set([
   'wirecrossed', 'twotruths', 'bluff', 'lanterns', 'docking', 'wavelength', 'fibbage',
   'spyfair', 'headsup', 'chameleon', 'wordduel', 'wordcoop', 'converge', 'wordrace',
   'wordhunt', 'password', 'anagrams', 'hunch', 'pairs', 'sketch', 'codewords', 'justone',
+  'puckrush', 'yacht', 'faceoff', 'chopchop', 'stickyfingers', 'fenderbender', 'lazysusan',
+  'darts', 'bamboozle', 'bonkbuggies', 'firstcut', 'quiver', 'sidekick',
 ])
 
 const ART_ALIAS = { chainreaction4: 'chainreaction', pairs4: 'pairs' }
