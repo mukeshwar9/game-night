@@ -211,28 +211,10 @@ export function stage(back, front, glow) {
 // ── assembling the three styles from one definition ─────────────────────
 // def = { bg, dk, lt, obj(t), objectExtra(cv), cast: { x, y, s, face: [x, y, opts] }, castExtra(cv, L), scene(cv) }
 export function make(def) {
+  // Only the scene style ships. A game's `obj` / `cast` / `object` fields are
+  // left over from the retired PIXEL OBJECT and PIXEL CAST styles; scenes may
+  // still call a game's shared `obj` helper, so the fields stay where used.
   return {
-    object() {
-      if (def.object) return def.object()
-      const cv = objectGround(def.bg, def.dk)
-      def.objectBack?.(cv)
-      cv.sticker(L => def.obj(T(L, 0, 0, 1), L), { shadow: def.dk })
-      def.objectExtra?.(cv)
-      return cv
-    },
-    cast() {
-      if (def.cast?.draw) return def.cast.draw()
-      const c = def.cast || {}
-      const cv = castGround(def.bg, def.lt)
-      def.castBack?.(cv)
-      cv.sticker(L => {
-        def.obj(T(L, c.x ?? 0, c.y ?? 0, c.s ?? 1), L)
-        if (c.face) face(L, c.face[0], c.face[1], c.face[2])
-        c.extra?.(L)
-      }, { shadow: def.dk })
-      c.after?.(cv)
-      return cv
-    },
     scene() {
       return def.scene()
     },

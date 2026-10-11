@@ -1,13 +1,14 @@
 // Pixel-art thumbnails (scripts/pixel-art/, `npm run art:pixel`): every game
-// in every pixel style has a committed PNG at its native size, drawn only from
-// the house palette, and the committed file is exactly what the generator
-// produces today (so a sprite edit without a regenerate fails here).
+// has a committed PIXEL SCENE PNG at its native size, drawn only from the
+// house palette, and the committed file is exactly what the generator produces
+// today (so a sprite edit without a regenerate fails here). The retired
+// OBJECT and CAST styles are gone from the generator and from public/.
 import { Buffer } from 'node:buffer'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { inflateSync } from 'node:zlib'
-import { describe, expect, it, vi } from 'vitest'
-import { ART_STYLES, DEFAULT_ART_STYLE, PIXEL_ART_SIZES, getGameArtStyle } from './gameArtStyle'
+import { describe, expect, it } from 'vitest'
+import { ART_STYLES, PIXEL_ART_SIZES } from './gameArtStyle'
 import { renderAll, OUT } from '../../scripts/pixel-art/build.mjs'
 import { SPRITES, STYLES } from '../../scripts/pixel-art/sprites.mjs'
 import { HOUSE_COLORS } from '../../scripts/pixel-art/palette.mjs'
@@ -46,27 +47,10 @@ describe('pixel art styles', () => {
     for (const id of Object.keys(PIXEL_ART_SIZES)) expect(ART_STYLES.some(s => s.id === id)).toBe(true)
   })
 
-  it('defaults to PIXEL SCENE', () => {
-    expect(DEFAULT_ART_STYLE).toBe('scene')
-    expect(getGameArtStyle()).toBe('scene')
-  })
-
-  it('offers the three pixel styles and ICONS only', () => {
-    expect(ART_STYLES.map(s => s.id)).toEqual(['scene', 'object', 'cast', 'icons'])
-  })
-
-  it('falls back to PIXEL SCENE for a saved retired style (BOLD png, SOFT svg)', () => {
-    const store = new Map()
-    vi.stubGlobal('localStorage', { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) })
-    try {
-      for (const retired of ['png', 'svg']) {
-        store.set('retro-gameart', retired)
-        expect(getGameArtStyle()).toBe('scene')
-      }
-      store.set('retro-gameart', 'icons')
-      expect(getGameArtStyle()).toBe('icons')
-    } finally {
-      vi.unstubAllGlobals()
+  it('ships PIXEL SCENE only; the retired OBJECT and CAST art is gone', () => {
+    expect(Object.keys(STYLES)).toEqual(['scene'])
+    for (const retired of ['object', 'cast']) {
+      expect(existsSync(join(OUT, retired)), `public/game-art/pixel/${retired} should be deleted`).toBe(false)
     }
   })
 

@@ -1,7 +1,6 @@
 // Pixel-art thumbnails: `npm run art:pixel` writes
-// public/game-art/pixel/<style>/<type>.png for every game in three styles
-// (object 32×32, cast 32×32, scene 64×64), as 8-bit indexed PNGs at native
-// size. The app upscales them with `image-rendering: pixelated`.
+// public/game-art/pixel/<style>/<type>.png for every game in the one pixel
+// style that ships (scene 64×64), as 8-bit indexed PNGs at native size. The app upscales them with `image-rendering: pixelated`.
 // `node scripts/pixel-art/build.mjs --sheet out.png` also writes a contact
 // sheet (every sprite at 4×/2×) for eyeballing.
 import { mkdirSync, writeFileSync } from 'node:fs'

@@ -1,0 +1,97 @@
+/* TOON game art (components/gameArtToon/): short squash-and-stretch loops on
+   the SVG groups a builder marks with <Anim k="…">. Each loop is 2–3 s and
+   starts from the tile's resting pose, which is also what reduced motion
+   shows. A tile that is off screen is paused (data-live, set by
+   GameArtToon's IntersectionObserver). */
+.toon-art .tn {
+  transform-box: fill-box;
+  transform-origin: var(--o, 50% 50%);
+  animation: var(--k) var(--t, 2.4s) var(--e, ease-in-out) var(--d, 0s) infinite;
+}
+.toon-art[data-live="0"] .tn { animation-play-state: paused; }
+
+[data-motion="reduced"] .toon-art .tn { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .toon-art .tn { animation: none; }
+}
+
+@keyframes tn-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.2px); }
+}
+@keyframes tn-hop {
+  0%, 55%, 100% { transform: translateY(0) scale(1, 1); }
+  10% { transform: translateY(0) scale(1.1, 0.88); }
+  28% { transform: translateY(-5px) scale(0.92, 1.1); }
+  42% { transform: translateY(0) scale(1.1, 0.88); }
+  48% { transform: translateY(0) scale(0.97, 1.04); }
+}
+@keyframes tn-squash {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.08, 0.9); }
+}
+@keyframes tn-drop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  38% { transform: translateY(-9px) scale(0.92, 1.1); }
+  60% { transform: translateY(0) scale(1.12, 0.86); }
+  72% { transform: translateY(0) scale(0.98, 1.03); }
+}
+@keyframes tn-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes tn-sway {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+@keyframes tn-wag {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+@keyframes tn-slide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+@keyframes tn-slidel {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+@keyframes tn-dash {
+  0%, 100% { transform: translateX(0) scale(1, 1); }
+  35% { transform: translateX(5px) scale(1.12, 0.9); }
+  60% { transform: translateX(5px) scale(0.96, 1.04); }
+}
+@keyframes tn-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.14); }
+}
+@keyframes tn-pop {
+  0%, 60%, 100% { transform: scale(1); }
+  72% { transform: scale(1.22); }
+  84% { transform: scale(0.94); }
+}
+@keyframes tn-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(0.45) rotate(45deg); opacity: 0.55; }
+}
+@keyframes tn-shake {
+  0%, 62%, 100% { transform: translateX(0) rotate(0deg); }
+  68% { transform: translateX(-1.4px) rotate(-3deg); }
+  76% { transform: translateX(1.4px) rotate(3deg); }
+  84% { transform: translateX(-1px) rotate(-2deg); }
+  92% { transform: translateX(1px) rotate(2deg); }
+}
+@keyframes tn-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+@keyframes tn-float {
+  0% { transform: translateY(2px); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(-7px); opacity: 0; }
+}
+@keyframes tn-jelly {
+  0%, 100% { transform: scale(1, 1); }
+  30% { transform: scale(1.1, 0.92); }
+  60% { transform: scale(0.94, 1.08); }
+}

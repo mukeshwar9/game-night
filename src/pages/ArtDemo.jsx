@@ -1,12 +1,12 @@
-// Dev-only preview (DEV-only route, never ships): the pixel game-art styles +
+// Dev-only preview (DEV-only route, never ships): the game-art styles +
 // GIF-like how-to-play clips.
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { GameArtPixel } from '../components/GameArt'
+import { GameArtOf } from '../components/GameArt'
 import RuleClip from '../components/RuleClips'
 import GameCard from '../components/GameCard'
 import { getGameConfig, GAME_TYPES } from '../lib/games'
-import { ART_STYLES, PIXEL_ART_SIZES } from '../lib/gameArtStyle'
+import { ART_STYLES } from '../lib/gameArtStyle'
 import { getRules } from '../lib/rules'
 import FilterButton, { ViewTabs } from '../components/GameFilters'
 import { passesFilters, sortGames } from '../lib/gameFilters'
@@ -15,13 +15,21 @@ const DEMO_TYPES = ['tictactoe', 'connectfour', 'pong']
 const BOARD_TYPES = GAME_TYPES.filter(t => t.category === 'board').map(t => t.type)
 const ALL_TYPES = GAME_TYPES.filter(t => !t.variantOf)
 
-const ART_SNIPPET = `// Pixel art — indexed PNGs on the house palette, drawn in code.
-// 1. Draw it: add a sprite per style in scripts/pixel-art/games/, then
-npm run art:pixel   # → public/game-art/pixel/<style>/<type>.png
-// 2. Register one line in src/components/GameArt.jsx:
-const ART_TYPES = new Set([… 'sos'])`
+const ART_SNIPPET = `// Game art — every game has CUT PAPER, TOON and PIXEL SCENE art.
+// 1. CUT PAPER: scripts/cut-paper-art/scenes/*.js (SCENES.<type> = p => {…}), then
+npm run art:cutpaper   # → public/game-art/cutpaper/<type>.webp + <type>-loop.webp
+// 2. TOON: one builder in src/components/gameArtToon/builders/ (a 64×64 SVG, ink outline)
+// 3. PIXEL SCENE: a sprite in scripts/pixel-art/games/, then npm run art:pixel
+// 4. Register one line in src/components/GameArt.jsx:
+const ART_TYPES = new Set([… 'sos'])
+// Review sheet for a batch: npm run art:sheet -- --only=sos --out=sos.png`
 
-const PIXEL_STYLES = ART_STYLES.filter(s => PIXEL_ART_SIZES[s.id])
+const ART_ROWS = {
+  cutpaper: 'Torn-paper scenes drawn with the animate cut-paper kit at build time: a WebP still, plus a strip that plays while the tile is on screen.',
+  toon: 'One SVG builder per game: ink outline, flat fills, faces and short squash-and-stretch loops while on screen. Ground follows the theme.',
+  scene: '64×64 sprite on the house palette, upscaled crisp.',
+}
+const ART_STYLE_ROWS = ART_STYLES.filter(s => ART_ROWS[s.id])
 
 const CLIP_SNIPPET = `// Real clips pipeline — ship muted looping MP4, NOT gif:
 // a 5s gif ≈ 2–5 MB · the same clip as mp4 ≈ 150 KB, pausable, themeable.
@@ -138,19 +146,23 @@ export default function ArtDemo() {
       <div className="w-full max-w-5xl mx-auto space-y-6 py-4">
         <div>
           <p className="font-pixel text-[10px] text-retro-cta tracking-[0.2em]">ART + RULES PREVIEW</p>
-          <h1 className="font-pixel text-xl text-retro-text mt-2">PIXEL ART · HOW-TO-PLAY CLIPS</h1>
+          <h1 className="font-pixel text-xl text-retro-text mt-2">GAME ART · HOW-TO-PLAY CLIPS</h1>
           <p className="font-mono text-xs text-retro-dim mt-2">
-            Catalog art defaults to PIXEL SCENE — flip it live in Settings → LOOK &amp; FEEL → GAME ART
+            Catalog art defaults to CUT PAPER — flip it live in Settings → LOOK &amp; FEEL → GAME ART
             and watch the catalog cards below follow. Same page, second half: motion for the rules sheet.
           </p>
         </div>
 
-        {PIXEL_STYLES.map(({ id, label }) => (
+        {ART_STYLE_ROWS.map(({ id, label }) => (
           <TileRow
             key={id}
             title={`${label} · ALL ${ALL_TYPES.length} GAMES`}
-            blurb={`${PIXEL_ART_SIZES[id]}×${PIXEL_ART_SIZES[id]} sprite on the house palette, upscaled crisp.`}
-            render={(t) => <GameArtPixel type={t} style={id} className="w-full aspect-square block" />}
+            blurb={ART_ROWS[id]}
+            render={(t) => (
+              <span className="relative block w-full aspect-square">
+                <GameArtOf type={t} style={id} className="absolute inset-0 w-full h-full block" />
+              </span>
+            )}
           />
         ))}
 

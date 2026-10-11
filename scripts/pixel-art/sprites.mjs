@@ -1,4 +1,4 @@
-// Registry: every ART_TYPES game → its three pixel styles.
+// Registry: every ART_TYPES game → its pixel scene.
 import classics from './games/classics.mjs'
 import board from './games/board.mjs'
 import memory from './games/memory.mjs'
@@ -8,6 +8,6 @@ import party from './games/party.mjs'
 import arcade from './games/arcade.mjs'
 
 // Style id → native size in px. Output: public/game-art/pixel/<style>/<type>.png
-export const STYLES = { object: 32, cast: 32, scene: 64 }
+export const STYLES = { scene: 64 }
 
 export const SPRITES = { ...classics, ...board, ...memory, ...reflex, ...word, ...party, ...arcade }

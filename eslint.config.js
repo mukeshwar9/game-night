@@ -13,6 +13,11 @@ export default defineConfig([
     '.lavish/**',
     // Vendored third-party code (scripts/vendor-planck.mjs regenerates it).
     'src/lib/vendor/**',
+    // Cut-paper art: plain page scripts sharing the vendored animate kit's global scope (concatenated by build.mjs).
+    'scripts/cut-paper-art/vendor/**',
+    'scripts/cut-paper-art/scenes/**',
+    'scripts/cut-paper-art/head.js',
+    'scripts/cut-paper-art/driver.js',
     'playwright-report/**',
     'test-results/**',
     // Capacitor native projects: their public/ folders hold copies of dist/.

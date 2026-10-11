@@ -1,0 +1,133 @@
+// CUT PAPER scenes — reflex and skill games, part one.
+
+SCENES.reaction = (p) => {
+  world(PAL.navy, { pat: pat.stripes('rgba(255,255,255,0.1)', 18, 52, 0.5) });
+  const bolt = (x, y, s, fill, key) => cut([[x, y - 60 * s], [x - 40 * s, y + 10 * s], [x - 6 * s, y + 6 * s], [x - 22 * s, y + 70 * s], [x + 36 * s, y - 14 * s], [x + 4 * s, y - 10 * s]], fill, { key, sb: 6, sy: 4, tear: 0.7 });
+  bolt(440, 140, 1.1, GOLD, 'b1'); bolt(100, 100, 0.7, GOLD, 'b2');
+  slab(60, 380, 420, 100, PAL.charcoal, 'base', { r: 30, sb: 14, sy: 9 }); slab(110, 350, 320, 60, PAL.grey, 'rim', { r: 26 });
+  const sq = Math.abs(wave(p, 1, 1, 0.25)) * 14;
+  cut([[130, 370], [150, 250 + sq], [200, 210 + sq], [340, 210 + sq], [390, 250 + sq], [410, 370]], RED, { key: 'btn', sb: 10, sy: 7, crayon: REDD });
+  blob(270, 250 + sq, 120, 46, '#ef7f78', 'btop', { shadow: false, tear: 0.8 });
+  face(270, 300 + sq, 1.5, 'wow');
+  letters('GO', 120, 220, 70, GOLD, 'go', { w: 14 });
+  twinkle(480, 60, 15, p); twinkle(50, 420, 12, p, 0.5);
+};
+
+SCENES.aim = (p) => {
+  world(PAL.sky, { pat: pat.dots('rgba(255,255,255,0.35)', 5, 34) });
+  [[250, RED], [190, CREAM], [128, RED], [66, CREAM]].forEach(([r, f], i) => paperDisc(250, 290, r, f, 'ring' + i, { glint: false, crayon: 'rgba(0,0,0,0.08)' }));
+  face(250, 292, 0.9, 'wow');
+  const a = p * TAU;
+  ctx.save(); ctx.translate(410, 120); ctx.rotate(a);
+  ink(arcPts(0, 0, 66, 0, TAU, 24), { w: 8, color: PAL.blue, amt: 0.5, key: 'cross' });
+  [[0, -92, 0, -44], [0, 44, 0, 92], [-92, 0, -44, 0], [44, 0, 92, 0]].forEach(([x1, y1, x2, y2], i) => ink([[x1, y1], [x2, y2]], { w: 8, color: PAL.blue, amt: 0.4, key: 'cr' + i }));
+  ctx.restore();
+  paperDisc(90, 100, 40, GOLD, 'b1', { crayon: 'rgba(0,0,0,0.1)' }); paperDisc(450, 460, 34, PAL.pink, 'b2', { crayon: 'rgba(0,0,0,0.1)' });
+  twinkle(60, 440, 14, p);
+};
+
+SCENES.chopchop = (p) => {
+  world(PAL.purple, { pat: pat.stripes('rgba(255,255,255,0.14)', 18, 52, 0.4) });
+  ground(450, PAL.woodD, { pat: pat.grainWood('rgba(255,220,170,0.15)') });
+  const crate = (x, y, key, mood) => { slab(x, y, 150, 130, PAL.wood, key, { r: 10, pat: pat.grainWood('rgba(100,60,25,0.35)'), crayon: PAL.woodL }); stroke([x + 10, y + 10], [x + 140, y + 120], 12, PAL.woodD, key + 'a', { shadow: false }); stroke([x + 140, y + 10], [x + 10, y + 120], 12, PAL.woodD, key + 'b', { shadow: false }); };
+  crate(70, 320, 'c1'); crate(300, 320, 'c2');
+  const hy = hopY(p, 36, 2);
+  slab(185, 190 + hy, 170, 140, PAL.tweed, 'c3', { r: 10, crayon: PAL.wood }); face(270, 262 + hy, 1.3, 'wow');
+  const k = Math.abs(wave(p, 1, 1, 0.25));
+  stroke([30, 110], [510, 110], 18 + 4 * k, 'rgba(217,82,78,0.85)', 'beam', { shadow: false });
+  stroke([30, 110], [510, 110], 6, '#ffd6d2', 'beam2', { shadow: false });
+  slab(10, 80, 40, 60, COAL, 'em1', { r: 8 }); slab(490, 80, 40, 60, COAL, 'em2', { r: 8 });
+  twinkle(120, 200, 14, p); twinkle(430, 220, 12, p, 0.5);
+};
+
+SCENES.firstcut = (p) => {
+  world(PAL.mint, { pat: pat.stripes('rgba(255,255,255,0.3)', 20, 60, 0.6) });
+  const k = Math.abs(wave(p, 1, 1, 0.25)) * 20;
+  const half = (dx, rot, key) => {
+    ctx.save(); ctx.translate(270 + dx, 300); ctx.rotate(rot);
+    cut([[-150, 0], ...arcPts(0, 0, 150, Math.PI, 0, 18).reverse().reverse()], PAL.greenD, { key: key + 'r', sb: 10, sy: 6 });
+    cut([[-136, 0], ...arcPts(0, 0, 136, Math.PI, 0, 18).map(([x, y]) => [x, -y]).map(([x, y]) => [x, -y])], RED, { key: key + 'f', shadow: false, crayon: '#f08a84', tear: 0.6 });
+    ctx.restore();
+  };
+  half(-k, 0.04, 'wl'); half(k, -0.04, 'wr');
+  [[-70, 330], [-20, 350], [40, 330], [90, 350]].forEach(([dx, dy], i) => blob(270 + dx - k * (dx < 0 ? 1 : -1) * 0, dy, 7, 11, COAL, 'seed' + i, { shadow: false, tear: 0.3, grain: 0.1, rot: 0.4 }));
+  face(270, 270, 1.3, 'wow');
+  ink([[40, 90], [270, 190], [500, 250]], { w: 18, color: '#fff', amt: 0.5, key: 'slash' });
+  twinkle(470, 100, 18, p); twinkle(70, 470, 12, p, 0.5); confetti(8, [40, 380, 500, 500], [RED, PAL.greenD, GOLD], 'jc', 9);
+};
+
+SCENES.bamboozle = (p) => {
+  world(PAL.sky, { pat: pat.dots('rgba(255,255,255,0.35)', 5, 34) });
+  paperDisc(100, 90, 44, PAL.yellow, 'sun', { glint: false }); cloud(380, 90, 0.8);
+  ground(340, PAL.green, { pat: pat.stripes('rgba(255,255,255,0.12)', 10, 36, 0.6), crayon: PAL.greenD }); ground(450, PAL.greenD, { crayon: '#2c5e38' });
+  const s = 1 + wave(p, 2, 0.04);
+  cut([[90, 430], [70, 330], [130, 240], [250, 210], [370, 250], [420, 340], [400, 430]], PAL.grey, { key: 'rock', sb: 12, sy: 8, crayon: PAL.charcoal, crAl: 0.35 });
+  blob(200, 262, 60, 24, '#b4aeb9', 'rockhi', { shadow: false, tear: 0.8 });
+  face(250, 340, 1.5 * s, 'smug');
+  ctx.save(); ctx.translate(480, 470); ctx.rotate(-0.4 + wave(p, 1, 0.35));
+  cut([[-18, 0], [18, 0], [30, -250], [-6, -250]], PAL.wood, { key: 'bat', sb: 8, sy: 5, crayon: PAL.woodL });
+  ctx.restore();
+  blob(110, 470, 50, 14, 'rgba(255,255,255,0.7)', 'dust1', { shadow: false }); blob(420, 482, 60, 12, 'rgba(255,255,255,0.7)', 'dust2', { shadow: false });
+  twinkle(60, 230, 14, p);
+};
+
+SCENES.sidekick = (p) => {
+  world('#f3a56a', { pat: pat.stripes('rgba(255,255,255,0.18)', 24, 70, 0.0) });
+  paperDisc(270, 250, 100, GOLD, 'sun', { glint: false, crayon: PAL.mustard });
+  ground(360, PAL.charcoal, { pat: pat.stripes('rgba(255,255,255,0.1)', 6, 120, 0) });
+  [0, 1, 2, 3].forEach(i => slab(((i * 160 + p * 160) % 640) - 60, 440, 90, 12, GOLD, 'dash' + i, { r: 4, shadow: false }));
+  [[30, 190, 160], [10, 250, 120], [50, 310, 150]].forEach(([x, y, w], i) => stroke([x, y], [x + w, y], 8, 'rgba(255,255,255,0.7)', 'sp' + i, { shadow: false }));
+  const by = wave(p, 2, 6);
+  ctx.save(); ctx.translate(0, by);
+  [[170, 380], [400, 380]].forEach(([x, y], i) => { paperDisc(x, y, 62, COAL, 'wh' + i, { glint: false }); paperDisc(x, y, 24, PAL.grey, 'hub' + i, { glint: false, cut: { shadow: false } }); });
+  stroke([170, 380], [250, 260], 26, RED, 'fork', { shadow: false }); stroke([250, 260], [370, 260], 40, RED, 'tank'); stroke([370, 260], [400, 380], 26, RED, 'rear', { shadow: false });
+  stroke([260, 250], [330, 190], 60, PAL.sky, 'body'); blob(350, 140, 56, 58, PAL.yellow, 'helm'); cut(rect(350, 120, 62, 36, 14), PAL.sky, { key: 'visor', sb: 3, sy: 2 });
+  face(344, 144, 0.8, 'grin');
+  ctx.restore();
+  twinkle(60, 70, 15, p); twinkle(480, 70, 12, p, 0.5);
+};
+
+SCENES.typing = (p) => {
+  world(PAL.purple, { pat: pat.dots('rgba(255,255,255,0.2)', 4, 30) });
+  slab(46, 44, 448, 260, PAL.charcoal, 'mon', { r: 24, sb: 14, sy: 9 }); slab(72, 70, 396, 208, PAL.night, 'scr', { r: 12, shadow: false, crayon: '#2a3070' });
+  letters('THE', 138, 134, 54, '#7be08a', 'th'); letters('QUICK', 352, 134, 50, GOLD, 'qk');
+  slab(96, 220, 348, 24, '#26315f', 'bar', { r: 12, shadow: false }); slab(96, 220, 150 + 120 * Math.abs(wave(p, 1, 1, 0.25)), 24, '#7be08a', 'barf', { r: 12, shadow: false });
+  slab(40, 330, 460, 160, PAL.grey, 'kb', { r: 26, sb: 12, sy: 8 });
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) slab(62 + c * 72, 350 + r * 54 + (r === 0 && c === 3 ? 6 * Math.abs(wave(p, 1, 1)) : 0), 62, 44, CREAM, 'k' + r + c, { r: 10, sb: 3, sy: 3 });
+  slab(120, 450, 300, 28, CREAM, 'space', { r: 10, sb: 3, sy: 3 });
+  face(470, 300, 0.6, 'grin');
+  twinkle(490, 40, 14, p);
+};
+
+SCENES.math = (p) => {
+  world(PAL.mustard, { pat: pat.stripes('rgba(255,255,255,0.2)', 20, 60, -0.4) });
+  slab(36, 60, 468, 330, PAL.lamp, 'bd', { r: 14, sb: 14, sy: 9, crayon: '#58b08a', crAl: 0.2 });
+  cut(rect(36, 60, 468, 330, 14), 'rgba(0,0,0,0.001)', { key: 'bdf', shadow: false, grain: false, shade: false, line: PAL.woodD, lw: 18 });
+  letters('7X8=', 160, 190, 84, CREAM, 'eq', { w: 14 });
+  const s = 1 + wave(p, 1, 0.06);
+  letters('56', 392, 190, 84 * s, GOLD, 'ans', { w: 14 });
+  ink([[90, 290], [270, 296], [450, 286]], { w: 8, color: 'rgba(255,255,255,0.5)', amt: 0.8, key: 'dsh' });
+  slab(80, 410, 220, 24, PAL.paper, 'chalk', { r: 10 });
+  critter(420, 450 + hopY(p, 18, 2), 56, PAL.sky, 'grin', 'mc', { fs: 0.85 });
+  twinkle(60, 40, 15, p); twinkle(490, 480, 12, p, 0.5);
+};
+
+SCENES.updraft = (p) => {
+  world(PAL.sky, { pat: pat.dots('rgba(255,255,255,0.35)', 5, 34) });
+  [[100, 450, 1.0], [400, 330, 1.0], [130, 200, 0.9], [380, 90, 0.9]].forEach(([x, y, s], i) => cloud(x, y + wave(p, 1, 3, i * 0.2), s, 'cl' + i));
+  critter(400, 270 + hopY(p, 36, 2), 48, RED, 'grin', 'jp', { fs: 0.72, crayon: REDD });
+  ink([[170, 430], [270, 380], [360, 310]], { w: 10, color: 'rgba(255,255,255,0.8)', amt: 0.5, key: 'tr1' }); ink([[380, 240], [260, 230], [170, 180]], { w: 10, color: 'rgba(255,255,255,0.8)', amt: 0.5, key: 'tr2' });
+  paperStar(270, 50, 28, PAL.yellow, 'st', p * 0.5); twinkle(480, 450, 15, p); twinkle(40, 320, 12, p, 0.5);
+};
+
+SCENES.pong = (p) => {
+  world(PAL.teal, { pat: pat.stripes('rgba(255,255,255,0.16)', 18, 52, 0.3) });
+  slab(40, 60, 460, 330, PAL.charcoal, 'tv', { r: 56, sb: 16, sy: 10, crayon: PAL.grey, crAl: 0.2 }); slab(78, 98, 384, 254, PAL.night, 'scr', { r: 34, shadow: false, crayon: '#2a3070' });
+  for (let i = 0; i < 6; i++) slab(262, 116 + i * 38, 16, 24, '#3a4690', 'net' + i, { r: 3, shadow: false });
+  slab(104, 160 + wave(p, 1, 18, 0.1), 20, 90, '#7be08a', 'pl', { r: 10, shadow: false }); slab(416, 200 + wave(p, 1, 18), 20, 90, PAL.pink, 'pr', { r: 10, shadow: false });
+  const bx = 270 + wave(p, 1, 110, 0.25);
+  paperDisc(bx, 225, 28, CREAM, 'ball', { glint: false, cut: { shadow: false } }); face(bx, 227, 0.4, 'grin');
+  stroke([210, 390], [180, 470], 18, PAL.charcoal, 'lg1', { shadow: false }); stroke([330, 390], [360, 470], 18, PAL.charcoal, 'lg2', { shadow: false });
+  paperDisc(420, 450, 20, RED, 'kn1', { glint: false }); paperDisc(470, 450, 20, GOLD, 'kn2', { glint: false });
+  twinkle(60, 30, 13, p); twinkle(490, 30, 13, p, 0.5);
+};

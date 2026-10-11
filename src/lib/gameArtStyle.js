@@ -1,21 +1,23 @@
-// Game-art style pref: three pixel-art styles (PIXEL SCENE, OBJECT, CAST —
-// scripts/pixel-art/, `npm run art:pixel`) or ICONS (the mono game icon).
-// Local-only like the other display prefs, default PIXEL SCENE; any stored id
-// not listed here (e.g. the retired 'png' BOLD and 'svg' SOFT) reads back as
-// the default. useGameArtStyle() re-renders consumers (GameCard) on change.
+// Game-art style pref: CUT PAPER (default) and TOON (both drawn for every game,
+// scripts/cut-paper-art/ + src/components/gameArtToon/), PIXEL SCENE
+// (scripts/pixel-art/, `npm run art:pixel`) or ICONS (the mono game icon).
+// Local-only like the other display prefs. The retired pixel OBJECT and CAST
+// styles migrate to the default; any other stored id not listed here (e.g. the
+// retired 'png' BOLD and 'svg' SOFT) reads back as the default too.
+// useGameArtStyle() re-renders consumers (GameCard) on change.
 import { useSyncExternalStore } from 'react'
 
 export const ART_STYLES = [
+  { id: 'cutpaper', label: 'CUT PAPER' },
+  { id: 'toon', label: 'TOON' },
   { id: 'scene', label: 'PIXEL SCENE' },
-  { id: 'object', label: 'PIXEL OBJECT' },
-  { id: 'cast', label: 'PIXEL CAST' },
   { id: 'icons', label: 'ICONS' },
 ]
 
 // Pixel styles → native sprite size (public/game-art/pixel/<style>/<type>.png).
-export const PIXEL_ART_SIZES = { scene: 64, object: 32, cast: 32 }
+export const PIXEL_ART_SIZES = { scene: 64 }
 
-export const DEFAULT_ART_STYLE = 'scene'
+export const DEFAULT_ART_STYLE = 'cutpaper'
 
 const STYLE_IDS = new Set(ART_STYLES.map(s => s.id))
 
@@ -44,6 +46,14 @@ export function getGameArtStyle() {
 
 let current = getGameArtStyle()
 const listeners = new Set()
+
+// A stored id that is no longer offered (the retired pixel OBJECT / CAST, BOLD
+// png, SOFT svg) is rewritten once, so a later release that reuses an id never
+// resurrects it.
+{
+  const stored = read()
+  if (stored != null && !STYLE_IDS.has(stored)) write(DEFAULT_ART_STYLE)
+}
 
 export function applyGameArtStyle(id) {
   const next = STYLE_IDS.has(id) ? id : DEFAULT_ART_STYLE
