@@ -8,6 +8,7 @@ import { observeInView } from '../../lib/inView'
 import { F } from './toonPalette'
 import { BUILDERS } from './builders'
 import './toon.css'
+import './toonSamples.css'
 
 export default function GameArtToon({ type, className }) {
   const ref = useRef(null)

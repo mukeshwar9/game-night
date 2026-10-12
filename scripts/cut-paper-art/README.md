@@ -1,8 +1,8 @@
 # Cut paper game art
 
 `npm run art:cutpaper` draws every game's CUT PAPER tile in headless Chromium and writes, per game,
-`public/game-art/cutpaper/<type>.webp` (a 320 px still) and `<type>-loop.webp` (six 224 px drawings side by
-side, played with `steps()` while the tile is on screen), plus `sources.json`, a hash of everything that draws
+`public/game-art/cutpaper/<type>.webp` (a 320 px still) and `<type>-loop.webp` (twelve 320 px drawings side by
+side, played with `steps(12)` over one second while the tile is on screen), plus `sources.json`, a hash of everything that draws
 them. `src/lib/cutPaperArt.test.js` fails when a scene changes without a regenerate.
 
 - `vendor/` holds two files from cth9191/animate (MIT, pinned, see `vendor/README.md`): its core drawing kit and

@@ -1,11 +1,16 @@
 // Shared building blocks for the scene files (plain script, same scope as the vendored kit).
 // Tile space is 540×540. A scene is SCENES.<type> = (p) => { … } where p in [0,1) is the point
 // of its loop: p = 0 is the key pose (the still), and every motion is a whole number of cycles
-// per loop so the strip wraps cleanly.
+// per loop so the strip wraps cleanly. The driver runs p through beat() (head.js) first, so plain
+// motion rests, acts and settles on the shared beat; the sample scenes (samples.js) place their own.
 const RED = '#d9524e', REDD = '#a83a3a', CREAM = '#fff4dc', BROWN = '#8a5a34', COAL = '#3a3340', GOLD = '#f2c14e';
 
-const wave = (p, k = 1, amp = 1, ph = 0) => Math.sin((p * k + ph) * TAU) * amp;               // 0 at p = 0
-const hopY = (p, amp, k = 1, ph = 0) => -Math.abs(Math.sin((p * k + ph) * Math.PI)) * amp;      // 0 at p = 0
+// Motion is drawn big, like the approved tiles: small amplitudes (a few px, a few hundredths of a
+// radian or of a scale) are lifted, large ones left as they are; an amplitude of exactly 1 is a plain
+// unit sine that a scene shapes itself.
+const lift = (amp) => { const a = Math.abs(amp); return a === 1 ? amp : amp * (a < 1 ? 2.4 : a < 20 ? 2 : a < 60 ? 1.4 : 1); };
+const wave = (p, k = 1, amp = 1, ph = 0) => Math.sin((p * k + ph) * TAU) * lift(amp);           // 0 at p = 0
+const hopY = (p, amp, k = 1, ph = 0) => -Math.abs(Math.sin((p * k + ph) * Math.PI)) * amp * 1.7;   // 0 at p = 0
 const pt = (P, cx, cy, a) => rot([P], cx, cy, a)[0];
 
 // full-bleed paper world
@@ -19,9 +24,12 @@ function ground(y, fill, o = {}) {
 const blob = (x, y, rx, ry, fill, key, o = {}) => cut(ellipsePts(x, y, rx, ry, o.rot ?? 0, o.n ?? 28), fill, { key, sb: 8, sy: 5, sx: 2, ...o });
 const slab = (x, y, w, h, fill, key, o = {}) => cut(rect(x, y, w, h, o.r ?? 8), fill, { key, sb: 8, sy: 5, sx: 2, ...o });
 // a round character: body blob with a face
+// A character squashes and stretches on the beat, standing on its bottom edge; o.hop = jump height in px.
 function critter(x, y, r, fill, mood, key, o = {}) {
-  blob(x, y, r, r * (o.sq ?? 0.95), fill, key, { crayon: o.crayon, crAl: 0.35, ...o.cut });
-  face(x, y + r * 0.04, o.fs ?? r / 62, mood);
+  hero(x, y + r * 0.9, () => {
+    blob(x, y, r, r * (o.sq ?? 0.95), fill, key, { crayon: o.crayon, crAl: 0.35, ...o.cut });
+    face(x, y + r * 0.04, o.fs ?? r / 62, mood);
+  }, o.hop ?? 0, o.at ?? 0);
 }
 function cloud(x, y, s, key = 'cl', fill = '#fffaf0') {
   [[0, 0, 58, 36], [-50, 12, 40, 26], [52, 14, 44, 28]].forEach(([dx, dy, rx, ry], i) => blob(x + dx * s, y + dy * s, rx * s, ry * s, fill, key + i, { sb: 5, sy: 3, grain: 0.4 }));
@@ -50,8 +58,33 @@ function pillar(x, y, w, h, fill, cap, key) {
   slab(x - w / 2, y - h, w, h, fill, key, { r: w * 0.28 });
   blob(x, y - h, w / 2, w * 0.2, cap, key + 'c', { shadow: false, tear: 0.5 });
 }
-// 4-point sparkle that twinkles with the loop
-function twinkle(x, y, s, p, ph = 0, c = '#fff8dc') { sparkle(x, y, s * (0.55 + 0.45 * Math.abs(wave(p, 1, 1, ph))), c); }
+// A hero act: fn() draws the thing that acts, inside the beat's jump — a crouch, a launch (stretch), a
+// hang, a landing squash and a settle, pivoting on its feet at (x, y). amp = jump height in px (0 = squash
+// only), o.at delays the beat as a fraction of the loop.
+const HERO_KEYS = [[0, 0, 1, 1], [0.14, 0.06, 1.12, 0.88], [0.26, -0.1, 0.9, 1.14], [0.42, -1, 0.94, 1.1], [0.52, -0.9, 1.02, 0.98], [0.6, 0.04, 1.18, 0.82], [0.7, 0, 0.97, 1.04], [0.82, 0, 1, 1], [1, 0, 1, 1]];
+function heroPose(u, amp) {
+  let i = 1; while (i < HERO_KEYS.length - 1 && u > HERO_KEYS[i][0]) i++;
+  const a = HERO_KEYS[i - 1], b = HERO_KEYS[i], k = (u - a[0]) / (b[0] - a[0]), e = k * k * (3 - 2 * k);
+  return { dy: lerp(a[1], b[1], e) * amp, sx: lerp(a[2], b[2], e), sy: lerp(a[3], b[3], e) };
+}
+function heroBegin(x, y, amp = 30, at = 0) {   // the same act for a block of drawing calls: heroBegin … heroEnd
+  const u = ((beat(TT) - at) % 1 + 1) % 1, q = heroPose(u, amp);
+  ctx.save(); ctx.translate(x, y + q.dy); ctx.scale(q.sx, q.sy); ctx.translate(-x, -y);
+}
+const heroEnd = () => ctx.restore();
+function hero(x, y, fn, amp = 30, at = 0) { heroBegin(x, y, amp, at); fn(); heroEnd(); }
+// the impact flash of the beat — a hit star and burst at (x, y), on screen only while the beat lands
+function impact(x, y, s, key = 'imp') {
+  const u = beat(TT);
+  if (u < 0.44 || u > 0.68) return;
+  const k = Math.sin(Math.PI * (u - 0.44) / 0.24);
+  star4(x, y, s * (0.6 + 0.5 * k), PAL.yellow); burst(x, y, s * 0.8, s * (1.6 + k), { key, w: 5, c: PAL.ink, n: 10 });
+}
+// 4-point sparkle that stamps in on the beat: small at rest, a pop around the middle of the action, then back
+function twinkle(x, y, s, p, ph = 0, c = '#fff8dc') {
+  const q = (((p - ph * 0.16) % 1) + 1) % 1, pop = Math.sin(Math.PI * Math.min(1, Math.max(0, (q - 0.3) / 0.45)));
+  sparkle(x, y, s * (0.45 + 0.85 * pop), c);
+}
 // one 7-segment digit made of paper strips, h tall, centred on x
 const SEG7 = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
 function digit7(x, y, h, n, color, key) {

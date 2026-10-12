@@ -1,11 +1,11 @@
-/* CUT PAPER game art (GameArtCutPaper.jsx): the strip holds a few drawings of
+/* CUT PAPER game art (GameArtCutPaper.jsx): the strip holds twelve drawings of
    the scene side by side (width = frames × the tile), shifted one drawing at
    a time with steps() so the paper boils. The tile is paused while off screen
    (data-live from the shared IntersectionObserver); the strip is not even
    rendered under reduced motion. */
 .cp-art .cp-strip {
   width: calc(var(--cp-n) * 100%);
-  animation: cp-strip var(--cp-ms) steps(var(--cp-n)) infinite;
+  animation: cp-strip var(--cp-ms) steps(var(--cp-n)) var(--cp-from, 0ms) infinite;
 }
 .cp-art[data-live="0"] .cp-strip { animation-play-state: paused; }
 

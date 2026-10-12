@@ -21,11 +21,13 @@ export function Ground({ a = 'p1', b = 'p2', floor, floorRole = 'deep' }) {
   )
 }
 
-// A group that loops one of the toon.css keyframes. d = start delay (s),
-// t = loop length (s), o = transform-origin ('50% 100%' squashes from the feet).
+// A group that loops one of the toon.css keyframes. Every loop runs on the shared 2.4 s clock so a
+// tile's parts move on one beat; d = start delay (s, at most 0.5) staggers a part off it, t = loop length (s)
+// is for the continuous kinds only (spin, blink), o = transform-origin ('50% 100%' squashes from
+// the feet).
 export function Anim({ k, d = 0, t, o, children }) {
-  const style = { '--k': `tn-${k}`, '--d': `${d}s` }
-  if (t) style['--t'] = `${t}s`
+  const style = { '--k': `tn-${k}`, '--d': `${Math.min(d, 0.5)}s` }
+  if (t && (k === 'spin' || k === 'blink')) style['--t'] = `${t}s`
   if (o) style['--o'] = o
   return <g className="tn" style={style}>{children}</g>
 }

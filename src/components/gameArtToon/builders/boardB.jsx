@@ -27,12 +27,12 @@ export default {
       ))}
       <Ball x={22} y={36} r={4.2} fill={F.yellow} />
       <Ball x={32} y={36} r={4.2} fill={F.yellow} />
-      <Anim k="pop" t={2.6}><Ball x={42} y={36} r={4.2} fill={F.yellow} /></Anim>
+      <Anim k="pop"><Ball x={42} y={36} r={4.2} fill={F.yellow} /></Anim>
       <Ball x={27} y={27} r={4.2} fill={F.red} />
       <Ball x={37} y={27} r={4.2} fill={F.red} />
       <Ball x={32} y={18} r={4.2} fill={F.red} />
-      <Anim k="drop" t={2.6} o="50% 100%"><Blobby x={32} y={45} r={4.8} fill={F.purple} mood="wow" /></Anim>
-      <Anim k="twinkle" t={1.8}><Spark x={54} y={14} r={4} fill={F.yellow} /></Anim>
+      <Anim k="drop" o="50% 100%"><Blobby x={32} y={45} r={4.8} fill={F.purple} mood="wow" /></Anim>
+      <Anim k="twinkle"><Spark x={54} y={14} r={4} fill={F.yellow} /></Anim>
     </>
   ),
 
@@ -44,7 +44,7 @@ export default {
         const col = [[3, 0, F.red], [3, 1, F.yellow], [3, 2, F.red], [3, 3, F.red], [2, 2, F.yellow], [2, 3, F.yellow], [1, 3, F.red], [3, 4, F.yellow], [2, 1, F.red]].find(([rr, cc]) => rr === r && cc === c)
         return <circle key={`${r}${c}`} cx={15 + c * 8.6} cy={24 + r * 9} r="3.7" fill={col ? col[2] : F.cream} strokeWidth="1.2" />
       }))}
-      <Anim k="drop" t={2.6} o="50% 100%">
+      <Anim k="drop" o="50% 100%">
         <circle cx="32.2" cy="8.4" r="5.2" fill={F.red} />
         <Face x={32.2} y={8.4} s={0.62} mood="wow" blink={false} />
       </Anim>
@@ -62,12 +62,12 @@ export default {
         <path d="M10 10H30V30H10Z" stroke={F.red} />
         <path d="M30 30H50V50H30Z" stroke={F.blue} />
         <path d="M30 10H50M50 10V30M10 30V50M10 50H30" stroke={F.greyD} strokeWidth="2" />
-        <Anim k="pop" t={2.4}><path d="M30 30H50" stroke={F.blue} /></Anim>
+        <Anim k="pop"><path d="M30 30H50" stroke={F.blue} /></Anim>
       </g>
       <Face x={20} y={19} s={0.8} mood="grin" />
       <Face x={40} y={39} s={0.8} mood="smug" />
       {[10, 30, 50].flatMap(x => [10, 30, 50].map(y => <circle key={`${x}${y}`} cx={x} cy={y} r="3.2" fill={F.ink} stroke="none" />))}
-      <Anim k="twinkle" t={1.7}><Star x={54} y={10} r={4.4} /></Anim>
+      <Anim k="twinkle"><Star x={54} y={10} r={4.4} /></Anim>
     </>
   ),
 
@@ -77,13 +77,13 @@ export default {
       <rect x="6" y="6" width="52" height="52" rx="6" fill={F.cream} />
       <g fill="none" stroke={F.tan} strokeWidth="1.3"><path d="M19 8V56M32 8V56M45 8V56M8 19H56M8 32H56M8 45H56" /></g>
       <SGlyph x={12.5} y={32} s={0.9} stroke={F.red} />
-      <Anim k="pop" t={2.4}><Ring x={26} y={32} r={4.2} stroke={F.blue} w={2.8} /></Anim>
+      <Anim k="pop"><Ring x={26} y={32} r={4.2} stroke={F.blue} w={2.8} /></Anim>
       <SGlyph x={39.5} y={32} s={0.9} stroke={F.red} />
       <SGlyph x={12.5} y={12.5} s={0.9} stroke={F.green} />
       <Ring x={26} y={51} r={4} stroke={F.green} w={2.6} />
       <SGlyph x={51.5} y={51} s={0.9} stroke={F.green} />
       <path d="M7 32H56" stroke={F.yellow} strokeWidth="1.8" opacity="0.8" />
-      <Anim k="bob" t={2.2}><Face x={26} y={32} s={0.45} mood="grin" blink={false} /></Anim>
+      <Anim k="bob"><Face x={26} y={32} s={0.45} mood="grin" blink={false} /></Anim>
     </>
   ),
 
@@ -102,11 +102,11 @@ export default {
           const hero = r === 1 && c === 2
           return hero ? null : <Arrow key={`${r}${c}`} x={14.5 + c * 12} y={14.5 + r * 12} rot={rots[r * 4 + c]} fill={(r + c) % 2 ? F.cream : F.sky} />
         }))}
-        <Anim k="slide" t={2.4}>
+        <Anim k="slide">
           <circle cx="38.5" cy="26.5" r="7.4" fill={F.yellow} />
           <Face x={38.5} y={26.5} s={0.72} mood="wow" />
         </Anim>
-        <Anim k="twinkle" t={1.7}><Spark x={55} y={9} r={3.4} fill={F.yellow} /></Anim>
+        <Anim k="twinkle"><Spark x={55} y={9} r={3.4} fill={F.yellow} /></Anim>
       </>
     )
   },
@@ -141,7 +141,7 @@ export default {
       <Anim k="spin" t={2.8}>
         <ellipse cx="38.5" cy="12.5" rx="5.4" ry="5.4" fill={F.white} />
       </Anim>
-      <Anim k="pulse" t={2.4}><Face x={25.5} y={25.8} s={0.62} mood="happy" blink={false} /></Anim>
+      <Anim k="pulse"><Face x={25.5} y={25.8} s={0.62} mood="happy" blink={false} /></Anim>
       <Face x={38.5} y={38.8} s={0.62} mood="wow" blink={false} />
     </>
   ),
@@ -151,12 +151,12 @@ export default {
       <Ground a="p2" b="cta" />
       <rect x="6" y="6" width="52" height="52" rx="6" fill={F.night} />
       <g fill="none" stroke={F.indigo} strokeWidth="1.2"><path d="M23.3 8V56M40.7 8V56M8 23.3H56M8 40.7H56" /></g>
-      <Anim k="pulse" t={1.8}>
+      <Anim k="pulse">
         <circle cx="32" cy="32" r="7.4" fill={F.red} />
         <Face x={32} y={32.4} s={0.78} mood="wow" />
       </Anim>
       <g stroke="none" fill={F.yellow}>
-        <Anim k="twinkle" t={1.8}><Star x={32} y={32} r={13} fill={A('yellow', 0.55)} rot={18} /></Anim>
+        <Anim k="twinkle"><Star x={32} y={32} r={13} fill={A('yellow', 0.55)} rot={18} /></Anim>
       </g>
       <Ball x={14.5} y={14.5} r={4.4} fill={F.blue} />
       <Ball x={14.5} y={49.5} r={3.4} fill={F.blue} />
@@ -178,10 +178,10 @@ export default {
       </g>
       <rect x="18" y="29.4" width="22" height="4.4" rx="2" fill={F.brown} />
       <rect x="37.6" y="40" width="4.4" height="14" rx="2" fill={F.brown} />
-      <Anim k="dash" t={2.4}><Blobby x={14} y={50} r={5} fill={F.red} mood="grin" look={1} /></Anim>
+      <Anim k="dash"><Blobby x={14} y={50} r={5} fill={F.red} mood="grin" look={1} /></Anim>
       <Blobby x={50} y={14} r={5} fill={F.blue} mood="smug" look={-1} />
       <path d="M20 50H34" fill="none" stroke={F.red} strokeWidth="1.8" strokeDasharray="2 3" />
-      <Anim k="shake" t={2.4}><rect x="14" y="15.6" width="4.4" height="14" rx="2" fill={F.brown} /></Anim>
+      <Anim k="shake"><rect x="14" y="15.6" width="4.4" height="14" rx="2" fill={F.brown} /></Anim>
     </>
   ),
 
@@ -198,7 +198,7 @@ export default {
       <X x={51.5} y={25.5} s={3.8} fill={F.red} />
       <X x={25.5} y={51.5} s={3.8} fill={F.red} />
       <path d="M10 10L54 54" fill="none" stroke={F.yellow} strokeWidth="1.8" opacity="0.85" />
-      <Anim k="bob" t={2.3}><Face x={32} y={32} s={0.62} mood="smug" /></Anim>
+      <Anim k="bob"><Face x={32} y={32} s={0.62} mood="smug" /></Anim>
     </>
   ),
 }

@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { CUT_PAPER } from '../../src/lib/gameArtLogic.js'
+import { CUT_PAPER, CUT_PAPER_STILL_AT } from '../../src/lib/gameArtLogic.js'
 import { GLYPHS, GLYPH_ASPECT } from '../../src/lib/artGlyphs.js'
 import { pickTypes } from '../game-art-batches.mjs'
 
@@ -21,7 +21,7 @@ const sceneFiles = () => readdirSync(join(HERE, 'scenes')).filter(f => f.endsWit
 
 // The page script, in animate's own order: head, core kit, style kit, scenes, driver.
 export function pageScript() {
-  const glyphs = `const ART_GLYPHS = ${JSON.stringify(GLYPHS)}, ART_GLYPH_ASPECT = ${GLYPH_ASPECT};`
+  const glyphs = `const ART_GLYPHS = ${JSON.stringify(GLYPHS)}, ART_GLYPH_ASPECT = ${GLYPH_ASPECT}, STILL_PHASE = ${JSON.stringify(CUT_PAPER_STILL_AT)};`
   return [read('head.js'), glyphs, read('vendor', 'core.js'), read('vendor', 'cut-paper-kit.js'), read('scenes', '_common.js'),
     ...sceneFiles().filter(f => f !== '_common.js').map(f => read('scenes', f)), read('driver.js')].join('\n')
 }
@@ -30,6 +30,7 @@ export function pageScript() {
 export function sourceHash() {
   const h = createHash('sha256')
   h.update(JSON.stringify(CUT_PAPER))
+  h.update(JSON.stringify(CUT_PAPER_STILL_AT))
   h.update(pageScript())
   h.update(readFileSync(fileURLToPath(import.meta.url), 'utf8'))
   return h.digest('hex').slice(0, 16)
@@ -50,7 +51,7 @@ export async function render(types) {
     if (missing.length) throw new Error(`no cut-paper scene for: ${missing.join(', ')}`)
     const out = {}
     for (const type of types) {
-      const still = await page.evaluate(([t, px]) => window.renderStrip(t, 1, px, 0.82), [type, CUT_PAPER.still])
+      const still = await page.evaluate(([t, n, px]) => window.renderStill(t, n, px, 0.82), [type, CUT_PAPER.loopFrames, CUT_PAPER.still])
       const loop = await page.evaluate(([t, n, px]) => window.renderStrip(t, n, px, 0.6), [type, CUT_PAPER.loopFrames, CUT_PAPER.loopPx])
       if (errors.length) throw new Error(`${type}: ${errors[0]}`)
       out[type] = { still: Buffer.from(still, 'base64'), loop: Buffer.from(loop, 'base64') }

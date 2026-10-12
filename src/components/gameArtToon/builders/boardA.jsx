@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 // TOON builders — classic board games, part one.
-import { F, A, Ground, Anim, Ball, Block, Star, Spark, Face, Blobby, X, Ring, Glint } from '../toonKit'
+import { F, A, Ground, Anim, Ball, Block, Star, Spark, Face, Blobby, Glint } from '../toonKit'
 
 // A chunky pawn: base, body, head with a face.
 const Pawn = ({ x, y, fill, mood = 'happy', s = 1 }) => (
@@ -23,22 +23,6 @@ const Tower = ({ x, y, fill, cap }) => (
 )
 
 export default {
-  tictactoe: () => (
-    <>
-      <Ground a="p1" b="p2" />
-      <rect x="9" y="9" width="46" height="46" rx="7" fill={F.cream} />
-      <path d="M24.3 12V52M39.7 12V52M12 24.3H52M12 39.7H52" fill="none" stroke={F.brown} strokeWidth="2.4" />
-      <Ring x={32} y={32} r={4.6} stroke={F.blue} w={2.8} />
-      <Ring x={47} y={17} r={4.6} stroke={F.blue} w={2.8} />
-      <X x={17} y={47} s={4.2} fill={F.red} />
-      <Anim k="pop" t={2.6}><X x={17} y={17} s={4.2} fill={F.red} /></Anim>
-      <Anim k="pop" t={2.6} d={0.25}><X x={32} y={32} s={0} fill={F.red} /></Anim>
-      <Anim k="pop" t={2.6} d={0.5}><X x={47} y={47} s={4.2} fill={F.red} /></Anim>
-      <path d="M13 13L51 51" fill="none" stroke={F.yellow} strokeWidth="2" strokeLinecap="round" opacity="0.9" />
-      <Anim k="bob" t={2.2}><Face x={32} y={30} s={0.7} mood="grin" /></Anim>
-    </>
-  ),
-
   sim: () => (
     <>
       <Ground a="p1" b="p2" />
@@ -47,10 +31,10 @@ export default {
         <path d="M32 9L53 43M32 9L11 43M11 43L53 43" stroke={F.red} strokeWidth="2.8" />
         <path d="M11 21L53 21M11 21L32 55M53 21L32 55" stroke={F.blue} strokeWidth="2.8" />
       </g>
-      <Anim k="pulse" t={2.4}><Ball x={32} y={9} r={5.4} fill={F.yellow} /></Anim>
-      <Anim k="pulse" t={2.4} d={0.4}><Ball x={53} y={21} r={5.4} fill={F.white} /></Anim>
+      <Anim k="pulse"><Ball x={32} y={9} r={5.4} fill={F.yellow} /></Anim>
+      <Anim k="pulse" d={0.4}><Ball x={53} y={21} r={5.4} fill={F.white} /></Anim>
       <Ball x={53} y={43} r={5.4} fill={F.white} />
-      <Anim k="pulse" t={2.4} d={0.8}><Ball x={32} y={55} r={5.4} fill={F.white} /></Anim>
+      <Anim k="pulse" d={0.8}><Ball x={32} y={55} r={5.4} fill={F.white} /></Anim>
       <Ball x={11} y={43} r={5.4} fill={F.white} />
       <Ball x={11} y={21} r={5.4} fill={F.white} />
       <Face x={32} y={9.4} s={0.78} mood="wow" />
@@ -68,8 +52,8 @@ export default {
           return <Block key={`${r}${c}`} x={8 + c * 9.6} y={12 + r * 9.6} w="9.6" h="9.6" r="2" fill={poison ? F.lime : F.brown} glint={!poison} />
         }))}
       </g>
-      <Anim k="shake" t={2.4}><Face x={12.8} y={16.8} s={0.62} mood="sad" blink={false} /></Anim>
-      <Anim k="hop" t={2.4} o="50% 100%">
+      <Anim k="shake"><Face x={12.8} y={16.8} s={0.62} mood="sad" blink={false} /></Anim>
+      <Anim k="hop" o="50% 100%">
         <path d="M45 50A8 8 0 1 1 57 56L51 51Z" fill={F.yellow} />
         <circle cx="50.2" cy="45.8" r="1.2" fill={F.ink} stroke="none" />
       </Anim>
@@ -91,9 +75,9 @@ export default {
       <Pawn x={38} y={19} fill={F.blue} mood="wow" s={0.8} />
       <Pawn x={50} y={19} fill={F.blue} mood="smug" s={0.8} />
       <Pawn x={14} y={55} fill={F.red} s={0.8} />
-      <Anim k="hop" t={2.4} o="50% 100%"><Pawn x={38} y={43} fill={F.red} mood="grin" s={0.8} /></Anim>
+      <Anim k="hop" o="50% 100%"><Pawn x={38} y={43} fill={F.red} mood="grin" s={0.8} /></Anim>
       <Pawn x={50} y={55} fill={F.red} s={0.8} />
-      <Anim k="twinkle" t={1.6}><Star x={54} y={8} r={4} /></Anim>
+      <Anim k="twinkle"><Star x={54} y={8} r={4} /></Anim>
     </>
   ),
 
@@ -107,8 +91,8 @@ export default {
       <Blobby x={52} y={52} r={4.2} fill={F.red} mood="grin" />
       <Blobby x={42} y={52} r={4.2} fill={F.red} mood="happy" />
       <Blobby x={52} y={42} r={4.2} fill={F.red} mood="wow" />
-      <Anim k="jelly" t={2.4}><Blobby x={32} y={32} r={5.4} fill={F.red} mood="grin" /></Anim>
-      <Anim k="pop" t={2.4} d={0.2}><Blobby x={42} y={32} r={4.6} fill={F.red} mood="happy" /></Anim>
+      <Anim k="jelly"><Blobby x={32} y={32} r={5.4} fill={F.red} mood="grin" /></Anim>
+      <Anim k="pop" d={0.2}><Blobby x={42} y={32} r={4.6} fill={F.red} mood="happy" /></Anim>
       <Blobby x={22} y={22} r={4.2} fill={F.blue} mood="wow" />
       <path d="M35 29Q38 26 40 29" fill="none" stroke={F.yellow} strokeWidth="1.8" />
     </>
@@ -126,12 +110,12 @@ export default {
         </g>
         <Tower x={14} y={50} fill={F.coal} cap={F.orange} />
         <Tower x={26} y={50} fill={F.coal} cap={F.blue} />
-        <Anim k="hop" t={2.4} o="50% 100%">
+        <Anim k="hop" o="50% 100%">
           <Tower x={38} y={39} fill={F.cream} cap={F.pink} />
           <Face x={38} y={31.6} s={0.62} mood="grin" blink={false} />
         </Anim>
         <Tower x={50} y={17} fill={F.coal} cap={F.yellow} />
-        <Anim k="twinkle" t={1.8}><Spark x={50} y={7} r={3.4} fill={F.yellow} /></Anim>
+        <Anim k="twinkle"><Spark x={50} y={7} r={3.4} fill={F.yellow} /></Anim>
       </>
     )
   },
@@ -152,7 +136,7 @@ export default {
           {[[0, -1], [-1, 1], [1, 1], [0, 0]].map(([dx, dy], i) => <rect key={i} x={44.6 + dx * 4.6} y={36.6 + dy * 4.6} width="3.8" height="3.8" rx="0.8" />)}
         </g>
       </g>
-      <Anim k="bob" t={2.4}>
+      <Anim k="bob">
         <ellipse cx="32" cy="26" rx="8.4" ry="8" fill={F.skin} />
         <path d="M23.6 22.4Q32 15 40.4 22.4L40.4 24.6Q32 21 23.6 24.6Z" fill={F.red} />
         <path d="M40 23L47 26L41 27Z" fill={F.red} />
@@ -173,12 +157,12 @@ export default {
         <circle cx="38.6" cy="37" r="1.7" fill={F.ink} stroke="none" />
         <rect x="47.6" y="41" width="7.4" height="7" rx="3.5" fill={F.cream} />
       </g>
-      <Anim k="bob" t={2.2}>
+      <Anim k="bob">
         <rect x="24" y="5" width="10" height="17" rx="5" fill={F.cream} />
         <Face x={29} y={11} s={0.62} mood="wow" />
         <Glint x={26.6} y={8.4} w={1.8} h={6} rot={0} />
       </Anim>
-      <Anim k="twinkle" t={1.6} d={0.4}><Spark x={44} y={12} r={3.4} fill={F.yellow} /></Anim>
+      <Anim k="twinkle" d={0.4}><Spark x={44} y={12} r={3.4} fill={F.yellow} /></Anim>
     </>
   ),
 
@@ -191,15 +175,15 @@ export default {
         <Block x="20" y="21" w="24" h="10" r="3" fill={F.paper} />
       </g>
       <path d="M25.5 21A6.5 6.5 0 0 1 38.5 21Z" fill={F.blue} />
-      <Anim k="hop" t={2.4} o="50% 100%">
+      <Anim k="hop" o="50% 100%">
         <Blobby x={14} y={35} r={4.6} fill={F.orange} mood="grin" look={1} />
       </Anim>
-      <Anim k="bob" t={2.8}><Blobby x={46} y={26} r={4.2} fill={F.purple} mood="wow" /></Anim>
+      <Anim k="bob"><Blobby x={46} y={26} r={4.2} fill={F.purple} mood="wow" /></Anim>
       <g stroke="none" fill={A('white', 0.9)}>
         <ellipse cx="50" cy="10" rx="8" ry="3.2" />
         <ellipse cx="14" cy="14" rx="6" ry="2.6" />
       </g>
-      <Anim k="pulse" t={3}><Ball x={54} y={20} r={3} fill={F.yellow} glint={false} /></Anim>
+      <Anim k="pulse"><Ball x={54} y={20} r={3} fill={F.yellow} glint={false} /></Anim>
     </>
   ),
 
@@ -215,7 +199,7 @@ export default {
       <Ball x={25.5} y={51.5} r={4.8} fill={F.white} />
       <Ball x={51.5} y={51.5} r={4.8} fill={F.white} />
       <path d="M19 26L51 26" fill="none" stroke={F.red} strokeWidth="1.6" strokeDasharray="2.4 2.8" />
-      <Anim k="dash" t={2.4}>
+      <Anim k="dash">
         <Ball x={19} y={26} r={5.2} fill={F.white} />
         <Face x={19} y={26.4} s={0.72} mood="grin" />
       </Anim>

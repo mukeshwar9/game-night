@@ -1,29 +1,5 @@
 // CUT PAPER scenes — classic board games, part one.
 
-SCENES.tictactoe = (p) => {
-  world(PAL.mint, { pat: pat.dots('rgba(255,255,255,0.4)', 5, 34) });
-  const bx = 270, by = 296, a = -0.035, cell = (i, j) => pt([bx + (j - 1) * 118, by + (i - 1) * 118], bx, by, a);
-  cut(rot(rect(bx - 190, by - 190, 380, 380, 16), bx, by, a), PAL.paper, { key: 'ttb', sb: 16, sy: 9, pat: pat.lines('rgba(76,111,181,0.18)', 30) });
-  [-1, 1].forEach((k, i) => {
-    cut(rot(rect(bx + k * 59 - 5, by - 168, 10, 336, 4), bx, by, a), PAL.woodD, { key: 'ttv' + i, shadow: false, tear: 0.6 });
-    cut(rot(rect(bx - 168, by + k * 59 - 5, 336, 10, 4), bx, by, a), PAL.woodD, { key: 'tth' + i, shadow: false, tear: 0.6 });
-  });
-  const X = (c, key) => { const [x, y] = cell(...c); stroke([x - 34, y - 34], [x + 34, y + 34], 20, RED, key + 'a', { sb: 4 }); stroke([x + 34, y - 34], [x - 34, y + 34], 20, RED, key + 'b', { sb: 4, shadow: false }); };
-  const O = (c, key) => { const [x, y] = cell(...c); paperDisc(x, y, 44, PAL.blue, key, { glint: false }); blob(x, y, 24, 24, PAL.paper, key + 'h', { shadow: false, tear: 0.6, pat: pat.lines('rgba(76,111,181,0.18)', 30) }); };
-  O([0, 2], 'o1'); O([2, 0], 'o2'); O([1, 2], 'o3'); X([0, 0], 'x1'); X([1, 1], 'x2'); X([2, 2], 'x3');
-  stroke(pt([bx - 150, by - 150], bx, by, a), pt([bx + 150, by + 150], bx, by, a), 9, GOLD, 'ttw', { shadow: false });
-  // a pencil that has done the drawing
-  const py = wave(p, 1, 7);
-  ctx.save(); ctx.translate(452, 160 + py); ctx.rotate(0.5 + wave(p, 1, 0.05));
-  cut(rect(-26, -120, 52, 190, 8), PAL.yellow, { key: 'pen', sb: 8, sy: 5, pat: pat.stripes('rgba(180,120,20,0.35)', 6, 17, Math.PI / 2) });
-  cut([[-26, 70], [26, 70], [0, 118]], PAL.skin1, { key: 'pt', shadow: false });
-  cut([[-9, 100], [9, 100], [0, 118]], COAL, { key: 'pt2', shadow: false });
-  cut(rect(-26, -150, 52, 36, 10), PAL.pink, { key: 'pe', sb: 4 });
-  face(0, -38, 0.7, 'happy');
-  ctx.restore();
-  twinkle(88, 84, 16, p); twinkle(470, 470, 12, p, 0.5);
-};
-
 SCENES.sim = (p) => {
   world(PAL.sky, { pat: pat.stripes('rgba(255,255,255,0.28)', 26, 70, 0.4) });
   cut(rect(46, 56, 448, 448, 18), PAL.wood, { key: 'cork', sb: 16, sy: 10, pat: pat.dots('rgba(120,70,30,0.35)', 3, 15), crayon: PAL.woodL });
@@ -32,10 +8,10 @@ SCENES.sim = (p) => {
   const E = [[0, 2, 'r'], [2, 4, 'r'], [4, 0, 'r'], [1, 3, 'b'], [3, 5, 'b'], [5, 1, 'b'], [0, 3, 'r'], [1, 4, 'b']];
   E.forEach(([a, b, c], i) => yarn(N[a][0], N[a][1], N[b][0], N[b][1], c === 'r' ? RED : PAL.blue, 9, 'ye' + i));
   [[0, 1], [1, 2], [2, 3]].forEach(([a, b], i) => yarn(N[a][0], N[a][1], N[b][0], N[b][1], 'rgba(255,255,255,0.55)', 5, 'yd' + i));
-  const bounce = hopY(p, 14, 2);
-  N.forEach(([x, y], i) => paperDisc(x, y + (i === 0 ? bounce : 0), 30, [PAL.yellow, PAL.paper, PAL.paper, PAL.paper, PAL.paper, PAL.paper][i], 'pin' + i, { crayon: 'rgba(0,0,0,0.12)' }));
-  face(N[0][0], N[0][1] + bounce + 2, 0.72, 'wow');
-  face(N[3][0], N[3][1], 0.62, 'happy');
+  N.forEach(([x, y], i) => { if (i && i !== 3) paperDisc(x, y, 30, PAL.paper, 'pin' + i, { crayon: 'rgba(0,0,0,0.12)' }); });
+  hero(N[3][0], N[3][1] + 30, () => { paperDisc(N[3][0], N[3][1], 30, PAL.paper, 'pin3', { crayon: 'rgba(0,0,0,0.12)' }); face(N[3][0], N[3][1], 0.62, 'happy'); }, 46, 0.12);
+  hero(N[0][0], N[0][1] + 30, () => { paperDisc(N[0][0], N[0][1], 30, PAL.yellow, 'pin0', { crayon: 'rgba(0,0,0,0.12)' }); face(N[0][0], N[0][1] + 2, 0.72, 'wow'); }, 56);
+  impact(N[0][0], N[0][1] + 34, 26);
   twinkle(440, 96, 14, p); confetti(7, [60, 60, 480, 500], [PAL.pink, PAL.mint, PAL.yellow], 'simcf', 8);
 };
 
@@ -55,10 +31,13 @@ SCENES.chomp = (p) => {
   // the chomper
   const open = 0.55 + 0.45 * Math.abs(wave(p, 1, 1, 0.25));
   const cx = 380, cy = 380;
+  hero(cx, cy + 78, () => {
   blob(cx, cy, 86, 78, PAL.purple, 'chomper', { crayon: '#5f4fb0', sy: 8 });
   ctx.save(); ctx.fillStyle = COAL; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 24, 44, 14 + 26 * open, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#e8707a'; ctx.beginPath(); ctx.ellipse(cx - 6, cy + 38, 26, 8 * open + 4, 0, 0, TAU); ctx.fill(); ctx.restore();
   [[-34, -34], [20, -40]].forEach(([dx, dy], i) => { paperDisc(cx + dx, cy + dy, 17, PAL.paper, 'ce' + i, { glint: false }); dot(cx + dx + 3, cy + dy + 1, 7, PAL.ink); });
   [[-32, 4], [18, 4]].forEach(([dx, dy], i) => cut([[cx + dx - 8, cy + dy], [cx + dx + 8, cy + dy], [cx + dx, cy + dy + 15]], '#fffaf0', { key: 'ct' + i, shadow: false, tear: 0.4 }));
+  }, 30);
+  impact(x0 + 31, y0 + 20, 24);
   paperStar(80, 60, 20, PAL.yellow, 'cs1', 0.2); twinkle(470, 80, 14, p);
 };
 
@@ -76,8 +55,8 @@ SCENES.breakthrough = (p) => {
   };
   [0, 1, 2, 3].forEach(c => pawn(x0 + c * s + 50, y0 + 74, PAL.blue, 'pb' + c, 'smile'));
   [0, 3].forEach(c => pawn(x0 + c * s + 50, y0 + 374, RED, 'pr' + c));
-  const y = hopY(p, 36, 2);
-  pawn(x0 + 2 * s + 50, y0 + 274 + y, RED, 'prh', 'happy');
+  hero(x0 + 2 * s + 50, y0 + 274, () => pawn(x0 + 2 * s + 50, y0 + 274, RED, 'prh', 'happy'), 74);
+  impact(x0 + 2 * s + 50, y0 + 262, 26);
   paperStar(470, 96, 24, PAL.yellow, 'bs1', p * 0.4); twinkle(60, 480, 14, p, 0.3);
 };
 
@@ -94,9 +73,10 @@ SCENES.ataxx = (p) => {
   put(4, 4, RED, 'happy', 'a5'); put(3, 4, RED, 'wow', 'a6'); put(4, 3, RED, 'smile', 'a7');
   const s = 1 + wave(p, 1, 0.06);
   const [mx, my] = g(2, 2), [nx, ny] = g(2, 3);
-  critter(mx, my, 38 * s, RED, 'happy', 'a8', { fs: 0.66, crayon: 'rgba(0,0,0,0.18)' });
+  critter(mx, my, 38 * s, RED, 'happy', 'a8', { fs: 0.66, crayon: 'rgba(0,0,0,0.18)', hop: 52 });
   ink([[mx + 36, my - 30], [(mx + nx) / 2, my - 62 + wave(p, 1, 4)], [nx - 30, ny - 30]], { w: 7, color: GOLD, amt: 0.5, key: 'arc' });
-  critter(nx, ny, 34 * (2 - s), RED, 'grin', 'a9', { fs: 0.56, crayon: 'rgba(0,0,0,0.18)' });
+  critter(nx, ny, 34 * (2 - s), RED, 'grin', 'a9', { fs: 0.56, crayon: 'rgba(0,0,0,0.18)', hop: 40, at: 0.1 });
+  impact(nx, ny - 8, 24);
   twinkle(496, 70, 15, p); twinkle(40, 500, 12, p, 0.5);
 };
 
@@ -108,9 +88,8 @@ SCENES.kamisado = (p) => {
   cut(rect(x0 - 6, y0 - 6, 392, 392, 4), 'rgba(0,0,0,0.001)', { key: 'kf', sb: 14, sy: 9, grain: false, shade: false, line: PAL.charcoal, lw: 10 });
   const tower = (c, r, body, cap, key, lift = 0) => pillar(x0 + c * s + 47, y0 + r * s + 82 + lift, 54, 78, body, cap, key);
   tower(0, 3, COAL, PAL.yellow, 'kt1'); tower(1, 3, COAL, PAL.blue, 'kt2'); tower(3, 3, COAL, PAL.pink, 'kt3'); tower(2, 0, CREAM, PAL.purple, 'kt4'); tower(0, 0, CREAM, PAL.green, 'kt5');
-  const hy = hopY(p, 34, 2);
-  tower(2, 2, CREAM, PAL.mustard, 'kth', hy);
-  face(x0 + 2 * s + 47, y0 + 2 * s + 38 + hy, 0.58, 'happy');
+  hero(x0 + 2 * s + 47, y0 + 2 * s + 82, () => { tower(2, 2, CREAM, PAL.mustard, 'kth'); face(x0 + 2 * s + 47, y0 + 2 * s + 38, 0.58, 'happy'); }, 66);
+  impact(x0 + 2 * s + 47, y0 + 2 * s + 76, 26);
   twinkle(468, 80, 16, p); twinkle(60, 70, 12, p, 0.4);
 };
 
@@ -118,9 +97,12 @@ SCENES.onitama = (p) => {
   world(PAL.navy, { pat: pat.dots('rgba(255,255,255,0.12)', 3, 30) });
   ctx.fillStyle = 'rgba(255,255,255,0.8)'; [[70, 70], [460, 110], [400, 52], [120, 150]].forEach(([x, y], i) => { ctx.beginPath(); ctx.arc(x, y, 3 + (i % 2), 0, TAU); ctx.fill(); });
   paperDisc(440, 100, 44, PAL.paper, 'moon', { glint: false });
-  person(270, 258 + wave(p, 1, 4), 0.78, { key: 'sensei', shirt: RED, skin: PAL.skin1, hair: '#2b211d', mood: 'smile' });
-  cut(rot(rect(160, 150, 220, 26, 8), 270, 162, 0), RED, { key: 'band', sb: 4, sy: 3, pat: pat.stripes('rgba(255,255,255,0.18)', 4, 20, 0.8) });
-  cut([[372, 160], [440, 182], [376, 186]], RED, { key: 'bandtail1', sb: 3, shadow: false }); cut([[372, 166], [430, 214], [372, 190]], REDD, { key: 'bandtail2', shadow: false });
+  hero(270, 400, () => {
+    person(270, 258, 0.78, { key: 'sensei', shirt: RED, skin: PAL.skin1, hair: '#2b211d', mood: 'smile' });
+    cut(rot(rect(160, 150, 220, 26, 8), 270, 162, 0), RED, { key: 'band', sb: 4, sy: 3, pat: pat.stripes('rgba(255,255,255,0.18)', 4, 20, 0.8) });
+    cut([[372, 160], [440, 182], [376, 186]], RED, { key: 'bandtail1', sb: 3, shadow: false }); cut([[372, 166], [430, 214], [372, 190]], REDD, { key: 'bandtail2', shadow: false });
+  }, 46);
+  impact(270, 392, 30);
   const card = (x, y, a, dots, tone, key) => {
     cut(rot(rect(x - 78, y - 100, 156, 200, 14), x, y, a), PAL.paper, { key, sb: 12, sy: 8, pat: pat.lines('rgba(76,111,181,0.12)', 28) });
     for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
@@ -142,10 +124,12 @@ SCENES.quarto = (p) => {
   const rd = (x, y, w, h, fill, key, hole) => { slab(x - w / 2, y - h, w, h, fill, key, { r: w / 2, sb: 5, sy: 3 }); if (hole) blob(x, y - h + 10, w * 0.28, 5, COAL, key + 'h', { shadow: false, tear: 0.3 }); };
   rd(118, 336, 46, 96, PAL.woodD, 'q1', true); sq(220, 330, 56, 56, CREAM, 'q2'); sq(322, 340, 56, 100, PAL.woodD, 'q3', true); rd(422, 336, 52, 50, CREAM, 'q4');
   sq(118, 456, 56, 50, CREAM, 'q5', true); rd(220, 458, 46, 100, CREAM, 'q6'); rd(322, 456, 52, 52, PAL.woodD, 'q7'); sq(422, 462, 54, 104, CREAM, 'q8', true);
-  const y = wave(p, 1, 9);
-  sq(270, 212 + y, 66, 120, CREAM, 'qh', true);
-  face(270, 160 + y, 0.62, 'wow');
-  cut(capsulePts(222, 56, 262, 100 + y, 40), PAL.skin1, { key: 'qhand', sb: 6, sy: 4 });
+  hero(270, 330, () => {
+    sq(270, 212, 66, 120, CREAM, 'qh', true);
+    face(270, 160, 0.62, 'wow');
+    cut(capsulePts(222, 56, 262, 100, 40), PAL.skin1, { key: 'qhand', sb: 6, sy: 4 });
+  }, 58);
+  impact(270, 326, 28);
   twinkle(100, 120, 16, p); twinkle(440, 150, 12, p, 0.5);
 };
 
@@ -162,8 +146,9 @@ SCENES.santorini = (p) => {
   cut([[210, 178], [330, 178], [330, 150], [270, 120], [210, 150]].map(([x, y]) => [x, y]), PAL.blue, { key: 'dome', sb: 6, sy: 4 });
   cut(ellipsePts(270, 178, 60, 14, 0, 20, Math.PI, TAU), PAL.blue, { key: 'dome2', shadow: false });
   cut(rect(255, 184, 30, 40, 14), COAL, { key: 'door', shadow: false });
-  critter(150, 312 + hopY(p, 30, 2), 36, PAL.pink, 'grin', 'bld', { fs: 0.46 });
-  critter(370, 232 + wave(p, 1, 5), 32, PAL.purple, 'wow', 'bld2', { fs: 0.42 });
+  critter(150, 312, 36, PAL.pink, 'grin', 'bld', { fs: 0.46, hop: 60 });
+  critter(370, 232, 32, PAL.purple, 'wow', 'bld2', { fs: 0.42, hop: 40, at: 0.08 });
+  impact(150, 340, 26);
   twinkle(60, 200, 14, p);
 };
 
@@ -176,7 +161,8 @@ SCENES.loa = (p) => {
   stone(0, 0, COAL, 's1'); stone(2, 0, COAL, 's2'); stone(1, 4, COAL, 's3'); stone(1, 2, COAL, 's4'); stone(4, 3, CREAM, 's5'); stone(4, 2, CREAM, 's6'); stone(4, 4, CREAM, 's7'); stone(3, 0, CREAM, 's8');
   const [x1, y1] = g(1, 0), [x2] = g(1, 1);
   [0, 1, 2, 3].forEach(i => dot(x1 + 80 + i * 40, y1, 5, GOLD));
-  const dx = Math.abs(wave(p, 1, 1, 0.25)) * 30;
+  const dx = Math.sin(Math.PI * p) * 124;   // the stone slides out along its row and comes home
   paperDisc(x1 + dx, y1, 40, CREAM, 'sm', { crayon: 'rgba(0,0,0,0.12)' }); face(x1 + dx, y1 + 2, 0.66, 'grin');
+  impact(x1 + 150, y1 - 4, 24);
   twinkle(500, 60, 14, p); twinkle(50, 520, 12, p, 0.5);
 };

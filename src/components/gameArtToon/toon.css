@@ -1,97 +1,135 @@
-/* TOON game art (components/gameArtToon/): short squash-and-stretch loops on
-   the SVG groups a builder marks with <Anim k="…">. Each loop is 2–3 s and
-   starts from the tile's resting pose, which is also what reduced motion
-   shows. A tile that is off screen is paused (data-live, set by
-   GameArtToon's IntersectionObserver). */
+/* TOON game art (components/gameArtToon/): the loops are one choreography on a shared 2.4 s clock.
+   A tile rests, anticipates (22–30%), acts (30–44%), lands its impact (~44%, squash and stretch
+   with a pop of sparkle) and settles (52–70%), then holds its key pose until the loop wraps — the
+   same beat the approved sample tiles use (toonSamples.css). Builders mark the SVG groups that move
+   with <Anim k="…">; every loop starts and ends on the tile's resting pose, which is also what
+   reduced motion shows. A tile that is off screen is paused (data-live, set by GameArtToon's
+   IntersectionObserver). */
 .toon-art .tn {
   transform-box: fill-box;
   transform-origin: var(--o, 50% 50%);
   animation: var(--k) var(--t, 2.4s) var(--e, ease-in-out) var(--d, 0s) infinite;
 }
-.toon-art[data-live="0"] .tn { animation-play-state: paused; }
+.toon-art[data-live="0"] * { animation-play-state: paused; }
 
-[data-motion="reduced"] .toon-art .tn { animation: none; }
+[data-motion="reduced"] .toon-art * { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) .toon-art .tn { animation: none; }
+  :root:not([data-motion="full"]) .toon-art * { animation: none; }
 }
 
+/* a small bounce for things that live in the scene */
 @keyframes tn-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2.2px); }
+  0%, 20%, 72%, 100% { transform: translateY(0) scale(1, 1); }
+  27% { transform: translateY(0.7px) scale(1.06, 0.94); }
+  40% { transform: translateY(-4.5px) scale(0.95, 1.08); }
+  50% { transform: translateY(0) scale(1.07, 0.93); }
+  60% { transform: translateY(-0.8px) scale(0.99, 1.01); }
 }
+/* the hero jump: crouch, launch, hang, land hard, settle */
 @keyframes tn-hop {
-  0%, 55%, 100% { transform: translateY(0) scale(1, 1); }
-  10% { transform: translateY(0) scale(1.1, 0.88); }
-  28% { transform: translateY(-5px) scale(0.92, 1.1); }
-  42% { transform: translateY(0) scale(1.1, 0.88); }
-  48% { transform: translateY(0) scale(0.97, 1.04); }
+  0%, 18%, 72%, 100% { transform: translateY(0) scale(1, 1); }
+  25% { transform: translateY(0.8px) scale(1.14, 0.86); }
+  32% { transform: translateY(-1px) scale(0.88, 1.16); }
+  44% { transform: translateY(-11px) scale(0.92, 1.12); }
+  50% { transform: translateY(-11px) scale(1.04, 0.96); }
+  60% { transform: translateY(0) scale(1.16, 0.84); }
+  66% { transform: translateY(0) scale(0.97, 1.04); }
 }
 @keyframes tn-squash {
-  0%, 100% { transform: scale(1, 1); }
-  50% { transform: scale(1.08, 0.9); }
+  0%, 18%, 70%, 100% { transform: scale(1, 1); }
+  26% { transform: scale(1.2, 0.8); }
+  36% { transform: scale(0.84, 1.18); }
+  48% { transform: scale(1.1, 0.92); }
+  58% { transform: scale(0.97, 1.03); }
 }
+@keyframes tn-jelly {
+  0%, 34%, 80%, 100% { transform: scale(1, 1); }
+  42% { transform: scale(1.16, 0.84); }
+  52% { transform: scale(0.92, 1.1); }
+  62% { transform: scale(1.05, 0.96); }
+  72% { transform: scale(0.98, 1.02); }
+}
+/* falls from a hop and lands flat */
 @keyframes tn-drop {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  38% { transform: translateY(-9px) scale(0.92, 1.1); }
-  60% { transform: translateY(0) scale(1.12, 0.86); }
-  72% { transform: translateY(0) scale(0.98, 1.03); }
+  0%, 16%, 72%, 100% { transform: translateY(0) scale(1, 1); }
+  25% { transform: translateY(0.8px) scale(1.1, 0.9); }
+  38% { transform: translateY(-13px) scale(0.9, 1.12); }
+  48% { transform: translateY(-13px) scale(0.96, 1.04); }
+  58% { transform: translateY(0) scale(1.18, 0.84); }
+  64% { transform: translateY(0) scale(0.96, 1.04); }
 }
 @keyframes tn-spin {
   to { transform: rotate(360deg); }
 }
 @keyframes tn-sway {
-  0%, 100% { transform: rotate(-7deg); }
-  50% { transform: rotate(7deg); }
+  0%, 20%, 76%, 100% { transform: rotate(0deg); }
+  28% { transform: rotate(-5deg); }
+  42% { transform: rotate(13deg); }
+  56% { transform: rotate(-6deg); }
+  66% { transform: rotate(2deg); }
 }
 @keyframes tn-wag {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-12deg); }
-  75% { transform: rotate(12deg); }
+  0%, 30%, 72%, 100% { transform: rotate(0deg); }
+  38% { transform: rotate(-16deg); }
+  46% { transform: rotate(13deg); }
+  54% { transform: rotate(-6deg); }
+  62% { transform: rotate(3deg); }
 }
+/* a lunge to the right and back, with a squash on arrival */
 @keyframes tn-slide {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(4px); }
+  0%, 22%, 80%, 100% { transform: translateX(0) scale(1, 1); }
+  29% { transform: translateX(-1px) scale(0.97, 1.03); }
+  40% { transform: translateX(6px) scale(1.12, 0.9); }
+  48% { transform: translateX(6px) scale(0.96, 1.04); }
+  58% { transform: translateX(5px) scale(1, 1); }
 }
 @keyframes tn-slidel {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(-4px); }
+  0%, 22%, 80%, 100% { transform: translateX(0) scale(1, 1); }
+  29% { transform: translateX(1px) scale(0.97, 1.03); }
+  40% { transform: translateX(-6px) scale(1.12, 0.9); }
+  48% { transform: translateX(-6px) scale(0.96, 1.04); }
+  58% { transform: translateX(-5px) scale(1, 1); }
 }
 @keyframes tn-dash {
-  0%, 100% { transform: translateX(0) scale(1, 1); }
-  35% { transform: translateX(5px) scale(1.12, 0.9); }
-  60% { transform: translateX(5px) scale(0.96, 1.04); }
+  0%, 22%, 76%, 100% { transform: translateX(0) scale(1, 1); }
+  29% { transform: translateX(-1px) scale(0.96, 1.04); }
+  38% { transform: translateX(8px) scale(1.16, 0.86); }
+  46% { transform: translateX(8px) scale(0.95, 1.05); }
+  54% { transform: translateX(7px) scale(1, 1); }
 }
 @keyframes tn-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.14); }
+  0%, 30%, 68%, 100% { transform: scale(1); }
+  40% { transform: scale(1.22); }
+  50% { transform: scale(0.94); }
+  58% { transform: scale(1.05); }
 }
 @keyframes tn-pop {
-  0%, 60%, 100% { transform: scale(1); }
-  72% { transform: scale(1.22); }
-  84% { transform: scale(0.94); }
+  0%, 36%, 62%, 100% { transform: scale(1); }
+  42% { transform: scale(1.22); }
+  48% { transform: scale(0.92); }
+  54% { transform: scale(1.06); }
 }
+/* the impact flash: a sparkle that stamps in on the beat, then is gone */
 @keyframes tn-twinkle {
-  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
-  50% { transform: scale(0.45) rotate(45deg); opacity: 0.55; }
+  0%, 34%, 70%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+  40% { transform: scale(1.3) rotate(15deg); opacity: 1; }
+  48% { transform: scale(1) rotate(8deg); opacity: 1; }
+  60% { transform: scale(1) rotate(8deg); opacity: 1; }
 }
 @keyframes tn-shake {
-  0%, 62%, 100% { transform: translateX(0) rotate(0deg); }
-  68% { transform: translateX(-1.4px) rotate(-3deg); }
-  76% { transform: translateX(1.4px) rotate(3deg); }
-  84% { transform: translateX(-1px) rotate(-2deg); }
-  92% { transform: translateX(1px) rotate(2deg); }
+  0%, 38%, 68%, 100% { transform: translateX(0) rotate(0deg); }
+  42% { transform: translateX(-2px) rotate(-4deg); }
+  48% { transform: translateX(2px) rotate(4deg); }
+  54% { transform: translateX(-1px) rotate(-2deg); }
+  60% { transform: translateX(1px) rotate(2deg); }
 }
 @keyframes tn-blink {
   0%, 90%, 100% { transform: scaleY(1); }
   95% { transform: scaleY(0.1); }
 }
 @keyframes tn-float {
-  0% { transform: translateY(2px); opacity: 0; }
-  25% { opacity: 1; }
-  100% { transform: translateY(-7px); opacity: 0; }
-}
-@keyframes tn-jelly {
-  0%, 100% { transform: scale(1, 1); }
-  30% { transform: scale(1.1, 0.92); }
-  60% { transform: scale(0.94, 1.08); }
+  0%, 26%, 100% { transform: translateY(2px); opacity: 0; }
+  40% { transform: translateY(0); opacity: 1; }
+  68% { transform: translateY(-4px); opacity: 1; }
+  84% { transform: translateY(-7px); opacity: 0; }
 }

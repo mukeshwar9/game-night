@@ -1,0 +1,95 @@
+/* The approved TOON sample tiles' loops (builders/sampleScenes.js), extracted from the design board.
+   Each loop starts and ends on the tile's key pose; GameArtToon's rules in toon.css pause them off
+   screen and drop them under reduced motion. */
+.tp-puck{transform-box:view-box;transform-origin:50px 78px}
+.tp-band{transform-box:view-box;transform-origin:50px 80px}
+.tp-puck{animation:tpPuck 2.4s ease-in-out infinite}
+@keyframes tpPuck{0%{transform:none}28%{transform:translateY(5px) scale(1.18,.84)}36%{transform:translateY(-4px) scale(.84,1.2)}52%{transform:translateY(-60px) scale(.9,1.12)}58%{transform:translateY(-58px) scale(1.12,.9)}64%,82%{transform:translateY(-59px);opacity:1}88%{transform:translateY(-59px) scale(0);opacity:0}89%{transform:scale(0);opacity:0}100%{transform:none;opacity:1}}
+.tp-band{animation:tpBand 2.4s ease-in-out infinite}
+@keyframes tpBand{0%,100%{transform:none}28%{transform:scaleY(1.45)}36%{transform:scaleY(.2)}44%{transform:scaleY(1.2)}52%{transform:scaleY(.8)}60%{transform:none}}
+.tp-speed{animation:tpSpeed 2.4s ease-in-out infinite}
+@keyframes tpSpeed{0%,34%,58%,100%{opacity:0}40%,52%{opacity:1}}
+.tp-speed{opacity:0}
+.ty-die{transform-box:view-box;transform-origin:52px 82px}
+.ty-sh{transform-box:view-box;transform-origin:52px 84px}
+.ty-die2{transform-box:view-box;transform-origin:24px 66px}
+.ty-die{animation:tyDie 2.4s ease-in-out infinite}
+@keyframes tyDie{0%,100%{transform:none}8%{transform:scale(1.12,.86)}30%{transform:translateY(-26px) rotate(-10deg) scale(.94,1.08)}48%{transform:translateY(-30px) rotate(-3deg)}68%{transform:none}74%{transform:scale(1.1,.9)}82%{transform:none}}
+.ty-sh{animation:tySh 2.4s ease-in-out infinite}
+@keyframes tySh{0%,68%,100%{transform:none}30%,48%{transform:scale(.55);opacity:.5}}
+.ty-die2{animation:tyDie2 2.4s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes tyDie2{0%{transform:none}50%{transform:translateY(-16px) rotate(-180deg)}100%{transform:rotate(-360deg)}}
+.ts-bag{transform-box:view-box;transform-origin:50px 84px}
+.ts-bag{animation:tsBag 2s ease-in-out infinite}
+@keyframes tsBag{0%,50%,100%{transform:none}25%{transform:translateX(-5px) rotate(-6deg)}75%{transform:translateX(5px) rotate(6deg)}}
+.ts-gl{animation:tsGl 2s ease-in-out infinite}
+@keyframes tsGl{0%,50%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(3px)}}
+.ts-gr{animation:tsGr 2s ease-in-out infinite}
+@keyframes tsGr{0%,50%,100%{transform:none}25%{transform:translateX(-3px)}75%{transform:translateX(8px)}}
+.ts-c1{animation:tsC1 2s ease-out infinite}
+@keyframes tsC1{0%{transform:translate(4px,14px) scale(.3);opacity:0}15%{opacity:1}45%,100%{transform:none}70%{opacity:1}90%,100%{opacity:0}}
+.ts-c2{animation:tsC2 2s ease-out infinite}
+@keyframes tsC2{0%,40%{transform:translate(-4px,14px) scale(.3);opacity:0}55%{opacity:1}85%{transform:none;opacity:1}100%{transform:translate(-2px,-4px);opacity:0}}
+.ts-c1{transform-box:view-box;transform-origin:36px 22px}
+.ts-c2{transform-box:view-box;transform-origin:64px 18px}
+.tf-red{transform-box:view-box;transform-origin:30px 76px}
+.tf-blue{transform-box:view-box;transform-origin:70px 76px}
+.tf-star{transform-box:view-box;transform-origin:50px 52px}
+.tf-red{animation:tfRed 2.4s ease-in-out infinite}
+@keyframes tfRed{0%{transform:translateX(-18px)}36%{transform:none}44%{transform:translateX(-4px) rotate(-3deg)}62%{transform:translateX(-6px)}100%{transform:translateX(-18px)}}
+.tf-blue{animation:tfBlue 2.4s ease-in-out infinite}
+@keyframes tfBlue{0%,36%,100%{transform:none}46%{transform:translateX(11px) rotate(9deg)}62%{transform:translateX(8px) rotate(-3deg)}82%{transform:none}}
+.tf-star{animation:tfStar 2.4s ease-in-out infinite}
+@keyframes tfStar{0%,33%,60%,100%{transform:scale(0)}40%{transform:scale(1.3) rotate(15deg)}50%{transform:scale(1)}}
+.tc-l{transform-box:view-box;transform-origin:50px 52px}
+.tc-r{transform-box:view-box;transform-origin:50px 52px}
+.tc-fake{transform-box:view-box;transform-origin:80px 24px}
+.tc-l{animation:tcL 2.4s ease-in-out infinite}
+@keyframes tcL{0%,26%{transform:translateX(5px);opacity:1}34%{transform:none}70%{transform:translate(-3px,3px) rotate(-10deg);opacity:1}82%{transform:translate(-3px,3px) rotate(-10deg);opacity:0}84%{transform:translateX(5px) scale(0);opacity:0}100%{transform:translateX(5px);opacity:1}}
+.tc-r{animation:tcR 2.4s ease-in-out infinite}
+@keyframes tcR{0%,26%{transform:translateX(-5px);opacity:1}34%{transform:none}70%{transform:translate(3px,3px) rotate(10deg);opacity:1}82%{transform:translate(3px,3px) rotate(10deg);opacity:0}84%{transform:translateX(-5px) scale(0);opacity:0}100%{transform:translateX(-5px);opacity:1}}
+.tc-sw{animation:tcSw 2.4s ease-in-out infinite}
+@keyframes tcSw{0%,22%{stroke-dashoffset:100}32%{stroke-dashoffset:0}42%,100%{stroke-dashoffset:-100}}
+.tc-juice{animation:tcJ 2.4s ease-in-out infinite}
+@keyframes tcJ{0%,34%{opacity:0;transform:none}40%{opacity:1}70%{opacity:0;transform:translateY(12px)}100%{opacity:0}}
+.tc-fake{animation:tcFake .36s ease-in-out infinite}
+@keyframes tcFake{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.tq-spin{transform-box:view-box;transform-origin:50px 44px}
+.tq-arrow{transform-box:view-box;transform-origin:50px 44px}
+.tq-spin{animation:tqSpin 6s linear infinite}
+@keyframes tqSpin{to{transform:rotate(360deg)}}
+.tq-arrow{animation:tqArrow 2.4s ease-out infinite}
+@keyframes tqArrow{0%{transform:translate(34px,-26px);opacity:0}6%{opacity:1}20%{transform:none}25%{transform:rotate(-7deg)}31%{transform:rotate(4deg)}37%{transform:rotate(-2deg)}43%,86%{transform:none;opacity:1}94%,100%{transform:none;opacity:0}}
+.tq-hit{animation:tqHit 2.4s ease-in-out infinite}
+@keyframes tqHit{0%,18%,40%,100%{transform:scale(0)}24%{transform:scale(1.2)}32%{transform:scale(1)}}
+.tq-hit{transform-box:view-box;transform-origin:50px 44px}
+.tk-leg{transform-box:view-box;transform-origin:33px 58px}
+.tk-rival{transform-box:view-box;transform-origin:68px 78px}
+.tk-pow{transform-box:view-box;transform-origin:57px 52px}
+.tk-road{animation:tkRoad .45s linear infinite}
+@keyframes tkRoad{from{stroke-dashoffset:0}to{stroke-dashoffset:15}}
+.tk-bob{animation:tkBob .3s ease-in-out infinite}
+@keyframes tkBob{0%,100%{transform:none}50%{transform:translateY(-1px)}}
+.tk-leg{animation:tkLeg 2.4s ease-in-out infinite}
+@keyframes tkLeg{0%,24%{transform:rotate(62deg)}38%{transform:rotate(-6deg)}42%,66%{transform:none}86%,100%{transform:rotate(62deg)}}
+.tk-rival{animation:tkRival 2.4s ease-in-out infinite}
+@keyframes tkRival{0%,40%,100%{transform:none}48%{transform:translate(5px,-3px) rotate(12deg)}60%{transform:translate(3px,-1px) rotate(-6deg)}74%{transform:rotate(2deg)}}
+.tk-pow{animation:tkPow 2.4s ease-in-out infinite}
+@keyframes tkPow{0%,38%,60%,100%{transform:scale(0)}43%{transform:scale(1.25)}52%{transform:scale(1)}}
+.tt-m0{transform-box:view-box;transform-origin:23.3px 23.3px}
+.tt-m0{animation:ttM0 3s ease-out infinite}
+@keyframes ttM0{0%,4%{transform:scale(0)}12%{transform:scale(1.2)}18%,90%{transform:none;opacity:1}96%,100%{transform:none;opacity:0}}
+.tt-m1{transform-box:view-box;transform-origin:50px 23.3px}
+.tt-m1{animation:ttM1 3s ease-out infinite}
+@keyframes ttM1{0%,14%{transform:scale(0)}22%{transform:scale(1.2)}28%,90%{transform:none;opacity:1}96%,100%{transform:none;opacity:0}}
+.tt-m2{transform-box:view-box;transform-origin:50px 50px}
+.tt-m2{animation:ttM2 3s ease-out infinite}
+@keyframes ttM2{0%,24%{transform:scale(0)}32%{transform:scale(1.2)}38%,90%{transform:none;opacity:1}96%,100%{transform:none;opacity:0}}
+.tt-m3{transform-box:view-box;transform-origin:76.7px 23.3px}
+.tt-m3{animation:ttM3 3s ease-out infinite}
+@keyframes ttM3{0%,34%{transform:scale(0)}42%{transform:scale(1.2)}48%,90%{transform:none;opacity:1}96%,100%{transform:none;opacity:0}}
+.tt-m4{transform-box:view-box;transform-origin:76.7px 76.7px}
+.tt-m4{animation:ttM4 3s ease-out infinite}
+@keyframes ttM4{0%,44%{transform:scale(0)}52%{transform:scale(1.2)}58%,90%{transform:none;opacity:1}96%,100%{transform:none;opacity:0}}
+.tt-win path{animation:ttWin 3s ease-in-out infinite}
+@keyframes ttWin{0%,56%{stroke-dashoffset:100;opacity:1}70%,90%{stroke-dashoffset:0;opacity:1}96%,100%{stroke-dashoffset:0;opacity:0}}

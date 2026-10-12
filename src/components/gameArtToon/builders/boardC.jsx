@@ -43,8 +43,8 @@ export default {
           </g>
         )
       }))}
-      <Anim k="drop" t={2.6} o="50% 100%"><Blobby x={39.4} y={34.4} r={4.4} fill={F.red} mood="grin" /></Anim>
-      <Anim k="twinkle" t={1.8}><Spark x={54} y={14} r={3.6} fill={F.yellow} /></Anim>
+      <Anim k="drop" o="50% 100%"><Blobby x={39.4} y={34.4} r={4.4} fill={F.red} mood="grin" /></Anim>
+      <Anim k="twinkle"><Spark x={54} y={14} r={3.6} fill={F.yellow} /></Anim>
     </>
   ),
 
@@ -52,7 +52,7 @@ export default {
     <>
       <Ground a="p1" b="p2" floor={38} floorRole="p1" />
       <g fill="none" stroke={A('white', 0.7)} strokeWidth="1.4" strokeLinecap="round"><path d="M4 48Q9 44 14 48T24 48M40 56Q45 52 50 56T60 56" /></g>
-      <Anim k="bob" t={2.6}>
+      <Anim k="bob">
         <path d="M8 34H48L42 46H14Z" fill={F.greyD} />
         <rect x="16" y="24" width="20" height="10" rx="2" fill={F.grey} />
         <rect x="21" y="16" width="7" height="9" rx="1.6" fill={F.red} />
@@ -60,11 +60,11 @@ export default {
         <Face x={26} y={29.6} s={0.55} mood="wow" />
         <path d="M14 38H42" stroke={A('white', 0.5)} strokeWidth="1.4" fill="none" />
       </Anim>
-      <Anim k="pop" t={2.4}><Star x={52} y={20} r={9} fill={F.orange} rot={12} /></Anim>
+      <Anim k="pop"><Star x={52} y={20} r={9} fill={F.orange} rot={12} /></Anim>
       <Star x={52} y={20} r={5} fill={F.yellow} />
-      <Anim k="float" t={2.4}><circle cx="52" cy="10" r="3" fill={F.grey} /></Anim>
+      <Anim k="float"><circle cx="52" cy="10" r="3" fill={F.grey} /></Anim>
       <Ring x={52} y={20} r={11.5} stroke={F.red} w={1.6} />
-      <Anim k="twinkle" t={1.9}><Spark x={10} y={14} r={3.4} fill={F.yellow} /></Anim>
+      <Anim k="twinkle"><Spark x={10} y={14} r={3.4} fill={F.yellow} /></Anim>
     </>
   ),
 
@@ -89,9 +89,9 @@ export default {
         <Back x={24.5} y={8} />
         <Card x={43} y={8} fill={F.cream}><Head x={43} y={8} hair={F.yellowD} /></Card>
         <Back x={6} y={33} />
-        <Anim k="jelly" t={2.4}><Card x={24.5} y={33} fill={F.yellow}><Head x={24.5} y={33} hair={F.red} /></Card></Anim>
+        <Anim k="jelly"><Card x={24.5} y={33} fill={F.yellow}><Head x={24.5} y={33} hair={F.red} /></Card></Anim>
         <Card x={43} y={33} fill={F.cream}><Head x={43} y={33} hair={F.coal} beard /></Card>
-        <Anim k="twinkle" t={1.8}><Spark x={58} y={30} r={3.4} fill={F.yellow} /></Anim>
+        <Anim k="twinkle"><Spark x={58} y={30} r={3.4} fill={F.yellow} /></Anim>
       </>
     )
   },
@@ -108,8 +108,8 @@ export default {
       {[[24.4, 25, F.red], [30.8, 25, F.sky], [37.2, 39, F.yellow], [30.8, 39, F.green], [43.6, 25, F.pink], [24.4, 39, F.sky]].map(([x, y, f], i) => <circle key={i} cx={x} cy={y} r="1.9" fill={f} strokeWidth="1" />)}
       <Ball x={11.5} y={31} r={2.2} fill={F.red} glint={false} />
       <Ball x={52.5} y={33} r={2.2} fill={F.sky} glint={false} />
-      <Anim k="hop" t={2.4} o="50% 100%"><Blobby x={34} y={10} r={5.2} fill={F.yellow} mood="grin" /></Anim>
-      <Anim k="twinkle" t={1.8}><Spark x={54} y={8} r={3.4} fill={F.yellow} /></Anim>
+      <Anim k="hop" o="50% 100%"><Blobby x={34} y={10} r={5.2} fill={F.yellow} mood="grin" /></Anim>
+      <Anim k="twinkle"><Spark x={54} y={8} r={3.4} fill={F.yellow} /></Anim>
     </>
   ),
 
@@ -129,7 +129,7 @@ export default {
       <Ball x={32} y={52} r={4} fill={F.red} />
       <Ball x={22} y={42} r={4} fill={F.red} />
       <path d="M32 42L42 32" fill="none" stroke={F.yellow} strokeWidth="1.6" strokeDasharray="2 2.6" />
-      <Anim k="hop" t={2.4} o="50% 100%">
+      <Anim k="hop" o="50% 100%">
         <Ball x={32} y={32} r={5.6} fill={F.red} />
         <path d="M27.4 24.6L29 20L32 23L35 20L36.6 24.6Z" fill={F.yellow} />
         <Face x={32} y={33} s={0.7} mood="grin" />
@@ -143,9 +143,9 @@ export default {
       <rect x="4" y="4" width="56" height="56" rx="6" fill={F.night} />
       <path d="M2 10Q32 20 62 10" fill="none" stroke={F.yellowD} strokeWidth="1.6" />
       <g stroke="none" fill={F.white}><circle cx="52" cy="8" r="1" /><circle cx="10" cy="30" r="1" /><circle cx="56" cy="34" r="1" /></g>
-      <Anim k="sway" t={3} o="50% 0%"><Lantern x={14} y={16} fill={F.red} mood="happy" /></Anim>
-      <Anim k="sway" t={3} d={0.5} o="50% 0%"><Lantern x={32} y={20} fill={F.yellow} mood="grin" /></Anim>
-      <Anim k="sway" t={3} d={1} o="50% 0%"><Lantern x={50} y={16} fill={F.pink} mood="wow" /></Anim>
+      <Anim k="sway" o="50% 0%"><Lantern x={14} y={16} fill={F.red} mood="happy" /></Anim>
+      <Anim k="sway" d={0.5} o="50% 0%"><Lantern x={32} y={20} fill={F.yellow} mood="grin" /></Anim>
+      <Anim k="sway" d={1} o="50% 0%"><Lantern x={50} y={16} fill={F.pink} mood="wow" /></Anim>
       <Card x={10} y={42} fill={F.cream} rot={-8}><circle cx="17.5" cy="52" r="3.4" fill={F.red} stroke="none" /></Card>
       <Card x={41} y={42} fill={F.cream} rot={8}><circle cx="48.5" cy="52" r="3.4" fill={F.blue} stroke="none" /></Card>
     </>
@@ -156,12 +156,12 @@ export default {
       <Ground a="p1" b="cta" />
       <Card x={6} y={22} w={20} h={28} rot={-14} fill={F.cream}><Pips x={16} y={36} n={3} d={4.2} r={1.5} fill={F.red} /></Card>
       <Card x={38} y={22} w={20} h={28} rot={14} fill={F.cream}><Pips x={48} y={36} n={6} d={3.8} r={1.4} fill={F.blue} /></Card>
-      <Anim k="bob" t={2.4}>
+      <Anim k="bob">
         <Card x={22} y={14} w={20} h={28} fill={F.paper}><Pips x={32} y={26} n={4} d={4} r={1.5} fill={F.green} /></Card>
         <Face x={32} y={36} s={0.55} mood="focus" />
       </Anim>
-      <Anim k="pop" t={2.6}><path d="M26 52Q32 47 38 52" fill="none" stroke={F.ink} strokeWidth="2" /></Anim>
-      <Anim k="twinkle" t={1.8}><Spark x={54} y={10} r={3.4} fill={F.yellow} /></Anim>
+      <Anim k="pop"><path d="M26 52Q32 47 38 52" fill="none" stroke={F.ink} strokeWidth="2" /></Anim>
+      <Anim k="twinkle"><Spark x={54} y={10} r={3.4} fill={F.yellow} /></Anim>
     </>
   ),
 
@@ -172,7 +172,7 @@ export default {
       <path d="M32 32H56A24 24 0 0 0 32 8Z" fill={F.red} />
       <path d="M32 32V56A24 24 0 0 0 56 32Z" fill={F.blue} />
       <path d="M32 32H8A24 24 0 0 0 32 56Z" fill={F.yellow} />
-      <Anim k="pulse" t={2.4} o="75% 25%"><path d="M32 32H56A24 24 0 0 0 32 8Z" fill={A('white', 0.5)} stroke="none" /></Anim>
+      <Anim k="pulse" o="75% 25%"><path d="M32 32H56A24 24 0 0 0 32 8Z" fill={A('white', 0.5)} stroke="none" /></Anim>
       <circle cx="32" cy="32" r="9" fill={F.coal} />
       <Face x={32} y={32} s={0.92} mood="grin" />
     </>
@@ -184,7 +184,7 @@ export default {
       <Card x={5} y={5} w={16} h={16} fill={F.yellow}><Pips x={13} y={13} n={1} r={1.9} /></Card>
       <Card x={43} y={5} w={16} h={16} fill={F.cream}><Pips x={51} y={13} n={2} d={3} /></Card>
       <Card x={44} y={43} w={16} h={16} fill={F.cream}><Pips x={52} y={51} n={3} d={3} r={1.1} /></Card>
-      <Anim k="bob" t={2.6}>
+      <Anim k="bob">
         <circle cx="14" cy="38" r="5.4" fill={F.brown} /><circle cx="14" cy="38" r="2.6" fill={F.skinD} stroke="none" />
         <circle cx="42" cy="38" r="5.4" fill={F.brown} /><circle cx="42" cy="38" r="2.6" fill={F.skinD} stroke="none" />
         <ellipse cx="28" cy="38" rx="15" ry="14.5" fill={F.brown} />
@@ -201,10 +201,10 @@ export default {
       <rect x="10" y="14" width="44" height="28" rx="3" fill={F.night} strokeWidth="1.4" />
       {[8, 3, 9, 1, 5].map((n, i) => <Anim key={i} k="pop" t={2.6} d={i * 0.18}><Seg x={14.8 + i * 8.6} y={26} h={10} n={n} fill={F.lime} /></Anim>)}
       <rect x="14" y="36" width="36" height="3.4" rx="1.7" fill={F.coal} strokeWidth="1" />
-      <Anim k="slide" t={2.6}><rect x="14" y="36" width="20" height="3.4" rx="1.7" fill={F.yellow} strokeWidth="1" /></Anim>
+      <Anim k="slide"><rect x="14" y="36" width="20" height="3.4" rx="1.7" fill={F.yellow} strokeWidth="1" /></Anim>
       <rect x="26" y="46" width="12" height="6" fill={F.greyD} />
       <rect x="18" y="52" width="28" height="5" rx="2.5" fill={F.grey} />
-      <Anim k="bob" t={2.3}><Face x={47} y={48} s={0.55} mood="wow" /></Anim>
+      <Anim k="bob"><Face x={47} y={48} s={0.55} mood="wow" /></Anim>
     </>
   ),
 
@@ -217,10 +217,10 @@ export default {
         const x = 10 + c * 16.4, y = 10 + r * 16.4
         return <rect key={`${r}${c}`} x={x} y={y} width="14.4" height="14.4" rx="3.4" fill={lit ? F.yellow : F.blue} strokeWidth="1.6" />
       }))}
-      <Anim k="pulse" t={2.2}><Face x={42.4} y={25.4} s={0.78} mood="happy" /></Anim>
-      <Anim k="pulse" t={2.2} d={0.4}><Face x={26} y={17.8} s={0.78} mood="wow" /></Anim>
+      <Anim k="pulse"><Face x={42.4} y={25.4} s={0.78} mood="happy" /></Anim>
+      <Anim k="pulse" d={0.4}><Face x={26} y={17.8} s={0.78} mood="wow" /></Anim>
       <Face x={17.6} y={50.4} s={0.78} mood="smug" />
-      <Anim k="twinkle" t={1.8}><Spark x={56} y={8} r={3.6} fill={F.white} /></Anim>
+      <Anim k="twinkle"><Spark x={56} y={8} r={3.6} fill={F.white} /></Anim>
     </>
   ),
 
@@ -229,9 +229,9 @@ export default {
       <Ground a="p1" b="p2" />
       <Card x={6} y={9} w={16} h={21} fill={F.indigo}><Star x={14} y={19.5} r={3.4} fill={A('white', 0.5)} /></Card>
       <Card x={24} y={9} w={16} h={21} fill={F.indigo}><Star x={32} y={19.5} r={3.4} fill={A('white', 0.5)} /></Card>
-      <Anim k="jelly" t={2.4}><Card x={42} y={9} w={16} h={21} fill={F.cream}><Heart x={50} y={20} s={1.2} /></Card></Anim>
+      <Anim k="jelly"><Card x={42} y={9} w={16} h={21} fill={F.cream}><Heart x={50} y={20} s={1.2} /></Card></Anim>
       <Card x={6} y={34} w={16} h={21} fill={F.indigo}><Star x={14} y={44.5} r={3.4} fill={A('white', 0.5)} /></Card>
-      <Anim k="jelly" t={2.4} d={0.3}><Card x={24} y={34} w={16} h={21} fill={F.cream}><Heart x={32} y={45} s={1.2} /></Card></Anim>
+      <Anim k="jelly" d={0.3}><Card x={24} y={34} w={16} h={21} fill={F.cream}><Heart x={32} y={45} s={1.2} /></Card></Anim>
       <Card x={42} y={34} w={16} h={21} fill={F.indigo}><Star x={50} y={44.5} r={3.4} fill={A('white', 0.5)} /></Card>
     </>
   ),

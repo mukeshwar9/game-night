@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CUT_PAPER, cutPaperLoopUrl, cutPaperStillUrl } from './gameArtLogic'
+import { CUT_PAPER, CUT_PAPER_STILL_AT, cutPaperLoopUrl, cutPaperStillAt, cutPaperStillUrl } from './gameArtLogic'
 import { GLYPHS } from './artGlyphs'
 import { OUT, sourceHash } from '../../scripts/cut-paper-art/build.mjs'
 
@@ -41,7 +41,7 @@ describe('cut paper art', () => {
     expect(webpSize(a)).toEqual([CUT_PAPER.still, CUT_PAPER.still])
     expect(webpSize(b)).toEqual([CUT_PAPER.loopPx * CUT_PAPER.loopFrames, CUT_PAPER.loopPx])
     expect(a.length, `${type}.webp is heavy`).toBeLessThan(40 * 1024)
-    expect(b.length, `${type}-loop.webp is heavy`).toBeLessThan(60 * 1024)
+    expect(b.length, `${type}-loop.webp is heavy`).toBeLessThan(160 * 1024)
   })
 
   it('has no stray files in public/game-art/cutpaper', () => {
@@ -52,6 +52,32 @@ describe('cut paper art', () => {
   it('committed art matches the scene sources (regenerate with npm run art:cutpaper)', () => {
     const { hash } = JSON.parse(readFileSync(join(OUT, 'sources.json'), 'utf8'))
     expect(hash).toBe(sourceHash())
+  })
+
+  it('plays twelve drawings a second-long loop: the paper re-wobbles at animate\'s 12 fps', () => {
+    expect(CUT_PAPER.loopFrames).toBe(12)
+    expect(CUT_PAPER.loopMs).toBe(1000)
+  })
+
+  it('beat() rests at both ends of the loop and never runs backwards', () => {
+    const head = readFileSync(join(OUT, '..', '..', '..', 'scripts', 'cut-paper-art', 'head.js'), 'utf8')
+    const beat = new Function(`${head.match(/const beat = [\s\S]*?\n};/)[0]}; return beat`)()
+    expect(beat(0)).toBe(0)
+    expect(beat(0.1)).toBe(0)
+    expect(beat(0.9)).toBe(1)
+    expect(beat(1)).toBe(1)
+    let last = 0
+    for (let i = 0; i <= 100; i++) { const v = beat(i / 100); expect(v).toBeGreaterThanOrEqual(last); last = v }
+    expect(beat(0.46)).toBeCloseTo(0.5, 1)
+  })
+
+  it('gives the eight sample scenes their own beat and a still at drawing 6', () => {
+    const src = readFileSync(join(scenesDir, 'samples.js'), 'utf8')
+    expect(Object.keys(CUT_PAPER_STILL_AT).sort()).toEqual(['fenderbender', 'firstcut', 'puckrush', 'quiver', 'sidekick', 'stickyfingers', 'tictactoe', 'yacht'])
+    expect(Object.values(CUT_PAPER_STILL_AT).every(v => v === 0.5)).toBe(true)
+    expect(cutPaperStillAt('snake')).toBe(0)
+    expect(src).toMatch(/OWN_BEAT\.add\(t\)/)
+    for (const t of ['puckrush', 'yacht', 'stickyfingers', 'fenderbender', 'firstcut', 'quiver', 'sidekick', 'tictactoe']) expect(src).toMatch(new RegExp(`^SCENES\\.${t} = `, 'm'))
   })
 
   it('serves the stills and strips from public/game-art/cutpaper', () => {

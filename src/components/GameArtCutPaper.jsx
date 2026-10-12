@@ -1,11 +1,11 @@
 // CUT PAPER game art: a WebP still per game, drawn at build time with the
 // animate cut-paper kit (scripts/cut-paper-art/). While the tile is on screen
-// and motion is allowed, a second WebP holding a few drawings side by side
+// and motion is allowed, a second WebP holding twelve drawings side by side
 // plays over the still with steps() — the paper "boils" and the character
-// acts. Off screen the strip is paused; under reduced motion (the in-app
+// acts, carrying on from the drawing the still shows. Off screen the strip is paused; under reduced motion (the in-app
 // setting or the OS query) it is never fetched and the still stays.
 import { useEffect, useRef, useState } from 'react'
-import { CUT_PAPER, cutPaperLoopUrl, cutPaperStillUrl } from '../lib/gameArtLogic'
+import { CUT_PAPER, cutPaperLoopUrl, cutPaperStillAt, cutPaperStillUrl } from '../lib/gameArtLogic'
 import { observeInView } from '../lib/inView'
 import useMotionPref from '../hooks/useMotionPref'
 import './gameArtCutPaper.css'
@@ -41,7 +41,7 @@ export default function GameArtCutPaper({ type, className }) {
       aria-hidden="true"
       data-live="0"
       className={`${className || ''} cp-art block overflow-hidden`}
-      style={{ '--cp-n': CUT_PAPER.loopFrames, '--cp-ms': `${CUT_PAPER.loopMs}ms` }}
+      style={{ '--cp-n': CUT_PAPER.loopFrames, '--cp-ms': `${CUT_PAPER.loopMs}ms`, '--cp-from': `${-cutPaperStillAt(type) * CUT_PAPER.loopMs}ms` }}
     >
       <img
         src={cutPaperStillUrl(type)}

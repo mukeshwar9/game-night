@@ -9,5 +9,6 @@ import party from './party'
 import reflexA from './reflexA'
 import reflexB from './reflexB'
 import reflexC from './reflexC'
+import samples from './samples'
 
-export const BUILDERS = { ...boardA, ...boardB, ...boardC, ...wordDice, ...party, ...reflexA, ...reflexB, ...reflexC }
+export const BUILDERS = { ...boardA, ...boardB, ...boardC, ...wordDice, ...party, ...reflexA, ...reflexB, ...reflexC, ...samples }
