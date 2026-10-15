@@ -17,6 +17,8 @@ import { resultRole, showsWinBurst } from '../lib/resultMoodLogic'
 import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
+import PartyShell from '../components/PartyShell'
+import { shellActive } from '../lib/partyShellLogic'
 import WaitingRoom from '../components/WaitingRoom'
 import InviteFriendModal from '../components/InviteFriendModal'
 import WinEffect from '../components/WinEffect'
@@ -819,6 +821,32 @@ export default function Game() {
   // Party voice lives above both render branches (keyed only by gameId), so a
   // game switch, BACK TO PARTY or a 2P reseat never drops the call.
   const withVoice = (node) => <VoiceProvider gameId={gameId} game={game}>{node}</VoiceProvider>
+  // The party shell (faces on top, chat and reactions below) sits outside the
+  // gameType-keyed tree and above both render branches, so a game switch or
+  // the picker never remounts it.
+  const shellOn = shellActive(game)
+  const withShell = (node, { inLobby = false } = {}) => (
+    <PartyShell
+      active={shellOn}
+      game={game}
+      myUid={getPlayerId()}
+      hostUid={shellOn ? hostUidOf(game) : null}
+      inLobby={inLobby}
+      onInvite={shellOn && !!game.players && Object.values(game.players).some(p => p?.playerId === getPlayerId()) ? () => setShowInvite(true) : null}
+      footer={{
+        onSend: sendEmote,
+        cooldown: emoteCooldown,
+        onSendText: quietRoom ? undefined : sendChat,
+        textCooldown: chatCooldown,
+        quiet: quietRoom,
+        chatLog: game.chatLog,
+        myUid: getPlayerId(),
+        chatLock: chatLockFor(game, getPlayerId()),
+      }}
+    >
+      {node}
+    </PartyShell>
+  )
 
   // Family-mismatch guard — a cross-family switch (party ⇄ 2P) reshapes the
   // players node (uid keys vs 'X'/'O'), leaving every client seatless. The
@@ -863,6 +891,7 @@ export default function Game() {
     const pageFocusable = !inLobby && canFocusPage(cfg)
     return withVoice(
       <RoomSwitchContext.Provider value={true}>
+      {withShell(
       <VideoCallShell><div className="min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         {showLeaveConfirm && (
           <LeaveMatchConfirm onConfirm={confirmLeaveMatch} onCancel={cancelLeaveMatch} />
@@ -921,14 +950,14 @@ export default function Game() {
 
           {/* Seated players and spectators alike can react and chat once a
               round is on — and in the lobby as soon as two players are in. */}
-          {(game.status !== 'waiting' || seatedIds(nplayers).length >= 2) && (
+          {!shellOn && (game.status !== 'waiting' || seatedIds(nplayers).length >= 2) && (
             <VideoCallReactionDock><Suspense fallback={null}><EmoteBar onSend={sendEmote} cooldown={emoteCooldown} onSendText={quietRoom ? undefined : sendChat} textCooldown={chatCooldown} quiet={quietRoom} chatLog={game.chatLog} myUid={myUid} chatLock={chatLock} /></Suspense></VideoCallReactionDock>
           )}
         </div>
         {showInvite && (
           <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={partyMembers(game, true).map(m => m.uid)} party={partyInviteInfo(game, cfg)} onClose={() => setShowInvite(false)} />
         )}
-      </div></VideoCallShell>
+      </div></VideoCallShell>, { inLobby })}
       </RoomSwitchContext.Provider>
     )
   }
@@ -1092,6 +1121,7 @@ export default function Game() {
   return withVoice(
     // Game night: a 2P game a party room switched into may switch back to party games.
     <RoomSwitchContext.Provider value={!!game.partyRoom}>
+    {withShell(
     <VideoCallShell><div className={cn(
       'min-h-screen bg-retro-bg flex flex-col items-center p-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]',
       // M-05: on short/landscape viewports, real-time arenas need every
@@ -1339,12 +1369,12 @@ export default function Game() {
         {/* Emote / reaction bar — hidden while waiting for an opponent (M-XX:
             nobody to react to yet). Shown to a seated player once an
             opponent has joined, or to a spectator watching a live game. */}
-        {showDock && !focusOn && <VideoCallReactionDock>{dock}</VideoCallReactionDock>}
+        {showDock && !focusOn && !shellOn && <VideoCallReactionDock>{dock}</VideoCallReactionDock>}
       </div>
       {showInvite && (
         <InviteFriendModal gameId={gameId} gameType={game.gameType} excludeUids={partyMode ? partyMembers(game, false).map(m => m.uid) : seatedIds(game.players)} party={partyInviteInfo(game, cfg)} onClose={() => setShowInvite(false)} />
       )}
-    </div></VideoCallShell>
+    </div></VideoCallShell>)}
     </RoomSwitchContext.Provider>
   )
 }

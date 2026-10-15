@@ -13,6 +13,7 @@ import { getPlayerId } from '../lib/playerId'
 import { getQuickEmotes, normalizeEmoteUsage, recordEmoteUsage } from '../lib/emoteUsage'
 import { normalizeChatLog } from '../lib/chat'
 import { unreadBadge, unreadCount } from '../lib/chatUiLogic'
+import { tickerLine } from '../lib/partyShellLogic'
 import { useMutedMap } from '../lib/mute'
 import useMotionPref from '../hooks/useMotionPref'
 import MotionPrefProvider from './MotionPrefProvider'
@@ -152,7 +153,11 @@ function newestTs(entries) {
 //
 // `chatLock` (a reason string, or null) replaces the sheet's input — e.g. the
 // Sketch artist mid-round.
-export default function EmoteBar({ onSend, cooldown, onSendText, textCooldown, quiet = false, chatLog, myUid, chatLock = null }) {
+//
+// `variant="footer"` is the party shell's footer row: a last-message ticker
+// (tap to open the same chat sheet), two quick reactions, the picker, and
+// whatever the shell passes as `trailing` (the mic).
+export default function EmoteBar({ onSend, cooldown, onSendText, textCooldown, quiet = false, chatLog, myUid, chatLock = null, variant = 'dock', trailing = null }) {
   const [showPicker, setShowPicker] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [usageKey] = useState(() => `emoteUsage:${getPlayerId()}`)
@@ -182,10 +187,56 @@ export default function EmoteBar({ onSend, cooldown, onSendText, textCooldown, q
     })
   }
 
+  const footer = variant === 'footer'
+  const ticker = footer ? tickerLine(chatLog, { muted }) : null
+
   // MotionPrefProvider renders no DOM; it points framer-motion's own
   // reduced-motion handling at the Settings choice for the bar and picker.
   return (
     <MotionPrefProvider>
+      {footer ? (
+        <div className="w-full flex items-center gap-1.5" data-testid="shell-footer-row">
+          {chatEnabled ? (
+            <button
+              type="button"
+              onClick={() => setShowChat(true)}
+              aria-label={unread ? `Open chat, ${unread} unread` : 'Open chat'}
+              data-testid="chat-ticker"
+              className={cn(
+                'relative flex-1 min-w-0 min-h-11 flex items-center gap-2 px-2.5 rounded border bg-retro-card text-left transition-colors',
+                unread > 0 ? 'border-retro-p2 bg-retro-tint-p2' : 'border-retro-border',
+              )}
+            >
+              <span className="flex-1 min-w-0 truncate font-mono text-[11px] text-retro-text">
+                {ticker
+                  ? <><span className="text-retro-dim">{ticker.name ? `${ticker.name}: ` : ''}</span>{ticker.img && !ticker.text ? '[sticker]' : ticker.text}</>
+                  : <span className="text-retro-dim">Say something…</span>}
+              </span>
+              {badge && (
+                <span data-testid="chat-unread" className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-retro-danger text-retro-bg font-mono text-[10px] font-bold leading-[18px] text-center">
+                  {badge}
+                </span>
+              )}
+            </button>
+          ) : <span className="flex-1" />}
+          {EMOTES_DOCK.slice(0, 2).map(g => (
+            <AnimatedEmoteButton
+              key={g}
+              type="button"
+              onClick={() => handleEmote(g)}
+              disabled={cooldown}
+              aria-label={`Send ${g} reaction`}
+              className={cn(EMOTE_BTN_CLASS, cooldown && 'opacity-50')}
+            >
+              {g}
+            </AnimatedEmoteButton>
+          ))}
+          <button type="button" onClick={() => setShowPicker(true)} aria-label="More reactions" className={cn(EMOTE_BTN_CLASS, 'text-retro-dim text-lg')}>
+            +
+          </button>
+          {trailing}
+        </div>
+      ) : (
       <div className="w-full max-w-sm mx-auto pt-1" data-testid="reaction-dock">
         {/* the room dock: a glass pill on the GLASS themes */}
         <div data-lens className="glass glass-tx glass-dock flex items-center justify-center gap-1.5 px-1">
@@ -239,6 +290,7 @@ export default function EmoteBar({ onSend, cooldown, onSendText, textCooldown, q
           )}
         </div>
       </div>
+      )}
       {showPicker && (
         <EmotePicker onPick={handleEmote} onClose={() => setShowPicker(false)} recent={recent} />
       )}
