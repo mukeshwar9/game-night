@@ -452,4 +452,4 @@ export { PRODUCTS, PACKS, PRICES, PRICES_INR, PASS_TRIAL_DAYS, PREPAID_PASS_DAYS
 
 // Party voice (voice.js): who may use voice, audio-only offers, pulls by uid,
 // and the per-uid call budget. The SAME rules the app checks before it asks.
-export { voiceAccess, isAudioOnlyOffer, allowedPulls, rateAllow, voiceMembers } from '../../src/lib/voiceLogic'
+export { voiceAccess, isAudioOnlyOffer, allowedPulls, rateAllow, voiceMembers, isCameraOffer, cameraAccess, allowedVideoPulls } from '../../src/lib/voiceLogic'

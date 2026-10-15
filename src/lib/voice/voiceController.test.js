@@ -19,7 +19,7 @@ const room = (over = {}) => ({
   ...over,
 })
 
-function fakeIo({ birthYear = 2000, micDenied = false } = {}) {
+function fakeIo({ birthYear = 2000, micDenied = false, cameraDenied = false } = {}) {
   const sessions = []
   let directoryCb = null
   const io = {
@@ -36,9 +36,19 @@ function fakeIo({ birthYear = 2000, micDenied = false } = {}) {
       io.onStatus = onStatus
       if (micDenied && !listenOnly) throw Object.assign(new Error('mic-denied'), { code: 'mic-denied' })
       const s = { listenOnly, wanted: [], muted: null, closed: false, micStream: null,
-        want(u) { s.wanted = u }, setMuted(m) { s.muted = m }, close: async () => { s.closed = true } }
+        want(u) { s.wanted = u }, setMuted(m) { s.muted = m }, close: async () => { s.closed = true },
+        camera: null,
+        startCamera: vi.fn(async (stream) => { s.camera = stream }),
+        stopCamera: vi.fn(async () => { s.camera = null }),
+        stats: { rttMs: 50, outKbps: 900, lossRatio: 0 },
+        sampleStats: async () => s.stats }
       sessions.push(s)
       return s
+    }),
+    getCamera: vi.fn(async () => {
+      if (cameraDenied) throw Object.assign(new Error('denied'), { name: 'NotAllowedError' })
+      const track = { stop: vi.fn(), addEventListener: () => {} }
+      return { getTracks: () => [track], getVideoTracks: () => [track], track }
     }),
     audioContext: () => null,
     resumeAudio: () => {},
@@ -194,5 +204,123 @@ describe('voice controller', () => {
     expect(f.sessions).toHaveLength(2)
     expect(f.sessions[1].muted).toBe(false)
     expect(ctl.getState().muted).toBe(false)
+  })
+
+  describe('camera', () => {
+    async function joined(opts) {
+      const f = fakeIo(opts)
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.join()
+      return { f, ctl }
+    }
+
+    it('is off by default and does nothing without a voice session', async () => {
+      const f = fakeIo()
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      expect(ctl.getState().cam).toBe('off')
+      await ctl.startCamera()
+      expect(f.io.getCamera).not.toHaveBeenCalled()
+      await ctl.join()
+      expect(ctl.getState().cam).toBe('off')
+      expect(f.io.published.cam).toBeUndefined()
+    })
+
+    it('turns on when asked, tells the room (cam, camAll), and turns off cleanly', async () => {
+      const { f, ctl } = await joined()
+      await ctl.startCamera({ everyone: true })
+      expect(ctl.getState()).toMatchObject({ cam: 'on', camAll: true })
+      expect(ctl.getState().localVideo).toBeTruthy()
+      expect(f.sessions[0].startCamera).toHaveBeenCalled()
+      expect(f.io.published).toMatchObject({ cam: true, camAll: true })
+      const track = ctl.getState().localVideo.track
+      await ctl.stopCamera()
+      expect(ctl.getState().cam).toBe('off')
+      expect(ctl.getState().localVideo).toBeNull()
+      expect(track.stop).toHaveBeenCalled()
+      expect(f.sessions[0].stopCamera).toHaveBeenCalled()
+      expect(f.io.published.cam).toBe(false)
+    })
+
+    it('a blocked camera is an avatar and a note, never an error that breaks voice', async () => {
+      const { ctl } = await joined({ cameraDenied: true })
+      await ctl.startCamera()
+      expect(ctl.getState()).toMatchObject({ cam: 'off', camError: 'cam-denied', status: 'connecting' })
+      ctl.clearCamError()
+      expect(ctl.getState().camError).toBeNull()
+    })
+
+    it('a server refusal turns the camera back off with its code', async () => {
+      const { f, ctl } = await joined()
+      f.sessions[0].startCamera.mockRejectedValueOnce(new Error('under-age'))
+      await ctl.startCamera()
+      expect(ctl.getState()).toMatchObject({ cam: 'off', camError: 'under-age' })
+      expect(ctl.getState().localVideo).toBeNull()
+    })
+
+    it('refuses while the host has cameras off, and turns a running camera off when the host flips it', async () => {
+      const { ctl } = await joined()
+      ctl.setRoom(room({ camerasOff: true }))
+      await ctl.startCamera()
+      expect(ctl.getState()).toMatchObject({ cam: 'off', camError: 'cameras-off' })
+      ctl.setRoom(room())
+      ctl.clearCamError()
+      await ctl.startCamera()
+      expect(ctl.getState().cam).toBe('on')
+      ctl.setRoom(room({ camerasOff: true }))
+      await flush()
+      expect(ctl.getState()).toMatchObject({ cam: 'off', camError: 'cameras-off' })
+    })
+
+    it('asks for the faces of members with a camera on, minus hidden ones, none when hiding all or paused', async () => {
+      const { f, ctl } = await joined()
+      f.directory({ me: { on: true }, b: { on: true, cam: true }, c: { on: true, cam: true, camAll: true } })
+      expect(f.sessions[0].wanted).toEqual(['b', 'c', 'b#v', 'c#v+'])
+      ctl.toggleHideVideo('b')
+      expect(f.sessions[0].wanted).toEqual(['b', 'c', 'c#v+'])
+      ctl.setHideAllVideo(true)
+      expect(f.sessions[0].wanted).toEqual(['b', 'c'])
+      ctl.setHideAllVideo(false)
+      ctl.toggleHideVideo('b')
+      expect(f.sessions[0].wanted).toEqual(['b', 'c', 'b#v', 'c#v+'])
+      ctl.setBlocks({ c: { name: 'Cy' } })
+      expect(f.sessions[0].wanted).toEqual(['b', 'b#v'])
+    })
+
+    it('leaving voice (or the app going to the background) turns the camera off, and it stays off on return', async () => {
+      const { f, ctl } = await joined()
+      await ctl.startCamera()
+      const track = ctl.getState().localVideo.track
+      window.dispatchEvent(new Event('native-pause'))
+      await flush()
+      expect(track.stop).toHaveBeenCalled()
+      expect(ctl.getState().cam).toBe('off')
+      window.dispatchEvent(new Event('native-resume'))
+      await flush()
+      expect(f.sessions).toHaveLength(2)
+      expect(ctl.getState().cam).toBe('off')
+      expect(f.io.getCamera).toHaveBeenCalledTimes(1)
+    })
+
+    it('a weak link pauses video (receiving and sending), keeps voice, and recovers receiving by itself', async () => {
+      vi.useFakeTimers()
+      try {
+        const { f, ctl } = await joined()
+        f.directory({ me: { on: true }, b: { on: true, cam: true } })
+        await ctl.startCamera()
+        f.sessions[0].stats = { rttMs: 900, outKbps: 50, lossRatio: 0.4 }
+        await vi.advanceTimersByTimeAsync(8000)
+        expect(ctl.getState()).toMatchObject({ videoPaused: 'weak', cam: 'off', status: 'connecting' })
+        expect(f.sessions[0].wanted).toEqual(['b'])
+        f.sessions[0].stats = { rttMs: 40, outKbps: 900, lossRatio: 0 }
+        await vi.advanceTimersByTimeAsync(12000)
+        expect(ctl.getState().videoPaused).toBeNull()
+        expect(f.sessions[0].wanted).toEqual(['b', 'b#v'])
+        expect(ctl.getState().cam).toBe('off')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
   })
 })

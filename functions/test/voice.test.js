@@ -117,7 +117,7 @@ describe('join, pull, renegotiate, close', () => {
     assert.equal(cf.log.filter(l => l[0] === 'push').length, 0)
     await call(db, cf, 'a', { op: 'join', sdp: SDP, mid: '0', attempt: 'att1' })
     assert.deepEqual(await call(db, cf, 'a', { op: 'pull', uids: ['c'], attempt: 'att1' }), { sdp: null, tracks: [] })
-    assert.deepEqual((await call(db, cf, 'c', { op: 'pull', uids: ['a'], attempt: 'att3' })).tracks, [{ uid: 'a', mid: '1' }])
+    assert.deepEqual((await call(db, cf, 'c', { op: 'pull', uids: ['a'], attempt: 'att3' })).tracks, [{ uid: 'a', mid: '1', kind: 'audio' }])
   })
 
   test('pull resolves tracks by uid and refuses non-members and junk', async () => {
@@ -127,7 +127,7 @@ describe('join, pull, renegotiate, close', () => {
     await call(db, cf, 'b', { op: 'join', sdp: SDP, mid: '0', attempt: 'att2' })
     const res = await call(db, cf, 'a', { op: 'pull', uids: ['b', 'z', 'a'], attempt: 'att1' })
     assert.equal(res.sdp, 'v=0 offer')
-    assert.deepEqual(res.tracks, [{ uid: 'b', mid: '1' }])
+    assert.deepEqual(res.tracks, [{ uid: 'b', mid: '1', kind: 'audio' }])
     assert.deepEqual(cf.log.find(l => l[0] === 'pull'), ['pull', 'S1', ['S2:mic-att2']])
     assert.deepEqual(db.root.voiceSessions.ROOM01.a.pulls, { b: { mid: '1' } })
     // A pull from an older attempt is refused.
@@ -159,6 +159,94 @@ describe('join, pull, renegotiate, close', () => {
     await call(db, cf, 'a', { op: 'leave' })
     assert.equal(db.root.voiceSessions.ROOM01.a, undefined)
     assert.equal(db.root.voiceUsers?.a, undefined)
+  })
+})
+
+const CAM = 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\na=mid:1'
+
+describe('camera: camOn, camOff and friends-first video pulls', () => {
+  async function party3(extra = {}) {
+    const db = fakeDb({ ...seed(), ...extra })
+    const cf = fakeCf()
+    for (const [u, att] of [['a', 'att1'], ['b', 'att2'], ['c', 'att3']]) await call(db, cf, u, { op: 'join', sdp: SDP, mid: '0', attempt: att })
+    return { db, cf }
+  }
+
+  test('camOn publishes one camera track in the same session; the server names it', async () => {
+    const { db, cf } = await party3()
+    const res = await call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })
+    assert.equal(res.sdp, 'v=0 answer')
+    assert.equal(db.root.voiceSessions.ROOM01.b.cam.mid, '1')
+    assert.match(db.root.voiceSessions.ROOM01.b.cam.trackName, /^cam-att2-/)
+    assert.deepEqual(cf.log.filter(l => l[0] === 'push').at(-1).slice(0, 3), ['push', 'S2', '1'])
+  })
+
+  test('camOn refuses audio-only, two-camera and data-channel offers, stale attempts, public rooms and cameras-off', async () => {
+    const { db, cf } = await party3()
+    assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: SDP, mid: '1', attempt: 'att2' })), 'bad-offer')
+    assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: `${CAM}\r\nm=video 9 UDP/TLS/RTP/SAVPF 96`, mid: '1', attempt: 'att2' })), 'bad-offer')
+    assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: `${CAM}\r\nm=application 9 UDP/DTLS/SCTP`, mid: '1', attempt: 'att2' })), 'bad-offer')
+    assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'old1' })), 'stale-attempt')
+    db.root.games.ROOM01.camerasOff = true
+    assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })), 'cameras-off')
+    delete db.root.games.ROOM01.camerasOff
+    db.root.games.ROOM01.visibility = 'public'
+    assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })), 'public-room')
+  })
+
+  test('friends first: a friend gets the video, a link-only guest does not', async () => {
+    const { db, cf } = await party3({ friends: { b: { a: { since: 1 } } } })
+    await call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })
+    const toFriend = await call(db, cf, 'a', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att1' })
+    assert.deepEqual(toFriend.tracks, [{ uid: 'b', mid: '1', kind: 'video' }])
+    assert.deepEqual(db.root.voiceSessions.ROOM01.a.vpulls, { b: { mid: '1' } })
+    assert.equal(db.root.voiceSessions.ROOM01.a.pulls, undefined)
+    const toGuest = await call(db, cf, 'c', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att3' })
+    assert.deepEqual(toGuest, { sdp: null, tracks: [] })
+  })
+
+  test('SHOW MY VIDEO TO EVERYONE (camAll) opens the video to non-friends', async () => {
+    const { db, cf } = await party3({ voice: { ROOM01: { b: { on: true, cam: true, camAll: true, at: 1 } } } })
+    await call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })
+    const res = await call(db, cf, 'c', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att3' })
+    assert.deepEqual(res.tracks, [{ uid: 'b', mid: '1', kind: 'video' }])
+  })
+
+  test('audio and video pull in one batch; a repeat is a no-op; blocks and cameras-off stop video', async () => {
+    const { db, cf } = await party3({ friends: { b: { a: { since: 1 } } } })
+    await call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })
+    const res = await call(db, cf, 'a', { op: 'pull', uids: ['b'], videoUids: ['b'], attempt: 'att1' })
+    assert.deepEqual(res.tracks.map(t => `${t.uid}:${t.kind}`).sort(), ['b:audio', 'b:video'])
+    assert.deepEqual(await call(db, cf, 'a', { op: 'pull', uids: ['b'], videoUids: ['b'], attempt: 'att1' }), { sdp: null, tracks: [] })
+    db.root.blocks = { a: { b: { at: 1 } } }
+    await call(db, cf, 'a', { op: 'close', uids: ['b'], videoUids: ['b'], attempt: 'att1' })
+    assert.equal((await call(db, cf, 'a', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att1' })).tracks.length, 0)
+    delete db.root.blocks
+    db.root.games.ROOM01.camerasOff = true
+    assert.equal((await call(db, cf, 'a', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att1' })).tracks.length, 0)
+  })
+
+  test('camOff closes the camera track and forgets it; closing a viewer’s video pull works even when the track is gone', async () => {
+    const { db, cf } = await party3({ friends: { b: { a: { since: 1 } } } })
+    await call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })
+    await call(db, cf, 'a', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att1' })
+    await call(db, cf, 'b', { op: 'camOff', attempt: 'att2' })
+    assert.equal(db.root.voiceSessions.ROOM01.b.cam, undefined)
+    assert.deepEqual(cf.log.filter(l => l[0] === 'close').at(-1), ['close', 'S2', ['1']])
+    cf.closeTracks = async () => { throw new Error('gone') }
+    await call(db, cf, 'a', { op: 'close', uids: [], videoUids: ['b'], attempt: 'att1' })
+    assert.equal(db.root.voiceSessions.ROOM01.a.vpulls, undefined)
+  })
+
+  test('a block closes video pulls too, and removing a member drops their video from viewers', async () => {
+    const { db, cf } = await party3({ friends: { b: { a: { since: 1 } } } })
+    await call(db, cf, 'b', { op: 'camOn', sdp: CAM, mid: '1', attempt: 'att2' })
+    await call(db, cf, 'a', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att1' })
+    assert.equal(await _test.closePullsBetween({ a: 'a', b: 'b', db, cf }), 1)
+    assert.equal(db.root.voiceSessions.ROOM01.a.vpulls, undefined)
+    await call(db, cf, 'a', { op: 'pull', uids: [], videoUids: ['b'], attempt: 'att1' })
+    await _test.dropFromVoice({ gameId: 'ROOM01', uid: 'b', db, cf })
+    assert.equal(db.root.voiceSessions.ROOM01.a.vpulls, undefined)
   })
 })
 

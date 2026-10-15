@@ -3,14 +3,23 @@
 // voiceSfu, which holds the app secret, checks the caller against the room,
 // and owns every session id.
 //
-//  voiceSfu            callable  ice | join | pull | renegotiate | close | leave
+//  voiceSfu            callable  ice | join | pull | renegotiate | close | leave | camOn | camOff
 //  voiceOnBlock        RTDB      blocks/{uid}/{blocked} created -> stop audio both ways
 //  voiceOnRemove       RTDB      games/{gameId}/removed/{uid} created -> drop them from voice
 //
 // Data (database.rules.json):
-//  voiceSessions/{gameId}/{uid}  server-only  { sessionId, trackName, mid, attempt, at, pulls: { [uid]: { mid } } }
+//  voiceSessions/{gameId}/{uid}  server-only  { sessionId, trackName, mid, attempt, at, pulls: { [uid]: { mid } },
+//                                cam?: { trackName, mid, at }, vpulls: { [uid]: { mid } } }
+//     (cam is the camera track in the same session; vpulls are the video tracks this uid pulled.)
 //  voiceUsers/{uid}              server-only  { gameId }  (which room's voice a uid is in, for block/remove)
-//  voice/{gameId}/{uid}          members read, owner writes  { on, muted, at }  (the client directory)
+//  voice/{gameId}/{uid}          members read, owner writes  { on, muted, at, cam?, camAll? }  (the client directory)
+//
+// Camera (video): published in the same SFU session as the mic (camOn / camOff)
+// and pulled by uid like audio, but pulls are friends first: a viewer gets
+// someone's video only when the publisher has the viewer on their friends list
+// (friends/{publisher}/{viewer}) or has chosen to show their video to everyone
+// (voice/{gameId}/{publisher}/camAll). Never in public rooms, never under 13,
+// never while the host has cameras off (games/{gameId}/camerasOff).
 //
 // Off by default. VOICE_ENABLED=1 turns voiceSfu on; VOICE_SECRETS=1 (read at
 // deploy time) binds CF_SFU_APP_ID and CF_SFU_APP_SECRET from Secret Manager,
@@ -95,7 +104,7 @@ function makeCf({ appId, secret, turnKeyId = '', turnToken = '' }, fetchImpl = f
 
 // ---- The proxy ------------------------------------------------------------------
 
-const OPS = ['ice', 'join', 'pull', 'renegotiate', 'close', 'leave']
+const OPS = ['ice', 'join', 'pull', 'renegotiate', 'close', 'leave', 'camOn', 'camOff']
 const GAME_ID = /^[A-Z0-9]{4,12}$/
 const ATTEMPT = /^[a-z0-9]{4,24}$/
 const MID = /^[A-Za-z0-9_-]{1,16}$/
@@ -167,35 +176,87 @@ async function handleVoice({ uid, data, db, cf, now = Date.now(), date = new Dat
 
   if (op === 'close') {
     const uids = Array.isArray(data.uids) ? data.uids.filter(u => typeof u === 'string').slice(0, 8) : []
-    const mids = uids.map(u => mine.pulls?.[u]?.mid).filter(Boolean)
-    if (mids.length) await cf.closeTracks(mine.sessionId, mids)
+    const videoUids = Array.isArray(data.videoUids) ? data.videoUids.filter(u => typeof u === 'string').slice(0, 8) : []
+    const mids = [
+      ...uids.map(u => mine.pulls?.[u]?.mid),
+      ...videoUids.map(u => mine.vpulls?.[u]?.mid),
+    ].filter(Boolean)
+    if (mids.length) {
+      // A video track whose sender already stopped is gone on the SFU; that must
+      // not keep the records (or the audio close) from being cleared.
+      try { await cf.closeTracks(mine.sessionId, mids) } catch (e) { if (!videoUids.length) throw e; logger.warn('voice close failed', { error: e?.message }) }
+    }
     const updates = {}
     for (const u of uids) updates[`voiceSessions/${gameId}/${uid}/pulls/${u}`] = null
-    if (uids.length) await db.ref().update(updates)
+    for (const u of videoUids) updates[`voiceSessions/${gameId}/${uid}/vpulls/${u}`] = null
+    if (uids.length || videoUids.length) await db.ref().update(updates)
     return { ok: true }
   }
 
-  // op === 'pull': by uid; the server resolves each uid's track itself.
+  if (op === 'camOn') {
+    const camRefusal = core.cameraAccess({ room, uid, birthYear: birthSnap.val() ?? null, now: date })
+    if (camRefusal) throw new HttpsError('permission-denied', camRefusal)
+    const { sdp, mid } = data
+    if (!core.isCameraOffer(sdp) || typeof mid !== 'string' || !MID.test(mid)) throw new HttpsError('invalid-argument', 'bad-offer')
+    if (mine.cam?.mid) {
+      try { await cf.closeTracks(mine.sessionId, [mine.cam.mid]) } catch (e) { logger.warn('voice cam close failed', { error: e?.message }) }
+    }
+    const trackName = `cam-${attempt}-${now.toString(36)}`
+    const res = await cf.pushTrack(mine.sessionId, sdp, mid, trackName)
+    await db.ref().update({ [`voiceSessions/${gameId}/${uid}/cam`]: { trackName, mid, at: now } })
+    return { sdp: res.sessionDescription?.sdp || null }
+  }
+
+  if (op === 'camOff') {
+    if (mine.cam?.mid) {
+      try { await cf.closeTracks(mine.sessionId, [mine.cam.mid]) } catch (e) { logger.warn('voice cam close failed', { error: e?.message }) }
+    }
+    await db.ref().update({ [`voiceSessions/${gameId}/${uid}/cam`]: null })
+    return { ok: true }
+  }
+
+  // op === 'pull': by uid; the server resolves each uid's track itself. Audio
+  // from `uids`, video (friends first) from `videoUids`.
   const published = (await db.ref(`voiceSessions/${gameId}`).get()).val() || {}
   const requested = Array.isArray(data.uids) ? data.uids : []
-  const blockSnaps = await Promise.all(requested.filter(u => typeof u === 'string' && u !== uid).slice(0, 8).flatMap(u => [
+  const requestedVideo = Array.isArray(data.videoUids) ? data.videoUids.filter(u => typeof u === 'string' && u !== uid).slice(0, 8) : []
+  const candidates = [...new Set([...requested, ...requestedVideo].filter(u => typeof u === 'string' && u !== uid))].slice(0, 8)
+  const blockSnaps = await Promise.all(candidates.flatMap(u => [
     db.ref(`blocks/${uid}/${u}`).get().then(s => [uid, u, s.exists()]),
     db.ref(`blocks/${u}/${uid}`).get().then(s => [u, uid, s.exists()]),
   ]))
   const blockedSet = new Set(blockSnaps.filter(([, , on]) => on).map(([a, b]) => `${a}>${b}`))
+  const blocked = (a, b) => blockedSet.has(`${a}>${b}`)
   const allowed = core.allowedPulls({
-    room, me: uid, requested, published, blocked: (a, b) => blockedSet.has(`${a}>${b}`),
+    room, me: uid, requested, published, blocked,
   }).filter(u => !mine.pulls?.[u])
-  if (!allowed.length) return { sdp: null, tracks: [] }
-  const res = await cf.pullTracks(mine.sessionId, allowed.map(u => published[u]))
-  const byTrack = new Map(allowed.map(u => [published[u].trackName, u]))
+
+  let allowedVideo = []
+  if (requestedVideo.length) {
+    const friendSnaps = await Promise.all(requestedVideo.map(u => db.ref(`friends/${u}/${uid}`).get().then(s => [u, s.exists()])))
+    const everyoneSnaps = await Promise.all(requestedVideo.map(u => db.ref(`voice/${gameId}/${u}/camAll`).get().then(s => [u, s.val() === true])))
+    const friends = new Set(friendSnaps.filter(([, on]) => on).map(([u]) => u))
+    const everyone = new Set(everyoneSnaps.filter(([, on]) => on).map(([u]) => u))
+    allowedVideo = core.allowedVideoPulls({
+      room, me: uid, requested: requestedVideo, sessions: published, blocked,
+      isFriend: (owner) => friends.has(owner), showsEveryone: (owner) => everyone.has(owner),
+    }).filter(u => !mine.vpulls?.[u])
+  }
+  if (!allowed.length && !allowedVideo.length) return { sdp: null, tracks: [] }
+
+  const remotes = [
+    ...allowed.map(u => ({ uid: u, kind: 'audio', sessionId: published[u].sessionId, trackName: published[u].trackName })),
+    ...allowedVideo.map(u => ({ uid: u, kind: 'video', sessionId: published[u].sessionId, trackName: published[u].cam.trackName })),
+  ]
+  const res = await cf.pullTracks(mine.sessionId, remotes)
+  const byTrack = new Map(remotes.map(r => [r.trackName, r]))
   const tracks = []
   const updates = {}
   for (const t of res.tracks || []) {
-    const u = byTrack.get(t.trackName)
-    if (!u || t.error || !t.mid) continue
-    tracks.push({ uid: u, mid: t.mid })
-    updates[`voiceSessions/${gameId}/${uid}/pulls/${u}`] = { mid: t.mid }
+    const r = byTrack.get(t.trackName)
+    if (!r || t.error || !t.mid) continue
+    tracks.push({ uid: r.uid, mid: t.mid, kind: r.kind })
+    updates[`voiceSessions/${gameId}/${uid}/${r.kind === 'video' ? 'vpulls' : 'pulls'}/${r.uid}`] = { mid: t.mid }
   }
   if (Object.keys(updates).length) await db.ref().update(updates)
   return { sdp: res.requiresImmediateRenegotiation ? res.sessionDescription?.sdp || null : null, tracks }
@@ -212,10 +273,13 @@ async function closePullsBetween({ a, b, db, cf }) {
   let closed = 0
   for (const [puller, target] of [[a, b], [b, a]]) {
     const s = (await db.ref(`voiceSessions/${gameId}/${puller}`).get()).val()
-    const mid = s?.pulls?.[target]?.mid
-    if (!s?.sessionId || !mid) continue
-    try { await cf.closeTracks(s.sessionId, [mid]); closed++ } catch (e) { logger.warn('voice close failed', { error: e?.message }) }
-    await db.ref(`voiceSessions/${gameId}/${puller}/pulls/${target}`).remove()
+    const mids = [s?.pulls?.[target]?.mid, s?.vpulls?.[target]?.mid].filter(Boolean)
+    if (!s?.sessionId || !mids.length) continue
+    try { await cf.closeTracks(s.sessionId, mids); closed++ } catch (e) { logger.warn('voice close failed', { error: e?.message }) }
+    await db.ref().update({
+      [`voiceSessions/${gameId}/${puller}/pulls/${target}`]: null,
+      [`voiceSessions/${gameId}/${puller}/vpulls/${target}`]: null,
+    })
   }
   return closed
 }
@@ -227,12 +291,15 @@ async function closePullsBetween({ a, b, db, cf }) {
 async function dropFromVoice({ gameId, uid, db, cf }) {
   const all = (await db.ref(`voiceSessions/${gameId}`).get()).val() || {}
   for (const [puller, s] of Object.entries(all)) {
-    const mid = s?.pulls?.[uid]?.mid
-    if (puller === uid || !s?.sessionId || !mid) continue
-    try { await cf.closeTracks(s.sessionId, [mid]) } catch (e) { logger.warn('voice close failed', { error: e?.message }) }
+    const mids = [s?.pulls?.[uid]?.mid, s?.vpulls?.[uid]?.mid].filter(Boolean)
+    if (puller === uid || !s?.sessionId || !mids.length) continue
+    try { await cf.closeTracks(s.sessionId, mids) } catch (e) { logger.warn('voice close failed', { error: e?.message }) }
   }
   const updates = { [`voiceSessions/${gameId}/${uid}`]: null, [`voice/${gameId}/${uid}`]: null }
-  for (const puller of Object.keys(all)) if (all[puller]?.pulls?.[uid]) updates[`voiceSessions/${gameId}/${puller}/pulls/${uid}`] = null
+  for (const puller of Object.keys(all)) {
+    if (all[puller]?.pulls?.[uid]) updates[`voiceSessions/${gameId}/${puller}/pulls/${uid}`] = null
+    if (all[puller]?.vpulls?.[uid]) updates[`voiceSessions/${gameId}/${puller}/vpulls/${uid}`] = null
+  }
   const user = (await db.ref(`voiceUsers/${uid}/gameId`).get()).val()
   if (user === gameId) updates[`voiceUsers/${uid}`] = null
   await db.ref().update(updates)

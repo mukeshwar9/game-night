@@ -8,14 +8,23 @@
 // audio through Web Audio (per-person volume, speaking rings), honours the
 // host's soft mute, silences music while in voice, and follows C1: leave on
 // the native app's pause, rejoin on resume with a fresh session.
+//
+// Camera (video) rides the same session: off by default every session (nothing
+// is remembered), started only by the player's tap, stopped on leave, in the
+// background, when the host switches cameras off, and on a weak link (voice
+// stays). Who may see it is decided on the server (friends first); this side
+// only asks for the faces it wants and may hide any of them.
 
 import { ref, onValue, set, update, remove, onDisconnect } from 'firebase/database'
 import { db } from '../firebase'
 import { getAudioContext, resumeAudio } from '../audioContext'
 import { setMusicBlock } from '../music'
 import { getBirthYear } from '../entitlements'
-import { voiceAccess, wantedFromDirectory, isSpeaking } from '../voiceLogic'
-import { openVoiceSession, voiceErrorCode } from './sfuSession'
+import {
+  voiceAccess, wantedFromDirectory, wantedVideoFromDirectory, isSpeaking,
+  classifyLink, nextLinkState, LINK_START,
+} from '../voiceLogic'
+import { openVoiceSession, voiceErrorCode, VIDEO_CONSTRAINTS } from './sfuSession'
 
 const FIRST_USE_KEY = 'gn-voice-intro-seen'
 
@@ -29,6 +38,17 @@ const INITIAL = Object.freeze({
   muted: false,
   listenOnly: false,
   directory: {},
+  // Camera: 'off' | 'starting' | 'on'. `camError` is a code for the sheet to
+  // explain ('cam-denied', 'cameras-off', …); `camAll` is SHOW MY VIDEO TO EVERYONE.
+  cam: 'off',
+  camError: null,
+  camAll: false,
+  localVideo: null, // MediaStream of my own camera, for my tile
+  videos: {}, // uid -> MediaStream of a friend's camera
+  hiddenVideo: {}, // per-viewer hide, by uid
+  hideAllVideo: false, // data saver: receive no video at all
+  // 'weak' while a poor link has paused video (voice carries on).
+  videoPaused: null,
   speaking: {},
   volumes: {},
   localMutes: {},
@@ -51,6 +71,7 @@ function defaultIo(gameId, me) {
     hostMute: (uid) => set(ref(db, `voice/${gameId}/${uid}/hostMuted`), true),
     getBirthYear,
     openSession: openVoiceSession,
+    getCamera: () => navigator.mediaDevices.getUserMedia(VIDEO_CONSTRAINTS),
     audioContext: getAudioContext,
     resumeAudio,
     setMusicBlock,
@@ -68,6 +89,9 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
   let speakTimer = null
   let micAnalyser = null
   let intent = null // { listenOnly } while the player wants to be in voice
+  let camStream = null
+  let linkTimer = null
+  let link = LINK_START
   let pausedAt = null
   const nodes = new Map() // uid -> { source, gain, analyser, el }
 
@@ -83,10 +107,19 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     return wantedFromDirectory({ room, me, directory: state.directory, myBlocks: blocks })
   }
 
+  function wantedVideo() {
+    if (state.videoPaused) return []
+    return wantedVideoFromDirectory({ room, me, directory: state.directory, myBlocks: blocks, hidden: state.hiddenVideo, hideAll: state.hideAllVideo })
+  }
+
   function syncPulls() {
     const want = wanted()
-    session?.want(want)
+    const wantVideo = wantedVideo()
+    session?.want([...want, ...wantVideo])
     for (const uid of [...nodes.keys()]) if (!want.includes(uid)) dropRemote(uid)
+    const keep = wantVideo.map(k => k.split('#')[0])
+    const gone = Object.keys(state.videos).filter(uid => !keep.includes(uid))
+    if (gone.length) emit({ videos: Object.fromEntries(Object.entries(state.videos).filter(([uid]) => keep.includes(uid))) })
   }
 
   function applyGains() {
@@ -102,6 +135,10 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
   }
 
   function onTrack(uid, track) {
+    if (track.kind === 'video') {
+      emit({ videos: { ...state.videos, [uid]: new MediaStream([track]) } })
+      return
+    }
     dropRemote(uid)
     const ctx = io.audioContext()
     if (!ctx) return
@@ -147,6 +184,84 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     speakTimer = null
   }
 
+
+  // ---- Camera ----------------------------------------------------------------
+
+  function publishCam(fields) {
+    if (io.hasDb) io.patch({ ...fields, at: Date.now() }).catch(() => {})
+  }
+
+  function stopCameraTracks() {
+    camStream?.getTracks().forEach(t => t.stop())
+    camStream = null
+  }
+
+  async function stopCamera({ error = null, paused = null } = {}) {
+    const s = session
+    const had = state.cam !== 'off' || !!camStream
+    stopCameraTracks()
+    emit({ cam: 'off', localVideo: null, camError: error, ...(paused ? { videoPaused: paused } : {}) })
+    if (had) publishCam({ cam: false })
+    try { await s?.stopCamera?.() } catch { /* the SFU drops it itself */ }
+  }
+
+  async function startCamera({ everyone } = {}) {
+    if (!session || state.cam !== 'off') return
+    if (room?.camerasOff === true) { emit({ camError: 'cameras-off' }); return }
+    emit({ cam: 'starting', camError: null, ...(typeof everyone === 'boolean' ? { camAll: everyone } : {}) })
+    let stream
+    try {
+      stream = await io.getCamera()
+    } catch (e) {
+      const denied = e?.name === 'NotAllowedError' || e?.name === 'SecurityError' || e?.name === 'PermissionDeniedError'
+      emit({ cam: 'off', camError: denied ? 'cam-denied' : 'cam-failed' })
+      return
+    }
+    if (!session) { stream.getTracks().forEach(t => t.stop()); emit({ cam: 'off' }); return }
+    camStream = stream
+    // The OS can end the camera (unplugged, taken by another app).
+    stream.getVideoTracks()[0]?.addEventListener?.('ended', () => { if (camStream === stream) stopCamera() })
+    try {
+      await session.startCamera(stream)
+    } catch (e) {
+      stopCameraTracks()
+      emit({ cam: 'off', camError: voiceErrorCode(e) })
+      return
+    }
+    if (camStream !== stream) return // turned off while the SFU was answering
+    emit({ cam: 'on', localVideo: stream })
+    publishCam({ cam: true, camAll: state.camAll })
+    startLinkMonitor()
+  }
+
+  function startLinkMonitor() {
+    if (linkTimer || !session?.sampleStats) return
+    linkTimer = setInterval(async () => {
+      const s = session
+      if (!s) return
+      const next = nextLinkState(link, classifyLink(await s.sampleStats(state.cam === 'on')))
+      const wasPaused = link.paused
+      link = next
+      if (next.paused === wasPaused) return
+      if (next.paused) {
+        // Video goes first; voice is never dropped for video. The camera is
+        // not restarted by itself: it comes back only when the player taps it.
+        emit({ videoPaused: 'weak' })
+        syncPulls()
+        if (state.cam !== 'off') stopCamera()
+      } else {
+        emit({ videoPaused: null })
+        syncPulls()
+      }
+    }, 4000)
+  }
+
+  function stopLinkMonitor() {
+    if (linkTimer) clearInterval(linkTimer)
+    linkTimer = null
+    link = LINK_START
+  }
+
   function watchDirectory() {
     if (unsubDirectory || !io.hasDb || !state.available) return
     unsubDirectory = io.watchDirectory(directory => {
@@ -175,10 +290,12 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     for (const uid of [...nodes.keys()]) dropRemote(uid)
     micAnalyser = null
     stopSpeaking()
+    stopLinkMonitor()
+    stopCameraTracks()
     io.setMusicBlock('voice', false)
     try { if (navigator.audioSession) navigator.audioSession.type = 'auto' } catch { /* not supported */ }
     if (s && io.hasDb) io.unpublish().catch(() => {})
-    emit({ status: nextStatus, speaking: {}, listenOnly: false })
+    emit({ status: nextStatus, speaking: {}, listenOnly: false, cam: 'off', localVideo: null, videos: {}, videoPaused: null, camError: null })
     await s?.close()
   }
 
@@ -246,6 +363,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     emit({ listenOnly: s.listenOnly, muted, error, seenIntro: true, status: pcStatus })
     if (io.hasDb) io.publish({ on: true, muted, at: Date.now() }).catch(() => {})
     startSpeaking()
+    startLinkMonitor()
     syncPulls()
   }
 
@@ -275,6 +393,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     getState() { return state },
     setRoom(next) {
       room = next
+      if (next?.camerasOff === true && (state.cam !== 'off' || camStream)) stopCamera({ error: 'cameras-off' })
       const available = !!enabled && !!next && voiceAccess({ room: next, uid: me }) === null
       if (available !== state.available) emit({ available })
       if (available) watchDirectory()
@@ -291,6 +410,12 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     setVolume(uid, v) { emit({ volumes: { ...state.volumes, [uid]: Math.max(0, Math.min(1, v)) } }); applyGains() },
     toggleLocalMute(uid) { emit({ localMutes: { ...state.localMutes, [uid]: !state.localMutes[uid] } }); applyGains() },
     hostMute: (uid) => (io.hasDb ? io.hostMute(uid) : Promise.resolve()),
+    startCamera,
+    stopCamera: () => stopCamera(),
+    setCamAll(v) { emit({ camAll: !!v }); if (state.cam === 'on') publishCam({ camAll: !!v }) },
+    toggleHideVideo(uid) { emit({ hiddenVideo: { ...state.hiddenVideo, [uid]: !state.hiddenVideo[uid] } }); syncPulls() },
+    setHideAllVideo(v) { emit({ hideAllVideo: !!v }); syncPulls() },
+    clearCamError: () => emit({ camError: null }),
     clearError: () => emit({ error: null }),
     clearNotice: () => emit({ notice: null }),
     dispose() {

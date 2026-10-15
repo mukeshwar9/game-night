@@ -24,9 +24,11 @@ const MIC_OFF = <path d="M2 2l20 20M18.9 13.2A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 
 const SPEAKER = <path d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />
 const HANGUP = <path d="M10.7 13.3a16 16 0 0 0 3.4 2.6l1.3-1.3a2 2 0 0 1 2.1-.4 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-3.3-2.7m-2.7-3.3a19.8 19.8 0 0 1-3.1-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.4 2.1L8.1 9.9M23 1L1 23" />
 
-const GLYPHS = { mic: MIC, micOff: MIC_OFF, speaker: SPEAKER, hangup: HANGUP }
+const CAMERA = <><path d="M23 7l-7 5 7 5V7z" /><rect x="1" y="5" width="15" height="14" rx="2" /></>
+const CAMERA_OFF = <><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" /><path d="M1 1l22 22" /></>
+const GLYPHS = { mic: MIC, micOff: MIC_OFF, speaker: SPEAKER, hangup: HANGUP, camera: CAMERA, cameraOff: CAMERA_OFF }
 
-/** One of the voice glyphs ('mic' | 'micOff' | 'speaker' | 'hangup'), shared with the party shell. */
+/** One of the voice glyphs ('mic' | 'micOff' | 'speaker' | 'hangup' | 'camera' | 'cameraOff'), shared with the party shell. */
 export function VoiceIcon({ name, size = 16 }) {
   return <Icon size={size}>{GLYPHS[name]}</Icon>
 }
@@ -285,6 +287,17 @@ export function PersonSheet({ person, gameId, voice, isHost, onClose }) {
             onChange={(e) => actions.setVolume(person.uid, Number(e.target.value))}
             className="w-full accent-current text-retro-win"
           />
+          {(state.directory?.[person.uid]?.cam || state.hiddenVideo?.[person.uid]) && (
+            <button
+              type="button"
+              onClick={() => actions.toggleHideVideo(person.uid)}
+              aria-pressed={!!state.hiddenVideo?.[person.uid]}
+              data-testid="hide-their-video"
+              className="w-full min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded"
+            >
+              {state.hiddenVideo?.[person.uid] ? 'SHOW THEIR VIDEO' : 'HIDE THEIR VIDEO'}
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => actions.toggleLocalMute(person.uid)} aria-pressed={localMuted} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded">
               {localMuted ? 'UNMUTE' : 'MUTE'}

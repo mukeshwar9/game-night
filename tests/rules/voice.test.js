@@ -51,6 +51,40 @@ describe('voice directory', () => {
   })
 })
 
+describe('camera flags in the voice directory', () => {
+  it('lets a member publish cam and camAll on their own entry, booleans only', async () => {
+    await put('games/p1', partyNode({ uids: ['alice', 'bob'], extra: { partyRoom: true } }))
+    await assertSucceeds(as('alice').ref('voice/p1/alice').set(entry({ cam: true, camAll: true })))
+    await assertSucceeds(as('alice').ref('voice/p1/alice/cam').set(false))
+    await assertFails(as('alice').ref('voice/p1/alice/cam').set('yes'))
+    await assertFails(as('alice').ref('voice/p1/alice/camAll').set(1))
+    await assertFails(as('bob').ref('voice/p1/alice/cam').set(true))
+  })
+
+  it('refuses turning a camera on while the host has cameras off, but always lets it go off', async () => {
+    await put('games/p1', partyNode({ uids: ['alice', 'bob'], extra: { partyRoom: true, camerasOff: true } }))
+    await assertFails(as('alice').ref('voice/p1/alice').set(entry({ cam: true })))
+    await assertSucceeds(as('alice').ref('voice/p1/alice').set(entry({ cam: false })))
+    await put('voice/p1/bob', entry({ cam: true }))
+    await assertSucceeds(as('bob').ref('voice/p1/bob/muted').set(true))
+    await assertSucceeds(as('bob').ref('voice/p1/bob/cam').set(false))
+  })
+
+  it('still refuses cameras in public rooms and for non-members', async () => {
+    await put('games/p1', partyNode({ uids: ['alice'], extra: { partyRoom: true, visibility: 'public' } }))
+    await assertFails(as('alice').ref('voice/p1/alice').set(entry({ cam: true })))
+    await put('games/p2', partyNode({ uids: ['alice'], extra: { partyRoom: true } }))
+    await assertFails(as('mallory').ref('voice/p2/mallory').set(entry({ cam: true })))
+  })
+
+  it('lets a member set camerasOff on the room as a boolean, and nobody else', async () => {
+    await put('games/p1', partyNode({ uids: ['alice', 'bob'], extra: { partyRoom: true } }))
+    await assertSucceeds(as('alice').ref('games/p1/camerasOff').set(true))
+    await assertFails(as('alice').ref('games/p1/camerasOff').set('on'))
+    await assertFails(as('mallory').ref('games/p1/camerasOff').set(true))
+  })
+})
+
 describe('voice server records', () => {
   it('are never readable or writable by a client', async () => {
     await put('voiceSessions/p1/alice', { sessionId: 'S1', trackName: 'mic-a', mid: '0', attempt: 'a1', at: 1 })

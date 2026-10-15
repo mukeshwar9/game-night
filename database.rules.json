@@ -264,6 +264,9 @@
         "locked": {
           ".validate": "newData.isBoolean()"
         },
+        "camerasOff": {
+          ".validate": "newData.isBoolean()"
+        },
         "partyRoom": {
           ".validate": "newData.isBoolean()"
         },
@@ -1711,6 +1714,12 @@
             ".validate": "newData.isBoolean()"
           },
           "muted": {
+            ".validate": "newData.isBoolean()"
+          },
+          "cam": {
+            ".validate": "newData.isBoolean() && (newData.val() === false || newData.val() === data.val() || root.child('games').child($gameId).child('camerasOff').val() !== true)"
+          },
+          "camAll": {
             ".validate": "newData.isBoolean()"
           },
           "at": {

@@ -157,3 +157,143 @@ describe('isVoiceLive', () => {
     for (const s of ['off', 'joining', 'paused', undefined]) expect(isVoiceLive(s)).toBe(false)
   })
 })
+
+describe('camera offers', () => {
+  const sec = (kind) => `m=${kind} 9 UDP/TLS/RTP/SAVPF 96\r\na=mid:0`
+  const sdp = (...kinds) => `v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n${kinds.map(sec).join('\r\n')}`
+
+  it('counts media sections and rejects non-SDP', async () => {
+    const { offerMedia } = await import('./voiceLogic')
+    expect(offerMedia(sdp('audio', 'video'))).toEqual({ audio: 1, video: 1, other: 0 })
+    expect(offerMedia('nope')).toBeNull()
+    expect(offerMedia(`v=0\r\n${'x'.repeat(21_000)}`)).toBeNull()
+  })
+
+  it('ignores stopped (port 0) sections left by a camera turned off earlier', async () => {
+    const { isCameraOffer } = await import('./voiceLogic')
+    const stopped = 'm=video 0 UDP/TLS/RTP/SAVPF 96\r\na=mid:1'
+    expect(isCameraOffer(`${sdp('audio')}\r\n${stopped}\r\n${sec('video')}`)).toBe(true)
+  })
+
+  it('accepts one camera, with or without the mic already in the connection', async () => {
+    const { isCameraOffer } = await import('./voiceLogic')
+    expect(isCameraOffer(sdp('video'))).toBe(true)
+    expect(isCameraOffer(sdp('audio', 'video'))).toBe(true)
+  })
+
+  it('refuses two cameras, no camera, two mics, or a data channel', async () => {
+    const { isCameraOffer } = await import('./voiceLogic')
+    expect(isCameraOffer(sdp('video', 'video'))).toBe(false)
+    expect(isCameraOffer(sdp('audio'))).toBe(false)
+    expect(isCameraOffer(sdp('audio', 'audio', 'video'))).toBe(false)
+    expect(isCameraOffer(sdp('video', 'application'))).toBe(false)
+  })
+})
+
+describe('cameraAccess', () => {
+  it('follows voice access (private party, 13+) and adds the host switch', async () => {
+    const { cameraAccess } = await import('./voiceLogic')
+    expect(cameraAccess({ room: party(), uid: 'a', birthYear: 2000, now: NOW })).toBeNull()
+    expect(cameraAccess({ room: party({ visibility: 'public' }), uid: 'a', birthYear: 2000, now: NOW })).toBe('public-room')
+    expect(cameraAccess({ room: party(), uid: 'a', birthYear: 2016, now: NOW })).toBe('under-age')
+    expect(cameraAccess({ room: party({ camerasOff: true }), uid: 'a', birthYear: 2000, now: NOW })).toBe('cameras-off')
+  })
+})
+
+describe('allowedVideoPulls', () => {
+  const sessions = {
+    a: { sessionId: 'SA', cam: { trackName: 'cam-a' } },
+    b: { sessionId: 'SB', cam: { trackName: 'cam-b' } },
+    c: { sessionId: 'SC' }, // no camera published
+  }
+  const base = (over = {}) => ({
+    room: party(), me: 'a', requested: ['b', 'c'], sessions,
+    blocked: () => false, isFriend: () => true, showsEveryone: () => false, ...over,
+  })
+
+  it('gives video to friends of the sender who published a camera', async () => {
+    const { allowedVideoPulls } = await import('./voiceLogic')
+    expect(allowedVideoPulls(base())).toEqual(['b'])
+  })
+
+  it('friends first: a non-friend sees video only when the sender shows everyone', async () => {
+    const { allowedVideoPulls } = await import('./voiceLogic')
+    expect(allowedVideoPulls(base({ isFriend: () => false }))).toEqual([])
+    expect(allowedVideoPulls(base({ isFriend: () => false, showsEveryone: (u) => u === 'b' }))).toEqual(['b'])
+  })
+
+  it('refuses blocked pairs in either direction, removed members, outsiders, itself and duplicates', async () => {
+    const { allowedVideoPulls } = await import('./voiceLogic')
+    expect(allowedVideoPulls(base({ blocked: (x, y) => x === 'b' && y === 'a' }))).toEqual([])
+    expect(allowedVideoPulls(base({ room: party({ removed: { b: true } }) }))).toEqual([])
+    expect(allowedVideoPulls(base({ requested: ['z', 'a', 'b', 'b'] }))).toEqual(['b'])
+  })
+
+  it('returns nothing while the host has cameras off', async () => {
+    const { allowedVideoPulls } = await import('./voiceLogic')
+    expect(allowedVideoPulls(base({ room: party({ camerasOff: true }) }))).toEqual([])
+  })
+})
+
+describe('video pull keys', () => {
+  it('keeps audio and video apart in one queue', async () => {
+    const { videoKey, isVideoKey, uidOfKey, splitKeys } = await import('./voiceLogic')
+    expect(videoKey('b')).toBe('b#v')
+    expect(videoKey('b', true)).toBe('b#v+')
+    expect(isVideoKey('b#v+')).toBe(true)
+    expect(isVideoKey('b')).toBe(false)
+    expect(uidOfKey('b#v+')).toBe('b')
+    expect(splitKeys(['b', 'c#v', 'd#v+'])).toEqual({ audio: ['b'], video: ['c', 'd'] })
+  })
+
+  it('wants video only from members with a camera on, minus blocked, hidden, hide-all and cameras-off', async () => {
+    const { wantedVideoFromDirectory } = await import('./voiceLogic')
+    const directory = { a: { on: true, cam: true }, b: { on: true, cam: true, camAll: true }, c: { on: true, cam: false } }
+    const input = { room: party(), me: 'a', directory, myBlocks: {} }
+    expect(wantedVideoFromDirectory(input)).toEqual(['b#v+'])
+    expect(wantedVideoFromDirectory({ ...input, myBlocks: { b: true } })).toEqual([])
+    expect(wantedVideoFromDirectory({ ...input, hidden: { b: true } })).toEqual([])
+    expect(wantedVideoFromDirectory({ ...input, hideAll: true })).toEqual([])
+    expect(wantedVideoFromDirectory({ ...input, room: party({ camerasOff: true }) })).toEqual([])
+  })
+
+  it('the queue closes a changed key before pulling the new one', async () => {
+    const { videoKey } = await import('./voiceLogic')
+    const q = setWanted({ ...newPullQueue('x'), have: [videoKey('b')] }, [videoKey('b', true)])
+    expect(nextStep(q)).toEqual({ op: 'close', uids: ['b#v'] })
+  })
+})
+
+describe('link quality', () => {
+  it('classifies a sample', async () => {
+    const { classifyLink } = await import('./voiceLogic')
+    expect(classifyLink({ rttMs: 80, outKbps: 900, lossRatio: 0.01 })).toBe('good')
+    expect(classifyLink({ rttMs: 900 })).toBe('weak')
+    expect(classifyLink({ outKbps: 60 })).toBe('weak')
+    expect(classifyLink({ lossRatio: 0.3 })).toBe('weak')
+    expect(classifyLink({})).toBe('good')
+  })
+
+  it('pauses video after two weak samples and returns after three good ones', async () => {
+    const { nextLinkState, LINK_START } = await import('./voiceLogic')
+    let s = LINK_START
+    s = nextLinkState(s, 'weak')
+    expect(s.paused).toBe(false)
+    s = nextLinkState(s, 'weak')
+    expect(s.paused).toBe(true)
+    s = nextLinkState(s, 'good')
+    s = nextLinkState(s, 'good')
+    expect(s.paused).toBe(true)
+    s = nextLinkState(s, 'good')
+    expect(s.paused).toBe(false)
+    s = nextLinkState(s, 'weak')
+    s = nextLinkState(s, 'good')
+    s = nextLinkState(s, 'weak')
+    expect(s.paused).toBe(false)
+  })
+
+  it('has wording for the new refusals', () => {
+    expect(voiceErrorText('cameras-off')).toMatch(/CAMERAS OFF/)
+    expect(voiceErrorText('cam-denied')).toMatch(/CAMERA/)
+  })
+})
