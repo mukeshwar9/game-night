@@ -17,7 +17,7 @@ import { resultRole, showsWinBurst } from '../lib/resultMoodLogic'
 import LoadingLine from '@/components/loading/LoadingLine'
 import GameStatus from '../components/GameStatus'
 import PlayerCard from '../components/PlayerCard'
-import PartyShell from '../components/PartyShell'
+import VoiceShell from '../components/voice/VoiceShell'
 import { shellActive } from '../lib/partyShellLogic'
 import WaitingRoom from '../components/WaitingRoom'
 import InviteFriendModal from '../components/InviteFriendModal'
@@ -826,7 +826,8 @@ export default function Game() {
   // the picker never remounts it.
   const shellOn = shellActive(game)
   const withShell = (node, { inLobby = false } = {}) => (
-    <PartyShell
+    <VoiceShell
+      gameId={gameId}
       active={shellOn}
       game={game}
       myUid={getPlayerId()}
@@ -845,7 +846,7 @@ export default function Game() {
       }}
     >
       {node}
-    </PartyShell>
+    </VoiceShell>
   )
 
   // Family-mismatch guard — a cross-family switch (party ⇄ 2P) reshapes the
@@ -943,7 +944,7 @@ export default function Game() {
             </Suspense>
           </FocusFrame>
 
-          {game.partyRoom && !inLobby && amSeated && <VoicePanel game={game} gameId={gameId} compact />}
+          {!shellOn && game.partyRoom && !inLobby && amSeated && <VoicePanel game={game} gameId={gameId} compact />}
 
           {/* Game night: kicked notice, lobby timers, tonight's scoreboard, host controls */}
           <NightPanel game={game} gameId={gameId} nPlayer onBackToParty={game.partyRoom && !inLobby ? () => applySwitchGame(PARTY_LOBBY.type) : null} />
@@ -1345,7 +1346,7 @@ export default function Game() {
           !focusOn && boardArea
         )}
 
-        {partyMode && (!isSpectator || !!game.queue?.[getPlayerId()]) && <VoicePanel game={game} gameId={gameId} compact />}
+        {!shellOn && partyMode && (!isSpectator || !!game.queue?.[getPlayerId()]) && <VoicePanel game={game} gameId={gameId} compact />}
 
         {/* Game night: winner-stays line, kicked notice, tonight's scoreboard between games, host controls */}
         <NightPanel game={game} gameId={gameId} nPlayer={false} onBackToParty={partyMode ? () => applySwitchGame(PARTY_LOBBY.type) : null} />

@@ -11,7 +11,7 @@ import { blockPlayer } from '../../lib/mute'
 import { submitReport } from '../../lib/feedback'
 import { useAuth } from '../../lib/AuthContext'
 import { hostUidOf } from '../../lib/night'
-import { voiceMembers, voiceErrorText } from '../../lib/voiceLogic'
+import { voiceMembers, voiceErrorText, isVoiceLive as isLive } from '../../lib/voiceLogic'
 import { cn } from '@/lib/utils'
 
 // Party voice controls (screens 16, 18–22): the lobby card and the in-game
@@ -23,6 +23,13 @@ const MIC = <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v
 const MIC_OFF = <path d="M2 2l20 20M18.9 13.2A7 7 0 0 0 19 12v-2M5 10v2a7 7 0 0 0 12 5M15 9.3V5a3 3 0 0 0-5.7-1.3M9 9v3a3 3 0 0 0 5.1 2.1M12 19v3" />
 const SPEAKER = <path d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />
 const HANGUP = <path d="M10.7 13.3a16 16 0 0 0 3.4 2.6l1.3-1.3a2 2 0 0 1 2.1-.4 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-3.3-2.7m-2.7-3.3a19.8 19.8 0 0 1-3.1-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.4 2.1L8.1 9.9M23 1L1 23" />
+
+const GLYPHS = { mic: MIC, micOff: MIC_OFF, speaker: SPEAKER, hangup: HANGUP }
+
+/** One of the voice glyphs ('mic' | 'micOff' | 'speaker' | 'hangup'), shared with the party shell. */
+export function VoiceIcon({ name, size = 16 }) {
+  return <Icon size={size}>{GLYPHS[name]}</Icon>
+}
 
 function Icon({ children, size = 16 }) {
   return (
@@ -154,10 +161,6 @@ export default function VoicePanel({ game, gameId, compact = false }) {
   )
 }
 
-function isLive(status) {
-  return status === 'connecting' || status === 'connected' || status === 'reconnecting' || status === 'failed'
-}
-
 function statusLine(state) {
   if (state.status === 'reconnecting') return 'reconnecting… the game keeps going'
   if (state.status === 'failed') return 'voice dropped · check your connection'
@@ -166,7 +169,7 @@ function statusLine(state) {
   return 'all connected'
 }
 
-function VoiceNotice({ state, onAge, onClear }) {
+export function VoiceNotice({ state, onAge, onClear }) {
   const code = state.error
   if (!code) return null
   if (code === 'mic-denied') {
@@ -194,7 +197,7 @@ function VoiceNotice({ state, onAge, onClear }) {
   )
 }
 
-function IntroSheet({ onClose, onJoin }) {
+export function IntroSheet({ onClose, onJoin }) {
   return (
     <BottomSheet onClose={onClose} ariaLabel="Join voice?" className="bg-retro-card space-y-3">
       <h2 className="font-pixel text-xs text-retro-cta">JOIN VOICE?</h2>
@@ -211,7 +214,7 @@ function IntroSheet({ onClose, onJoin }) {
   )
 }
 
-function AgeSheet({ onClose, onSaved }) {
+export function AgeSheet({ onClose, onSaved }) {
   const [year, setYear] = useState('')
   const [busy, run] = useBusy()
   const save = () => run(async () => {
@@ -238,7 +241,7 @@ function AgeSheet({ onClose, onSaved }) {
   )
 }
 
-function PersonSheet({ person, gameId, voice, isHost, onClose }) {
+export function PersonSheet({ person, gameId, voice, isHost, onClose }) {
   const { state, actions } = voice
   const { profile } = useAuth()
   const [reporting, setReporting] = useState(false)

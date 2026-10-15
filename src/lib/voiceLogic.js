@@ -206,6 +206,11 @@ export function newAttemptId(now = Date.now(), rand = Math.random) {
   return `${now.toString(36)}${Math.floor(rand() * 1e8).toString(36)}`
 }
 
+/** Whether a controller status means a session exists (or is being restored). */
+export function isVoiceLive(status) {
+  return status === 'connecting' || status === 'connected' || status === 'reconnecting' || status === 'failed'
+}
+
 /** Speaking ring from an analyser's RMS level (0–1). */
 export function isSpeaking(level) {
   return typeof level === 'number' && level > 0.045

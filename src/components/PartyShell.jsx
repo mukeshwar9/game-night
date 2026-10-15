@@ -175,9 +175,10 @@ function ViewToggle({ view, onToggle, onMinimise }) {
  * @param {(tile: any) => void} [props.onPerson]
  * @param {Record<string, any>} [props.statusFor]  uid -> { speaking, muted, inVoice, video }
  * @param {import('react').ReactNode} [props.trailing] footer extras (the mic)
+ * @param {import('react').ReactNode} [props.notice]   a strip that sits just above the footer (voice errors)
  * @param {import('react').ReactNode} props.children
  */
-export default function PartyShell({ active, game, myUid, hostUid, inLobby, onInvite = null, footer = null, onPerson, statusFor, trailing = null, children }) {
+export default function PartyShell({ active, game, myUid, hostUid, inLobby, onInvite = null, footer = null, onPerson, statusFor, trailing = null, notice = null, children }) {
   const [view, setView] = useState(readView)
   useEffect(() => {
     try { localStorage.setItem(SHELL_VIEW_KEY, view) } catch { /* private mode */ }
@@ -204,7 +205,7 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
             <div className="flex gap-1.5">
               {tiles.map(t => (t.invite
                 ? <InviteTile key={t.key} seat={t.seat} onInvite={onInvite} compact={false} />
-                : <BigTile key={t.key} tile={t} me={t.uid === myUid} status={statusOf(t)} onPerson={t.uid === myUid ? null : onPerson} />))}
+                : <BigTile key={t.key} tile={t} me={t.uid === myUid} status={statusOf(t)} onPerson={onPerson} />))}
             </div>
             <div className="flex justify-end"><ViewToggle view={view} onToggle={() => setView(toggleShellView(view))} /></div>
           </div>
@@ -214,7 +215,7 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
             <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto no-scrollbar">
               {tiles.map(t => (t.invite
                 ? <InviteTile key={t.key} seat={t.seat} onInvite={onInvite} compact />
-                : <StripFace key={t.key} tile={t} me={t.uid === myUid} status={statusOf(t)} onPerson={t.uid === myUid ? null : onPerson} />))}
+                : <StripFace key={t.key} tile={t} me={t.uid === myUid} status={statusOf(t)} onPerson={onPerson} />))}
             </div>
             <ViewToggle view={view} onToggle={() => setView(toggleShellView(view))} onMinimise={() => setView(toggleShellMinimised(view))} />
           </div>
@@ -246,6 +247,7 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
           className="fixed inset-x-0 bottom-0 z-30 border-t border-retro-border bg-retro-bg/95 backdrop-blur px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]"
           data-testid="shell-footer"
         >
+          {notice && <div className="absolute bottom-full inset-x-0 px-2 pb-1 space-y-1" data-testid="shell-notice">{notice}</div>}
           <Suspense fallback={<div className="h-11" />}>
             <EmoteBar variant="footer" trailing={trailing} {...footer} />
           </Suspense>

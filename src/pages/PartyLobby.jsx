@@ -27,6 +27,7 @@ import { seatedIds } from '../lib/roomLogic'
 const WarmUp = lazyWithRetry(() => import('./demos/ReactionDemo'))
 
 const HEADLINE_2P = HEADLINE_GAMES.map(h => h.type)
+import { shellActive } from '../lib/partyShellLogic'
 import { cn } from '@/lib/utils'
 
 // The party lobby (party-first rooms): who is here, places to invite into,
@@ -161,7 +162,7 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
         ))}
       </div>
 
-      {amMember && <VoicePanel game={game} gameId={gameId} />}
+      {amMember && !shellActive(game) && <VoicePanel game={game} gameId={gameId} />}
 
       {amMember && members.length < cap && (
         <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3" data-testid={alone ? 'party-alone' : undefined}>

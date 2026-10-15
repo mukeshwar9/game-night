@@ -182,7 +182,11 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     await s?.close()
   }
 
-  async function join({ listenOnly = false } = {}) {
+  // Open mic, muted on join: a fresh join always starts muted and the player
+  // taps the mic to talk. A rejoin after the app was in the background keeps
+  // whatever the player had (`keepMute`), so a short app switch doesn't
+  // silently mute someone mid-sentence or open a mic they had closed.
+  async function join({ listenOnly = false, keepMute = false } = {}) {
     if (!state.available || session || state.status === 'joining') return
     emit({ error: null, status: 'joining' })
     io.resumeAudio()
@@ -235,7 +239,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
         ctx.createMediaStreamSource(s.micStream).connect(micAnalyser)
       }
     }
-    const muted = state.muted || s.listenOnly
+    const muted = s.listenOnly || (keepMute ? state.muted : true)
     s.setMuted(muted)
     io.setMusicBlock('voice', pcStatus !== 'failed' && pcStatus !== 'reconnecting')
     try { localStorage.setItem(FIRST_USE_KEY, '1') } catch { /* private mode */ }
@@ -258,7 +262,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     // fresh one: never a session revived past the SFU's idle window.
     if (want && was !== null) {
       emit({ notice: 'resumed' })
-      join({ listenOnly: want.listenOnly })
+      join({ listenOnly: want.listenOnly, keepMute: true })
     }
   }
   if (typeof window !== 'undefined') {

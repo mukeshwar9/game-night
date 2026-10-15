@@ -149,3 +149,11 @@ describe('client helpers', () => {
     expect(voiceMembers(twoP()).map(m => m.uid)).toEqual(['a', 'b', 'c'])
   })
 })
+
+describe('isVoiceLive', () => {
+  it('is true while a session exists or is being restored, false when off, joining or paused', async () => {
+    const { isVoiceLive } = await import('./voiceLogic')
+    for (const s of ['connecting', 'connected', 'reconnecting', 'failed']) expect(isVoiceLive(s)).toBe(true)
+    for (const s of ['off', 'joining', 'paused', undefined]) expect(isVoiceLive(s)).toBe(false)
+  })
+})
