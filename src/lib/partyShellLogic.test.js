@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   shellActive, isPartyFamily, parseShellView, toggleShellView, toggleShellMinimised,
-  turnUid, shellTiles, tickerLine, DEFAULT_SHELL_VIEW,
+  turnUid, shellTiles, tickerLine, DEFAULT_SHELL_VIEW, effectiveShellView,
 } from './partyShellLogic'
 
 const online = { conns: { c1: true } }
@@ -110,5 +110,14 @@ describe('tickerLine', () => {
   it('flags sticker lines', () => {
     const img = `data:image/png;base64,${'A'.repeat(20)}`
     expect(tickerLine({ s: { by: 'a', text: '', img, ts: 5 } })?.img).toBe(true)
+  })
+})
+
+describe('effectiveShellView', () => {
+  it('keeps the pick upright and draws the dots row on a phone turned sideways', () => {
+    expect(effectiveShellView('tiles', false)).toBe('tiles')
+    expect(effectiveShellView('strip', false)).toBe('strip')
+    expect(effectiveShellView('tiles', true)).toBe('mini')
+    expect(effectiveShellView('strip', true)).toBe('mini')
   })
 })

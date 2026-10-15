@@ -7,12 +7,12 @@
 // face strip; never automatic) plus a minimise to a row of dots. The choice is
 // remembered per device. Every tile carries data-seat-card={uid} so reactions
 // and chat bubbles float up from the sender's face.
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import Avatar from './Avatar'
 import { cn } from '@/lib/utils'
 import { memberPresent } from '../lib/nightLogic'
 import {
-  SHELL_VIEW_KEY, isPartyFamily, parseShellView, shellTiles, toggleShellMinimised, toggleShellView,
+  SHELL_VIEW_KEY, SHORT_LANDSCAPE_QUERY, effectiveShellView, isPartyFamily, parseShellView, shellTiles, toggleShellMinimised, toggleShellView,
 } from '../lib/partyShellLogic'
 
 const EmoteBar = lazy(() => import('./EmoteBar'))
@@ -30,6 +30,13 @@ function Glyph({ children, size = 10 }) {
     </svg>
   )
 }
+
+function subscribeShortLandscape(onChange) {
+  const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(SHORT_LANDSCAPE_QUERY) : null
+  mq?.addEventListener?.('change', onChange)
+  return () => mq?.removeEventListener?.('change', onChange)
+}
+const shortLandscapeNow = () => (typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(SHORT_LANDSCAPE_QUERY).matches)
 
 function readView() {
   try { return parseShellView(localStorage.getItem(SHELL_VIEW_KEY)) } catch { return parseShellView(null) }
@@ -180,10 +187,12 @@ function ViewToggle({ view, onToggle, onMinimise }) {
  * @param {import('react').ReactNode} props.children
  */
 export default function PartyShell({ active, game, myUid, hostUid, inLobby, onInvite = null, footer = null, onPerson, statusFor, trailing = null, notice = null, children }) {
-  const [view, setView] = useState(readView)
+  const [picked, setView] = useState(readView)
   useEffect(() => {
-    try { localStorage.setItem(SHELL_VIEW_KEY, view) } catch { /* private mode */ }
-  }, [view])
+    try { localStorage.setItem(SHELL_VIEW_KEY, picked) } catch { /* private mode */ }
+  }, [picked])
+  const shortLandscape = useSyncExternalStore(subscribeShortLandscape, shortLandscapeNow, () => false)
+  const view = effectiveShellView(picked, shortLandscape)
 
   const tiles = useMemo(() => shellTiles(game, { inLobby, hostUid }), [game, inLobby, hostUid])
   const family = isPartyFamily(game)

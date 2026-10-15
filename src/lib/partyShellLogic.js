@@ -132,3 +132,18 @@ export function tickerLine(chatLog, { muted = {} } = {}) {
   }
   return null
 }
+
+/** A phone held sideways: too short for any row of faces but the 30 pt dots. */
+export const SHORT_LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 500px)'
+
+/**
+ * The view to draw. The player's pick stands in portrait and on tablets; a
+ * phone turned sideways (arenas that allow landscape, a browser tab that
+ * rotated) has no height for faces, so it draws the dots row until it is
+ * upright again. The stored pick is never changed.
+ * @param {string} view
+ * @param {boolean} shortLandscape
+ */
+export function effectiveShellView(view, shortLandscape) {
+  return shortLandscape ? 'mini' : view
+}
