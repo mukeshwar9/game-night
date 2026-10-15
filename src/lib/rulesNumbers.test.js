@@ -73,6 +73,8 @@ import {
   MATCH_PROMPTS, FINAL_MULTIPLIER as FIBBAGE_FINAL_MULTIPLIER,
 } from './fibbageLogic'
 import { ARROWS_LIVES, ARROWS_MATCH_TARGET, ARROWS_MAX_ROUNDS } from './arrowsLogic'
+import { PARTY_FREEZE_MS, PARTY_ROUND_CHOICES, SABOTAGE_STREAK, SABOTAGE_CLEARS } from './arrowsPartyLogic'
+import { placementPoints } from './raceLogic'
 import { ARROWS_REWARD_LADDER, ARROWS_REWARD_GOAL } from './arrowsRewardsLogic'
 import { ARROWS_CHAPTER_GOLD, ARROWS_CHAPTERS, ARROWS_LEVEL_COUNT } from './arrowsLevelsLogic'
 import {
@@ -218,6 +220,16 @@ const RULE_NUMBERS = {
       [4, cfg('sidekick').maxPlayers], [20, SK_END],
     ],
   }),
+  arrowsparty: () => {
+    // First to fourth of four racers.
+    const pts = Object.values(placementPoints({ a: 1, b: 2, c: 3, d: 4 }, {}, 4))
+    return {
+      checks: [
+        [3, ARROWS_LIVES], [2, secs(PARTY_FREEZE_MS)], [3, PARTY_ROUND_CHOICES[0]], [5, PARTY_ROUND_CHOICES[1]], [7, PARTY_ROUND_CHOICES[2]],
+        [3, pts[0]], [2, pts[1]], [1, pts[2]], [0, pts[3]], [3, SABOTAGE_STREAK], [2, SABOTAGE_CLEARS],
+      ],
+    }
+  },
   chopchop: () => ({
     checks: [[30, secs(CHOP_GAME_MS)], [1, secs(CHOP_STUN_MS)], [10, CHOP_WARN_CRATES], [3, RACE_MATCH_WINS], ...players('chopchop', 2, 8)],
   }),

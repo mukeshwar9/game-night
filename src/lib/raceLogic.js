@@ -24,8 +24,20 @@ export const RACE_COUNTDOWN_MS = 3000
 // RACE_MATCH_WINS round wins. The game's `decorate` hook supplies each round's
 // points (SIDE KICK: 3 / 2 / 1 / 0 by place among all four riders, bots too).
 export const CUP_RACES_BY_GAME = { sidekick: 3 }
-/** Rounds in a cup match for this game, or 0 for a first-to-N match. */
-export const cupRacesFor = (gameType) => CUP_RACES_BY_GAME[gameType] ?? 0
+// A cup whose length the host picks in the lobby keeps it in a room config
+// (ARROWS PARTY: 3 / 5 / 7 rounds in `arrowsPartyConfig.rounds`).
+const CUP_PICKED_BY_GAME = {
+  arrowsparty: { key: 'arrowsPartyConfig', field: 'rounds', choices: [3, 5, 7], fallback: 3 },
+}
+/** Rounds in a cup match for this game, or 0 for a first-to-N match. `room` supplies a picked length. */
+export function cupRacesFor(gameType, room = null) {
+  const picked = CUP_PICKED_BY_GAME[gameType]
+  if (picked) {
+    const n = Number(room?.[picked.key]?.[picked.field])
+    return picked.choices.includes(n) ? n : picked.fallback
+  }
+  return CUP_RACES_BY_GAME[gameType] ?? 0
+}
 // A racer who is still racing but has been offline this long no longer holds
 // the round open once everyone online has finished.
 export const OFFLINE_GRACE_MS = 10_000
@@ -194,7 +206,7 @@ export function buildRaceResult({ roundId, gameType, entries, now }) {
 export function applyRaceFinish(current, result) {
   const winners = raceWinners(result.ranks, result.dnf)
   const scores = { ...(isObj(current.scores) ? current.scores : {}) }
-  if (cupRacesFor(current.gameType)) {
+  if (cupRacesFor(current.gameType, current)) {
     // A cup adds the round's points for every racer and counts the race.
     for (const [id, p] of Object.entries(result.points || {})) scores[id] = (Number(scores[id]) || 0) + (Number(p) || 0)
     return {
@@ -233,7 +245,7 @@ export function matchChampions(scores, target = RACE_MATCH_WINS) {
  * @param {{ gameType?: string, scores?: object, cupRaces?: number }} room
  */
 export function raceChampions(room) {
-  const cup = cupRacesFor(room?.gameType)
+  const cup = cupRacesFor(room?.gameType, room)
   if (!cup) return matchChampions(room?.scores)
   if (!(Number(room?.cupRaces) >= cup)) return []
   const scores = isObj(room?.scores) ? room.scores : {}

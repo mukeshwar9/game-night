@@ -417,6 +417,45 @@ describe('cup races (SIDE KICK)', () => {
   })
 })
 
+describe('a cup whose length the host picks (ARROWS PARTY)', () => {
+  const party = (o = {}) => room({ gameType: 'arrowsparty', ...o })
+  const withRounds = (rounds, o = {}) => party({ arrowsPartyConfig: { version: 1, tier: 'medium', rounds, sabotage: false }, ...o })
+
+  it('reads the length from the room config: 3, 5 or 7, else 3', () => {
+    expect(cupRacesFor('arrowsparty', withRounds(5))).toBe(5)
+    expect(cupRacesFor('arrowsparty', withRounds(7))).toBe(7)
+    expect(cupRacesFor('arrowsparty', withRounds(3))).toBe(3)
+    expect(cupRacesFor('arrowsparty', withRounds(4))).toBe(3)
+    expect(cupRacesFor('arrowsparty', party())).toBe(3)
+    expect(cupRacesFor('arrowsparty')).toBe(3)
+    // Other games ignore a stray config.
+    expect(cupRacesFor('sidekick', withRounds(7))).toBe(3)
+    expect(cupRacesFor('typing', withRounds(7))).toBe(0)
+  })
+
+  it('a 5-round cup is not over after 3 races, and is after 5', () => {
+    const scores = { a: 7, b: 5, c: 3 }
+    expect(raceChampions(withRounds(5, { cupRaces: 3, scores }))).toEqual([])
+    expect(isMatchOver(withRounds(5, { cupRaces: 4, scores }))).toBe(false)
+    expect(raceChampions(withRounds(5, { cupRaces: 5, scores }))).toEqual(['a'])
+    expect(raceChampions(withRounds(3, { cupRaces: 3, scores }))).toEqual(['a'])
+  })
+
+  it('finishing a round adds the finish-order points and counts the race', () => {
+    const params = { gameType: 'arrowsparty', starterId: 'a', now: 1000, id: 'r1', seed: 9, durationMs: 60_000, force: true }
+    const live = startRaceRound(withRounds(5, { scores: { a: 2 } }), params)
+    const stats = { a: { fin: 3000 }, b: { fin: 2000 }, c: { fin: 4000 } }
+    const next = finishRaceRound({ ...live, round: { ...live.round, stats: { r1: stats } } }, {
+      gameType: 'arrowsparty', roundId: 'r1', now: 5000, force: true,
+      entryOf: (s) => ({ sortKey: s?.fin ? [s.fin] : null, score: s?.fin ?? null }),
+    })
+    expect(next.cupRaces).toBe(1)
+    // 3 racers: 2 / 1 / 0 by finish order.
+    expect(next.scores).toEqual({ a: 3, b: 2, c: 0 })
+    expect(isMatchOver(next)).toBe(false)
+  })
+})
+
 describe('helpers', () => {
   it('ordinal labels', () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinal)).toEqual(['1ST', '2ND', '3RD', '4TH', '11TH', '12TH', '13TH', '21ST', '22ND', '101ST'])

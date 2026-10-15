@@ -25,7 +25,7 @@ const ART_TYPES = new Set([
   'darts', 'bamboozle', 'bonkbuggies', 'firstcut', 'quiver', 'sidekick',
 ])
 
-const ART_ALIAS = { chainreaction4: 'chainreaction', pairs4: 'pairs' }
+const ART_ALIAS = { chainreaction4: 'chainreaction', pairs4: 'pairs', arrowsparty: 'arrows' }
 
 const resolveArt = (type) => ART_ALIAS[type] || type
 

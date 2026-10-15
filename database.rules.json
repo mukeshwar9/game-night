@@ -87,6 +87,24 @@
             ".validate": "false"
           }
         },
+        "arrowsPartyConfig": {
+          ".validate": "newData.hasChildren(['version','tier','rounds','sabotage'])",
+          "version": {
+            ".validate": "newData.val() === 1"
+          },
+          "tier": {
+            ".validate": "newData.val() === 'easy' || newData.val() === 'medium' || newData.val() === 'hard'"
+          },
+          "rounds": {
+            ".validate": "newData.val() === 3 || newData.val() === 5 || newData.val() === 7"
+          },
+          "sabotage": {
+            ".validate": "newData.isBoolean()"
+          },
+          "$other": {
+            ".validate": "false"
+          }
+        },
         "$other": {
           ".validate": "$other.matches(/^(Stack|aimEndTime|aimFriendlyO|aimFriendlyX|aimHitsO|aimHitsX|aimMissesO|aimMissesX|aimScoreO|aimScoreX|aimTargetO|aimTargetX|aimTimesO|aimTimesX|airhockeyScoreO|airhockeyScoreX|archeryFormat|archeryPhase|archerySeatUids|archerySeed|archeryShootOffShots|archeryShots|archeryTied|archeryTurnStartedAt|arrowsCleared|arrowsGoneO|arrowsGoneX|arrowsLastBlocked|arrowsLevel|arrowsLivesO|arrowsLivesX|arrowsRound|arrowsSeed|arrowsSeen|arrowsStartedAt|arrowsTrapSeen|artillerySeed|artilleryShots|ataxxMoves|blockadeMoves|blockadePawnO|blockadePawnX|blockadeWallsO|blockadeWallsX|bluffRound|board|bonkScoreO|bonkScoreX|boxes|bsFort|bsShots|chatLast|chatLog|chimpDoneO|chimpDoneX|chimpFailO|chimpFailX|chimpLayout|chimpLevel|chimpMiss|chimpProgressO|chimpProgressX|chimpRoundStartedAt|chimpTimeO|chimpTimeX|crEliminated|crLastMove|crMoves|crPlaced|crSeatSymbols|createdAt|cupRaces|currentTurn|diceLast|diceRollIndex|diceRolls|diceScoreO|diceScoreX|diceSeed|diceSeedB|diceSeedCommitX|diceSeedCommitter|diceSeedResets|diceSeedRevealX|diceTurnScore|emote|emoteLast|emotes|extraTurn|gameType|goesFirst|golfAway|golfClock|golfCourse|golfOrder|golfShots|golfSkip|hangwomanAnyWord|herdCow|hostUid|kamisadoColor|kamisadoTowers|kicked|lastActivityAt|lastFrom|lastMove|lastTo|lobby|locked|mancalaLast|mancalaPits|matchLength|mathConfig|mathCorrectO|mathCorrectX|mathEndTime|mathQIndex|mathQIndexO|mathQIndexX|mathQStartAt|mathScoreO|mathScoreX|mathSeed|mathStartedAt|mathStreakO|mathStreakX|mathWrongO|mathWrongX|mem|minesDeadO|minesDeadX|minesDoneO|minesDoneX|minesRevealedO|minesRevealedX|minesSeed|minesStartedAt|night|nightMark|numRound|onitamaHandO|onitamaHandX|onitamaSpare|pacmacScoreO|pacmacScoreX|paintScoreO|paintScoreX|pairsDeadline|pairsDeck|pairsFlipped|partyRoom|passNote|pieSwap|players|pongMode|pongScoreO|pongScoreX|presence|proposal|quartoPending|quartoUnplaced|queue|raceResult|reactionTimesO|reactionTimesX|round|santoriniWorkers|scores|sealKeys|seen|signaling|simonDeadline|simonMiss|simonProgress|simonReplayUsed|simonSequence|snakeScoreO|snakeScoreX|sosLines|spaceduelHitsO|spaceduelHitsX|spaceduelScoreO|spaceduelScoreX|spectators|spyfairRotation|stack|starter|status|sumoScoreO|sumoScoreX|timerScale|tronScoreO|tronScoreX|typingAccO|typingAccX|typingConfig|typingFinishedAtO|typingFinishedAtX|typingPassage|typingProgressO|typingProgressX|typingStartedAt|typingWpmO|typingWpmX|uActiveBoard|uWon|updraft|visibility|vmClears|vmClicked|vmClickedO|vmClickedX|vmDeadline|vmDoneO|vmDoneX|vmFailO|vmFailX|vmLevel|vmMiss|vmPattern|vmRoundStartedAt|vmTimeO|vmTimeX|winner|winningLine|wire|wordhuntDoneO|wordhuntDoneX|wordhuntGrid|wordhuntReadyO|wordhuntReadyX|wordhuntScoreO|wordhuntScoreX|wordhuntStartedAt|wordhuntWordsO|wordhuntWordsX)$/)"
         },
@@ -560,9 +578,9 @@
             "$roundId": {
               "$uid": {
                 "$f": {
-                  ".validate": "(((newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'pulprush' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'pulpharvest' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'firstcut') || ((newData.val() === data.val() || $uid === auth.uid || newData.hasChildren())))) && (newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'sidekick' || (($f === 'k' && (newData.hasChildren() || !newData.exists())) || ($f.matches(/^(z|x|v|s|ln|pp|bo|sh|sg|cu|ol|bm|kn|ks|dn|dw|hk|pb|fin|at)$/) && newData.isNumber() && newData.val() >= -2000 && newData.val() <= 1000000000000000 && (newData.val() === data.val() || ($uid === auth.uid || $uid.matches(/^bot[0-9]$/))))))",
+                  ".validate": "(((newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'pulprush' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'pulpharvest' && newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'firstcut') || ((newData.val() === data.val() || $uid === auth.uid || newData.hasChildren())))) && (newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'sidekick' || (($f === 'k' && (newData.hasChildren() || !newData.exists())) || ($f.matches(/^(z|x|v|s|ln|pp|bo|sh|sg|cu|ol|bm|kn|ks|dn|dw|hk|pb|fin|at)$/) && newData.isNumber() && newData.val() >= -2000 && newData.val() <= 1000000000000000 && (newData.val() === data.val() || ($uid === auth.uid || $uid.matches(/^bot[0-9]$/)))))) && (newData.parent().parent().parent().parent().parent().child('gameType').val() !== 'arrowsparty' || (($f === 'g' && (newData.hasChildren() || !newData.exists())) || ($f === 'm' && newData.isNumber() && newData.val() >= 0 && newData.val() <= 999 && (newData.val() === data.val() || ($uid === auth.uid && (!data.exists() || newData.val() > data.val())))) || ($f === 'fin' && newData.isNumber() && newData.val() > 0 && newData.val() <= 3600000 && (newData.val() === data.val() || (!data.exists() && $uid === auth.uid))) || ($f === 'x' && newData.val() === 1 && (newData.val() === data.val() || (!data.exists() && $uid === auth.uid)))))",
                   "$i": {
-                    ".validate": "(((newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'pulprush' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'pulpharvest' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'firstcut') || ((newData.val() === data.val() || $uid === auth.uid)))) && (newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'sidekick' || ($f === 'k' && $i.matches(/^[0-9]{1,5}$/) && newData.isString() && newData.val().length <= 40 && (newData.val() === data.val() || (!data.exists() && ($uid === auth.uid || $uid.matches(/^bot[0-9]$/))))))"
+                    ".validate": "(((newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'typing' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'reaction' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'aim' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'math' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'minesweeper' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'pulprush' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'pulpharvest' && newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'firstcut') || ((newData.val() === data.val() || $uid === auth.uid)))) && (newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'sidekick' || ($f === 'k' && $i.matches(/^[0-9]{1,5}$/) && newData.isString() && newData.val().length <= 40 && (newData.val() === data.val() || (!data.exists() && ($uid === auth.uid || $uid.matches(/^bot[0-9]$/)))))) && (newData.parent().parent().parent().parent().parent().parent().child('gameType').val() !== 'arrowsparty' || ($f === 'g' && $i.matches(/^[0-9]{1,2}$/) && newData.val() === true && (newData.val() === data.val() || (!data.exists() && $uid === auth.uid))))"
                   }
                 }
               }
@@ -817,7 +835,20 @@
               }
             }
           },
-          ".validate": "newData.hasChildren()"
+          ".validate": "newData.hasChildren()",
+          "tier": {
+            ".validate": "((newData.parent().parent().child('gameType').val() !== 'arrowsparty') || (newData.val() === 'easy' || newData.val() === 'medium' || newData.val() === 'hard'))"
+          },
+          "sab": {
+            ".validate": "((newData.parent().parent().child('gameType').val() !== 'arrowsparty') || newData.isBoolean())"
+          },
+          "drops": {
+            "$victim": {
+              "$n": {
+                ".validate": "((newData.parent().parent().parent().parent().child('gameType').val() !== 'arrowsparty') || (newData.parent().parent().parent().child('racers').child($victim).val() === true && newData.parent().parent().parent().child('racers').child(auth.uid).val() === true && $victim !== auth.uid && $n.matches(/^[0-2]$/) && newData.isString() && newData.val().length <= 200 && newData.val().matches(/^[0-9]{1,3}[|][^|]{1,64}[|].{1,128}$/) && newData.val().endsWith('|' + auth.uid) && (newData.val() === data.val() || !data.exists())))"
+              }
+            }
+          }
         },
         "archeryFormat": {
           ".validate": "(newData.val() === 'quick' || newData.val() === 'standard' || newData.val() === 'marathon') && (newData.val() === data.val() || (newData.parent().child('status').val() === 'waiting' || newData.parent().child('status').val() === 'playing' && !newData.parent().child('archeryShots').exists()) && (newData.parent().child('hostUid').val() === auth.uid || newData.parent().child('players').child('X').child('playerId').val() === auth.uid || newData.parent().child('gameType').val() === 'archery4' && newData.parent().child('players').child(auth.uid).child('playerId').val() === auth.uid))"

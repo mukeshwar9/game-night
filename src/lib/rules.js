@@ -657,6 +657,18 @@ export const GAME_RULES = {
     win: 'Score 1,000 for finding the truth and 500 for every player your lie fools. A match is 5 prompts and the last one scores double. Highest total wins; an exact tie is shared.',
   },
 
+  arrowsparty: {
+    objective: 'Clear your zone of the shared Arrows board before the other racers clear theirs.',
+    howToPlay: [
+      'Two to four racers share one board, split into a zone each. Every zone holds the same puzzle, turned or mirrored, and your zone sits at the bottom of your screen. Rivals are dim silhouettes that empty as they clear, so you can see how close they are.',
+      'Tap an arrow whose path is clear and it slides off your zone; a blocked arrow stays put. The board can be bigger than your screen: pinch or drag to zoom and move around it.',
+      'With two racers a blocked tap costs a life and you have 3; lose them all and you are out of the round. With three or four racers a blocked tap freezes your board for 2 seconds instead.',
+      'The host picks the difficulty (easy, medium or hard) and a cup of 3, 5 or 7 rounds before the game starts. A round is over when everyone has finished or the clock runs out.',
+      'The host can switch sabotage on (off by default): clear 3 arrows in a row without a blocked tap and a crate drops on the racer in the lead, but only while you are behind them. It blocks the paths through its square until they clear 2 more arrows. A crate can slow a racer down but never trap them.',
+    ],
+    win: 'Finish order scores each round: first place earns one point fewer than the number of racers, down to 0 for last, so with four racers it is 3, 2, 1 and 0. Ties go to the fewer blocked taps. Most points after the last round wins the cup.',
+  },
+
   arrows: {
     objective: 'Race your rival to clear the same arrow board first.',
     howToPlay: [

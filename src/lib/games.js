@@ -890,6 +890,22 @@ export const GAME_TYPES = [
     hidePlayerCards: true,
   },
   {
+    type: 'arrowsparty', label: 'ARROWS PARTY',
+    desc: '2–4 racers · one shared arrows board', Icon: ArrowsIcon,
+    badge: 'AP', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-16',
+    variantOf: 'arrows', variantLabel: 'PARTY',
+    variantBlurb: 'Two to four racers on one shared board, a zone each, a cup of rounds.',
+    durationMin: 6, tags: ['skill', 'frantic', 'party'],
+    // N-player race (arrowsPartyLogic.js / RaceShell): one seeded puzzle per
+    // racer drawn on a shared picture, your zone at the bottom. Only clear
+    // events travel (`round/stats/{round}/{uid}/g/{index}`); the cup is 3 / 5 / 7
+    // rounds on 3 / 2 / 1 / 0 points by finish order.
+    custom: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/ArrowsPartyGame')),
+  },
+  {
     type: 'updraft', label: 'UPDRAFT',
     desc: 'race up the same sky tower', Icon: UpdraftIcon,
     badge: 'UD', maxWidth: 'max-w-sm',

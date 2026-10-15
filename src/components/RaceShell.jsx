@@ -43,7 +43,9 @@ import { cn } from '@/lib/utils'
 //   coop?: { won, lost } — round headlines for a co-op race,
 //   maxRacers?, hideClock?, hideLive?, liveCountdown?, decorate?(round, result),
 //   decided?(statsById, racers, { now, round }),
-//   Prefs?: a component with the rider's own device settings, shown in the lobby }
+//   Prefs?: a component with the rider's own device settings, shown in the lobby,
+//   Watcher?: what a spectator or a benched seat sees of the live round (the room's
+//   `round` and the clock), configLocked?(room): true while the host's settings are frozen }
 //
 // A cup game (raceLogic CUP_RACES_BY_GAME) runs a fixed number of rounds ranked
 // on points; its `decorate` hook returns each round's `points` (and any extra
@@ -92,7 +94,7 @@ export default function RaceShell({
   const readySet = new Set(readyIds)
   const iAmReady = readySet.has(mySeat)
   const champions = raceChampions(game)
-  const cupRaces = cupRacesFor(race.type)
+  const cupRaces = cupRacesFor(race.type, game)
   const matchOver = champions.length > 0
 
   const liveRound = status === 'playing' && round?.id && round.gameType === race.type ? round : null
@@ -312,7 +314,7 @@ export default function RaceShell({
   }, [game.raceResult, game.round, players, game.scores, mySeat])
 
   const nameOf = (id) => (players?.[id]?.name || 'PLAYER').toUpperCase()
-  const canEditConfig = !!race.Config && amCoordinator && status !== 'playing' && !matchOver
+  const canEditConfig = !!race.Config && amCoordinator && status !== 'playing' && !matchOver && !race.configLocked?.(game)
   const currentConfig = race.normalizeConfig ? race.normalizeConfig(game?.[race.configKey]) : null
   const settingsPanel = race.Config && (
     <race.Config
@@ -387,6 +389,10 @@ export default function RaceShell({
           <p className="font-pixel text-[9px] text-retro-dim text-center">
             {isSeated ? "YOU'LL RACE NEXT ROUND" : 'SPECTATING'}
           </p>
+        )}
+
+        {!isRacer && race.Watcher && (phase === 'racing' || race.liveCountdown) && (
+          <race.Watcher key={liveRound.id} gameId={gameId} game={game} round={liveRound} goAt={goAt} now={now} phase={phase} />
         )}
 
         {!(race.hideLive && isRacer) && <RaceResults title="LIVE" rows={liveRows} />}
