@@ -51,7 +51,6 @@ export const SCENES = {
   paint: scene('PaintDemo', [key('ArrowUp'), key('ArrowLeft')]),
   pacmac: scene('PacmacDemo', [key('ArrowUp'), key('ArrowRight', 1)], [click('^START$', 0, 3300)]),
   minesweeper: scene('MineRaceDemo', [place('button[aria-label*="hidden"]'), click('FLAG', 2)]),
-  arrows: scene('ArrowsDemo', [place('button[aria-label^="Arrow "]'), place('button[aria-label^="Arrow "]')]),
   airhockey: scene('AirHockeyDemo', [key('ArrowUp'), key('ArrowRight')]),
   artillery: scene('ArtilleryDemo', [click('^FIRE$', 1, 1800), click('^FIRE$', 1, 1800)]),
   archery: scene('ArcheryDemo', [click('LOOSE ARROW', 1, 2000), click('LOOSE ARROW', 1, 2000)], [click('ROOKIE', 0)]),

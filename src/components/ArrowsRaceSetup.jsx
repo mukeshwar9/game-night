@@ -6,6 +6,7 @@ import useBusy from '../hooks/useBusy'
 import useCreateGame from '../hooks/useCreateGame'
 import { useAuth } from '../lib/AuthContext'
 import { ARROWS_DIFFICULTIES, ARROWS_DIFFICULTY_INFO } from '../lib/arrowsLogic'
+import { PARTY_MAX_BOTS, PARTY_TIERS, normalizePartyConfig } from '../lib/arrowsPartyLogic'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { generateGameId } from '../lib/gameLogic'
 import { claimPublicRoom, createPublicRoom, listPublicRoomsOnce } from '../lib/matchmaking'
@@ -34,19 +35,30 @@ function WhoCard({ title, sub, onClick, busy, busyLabel, disabled }) {
   )
 }
 
-export default function ArrowsRaceSetup({ onBot }) {
+export default function ArrowsRaceSetup() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const [difficulty, setDifficulty] = useState('mixed')
+  const [aiCount, setAiCount] = useState(2)
   const [needName, setNeedName] = useState(false)
   const [quickBusy, runQuick] = useBusy()
   const avatar = profile?.avatar || localStorage.getItem('playerAvatar') || defaultAvatarForId(getPlayerId())
   const { createGame, loading } = useCreateGame({ profile, avatar, onMissingName: () => setNeedName(true) })
   const [friendBusy, runFriend] = useBusy()
-  const anyBusy = quickBusy || friendBusy || !!loading
+  const [aiBusy, runAi] = useBusy()
+  const anyBusy = quickBusy || friendBusy || aiBusy || !!loading
   const initial = { arrowsDifficulty: difficulty }
 
   const friend = () => runFriend(() => createGame('arrows', initial))
+
+  // Practice against AI racers: an Arrows Party room with the AIs already in it, so one
+  // player can ready up alone. MIXED has no single tier there, so it starts at medium.
+  const ai = () => runAi(
+    () => createGame('arrowsparty', {
+      arrowsPartyConfig: normalizePartyConfig({ tier: PARTY_TIERS.includes(difficulty) ? difficulty : 'medium', rounds: 3, bots: aiCount }),
+    }),
+    () => toast.error("COULDN'T START — TRY AGAIN"),
+  )
 
   // Same public-room path as PLAY PUBLIC: take the longest-waiting open Arrows
   // room (it keeps its host's setting), else open one at the chosen setting.
@@ -102,7 +114,24 @@ export default function ArrowsRaceSetup({ onBot }) {
         <p className="font-pixel text-[9px] text-retro-dim">WHO ARE YOU RACING?</p>
         <WhoCard title="A FRIEND" sub="private room — share the link" onClick={friend} busy={friendBusy || !!loading} busyLabel="CREATING…" disabled={anyBusy} />
         <WhoCard title="QUICK MATCH" sub="join an open room, or open one at these settings" onClick={quick} busy={quickBusy} busyLabel="FINDING…" disabled={anyBusy} />
-        <WhoCard title="A BOT" sub="practice on this device" onClick={() => onBot(difficulty)} disabled={anyBusy} />
+        <WhoCard title="AI RACERS" sub={`${aiCount} AI${aiCount === 1 ? '' : 'S'} in ARROWS PARTY — race alone, a 3-round cup`} onClick={ai} busy={aiBusy || !!loading} busyLabel="CREATING…" disabled={anyBusy} />
+        <div className="flex items-center gap-2" role="group" aria-label="How many AI racers">
+          <span className="font-pixel text-[8px] text-retro-dim">HOW MANY AIS</span>
+          {Array.from({ length: PARTY_MAX_BOTS }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              onClick={() => setAiCount(n)}
+              aria-pressed={aiCount === n}
+              aria-label={`${n} AI racer${n === 1 ? '' : 's'}`}
+              className={cn(
+                'min-h-9 min-w-9 rounded border font-pixel text-[10px] transition press',
+                aiCount === n ? 'border-retro-cta bg-retro-tint-cta text-retro-cta' : 'border-retro-border text-retro-dim hover:border-retro-cta/50',
+              )}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

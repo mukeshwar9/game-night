@@ -3,7 +3,8 @@
 // pick the difficulty in the lobby, race the same seeded puzzle (the spec reads
 // the seed from the emulator and solves it with the page's own pure logic),
 // see each other's progress on their own screens, and the cup scores finish
-// order. A second spec turns SABOTAGE on and checks a crate lands on the leader.
+// order. A second spec turns SABOTAGE on and checks a crate lands on the leader;
+// a third races one player against two AI racers.
 import { test, expect } from '@playwright/test'
 import { ROOM_URL, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
 import { DB_ORIGIN } from './emulator.js'
@@ -80,7 +81,7 @@ test('three phones race one puzzle: setup, rival progress, a freeze, finish orde
   const racers = Object.keys(room.round.racers).sort()
   expect(racers).toHaveLength(3)
   expect(room.round.tier).toBe('easy')
-  expect(room.arrowsPartyConfig).toEqual({ version: 1, tier: 'easy', rounds: 5, sabotage: false })
+  expect(room.arrowsPartyConfig).toEqual({ version: 1, tier: 'easy', rounds: 5, sabotage: false, bots: 0 })
   const base = partyLevel(room.round.seed, 3, 'easy')
   const per = base.arrows.length
   const { order } = solveArrows(base)
@@ -193,4 +194,58 @@ test('sabotage: a trailing racer\'s streak drops a crate on the leader', async (
   expectNoPageErrors(alice, bob)
   await alice.context.close()
   await bob.context.close()
+})
+
+test('AI racers: one player starts a cup alone against two AIs, who race, finish and score', async ({ browser }) => {
+  const alice = await newPlayer(browser)
+
+  await test.step('the host picks two AIs and starts alone', async () => {
+    await onboard(alice.page, 'Alice')
+    await openParty(alice.page)
+    await expect(alice.page.getByText(/^PLAYERS \(1\)/)).toBeVisible()
+    await alice.page.getByRole('button', { name: /^EASY/ }).click()
+    await alice.page.getByRole('group', { name: 'AI racers' }).getByRole('button', { name: '2 AI racers' }).click()
+    await expect(alice.page.getByRole('button', { name: '2 AI racers' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(alice.page.getByRole('list', { name: 'AI racers' }).getByText('AI 1')).toBeVisible()
+    await expect(alice.page.getByRole('list', { name: 'AI racers' }).getByText('AI 2')).toBeVisible()
+    await startRound([alice])
+  })
+
+  const room = await readRoom(alice.page.url())
+  const rid = room.round.id
+  const aliceUid = uidOf(room, 'Alice')
+  expect(room.round.bots).toBe(2)
+  expect(room.round.botHost).toBe(aliceUid)
+  const racers = Object.keys(room.round.racers).sort()
+  expect(racers).toEqual([aliceUid, 'bot1', 'bot2'].sort())
+  const base = partyLevel(room.round.seed, 3, 'easy')
+  const per = base.arrows.length
+  const { order } = solveArrows(base)
+
+  await test.step('the AIs appear in the tiles and start clearing on their own', async () => {
+    await expect(alice.page.getByRole('list', { name: 'Racers' }).getByText('AI 1')).toBeVisible({ timeout: 20_000 })
+    await expect.poll(async () => Object.keys((await readRoom(alice.page.url())).round.stats?.[rid]?.bot1?.g ?? {}).length, { timeout: 30_000 }).toBeGreaterThan(0)
+  })
+
+  await test.step('Alice clears her zone first; the AIs keep going until they finish', async () => {
+    await expect.poll(() => alice.page.getByRole('button', { name: /^Arrow \d+,/ }).count(), { timeout: 20_000 }).toBeGreaterThan(0)
+    await clear(alice.page, { order, per, seat: racers.indexOf(aliceUid) })
+    await expect.poll(async () => (await readRoom(alice.page.url())).round.stats?.[rid]?.[aliceUid]?.fin).toBeGreaterThan(0)
+  })
+
+  await test.step('the round ranks all three: Alice first, the AIs scored on the cup', async () => {
+    await expect.poll(async () => (await readRoom(alice.page.url())).status, { timeout: 120_000, intervals: [1000] }).toBe('finished')
+    const done = await readRoom(alice.page.url())
+    expect(done.raceResult.order[0]).toBe(aliceUid)
+    expect(done.raceResult.order).toHaveLength(3)
+    expect(done.raceResult.points[aliceUid]).toBe(2)
+    expect(done.scores[aliceUid]).toBe(2)
+    expect(Object.keys(done.scores).sort()).toEqual(racers)
+    expect(done.cupRaces).toBe(1)
+    await expect(alice.page.getByRole('list', { name: 'Race results' }).getByText('AI 1')).toBeVisible()
+    await expect(alice.page.getByRole('button', { name: /^NEXT RACE/ })).toBeVisible()
+  })
+
+  expectNoPageErrors(alice)
+  await alice.context.close()
 })

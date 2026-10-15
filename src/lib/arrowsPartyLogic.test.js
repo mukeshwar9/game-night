@@ -9,6 +9,7 @@ import {
   formatPartyTime, normalizePartyConfig, DEFAULT_PARTY_CONFIG, clampPartyPlayers, describePartyConfig,
   withPartyCrates, SABOTAGE_CLEARS, PARTY_MAX_DROPS, dropValue, parseDrop, normalizeDrops, dropTarget,
   placeCrate, partyCrates,
+  PARTY_MAX_BOTS, BOT_SPEEDS, PARTY_FREEZE_MS, PARTY_LIVES, isBotId, botName, botIdsFor, botTimeline, botPatch,
 } from './arrowsPartyLogic'
 
 const SEEDS = Array.from({ length: 24 }, (_, i) => 1000 + i * 7919)
@@ -394,7 +395,7 @@ describe('racer stats', () => {
 describe('config', () => {
   it('defaults and coerces', () => {
     expect(normalizePartyConfig(undefined)).toEqual(DEFAULT_PARTY_CONFIG)
-    expect(normalizePartyConfig({ tier: 'hard', rounds: 7, sabotage: true })).toEqual({ version: 1, tier: 'hard', rounds: 7, sabotage: true })
+    expect(normalizePartyConfig({ tier: 'hard', rounds: 7, sabotage: true })).toEqual({ version: 1, tier: 'hard', rounds: 7, sabotage: true, bots: 0, botSpeed: null })
     expect(normalizePartyConfig({ tier: 'mixed', rounds: 4, sabotage: 'yes' })).toEqual(DEFAULT_PARTY_CONFIG)
     expect(PARTY_ROUND_CHOICES).toEqual([3, 5, 7])
   })
@@ -600,5 +601,147 @@ describe('sabotage: crates on the shared picture', () => {
     expect(withIt.level.arrows).toBe(pic.level.arrows)
     expect(withIt.level.mask).toBe(pic.level.mask)
     expect(withPartyCrates(withIt, {}).level.crates).toBeUndefined()
+  })
+})
+
+describe('config: AI racers', () => {
+  it('coerces the AI count and speed', () => {
+    expect(normalizePartyConfig({ bots: 2, botSpeed: 'hard' })).toMatchObject({ bots: 2, botSpeed: 'hard' })
+    expect(normalizePartyConfig({ bots: 9 }).bots).toBe(PARTY_MAX_BOTS)
+    expect(normalizePartyConfig({ bots: -2 }).bots).toBe(0)
+    expect(normalizePartyConfig({ bots: 'x', botSpeed: 'turbo' })).toMatchObject({ bots: 0, botSpeed: null })
+    expect(describePartyConfig(normalizePartyConfig({ bots: 2 }))).toContain('2 AI')
+  })
+})
+
+describe('AI racers: seats', () => {
+  it('knows bot ids and names', () => {
+    expect(['bot1', 'bot2', 'bot3'].every(isBotId)).toBe(true)
+    expect(['bot0', 'bot4', 'alice'].some(isBotId)).toBe(false)
+    expect(botName('bot2')).toBe('AI 2')
+  })
+
+  it('fills empty seats up to four racers, never more than asked', () => {
+    expect(botIdsFor(1, 3)).toEqual(['bot1', 'bot2', 'bot3'])
+    expect(botIdsFor(1, 1)).toEqual(['bot1'])
+    expect(botIdsFor(2, 3)).toEqual(['bot1', 'bot2'])
+    expect(botIdsFor(3, 3)).toEqual(['bot1'])
+    expect(botIdsFor(4, 3)).toEqual([])
+    expect(botIdsFor(2, 0)).toEqual([])
+    expect(botIdsFor(1, 9)).toHaveLength(3)
+    expect(botIdsFor(1, 'two')).toEqual([])
+    expect(botIdsFor(0, 3)).toHaveLength(3)
+  })
+
+  it('bots take no crates and send none', () => {
+    const st = [{ uid: 'a', cleared: 2, done: false }, { uid: 'bot1', cleared: 9, done: false }, { uid: 'b', cleared: 5, done: false }]
+    expect(dropTarget({ standings: st, from: 'a' })).toBe('b')
+    expect(dropTarget({ standings: [{ uid: 'bot1', cleared: 1, done: false }, { uid: 'b', cleared: 5, done: false }], from: 'bot1' })).toBeNull()
+    const raw = { b: { 0: '3|r1|bot1' }, bot1: { 0: '3|r1|b' } }
+    expect(normalizeDrops(raw, { roundId: 'r1', racers: ['b', 'bot1'] })).toEqual({})
+  })
+})
+
+describe('AI racers: a run is a fixed timeline', () => {
+  const run = (n, tier, speed, seed, slot = 1) => {
+    const base = partyLevel(seed, n, tier)
+    return { base, events: botTimeline({ base, seed, slot, speed, lives: n <= 2 }) }
+  }
+
+  it('is deterministic and differs by slot', () => {
+    const a = run(3, 'medium', 'medium', 77, 1)
+    expect(run(3, 'medium', 'medium', 77, 1).events).toEqual(a.events)
+    expect(run(3, 'medium', 'medium', 77, 2).events).not.toEqual(a.events)
+  })
+
+  it('plays only legal taps in order: every clear was open, and a finished bot cleared its whole zone', () => {
+    for (const n of [3, 4]) {
+      for (const seed of SEEDS.slice(0, 10)) {
+        const { base, events } = run(n, 'hard', 'hard', seed)
+        let gone = Array(base.arrows.length).fill(false)
+        let last = 0
+        for (const e of events) {
+          expect(e.at).toBeGreaterThanOrEqual(last)
+          last = e.at
+          if (e.type === 'clear') {
+            const r = applyArrowTap(base, gone, PARTY_LIVES, e.index)
+            expect(r.result).toBe('cleared')
+            gone = r.gone
+          }
+        }
+        expect(events.at(-1).type).toBe('fin')
+        expect(countGone(gone)).toBe(base.arrows.length)
+        expect(events.filter((e) => e.type === 'fin')).toHaveLength(1)
+      }
+    }
+  })
+
+  it('keeps the old practice bot\'s beat: one tap about every beat, slower on easy than hard', () => {
+    const mean = (speed) => {
+      let total = 0
+      let taps = 0
+      for (const seed of SEEDS) {
+        const { events } = run(3, 'medium', speed, seed)
+        const clears = events.filter((e) => e.type === 'clear')
+        taps += clears.length
+        total += clears.at(-1).at
+      }
+      return total / taps
+    }
+    const easy = mean('easy')
+    const hard = mean('hard')
+    expect(easy).toBeGreaterThan(hard)
+    expect(BOT_SPEEDS.easy.beatMs).toBe(1700)
+    expect(BOT_SPEEDS.hard.beatMs).toBe(1300)
+    // freezes add time, so the mean per tap stays within a beat plus its share of freezes
+    expect(easy).toBeGreaterThan(BOT_SPEEDS.easy.beatMs * 0.75)
+    expect(easy).toBeLessThan(BOT_SPEEDS.easy.beatMs + 700)
+    expect(hard).toBeGreaterThan(BOT_SPEEDS.hard.beatMs * 0.75)
+  })
+
+  it('a miss with three or four racers freezes the bot for the freeze time', () => {
+    let seen = 0
+    for (const seed of SEEDS) {
+      const { events } = run(3, 'hard', 'easy', seed)
+      events.forEach((e, i) => {
+        if (e.type !== 'miss') return
+        const next = events[i + 1]
+        if (next) { seen += 1; expect(next.at - e.at).toBeGreaterThanOrEqual(PARTY_FREEZE_MS + BOT_SPEEDS.easy.beatMs * 0.75 - 1) }
+      })
+    }
+    expect(seen).toBeGreaterThan(0)
+  })
+
+  it('with two racers a bot spends lives and is out on the third miss', () => {
+    let outs = 0
+    for (let seed = 1; seed <= 400; seed += 1) {
+      const base = partyLevel(seed, 2, 'hard')
+      const events = botTimeline({ base, seed, slot: 1, speed: 'easy', lives: true })
+      const misses = events.filter((e) => e.type === 'miss').length
+      expect(misses).toBeLessThanOrEqual(PARTY_LIVES)
+      if (events.at(-1).type === 'out') {
+        outs += 1
+        expect(misses).toBe(PARTY_LIVES)
+        expect(events.some((e) => e.type === 'fin')).toBe(false)
+      } else {
+        expect(events.at(-1).type).toBe('fin')
+      }
+    }
+    expect(outs).toBeGreaterThan(0)
+  })
+
+  it('botPatch turns the due part of a timeline into a stats update', () => {
+    const base = partyLevel(5, 3, 'easy')
+    const events = botTimeline({ base, seed: 5, slot: 1, speed: 'medium', lives: false })
+    expect(botPatch(events, 0)).toEqual({})
+    const first = events.find((e) => e.type === 'clear')
+    expect(botPatch(events, first.at)).toMatchObject({ [`g/${first.index}`]: true })
+    const all = botPatch(events, events.at(-1).at)
+    expect(all.fin).toBe(events.at(-1).at)
+    expect(Object.keys(all).filter((k) => k.startsWith('g/'))).toHaveLength(base.arrows.length)
+    // a stats node built from it reads back as a finished racer
+    const node = { g: Object.fromEntries(Object.keys(all).filter((k) => k.startsWith('g/')).map((k) => [k.slice(2), true])), fin: all.fin, m: all.m }
+    expect(partyIsDone(node)).toBe(true)
+    expect(normalizePartyStats(node, base.arrows.length).cleared).toBe(base.arrows.length)
   })
 })

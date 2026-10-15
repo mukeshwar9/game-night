@@ -12,8 +12,10 @@ import {
   PARTY_ROUND_MS, PARTY_FREEZE_MS, PARTY_LIVES, PARTY_LAYOUT_INFO, SABOTAGE_STREAK, SABOTAGE_CLEARS,
   partyTier, partyLevel, buildPartyPicture, withPartyCrates, pictureGone, normalizePartyStats, partyIsDone, partyEntry,
   partyLiveKey, partyUsesLives, partyLivesLeft, formatPartyTime, normalizePartyConfig, describePartyConfig,
-  normalizeDrops, dropTarget, dropValue, partyCrates,
+  normalizeDrops, dropTarget, dropValue, partyCrates, botIdsFor, botName, botTimeline, botPatch, isBotId,
 } from '../lib/arrowsPartyLogic'
+import { roomCoordinator } from '../lib/coordinator'
+import { defaultAvatarForId } from '../lib/avatarKit'
 import { melodicNote } from '../lib/arrowsSoundLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -46,6 +48,7 @@ function puzzleFor(seed, n, tier) {
   }
   return hit
 }
+const nameFor = (players, uid, fallback = 'PLAYER') => (isBotId(uid) ? botName(uid) : (players?.[uid]?.name || fallback)).toUpperCase()
 const roundPuzzle = (round) => puzzleFor(round.seed, round.racers.length, partyTier(round.raw?.tier))
 
 const RACE = {
@@ -76,7 +79,17 @@ const RACE = {
   configLocked: (game) => Number(game?.cupRaces) > 0,
   durationMs: (cur, config) => PARTY_ROUND_MS[partyTier(config?.tier)],
   // The round locks its own difficulty, so a later settings edit never reshapes a live round.
-  start: (cur, seed, config) => ({ extras: { tier: partyTier(config?.tier), sab: config?.sabotage === true } }),
+  // AI racers fill empty seats (up to four racers in all); their speed defaults to the room difficulty.
+  botsFor: (room, config, humans) => botIdsFor(humans, config?.bots),
+  botName,
+  botAvatar: (id) => defaultAvatarForId(`arrowsparty-${id}`),
+  start: (cur, seed, config, { bots = [] } = {}) => ({
+    extras: {
+      tier: partyTier(config?.tier),
+      sab: config?.sabotage === true,
+      ...(bots.length ? { bots: bots.length, botSpeed: config?.botSpeed ?? partyTier(config?.tier), botHost: roomCoordinator(cur.players, cur.hostUid ?? null) } : {}),
+    },
+  }),
   entry: (stats) => partyEntry(stats),
   isDone: partyIsDone,
   liveKey: (stats, round) => (round?.id ? partyLiveKey(stats, roundPuzzle(round).per) : null),
@@ -115,9 +128,9 @@ function Legend({ racers, players, mySeat, perSeat, stats, per, lives, myMisses 
         const cleared = uid === mySeat ? countGone(perSeat[seat]) : s.cleared
         const tone = TONES[seat]
         return (
-          <li key={uid} className={cn('flex items-center gap-1', TONE_TEXT[tone], players?.[uid] && players[uid].online === false && 'opacity-50')}>
+          <li key={uid} className={cn('flex items-center gap-1', TONE_TEXT[tone], !isBotId(uid) && players?.[uid] && players[uid].online === false && 'opacity-50')}>
             <span aria-hidden="true">●</span>
-            <span className="max-w-[72px] truncate">{uid === mySeat ? 'YOU' : (players?.[uid]?.name || 'PLAYER').toUpperCase()}</span>
+            <span className="max-w-[72px] truncate">{uid === mySeat ? 'YOU' : nameFor(players, uid)}</span>
             <span className="tabular-nums text-retro-dim">{s.fin != null ? formatPartyTime(s.fin) : `${cleared}/${per}`}</span>
             {lives && <Lives n={partyLivesLeft(uid === mySeat ? myMisses : s.misses)} size="sm" />}
           </li>
@@ -180,7 +193,7 @@ function PartyRacer({ gameId, game, round, mySeat, myStats, statsPath, goAt, pha
   useEffect(() => {
     if (incoming > seenIncoming.current) {
       const last = drops[mySeat][incoming - 1]
-      setNotice({ text: `CRATE FROM ${(game.players?.[last.from]?.name || 'A RIVAL').toUpperCase()}`, bad: true })
+      setNotice({ text: `CRATE FROM ${nameFor(game.players, last.from, 'A RIVAL')}`, bad: true })
     }
     seenIncoming.current = incoming
   }, [incoming]) // eslint-disable-line react-hooks/exhaustive-deps -- fires on a new drop only
@@ -189,6 +202,32 @@ function PartyRacer({ gameId, game, round, mySeat, myStats, statsPath, goAt, pha
     const id = setTimeout(() => setNotice(null), 3200)
     return () => clearTimeout(id)
   }, [notice])
+
+  // The room host's phone plays the AI racers: each bot's run is a fixed timeline
+  // (botTimeline), written to its own stats node as the server clock passes each event.
+  const botIds = racers.filter(isBotId)
+  const botSpeed = round.raw?.botSpeed
+  const playsBots = botIds.length > 0 && round.raw?.botHost === mySeat
+  const timelines = useMemo(
+    () => (playsBots ? botIds.map((id) => botTimeline({ base, seed: round.seed, slot: racers.indexOf(id), speed: botSpeed, lives: usesLives })) : []),
+    [playsBots, base, round.seed, botSpeed, usesLives, racersKey], // eslint-disable-line react-hooks/exhaustive-deps -- botIds/racers follow racersKey
+  )
+  useEffect(() => {
+    if (!playsBots || phase !== 'racing') return undefined
+    const sent = timelines.map(() => 0)
+    const flush = () => {
+      const elapsed = getServerNow() - goAt
+      timelines.forEach((events, k) => {
+        const due = events.filter((e) => e.at <= elapsed).length
+        if (due <= sent[k]) return
+        sent[k] = due
+        update(ref(db, `games/${gameId}/round/stats/${round.id}/${botIds[k]}`), botPatch(events, elapsed)).catch(() => { sent[k] = 0 })
+      })
+    }
+    flush()
+    const id = setInterval(flush, 200)
+    return () => clearInterval(id)
+  }, [playsBots, phase, timelines, goAt, gameId, round.id]) // eslint-disable-line react-hooks/exhaustive-deps -- botIds follow racersKey
 
   const livesLeft = partyLivesLeft(misses)
   const knockedOut = usesLives && livesLeft <= 0
@@ -222,7 +261,7 @@ function PartyRacer({ gameId, game, round, mySeat, myStats, statsPath, goAt, pha
     const at = standings.find((r) => r.uid === target).cleared
     // Write-once: a clash with another sender for the same slot is simply refused.
     update(ref(db, `games/${gameId}/round/drops/${target}`), { [slot]: dropValue(at, round.id, mySeat) })
-      .then(() => setNotice({ text: `CRATE SENT TO ${(game.players?.[target]?.name || 'THE LEADER').toUpperCase()}`, bad: false }))
+      .then(() => setNotice({ text: `CRATE SENT TO ${nameFor(game.players, target, 'THE LEADER')}`, bad: false }))
       .catch(() => {})
   }
 

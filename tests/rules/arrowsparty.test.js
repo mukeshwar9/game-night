@@ -186,6 +186,66 @@ describe('ARROWS PARTY crate drops', () => {
   })
 })
 
+describe('ARROWS PARTY AI racers', () => {
+  const botRoom = (extra = {}) => room({
+    round: {
+      id: 'r1', gameType: 'arrowsparty', seed: 5, startedAt: 1000, endsAt: 121000, tier: 'medium', bots: 2, botSpeed: 'easy', botHost: 'alice',
+      racers: { alice: true, bot1: true, bot2: true },
+    },
+    ...extra,
+  })
+
+  it('only the round\'s bot host writes a bot seat\'s clears, misses, finish and knock-out', async () => {
+    await put(botRoom())
+    await assertSucceeds(as('alice').ref(`${stats('bot1')}/g/0`).set(true))
+    await assertSucceeds(as('alice').ref(stats('bot2')).update({ 'g/1': true, m: 1, fin: 21000 }))
+    await assertSucceeds(as('alice').ref(`${stats('bot1')}/x`).set(1))
+    await assertFails(as('bob').ref(`${stats('bot1')}/g/1`).set(true))
+    await assertFails(as('bob').ref(`${stats('bot2')}/fin`).set(5000))
+    await assertFails(as('carol').ref(`${stats('bot1')}/m`).set(1))
+    await assertFails(as('mallory').ref(`${stats('bot1')}/g/2`).set(true))
+  })
+
+  it('a bot seat still follows the same shape: write-once clears, a rising miss count, no strangers', async () => {
+    await put(botRoom())
+    await assertSucceeds(as('alice').ref(`${stats('bot1')}/g/3`).set(true))
+    await assertFails(as('alice').ref(`${stats('bot1')}/g/3`).set(false))
+    await assertFails(as('alice').ref(`${stats('bot1')}/g/100`).set(true))
+    await assertSucceeds(as('alice').ref(`${stats('bot1')}/m`).set(2))
+    await assertFails(as('alice').ref(`${stats('bot1')}/m`).set(1))
+    await assertFails(as('alice').ref(`${stats('bot1')}/cheat`).set(1))
+    await assertFails(as('alice').ref(`${stats('bot9')}/g/0`).set(true))
+  })
+
+  it('a round with no bot host lets nobody write a bot seat', async () => {
+    await put(botRoom({ round: { id: 'r1', gameType: 'arrowsparty', seed: 5, startedAt: 1000, endsAt: 121000, racers: { alice: true, bot1: true } } }))
+    await assertFails(as('alice').ref(`${stats('bot1')}/g/0`).set(true))
+  })
+
+  it('a whole-room transaction by another seat rewrites the room with bot stats already in it', async () => {
+    const r = botRoom()
+    r.round.stats = { r1: { alice: { g: { 0: true } }, bot1: { g: { 0: true, 1: true }, m: 1 }, bot2: { fin: 30000, g: { 0: true } } } }
+    await put(r)
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...r, lastActivityAt: 9 }))
+  })
+
+  it('no crate is ever dropped on a bot', async () => {
+    await put(botRoom())
+    await assertFails(as('alice').ref('games/g1/round/drops/bot1/0').set('2|r1|alice'))
+  })
+
+  it('the round\'s bot facts and the host\'s AI picks are checked', async () => {
+    await put(botRoom())
+    await assertSucceeds(as('alice').ref('games/g1/round/botSpeed').set('hard'))
+    await assertFails(as('alice').ref('games/g1/round/botSpeed').set('insane'))
+    await assertFails(as('alice').ref('games/g1/round/bots').set(4))
+    await assertFails(as('alice').ref('games/g1/round/bots').set(0))
+    await assertSucceeds(as('alice').ref('games/g1/arrowsPartyConfig').set({ ...config, bots: 3, botSpeed: 'medium' }))
+    await assertFails(as('alice').ref('games/g1/arrowsPartyConfig').set({ ...config, bots: 4 }))
+    await assertFails(as('alice').ref('games/g1/arrowsPartyConfig').set({ ...config, bots: 1, botSpeed: 'turbo' }))
+  })
+})
+
 describe('ARROWS PARTY cup', () => {
   it('lets a seat finish a round: points by finish order added to the scores, the round counted', async () => {
     const live = room()

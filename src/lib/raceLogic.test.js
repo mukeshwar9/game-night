@@ -5,7 +5,7 @@ import {
   racePhase, raceGoAt, rankRace, placementPoints, raceWinners, buildRaceResult,
   applyRaceFinish, matchChampions, canEndRace, allReady, rosterForStart, ordinal,
   normalizeRaceResult, seededFraction, newRaceSeed, isMatchOver,
-  startRaceRound, toggleRaceReady, finishRaceRound, tiedIds, raceChampions, cupRacesFor, CUP_RACES_BY_GAME,
+  startRaceRound, toggleRaceReady, finishRaceRound, tiedIds, raceChampions, cupRacesFor, CUP_RACES_BY_GAME, isBotRacer,
 } from './raceLogic'
 
 const seat = (id, joinedAt, online = true) => ({ name: id.toUpperCase(), playerId: id, joinedAt, online })
@@ -453,6 +453,55 @@ describe('a cup whose length the host picks (ARROWS PARTY)', () => {
     // 3 racers: 2 / 1 / 0 by finish order.
     expect(next.scores).toEqual({ a: 3, b: 2, c: 0 })
     expect(isMatchOver(next)).toBe(false)
+  })
+})
+
+describe('AI racers fill seats', () => {
+  const solo = (o = {}) => room({ gameType: 'arrowsparty', players: { a: seat('a', 1) }, ...o })
+  const params = { gameType: 'arrowsparty', starterId: 'a', now: 1000, id: 'r1', seed: 9, durationMs: 60_000, force: true }
+
+  it('knows bot ids', () => {
+    expect(['bot1', 'bot2', 'bot3'].every(isBotRacer)).toBe(true)
+    expect(['bot0', 'bot4', 'bob', 'a'].some(isBotRacer)).toBe(false)
+  })
+
+  it('one human is enough to be ready when bots make up the field', () => {
+    expect(allReady({ a: seat('a', 1) }, ['a'])).toBe(false)
+    expect(allReady({ a: seat('a', 1) }, ['a'], 1)).toBe(true)
+    expect(allReady({ a: seat('a', 1) }, [], 1)).toBe(false)
+    expect(allReady({}, [], 2)).toBe(false)
+  })
+
+  it('a solo player starts a round against bots; the bots are racers of the round', () => {
+    const live = startRaceRound(solo(), { ...params, bots: ['bot1', 'bot2'] })
+    expect(live.status).toBe('playing')
+    expect(Object.keys(live.round.racers).sort()).toEqual(['a', 'bot1', 'bot2'])
+    expect(normalizeRaceRound(live.round).racers).toEqual(['a', 'bot1', 'bot2'])
+  })
+
+  it('refuses a lone human with no bots, and a start with bots but no human', () => {
+    expect(startRaceRound(solo(), params)).toBeUndefined()
+    expect(startRaceRound(solo({ players: {} }), { ...params, starterId: null, bots: ['bot1', 'bot2'] })).toBeUndefined()
+  })
+
+  it('ready flow without force needs the bots to count', () => {
+    const lobby = solo({ round: { ready: { a: true } } })
+    expect(startRaceRound(lobby, { ...params, force: false })).toBeUndefined()
+    expect(startRaceRound(lobby, { ...params, force: false, bots: ['bot1'] }).status).toBe('playing')
+  })
+
+  it('never seats more racers than maxRacers, humans first; ignores ids that are not bots', () => {
+    const four = solo({ players: { a: seat('a', 1), b: seat('b', 2), c: seat('c', 3) } })
+    const live = startRaceRound(four, { ...params, maxRacers: 4, bots: ['bot1', 'bot2', 'bot3', 'mallory'] })
+    expect(Object.keys(live.round.racers).sort()).toEqual(['a', 'b', 'bot1', 'c'])
+  })
+
+  it('a finished round ranks bots with the humans and scores the cup on every seat', () => {
+    const live = startRaceRound(solo({ arrowsPartyConfig: { rounds: 3 } }), { ...params, bots: ['bot1', 'bot2'] })
+    const stats = { a: { done: true, v: 5 }, bot1: { done: true, v: 9 }, bot2: { done: true, v: 1 } }
+    const next = finishRaceRound({ ...live, round: { ...live.round, stats: { r1: stats } } }, { gameType: 'arrowsparty', roundId: 'r1', now: 5000, entryOf, isDone })
+    expect(next.raceResult.order).toEqual(['bot1', 'a', 'bot2'])
+    expect(next.scores).toEqual({ bot1: 2, a: 1, bot2: 0 })
   })
 })
 

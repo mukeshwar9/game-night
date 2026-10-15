@@ -15,7 +15,7 @@
 // racer's cleared set is `round/stats/{round}/{uid}/g/{index within zone}`.
 import {
   ARROWS_DIRS, ARROWS_LIVES, ARROWS_TIER_SPECS, generateArrowsLevel, normalizeGone, countGone,
-  arrowRoute, seededRng, solveArrows,
+  arrowRoute, seededRng, solveArrows, applyArrowTap,
 } from './arrowsLogic'
 
 export const PARTY_TIERS = ['easy', 'medium', 'hard']
@@ -263,7 +263,8 @@ export function parseDrop(value) {
 export function normalizeDrops(raw, { roundId, racers }) {
   const out = {}
   if (!raw || typeof raw !== 'object') return out
-  const allowed = new Set(racers)
+  // Bots neither send nor receive crates.
+  const allowed = new Set(racers.filter((id) => !isBotId(id)))
   for (const [victim, list] of Object.entries(raw)) {
     if (!allowed.has(victim) || !list || typeof list !== 'object') continue
     const rows = []
@@ -288,10 +289,10 @@ export function normalizeDrops(raw, { roundId, racers }) {
  */
 export function dropTarget({ standings, from, used = {} }) {
   const me = standings.find((r) => r.uid === from)
-  if (!me || me.done) return null
+  if (!me || me.done || isBotId(from)) return null
   let best = null
   for (const r of standings) {
-    if (r.uid === from || r.done || r.cleared <= me.cleared) continue
+    if (r.uid === from || r.done || isBotId(r.uid) || r.cleared <= me.cleared) continue
     if ((used[r.uid] ?? 0) >= PARTY_MAX_DROPS) continue
     if (!best || r.cleared > best.cleared) best = r
   }
@@ -363,6 +364,97 @@ export function partyCrates({ base, seed, seat, drops }) {
   return crates
 }
 
+// ── AI racers ───────────────────────────────────────────────────────────
+//
+// The host can fill empty seats (up to PARTY_MAX_PLAYERS in all) with AI racers
+// `bot1`..`bot3`. A bot is a racer like any other: it sits in `round/racers`, has
+// its own zone and writes the same `round/stats/{round}/{bot}` paths. Its whole run
+// is a pure function of the puzzle (`botTimeline`), so it is the same for anyone who
+// computes it; the room host's phone plays the timeline out against the server clock
+// (rules let only `round/botHost` write a bot's stats).
+export const PARTY_MAX_BOTS = PARTY_MAX_PLAYERS - 1
+/** Beat length per bot speed (ms between taps, before jitter) and its chance of tapping a blocked arrow. */
+export const BOT_SPEEDS = {
+  easy: { beatMs: 1700, fumble: 0.1 },
+  medium: { beatMs: 1500, fumble: 0.07 },
+  hard: { beatMs: 1300, fumble: 0.04 },
+}
+export const BOT_NAME_PREFIX = 'AI'
+
+export const isBotId = (id) => /^bot[1-3]$/.test(String(id))
+export const botName = (id) => `${BOT_NAME_PREFIX} ${String(id).slice(3)}`
+
+/** Bot seat ids for a room: as many as asked, never past the seat limit. */
+export function botIdsFor(humans, wanted) {
+  const free = Math.max(0, PARTY_MAX_PLAYERS - Math.max(0, Math.floor(humans)))
+  const n = Math.min(PARTY_MAX_BOTS, free, Math.max(0, Math.floor(Number(wanted)) || 0))
+  return Array.from({ length: n }, (_, i) => `bot${i + 1}`)
+}
+
+/**
+ * A bot's whole run on the zone board `base`, as events in time order:
+ * `{ at, type: 'clear', index }`, `{ at, type: 'miss' }`, then `{ at, type: 'fin' }`
+ * once the zone is clear, or `{ at, type: 'out' }` when a two-racer round takes the
+ * last life. `at` is ms from the go signal. One tap per beat on its own zone, a
+ * blocked arrow now and then (a life with two racers, a PARTY_FREEZE_MS freeze with
+ * more), exactly like a rival hand: the old practice bot, made deterministic.
+ * @param {{ base: any, seed: number, slot: number, speed: string, lives: boolean }} p
+ */
+export function botTimeline({ base, seed, slot, speed, lives }) {
+  const spec = BOT_SPEEDS[partyTier(speed)]
+  const rng = seededRng((Number(seed) ^ Math.imul(slot + 1, 0x2545f491) ^ 0x9e3779b9) >>> 0)
+  const per = base.arrows.length
+  let gone = Array(per).fill(false)
+  let misses = 0
+  let t = 0
+  const events = []
+  for (let guard = 0; guard < per * 40; guard += 1) {
+    t += Math.round(spec.beatMs * (0.75 + rng() * 0.5))
+    const open = []
+    const shut = []
+    for (let i = 0; i < per; i += 1) {
+      if (gone[i]) continue
+      const r = applyArrowTap(base, gone, PARTY_LIVES, i)
+      ;(r.result === 'cleared' ? open : shut).push(i)
+    }
+    const fumble = shut.length > 0 && rng() < spec.fumble
+    if (fumble) {
+      misses += 1
+      events.push({ at: t, type: 'miss' })
+      if (lives && misses >= PARTY_LIVES) {
+        events.push({ at: t, type: 'out' })
+        return events
+      }
+      if (!lives) t += PARTY_FREEZE_MS
+      continue
+    }
+    const index = open[Math.floor(rng() * open.length)]
+    gone = gone.slice()
+    gone[index] = true
+    events.push({ at: t, type: 'clear', index })
+    if (countGone(gone) >= per) {
+      events.push({ at: t, type: 'fin' })
+      return events
+    }
+  }
+  return events
+}
+
+/** What a bot's stats node should hold once `elapsed` ms of its timeline have passed: an `update` patch against nothing written yet. */
+export function botPatch(events, elapsed) {
+  const patch = {}
+  let misses = 0
+  for (const e of events) {
+    if (e.at > elapsed) break
+    if (e.type === 'clear') patch[`g/${e.index}`] = true
+    else if (e.type === 'miss') misses += 1
+    else if (e.type === 'fin') patch.fin = Math.max(1, e.at)
+    else if (e.type === 'out') patch.x = 1
+  }
+  if (misses) patch.m = misses
+  return patch
+}
+
 // ── stats, ranking, config ──────────────────────────────────────────────
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null)
@@ -423,7 +515,7 @@ export function formatPartyTime(ms) {
   return m > 0 ? `${m}:${s.toFixed(1).padStart(4, '0')}` : `${s.toFixed(1)}s`
 }
 
-export const DEFAULT_PARTY_CONFIG = { version: 1, tier: 'medium', rounds: 3, sabotage: false }
+export const DEFAULT_PARTY_CONFIG = { version: 1, tier: 'medium', rounds: 3, sabotage: false, bots: 0, botSpeed: null }
 
 /** The room's `arrowsPartyConfig`, with every field coerced into range. */
 export function normalizePartyConfig(raw) {
@@ -433,9 +525,12 @@ export function normalizePartyConfig(raw) {
     tier: partyTier(r.tier),
     rounds: PARTY_ROUND_CHOICES.includes(Number(r.rounds)) ? Number(r.rounds) : DEFAULT_PARTY_CONFIG.rounds,
     sabotage: r.sabotage === true,
+    bots: Math.min(PARTY_MAX_BOTS, Math.max(0, Math.floor(Number(r.bots)) || 0)),
+    // null = the bots race at the room's difficulty
+    botSpeed: PARTY_TIERS.includes(r.botSpeed) ? r.botSpeed : null,
   }
 }
 
 export const describePartyConfig = (c) => (
-  `${c.tier.toUpperCase()} · ${c.rounds}-ROUND CUP${c.sabotage ? ' · SABOTAGE' : ''}`
+  `${c.tier.toUpperCase()} · ${c.rounds}-ROUND CUP${c.sabotage ? ' · SABOTAGE' : ''}${c.bots ? ` · ${c.bots} AI` : ''}`
 )

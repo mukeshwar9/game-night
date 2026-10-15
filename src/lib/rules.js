@@ -664,6 +664,7 @@ export const GAME_RULES = {
       'Tap an arrow whose path is clear and it slides off your zone; a blocked arrow stays put. The board can be bigger than your screen: pinch or drag to zoom and move around it.',
       'With two racers a blocked tap costs a life and you have 3; lose them all and you are out of the round. With three or four racers a blocked tap freezes your board for 2 seconds instead.',
       'The host picks the difficulty (easy, medium or hard) and a cup of 3, 5 or 7 rounds before the game starts. A round is over when everyone has finished or the clock runs out.',
+      'The host can fill empty seats with AI racers, up to four racers in all, and set their speed; one player can race alone against one to three AIs. AIs race, freeze and score like anyone else, but never send or receive crates.',
       'The host can switch sabotage on (off by default): clear 3 arrows in a row without a blocked tap and a crate drops on the racer in the lead, but only while you are behind them. It blocks the paths through its square until they clear 2 more arrows. A crate can slow a racer down but never trap them.',
     ],
     win: 'Finish order scores each round: first place earns one point fewer than the number of racers, down to 0 for last, so with four racers it is 3, 2, 1 and 0. Ties go to the fewer blocked taps. Most points after the last round wins the cup.',

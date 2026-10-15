@@ -287,11 +287,15 @@ export function canEndRace({ racers, isDone, offlineSince = () => null, endsAt, 
  * Lobby / rematch readiness: every online seated player is ready and at least
  * RACE_MIN_PLAYERS are seated online. Offline seats never block a start.
  */
-export function allReady(players, readyIds) {
+export function allReady(players, readyIds, bots = 0) {
   const ready = new Set(readyIds || [])
   const online = seatedIds(players).filter(id => isSeatOnline(players, id))
-  return online.length >= RACE_MIN_PLAYERS && online.every(id => ready.has(id))
+  // AI racers fill seats, so one human is enough when bots make up the field.
+  return online.length >= Math.max(1, RACE_MIN_PLAYERS - bots) && online.every(id => ready.has(id))
 }
+
+/** Is this racer id an AI seat (`bot1`..`bot3`)? Bots race but are not in `players`. */
+export const isBotRacer = (id) => /^bot[1-3]$/.test(String(id))
 
 /** Racers for a new round: the online seats (an offline seat would only DNF). */
 export function rosterForStart(players, starterId = null) {
@@ -361,13 +365,15 @@ export function isMatchOver(room) {
  * room's seen history (see seenHistory.js).
  */
 export function startRaceRound(cur, {
-  gameType, starterId = null, force = false, now, id, seed, durationMs, extras = {}, seen = null, maxRacers = Infinity,
+  gameType, starterId = null, force = false, now, id, seed, durationMs, extras = {}, seen = null, maxRacers = Infinity, bots = [],
 }) {
   if (!isObj(cur) || cur.gameType !== gameType || cur.status === 'playing') return undefined
   if (cur.status === 'finished' && isMatchOver(cur)) return undefined
-  if (!force && !allReady(cur.players, flaggedIds(cur.round?.ready))) return undefined
-  const racers = rosterForStart(cur.players, starterId).slice(0, maxRacers)
-  if (racers.length < RACE_MIN_PLAYERS) return undefined
+  const botIds = (bots || []).filter(isBotRacer)
+  if (!force && !allReady(cur.players, flaggedIds(cur.round?.ready), botIds.length)) return undefined
+  const humans = rosterForStart(cur.players, starterId).slice(0, maxRacers)
+  const racers = [...humans, ...botIds.slice(0, Math.max(0, maxRacers - humans.length))]
+  if (humans.length < 1 || racers.length < RACE_MIN_PLAYERS) return undefined
   const round = buildRaceRound({ id, gameType, racers, now, seed, durationMs, extras })
   // nightMark: the night recorder's "already counted" signature (nightLogic.js)
   // — a fresh round must never inherit it.

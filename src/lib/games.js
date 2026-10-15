@@ -880,7 +880,7 @@ export const GAME_TYPES = [
     durationMin: 4, tags: ['quick', 'skill'], solo: true,
     // Solo opens the ARROWS hub (campaign, endless, tutorial, races), not just
     // a bot, so the play sheet names it as such.
-    soloTitle: ' — solo or 2 players', soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '170 puzzle levels, endless boards, or race a bot.',
+    soloTitle: ' — solo or 2 players', soloLabel: 'PLAY SOLO', soloBadge: '1P', soloBlurb: '170 puzzle levels, endless boards, or race AI racers.',
     custom: true, realtime: true,
     Page: lazyWithRetry(() => import('../pages/ArrowsGame')),
     // HOW TO PLAY adds the arrow types, each with a replayable lesson.

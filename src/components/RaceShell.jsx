@@ -16,7 +16,7 @@ import {
   RACE_MATCH_WINS, RACE_MIN_PLAYERS,
   normalizeRaceRound, normalizeRaceResult, seatedIds, isSeatOnline, allReady,
   rankRace, tiedIds, raceChampions, cupRacesFor, canEndRace, racePhase, raceGoAt,
-  newRoundId, newRaceSeed, startRaceRound, toggleRaceReady, finishRaceRound,
+  newRoundId, newRaceSeed, startRaceRound, toggleRaceReady, finishRaceRound, isBotRacer, rosterForStart,
 } from '../lib/raceLogic'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -45,7 +45,9 @@ import { cn } from '@/lib/utils'
 //   decided?(statsById, racers, { now, round }),
 //   Prefs?: a component with the rider's own device settings, shown in the lobby,
 //   Watcher?: what a spectator or a benched seat sees of the live round (the room's
-//   `round` and the clock), configLocked?(room): true while the host's settings are frozen }
+//   `round` and the clock), configLocked?(room): true while the host's settings are frozen,
+//   botsFor?(room, config, humans): AI racer ids (`bot1`..) that fill empty seats — they race in
+//   `round/racers` without a `players` seat, so one human can start; botName?(id), botAvatar?(id) }
 //
 // A cup game (raceLogic CUP_RACES_BY_GAME) runs a fixed number of rounds ranked
 // on points; its `decorate` hook returns each round's `points` (and any extra
@@ -96,6 +98,9 @@ export default function RaceShell({
   const champions = raceChampions(game)
   const cupRaces = cupRacesFor(race.type, game)
   const matchOver = champions.length > 0
+  // AI racers the host asked for (`race.botsFor`): they fill empty seats, so one human can start a round.
+  const currentConfig = race.normalizeConfig ? race.normalizeConfig(game?.[race.configKey]) : null
+  const lobbyBots = race.botsFor ? race.botsFor(game, currentConfig, onlineSeats.length) : []
 
   const liveRound = status === 'playing' && round?.id && round.gameType === race.type ? round : null
   const racers = liveRound?.racers ?? []
@@ -130,7 +135,9 @@ export default function RaceShell({
 
   const startParams = (cur, force, context) => {
     const config = race.normalizeConfig ? race.normalizeConfig(cur?.[race.configKey]) : null
-    const extrasSeen = race.start ? race.start(cur, context.seed, config) : {}
+    const humans = rosterForStart(cur.players, mySeat).slice(0, race.maxRacers ?? Infinity)
+    const bots = race.botsFor ? race.botsFor(cur, config, humans.length) : []
+    const extrasSeen = race.start ? race.start(cur, context.seed, config, { humans, bots }) : {}
     return {
       gameType: race.type,
       starterId: mySeat,
@@ -139,6 +146,7 @@ export default function RaceShell({
       id: context.id,
       seed: context.seed,
       maxRacers: race.maxRacers ?? Infinity,
+      bots,
       durationMs: race.durationMs
         ? race.durationMs(cur, config)
         : race.scaled ? scaledMs(race.baseMs, cur.timerScale) : race.baseMs,
@@ -205,7 +213,7 @@ export default function RaceShell({
   useEffect(() => {
     const m = offlineRef.current
     for (const id of racersKey ? racersKey.split(',') : []) {
-      if (players?.[id] && isSeatOnline(players, id)) m.delete(id)
+      if (isBotRacer(id) || (players?.[id] && isSeatOnline(players, id))) m.delete(id)
       else if (!m.has(id)) m.set(id, getServerNow())
     }
   }, [players, racersKey])
@@ -234,7 +242,7 @@ export default function RaceShell({
 
   // The coordinator starts the round once every ONLINE seat is ready — covers
   // the last unready player dropping offline instead of tapping READY.
-  const everyoneReady = status !== 'playing' && !(status === 'finished' && matchOver) && allReady(players, readyIds)
+  const everyoneReady = status !== 'playing' && !(status === 'finished' && matchOver) && allReady(players, readyIds, lobbyBots.length)
   const readyKey = everyoneReady ? `${[...readyIds].sort().join(',')}|${onlineSeats.join(',')}` : null
   useEffect(() => {
     if (!amCoordinator || !readyKey || autoStartRef.current === readyKey) return
@@ -283,12 +291,13 @@ export default function RaceShell({
 
   const rowFor = (id, rnd, extra) => {
     const p = players?.[id]
+    const bot = isBotRacer(id)
     return {
       id,
-      name: p?.name || 'PLAYER',
-      avatar: p?.avatar,
+      name: bot ? (race.botName?.(id) ?? 'BOT') : (p?.name || 'PLAYER'),
+      avatar: bot ? race.botAvatar?.(id) : p?.avatar,
       you: id === mySeat,
-      online: !!p && isSeatOnline(players, id),
+      online: bot || (!!p && isSeatOnline(players, id)),
       wins: Number(scores?.[id]) || 0,
       ...race.row(rnd?.stats?.[id] ?? null, rnd, id),
       ...extra,
@@ -313,9 +322,8 @@ export default function RaceShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the result/round/players change
   }, [game.raceResult, game.round, players, game.scores, mySeat])
 
-  const nameOf = (id) => (players?.[id]?.name || 'PLAYER').toUpperCase()
+  const nameOf = (id) => (isBotRacer(id) ? (race.botName?.(id) ?? 'BOT') : (players?.[id]?.name || 'PLAYER')).toUpperCase()
   const canEditConfig = !!race.Config && amCoordinator && status !== 'playing' && !matchOver && !race.configLocked?.(game)
-  const currentConfig = race.normalizeConfig ? race.normalizeConfig(game?.[race.configKey]) : null
   const settingsPanel = race.Config && (
     <race.Config
       config={currentConfig}
@@ -428,7 +436,7 @@ export default function RaceShell({
         : iWon ? (winners.length > 1 ? 'TIED FOR FIRST!' : 'YOU WIN!')
           : `${winners.map(nameOf).join(' & ')} ${winners.length > 1 ? 'TIE' : 'WINS'}`
     const readyCount = onlineSeats.filter(id => readySet.has(id)).length
-    const canForce = amCoordinator && !matchOver && onlineSeats.length >= RACE_MIN_PLAYERS
+    const canForce = amCoordinator && !matchOver && onlineSeats.length >= 1 && onlineSeats.length + lobbyBots.length >= RACE_MIN_PLAYERS
     return (
       <div className="space-y-4">
         <RoundEndPanel
@@ -472,7 +480,7 @@ export default function RaceShell({
 
   // ── render: lobby ────────────────────────────────────────────────────
 
-  const enough = onlineSeats.length >= RACE_MIN_PLAYERS
+  const enough = onlineSeats.length >= 1 && onlineSeats.length + lobbyBots.length >= RACE_MIN_PLAYERS
   const noClock = timersOff(game.timerScale) && race.scaled
   const lobbyRules = race.rulesFor ? race.rulesFor(game, currentConfig) : race.rules
   return (
@@ -491,6 +499,18 @@ export default function RaceShell({
       <div className="space-y-1.5">
         <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAYERS ({seats.length})</p>
         <PlayerList ids={seats} players={players} mySeat={mySeat} readySet={readySet} scores={scores} />
+        {lobbyBots.length > 0 && (
+          <ul className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5" aria-label="AI racers">
+            {lobbyBots.map(id => (
+              <li key={id} className="flex items-center gap-2">
+                <Avatar id={race.botAvatar?.(id)} size={20} />
+                <span className="font-mono text-[11px] truncate flex-1 text-retro-text">{race.botName?.(id) ?? 'BOT'}</span>
+                {(Number(scores?.[id]) || 0) > 0 && <span className="font-pixel text-[8px] text-retro-cta" title="Cup points">★{Number(scores[id])}</span>}
+                <span className="font-pixel text-[8px] w-14 text-right text-retro-win">AI</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {!enough && (

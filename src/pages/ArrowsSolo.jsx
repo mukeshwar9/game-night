@@ -10,7 +10,6 @@ import BottomSheet from '../components/BottomSheet'
 import RulesModal from '../components/LazyRulesModal'
 import { getLesson } from '../lib/arrowsLessonsLogic'
 import { bestHintArrow } from '../lib/arrowsHintLogic'
-import ArrowsDemo from './ArrowsDemo'
 import {
   applyArrowTap,
   countGone,
@@ -58,7 +57,7 @@ const ArrowsRewardSheet = lazy(() => import('../components/ArrowsRewardSheet'))
 //               progress saved on the device and the account; the first board
 //               with a new arrow kind opens with a short lesson) and ENDLESS
 //               boards at easy / medium / hard, tiers opening with the campaign;
-//   2 PLAYERS — race settings, then a friend, a quick match or a bot;
+//   2 PLAYERS — race settings, then a friend, a quick match or AI racers (Arrows Party);
 //   TUTORIAL and HOW TO PLAY.
 
 const BTN = 'min-h-11 px-4 py-2.5 font-pixel text-[10px] rounded transition press'
@@ -140,7 +139,7 @@ function Hub({ progress, onContinue, onView, onRules }) {
       )}
       <div className="grid grid-cols-2 gap-3">
         <HubCard top="1 PLAYER" main="SOLO" sub={`${ARROWS_LEVEL_COUNT} levels · endless`} onClick={() => onView('solo')} />
-        <HubCard top="VS" main="2 PLAYERS" sub="friend · quick match · bot" onClick={() => onView('two')} />
+        <HubCard top="VS" main="2 PLAYERS" sub="friend · quick match · AI racers" onClick={() => onView('two')} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         {!first && <button onClick={() => onView('tutorial')} className={SEC}>TUTORIAL</button>}
@@ -341,7 +340,6 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
 
 export default function ArrowsSolo() {
   const [view, setView] = useState('hub')
-  const [botTier, setBotTier] = useState('easy')
   const [rulesOpen, setRulesOpen] = useState(false)
   const [progress, setProgress] = useState(readArrowsProgress)
   // { kind: 'level', n } | { kind: 'endless', tier, seed, nextSeed, learned };
@@ -469,13 +467,7 @@ export default function ArrowsSolo() {
       {view === 'two' && (
         <>
           <SubHeader title="2 PLAYERS" onBack={toHub} />
-          <ArrowsRaceSetup onBot={(difficulty) => { setBotTier(difficulty); setView('bot') }} />
-        </>
-      )}
-      {view === 'bot' && (
-        <>
-          <SubHeader title="RACE A BOT" onBack={() => setView('two')} />
-          <ArrowsDemo initialTier={botTier} />
+          <ArrowsRaceSetup />
         </>
       )}
       {view === 'tutorial' && (
