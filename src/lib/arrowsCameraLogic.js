@@ -199,11 +199,13 @@ export function startZoomFor(fit, viewPx, cell) {
  * Board point (a cell centre) with the most cells of free arrows inside the
  * square window `radiusCells` cells either side of it: where a player would
  * start. Ties go to the first such cell (row-major by arrow, so stable). A
- * board with nothing free gives its centre.
+ * board with nothing free gives its centre. `only` (a Set of arrow indexes)
+ * limits the choice to those arrows: a shared board opens on your own zone.
  * @returns {Point}
  */
-export function densestFreePoint(level, gone, cell, radiusCells) {
-  const cells = freeArrows(level, gone).flatMap((i) => level.arrows[i].cells)
+export function densestFreePoint(level, gone, cell, radiusCells, only = null) {
+  const free = freeArrows(level, gone)
+  const cells = (only ? free.filter((i) => only.has(i)) : free).flatMap((i) => level.arrows[i].cells)
   if (!cells.length) return [(level.cols * cell) / 2, (level.rows * cell) / 2]
   let best = cells[0]
   let bestN = -1
@@ -216,11 +218,11 @@ export function densestFreePoint(level, gone, cell, radiusCells) {
 }
 
 /** The camera a big board opens with: start zoom, centred on the densest free cluster (fit when no zoom is needed). */
-export function startCamera(level, gone, fit, viewPx, cell) {
+export function startCamera(level, gone, fit, viewPx, cell, only = null) {
   const z = startZoomFor(fit, viewPx, cell)
   if (z <= 1.02) return fit
   const w = fit.w / z
-  const [px, py] = densestFreePoint(level, gone, cell, w / cell / 2)
+  const [px, py] = densestFreePoint(level, gone, cell, w / cell / 2, only)
   return clampCamera({ x: px - w / 2, y: py - (fit.h / z) / 2, w, h: fit.h / z }, fit)
 }
 

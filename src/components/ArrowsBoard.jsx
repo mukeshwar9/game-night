@@ -6,7 +6,7 @@ import {
   arrowPose,
   arrowRoute,
   cellCenter,
-  countGone,
+  crateCleared,
   exitVector,
   isAwake,
   isBent,
@@ -73,6 +73,8 @@ const HINT_MS = 2400
 // Taps landing just outside an arrow's cell still count if they are this close
 // (in cells) to one of its cell centres — thumbs are wider than lines.
 const TAP_SLOP = 0.8
+// Zone owner tones on a shared board (Arrows Party), as theme tokens.
+const ZONE_TONES = { p1: '--c-p1', p2: '--c-p2', p3: '--c-cta', p4: '--c-win' }
 
 function headD(points) {
   const { dx, dy, tip } = exitVector(points)
@@ -333,6 +335,9 @@ export default function ArrowsBoard({
   focusHud = null,
   focusOverlay = null,
   label,
+  rivals = null,
+  zones = null,
+  home = null,
 }) {
   const svgRef = useRef(null)
   const stageRef = useRef(null)
@@ -399,7 +404,7 @@ export default function ArrowsBoard({
     const open = () => {
       const px = svg.getBoundingClientRect().width
       if (!px || pointers.current.size) return false
-      applyCam(startCamera(level, goneRef.current, fit, px, CELL))
+      applyCam(startCamera(level, goneRef.current, fit, px, CELL, home))
       return true
     }
     if (open()) return undefined
@@ -407,7 +412,9 @@ export default function ArrowsBoard({
     ro.observe(svg)
     return () => ro.disconnect()
     // Once per board and fit; applyCam only touches refs and state.
-  }, [startZoomed, level, fit])
+    // A crate arriving on a shared board swaps `level` but not its arrows: keep the player's camera.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startZoomed, level.arrows, fit, home])
 
   // Track the full-screen stage's size (the observer reports it on start).
   useEffect(() => {
@@ -615,8 +622,7 @@ export default function ArrowsBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hint])
 
-  // Crates count down with every clear and break at 0.
-  const cleared = countGone(gone)
+  // Crates count down with every clear (in their zone, on a shared board) and break at 0.
   const crateRefs = useRef([])
 
   useEffect(() => {
@@ -693,7 +699,10 @@ export default function ArrowsBoard({
   }
   const arrowAtClient = (clientX, clientY) => {
     const p = boardPoint(clientX, clientY)
-    return p ? resolveTap(level, gone, p.x, p.y, CELL, TAP_SLOP) : -1
+    if (!p) return -1
+    const hit = resolveTap(level, gone, p.x, p.y, CELL, TAP_SLOP)
+    // A shared board draws the rivals' zones too: their arrows are not yours to tap.
+    return rivals?.has(hit) ? -1 : hit
   }
   // The arrow actually under the finger or cursor (no snap to a free one): the
   // route peek shows what you are pointing at.
@@ -946,6 +955,28 @@ export default function ArrowsBoard({
         onContextMenu={peek ? (e) => e.preventDefault() : undefined}
       >
         {voids && <path className="ar-shape" d={shapeD} aria-hidden="true" />}
+        {zones?.map((z) => {
+          const tone = ZONE_TONES[z.tone] ?? ZONE_TONES.p1
+          const w = z.w * CELL
+          const h = z.h * CELL
+          return (
+            <g key={`z${z.x}-${z.y}`} aria-hidden="true" style={{ pointerEvents: 'none' }}>
+              <rect
+                x={z.x * CELL - 0.4} y={z.y * CELL - 0.4} width={w + 0.8} height={h + 0.8} rx={1.6}
+                style={{ fill: `rgb(var(${tone}) / ${z.mine ? 0.16 : 0.08})`, stroke: `rgb(var(${tone}) / ${z.mine ? 0.9 : 0.45})`, strokeWidth: z.mine ? 0.9 : 0.5 }}
+              />
+              {z.label != null && (
+                <text
+                  className="font-pixel" textAnchor="middle" dominantBaseline="central"
+                  x={z.x * CELL + w / 2} y={z.y * CELL + h / 2}
+                  style={{ fill: `rgb(var(${tone}))`, opacity: z.mine ? 0.22 : 0.3, fontSize: Math.min(w, h) * 0.34 }}
+                >
+                  {z.label}
+                </text>
+              )}
+            </g>
+          )
+        })}
         <g aria-hidden="true" style={{ fill: 'rgb(var(--c-structure))', opacity: 0.45 }}>{dots}</g>
         {level.portals?.map((p) => ['a', 'b'].map((end) => {
           const [x, y] = p[end]
@@ -1007,7 +1038,7 @@ export default function ArrowsBoard({
           )
         })}
         {level.crates?.map((c, i) => {
-          const left = Math.max(0, c.k - cleared)
+          const left = Math.max(0, c.k - crateCleared(c, gone))
           const x0 = c.x * CELL
           const y0 = c.y * CELL
           return (
@@ -1056,6 +1087,7 @@ export default function ArrowsBoard({
                   isSleeper(arrow) && 'is-sleep',
                   isSleeper(arrow) && !asleep && 'is-awake',
                   i === target && 'is-target',
+                  rivals?.has(i) && 'is-rival',
                 )}
               >
                 <path
@@ -1107,7 +1139,7 @@ export default function ArrowsBoard({
                     ))}
                   </g>
                 )}
-                {interactive && !leaving && (
+                {interactive && !leaving && !rivals?.has(i) && (
                   <path
                     className="ar-hit"
                     d={hitD}

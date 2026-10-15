@@ -462,6 +462,18 @@ export function crateMap(level) {
   return new Map(level.crates.map((c) => [c.y * level.cols + c.x, c.k]))
 }
 
+// Arrows cleared that a crate counts. A crate normally counts every arrow that
+// has left the board; one with `from` / `to` counts only the arrows with an
+// index in [from, to): the zone of a shared board (Arrows Party), where a
+// rival's clears must not open your crate.
+export function crateCleared(crate, gone) {
+  if (!gone) return 0
+  if (crate.from == null) return countGone(gone)
+  let n = 0
+  for (let i = crate.from; i < Math.min(crate.to ?? gone.length, gone.length); i += 1) if (gone[i]) n += 1
+  return n
+}
+
 // Ring cell → { to, turn, pair } for the rings that send (null without any
 // portals). A two-way pair sends from both rings; a `oneway` pair only from
 // ring A, so crossing its ring B does nothing. Cached per portal list.
@@ -1214,7 +1226,7 @@ function checkAgainst(level, occ, corners, index, gone) {
     return { free: false, blocker: neighborsOf(level)[index][0] ?? -1, gap: 0, asleep: true }
   }
   const crates = crateMap(level)
-  const cleared = crates && gone ? countGone(gone) : 0
+  const crateAt = crates ? new Map(level.crates.map((c) => [c.y * level.cols + c.x, c])) : null
   for (let k = 0; k < route.cells.length; k += 1) {
     const corner = route.corners[k]
     if (corner >= 0 && corners[corner] !== -1 && corners[corner] !== index) {
@@ -1223,7 +1235,7 @@ function checkAgainst(level, occ, corners, index, gone) {
     const cell = route.cells[k]
     const owner = occ[cell]
     if (owner !== -1) return { free: false, blocker: owner, gap: routeGap(route, k) }
-    if (crates?.has(cell) && cleared < crates.get(cell)) {
+    if (crateAt?.has(cell) && crateCleared(crateAt.get(cell), gone) < crateAt.get(cell).k) {
       return { free: false, blocker: -1, gap: routeGap(route, k), crate: cell }
     }
   }

@@ -47,6 +47,7 @@ import {
   tierForGame,
   turnedDir,
   crateMap,
+  crateCleared,
   mirrorMap,
   portalMap,
   portalRings,
@@ -1000,6 +1001,29 @@ describe('crates', () => {
     expect(exitCheck(level, [false, true, false], 0).free).toBe(false)
     expect(exitCheck(level, [false, true, true], 0).free).toBe(true)
     expect(exitCheck(level, [false, false, false], 1).free).toBe(true)
+  })
+
+  it('a crate with a scope only counts clears among its own arrows (a zone of a shared board)', () => {
+    // Arrows 0..1 are one zone, 2..3 another; the crate on arrow 0's route lives in the first.
+    const level = {
+      cols: 6,
+      rows: 3,
+      crates: [{ x: 3, y: 0, k: 1, from: 0, to: 2 }],
+      arrows: [
+        { cells: [[0, 0], [1, 0]], dir: 1 },
+        { cells: [[0, 1], [1, 1]], dir: 1 },
+        { cells: [[0, 2], [1, 2]], dir: 1 },
+        { cells: [[4, 1], [5, 1]], dir: 1 },
+      ],
+    }
+    // A clear in the other zone does not open it.
+    expect(exitCheck(level, [false, false, true, false], 0)).toMatchObject({ free: false, crate: 3 })
+    expect(exitCheck(level, [false, false, true, true], 0)).toMatchObject({ free: false, crate: 3 })
+    // A clear in its own zone does.
+    expect(exitCheck(level, [false, true, false, false], 0).free).toBe(true)
+    expect(crateCleared(level.crates[0], [false, true, true, true])).toBe(1)
+    expect(crateCleared({ x: 0, y: 0, k: 1 }, [false, true, true, true])).toBe(3)
+    expect(crateCleared(level.crates[0], null)).toBe(0)
   })
 
   it('reports the gap before the crate like any blocker', () => {

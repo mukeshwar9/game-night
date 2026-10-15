@@ -2308,6 +2308,8 @@ body::before {
    back) is driven frame-by-frame in ArrowsBoard.jsx. */
 .arrows-arrow .ar-body { stroke: rgb(var(--c-text)); }
 .arrows-arrow .ar-head { fill: rgb(var(--c-text)); stroke: none; }
+/* A rival's arrows on a shared board (Arrows Party): a dim silhouette, never tappable. */
+.arrows-arrow.is-rival { opacity: 0.36; }
 .arrows-arrow.is-error .ar-body { stroke: rgb(var(--c-danger)); }
 .arrows-arrow.is-error .ar-head { fill: rgb(var(--c-danger)); }
 @keyframes arrows-blocker {

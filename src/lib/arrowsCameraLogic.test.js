@@ -256,6 +256,19 @@ describe('start camera', () => {
     expect(densestFreePoint(l, g, CELL, 5)).toEqual([px, py])
   })
 
+  it('`only` limits the cluster to the given arrows (a shared board opens on your zone)', () => {
+    const l = getArrowsLevel(160)
+    const g = none(l)
+    const free = freeArrows(l, g)
+    const mine = new Set(free.slice(-3))
+    const [px, py] = densestFreePoint(l, g, CELL, 5, mine)
+    const cells = new Set([...mine].flatMap((i) => l.arrows[i].cells.map(([x, y]) => `${x},${y}`)))
+    expect(cells.has(`${Math.floor(px / CELL)},${Math.floor(py / CELL)}`)).toBe(true)
+    // none of the allowed arrows free: the board centre
+    const none2 = new Set([-1])
+    expect(densestFreePoint(l, g, CELL, 5, none2)).toEqual([(l.cols * CELL) / 2, (l.rows * CELL) / 2])
+  })
+
   it('with nothing free the point is the board centre', () => {
     const l = getArrowsLevel(160)
     const all = l.arrows.map(() => true)
