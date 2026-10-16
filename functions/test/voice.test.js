@@ -280,6 +280,22 @@ describe('server-side block and removal', () => {
 })
 
 describe('switches', () => {
+  test('deployFlag reads functions/.env when the process env lacks the switch (firebase-tools discovery has neither)', () => {
+    const fs = require('node:fs')
+    const os = require('node:os')
+    const path = require('node:path')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-env-'))
+    const file = path.join(dir, '.env')
+    fs.writeFileSync(file, '# comment\nVOICE_ENABLED=1\nVOICE_SECRETS="1"\n  VOICE_TURN = 1  \nOTHER=x\n')
+    assert.equal(_test.deployFlag('VOICE_SECRETS', {}, file), '1')
+    assert.equal(_test.deployFlag('VOICE_TURN', {}, file), '1')
+    assert.equal(_test.deployFlag('VOICE_ENABLED', {}, file), '1')
+    assert.equal(_test.deployFlag('MISSING', {}, file), '')
+    assert.equal(_test.deployFlag('VOICE_SECRETS', { VOICE_SECRETS: '0' }, file), '0', 'the process env wins')
+    assert.equal(_test.deployFlag('VOICE_SECRETS', {}, path.join(dir, 'nope')), '', 'no file: off')
+    fs.rmSync(dir, { recursive: true })
+  })
+
   test('voice is off unless VOICE_ENABLED=1 and the Cloudflare secrets are bound', () => {
     assert.equal(_test.voiceConfig({}), null)
     assert.equal(_test.voiceConfig({ VOICE_ENABLED: '1' }), null)

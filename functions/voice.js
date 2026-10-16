@@ -22,13 +22,15 @@
 // never while the host has cameras off (games/{gameId}/camerasOff).
 //
 // Off by default. VOICE_ENABLED=1 turns voiceSfu on; VOICE_SECRETS=1 (read at
-// deploy time) binds CF_SFU_APP_ID and CF_SFU_APP_SECRET from Secret Manager,
+// deploy time, from the shell or functions/.env) binds CF_SFU_APP_ID and CF_SFU_APP_SECRET from Secret Manager,
 // and VOICE_TURN=1 also binds CF_TURN_KEY_ID and CF_TURN_TOKEN. Unset, nothing
 // is bound and voiceSfu answers voice-not-configured.
 //
 // The pure checks (membership, cap, removal, public rooms, age, audio-only,
 // pulls by uid with blocks both ways, the call budget) live in
 // src/lib/voiceLogic.js, bundled into lib/core.cjs and shared with the app.
+const fs = require('node:fs')
+const path = require('node:path')
 const { onCall, HttpsError } = require('firebase-functions/v2/https')
 const { onValueCreated } = require('firebase-functions/v2/database')
 const { defineSecret } = require('firebase-functions/params')
@@ -41,8 +43,26 @@ const DEFAULT_ICE = [{ urls: 'stun:stun.cloudflare.com:3478' }]
 const TURN_TTL_S = 2 * 60 * 60
 
 const flag = (raw) => String(raw || '').trim() === '1'
-const SECRETS_ON = flag(process.env.VOICE_SECRETS)
-const TURN_ON = SECRETS_ON && flag(process.env.VOICE_TURN)
+
+/**
+ * The deploy-time switch `name`: the process env first, then functions/.env.
+ * firebase-tools evaluates this file to decide which secrets to bind with an
+ * environment that holds neither the .env file nor the shell's variables, so
+ * `process.env.VOICE_SECRETS` is never set at that moment and the file has to
+ * be read here.
+ */
+function deployFlag(name, env = process.env, file = path.join(__dirname, '.env')) {
+  if (env[name] !== undefined && env[name] !== '') return env[name]
+  try {
+    for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+      const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/)
+      if (m && m[1] === name) return m[2].replace(/^(["'])(.*)\1$/, '$2')
+    }
+  } catch { /* no .env: the switch is off */ }
+  return ''
+}
+const SECRETS_ON = flag(deployFlag('VOICE_SECRETS'))
+const TURN_ON = SECRETS_ON && flag(deployFlag('VOICE_TURN'))
 const CF_SFU_APP_ID = SECRETS_ON ? defineSecret('CF_SFU_APP_ID') : null
 const CF_SFU_APP_SECRET = SECRETS_ON ? defineSecret('CF_SFU_APP_SECRET') : null
 const CF_TURN_KEY_ID = TURN_ON ? defineSecret('CF_TURN_KEY_ID') : null
@@ -336,4 +356,4 @@ exports.voiceOnRemove = onValueCreated({ ref: 'games/{gameId}/removed/{uid}', ..
   return null
 })
 
-exports._test = { handleVoice, closePullsBetween, dropFromVoice, makeCf, voiceConfig, calls }
+exports._test = { deployFlag, handleVoice, closePullsBetween, dropFromVoice, makeCf, voiceConfig, calls }
