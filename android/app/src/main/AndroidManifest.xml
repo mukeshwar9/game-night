@@ -69,4 +69,8 @@
     <!-- Party voice chat (the WebView asks for it only when a player joins voice). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Party camera video (the WebView asks for it only when a player turns the camera on). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Not required: devices without a camera can still install the app. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>
