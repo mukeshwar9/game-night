@@ -52,6 +52,25 @@ describe('jevKey', () => {
     assert.equal(_test.typesafeSecretsEnabled(''), false)
     assert.equal(_test.typesafeSecretsEnabled('1'), true)
   })
+  test('TYPESAFE_SECRETS is read from functions/.env when the process env lacks it (firebase-tools discovery has neither)', () => {
+    const fs = require('node:fs')
+    const os = require('node:os')
+    const path = require('node:path')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'typesafe-env-'))
+    const file = path.join(dir, '.env')
+    const prev = process.env.TYPESAFE_SECRETS
+    delete process.env.TYPESAFE_SECRETS
+    try {
+      fs.writeFileSync(file, 'TYPESAFE_SECRETS=1\n')
+      assert.equal(_test.typesafeSecretsEnabled(undefined, file), true)
+      fs.writeFileSync(file, 'OTHER=1\n')
+      assert.equal(_test.typesafeSecretsEnabled(undefined, file), false)
+      assert.equal(_test.typesafeSecretsEnabled(undefined, path.join(dir, 'nope')), false)
+    } finally {
+      if (prev !== undefined) process.env.TYPESAFE_SECRETS = prev
+      fs.rmSync(dir, { recursive: true })
+    }
+  })
 })
 
 describe('callJev', () => {

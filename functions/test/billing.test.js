@@ -233,6 +233,26 @@ describe('payments not configured (no secrets bound)', () => {
     assert.deepEqual(t.bindSecrets(null, 'k'), { secrets: ['k'] })
     assert.equal(t.secretValue(null), '')
   })
+
+  test('PAYMENTS_SECRETS is read from functions/.env when the process env lacks it (firebase-tools discovery has neither)', () => {
+    const fs = require('node:fs')
+    const os = require('node:os')
+    const path = require('node:path')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'payments-env-'))
+    const file = path.join(dir, '.env')
+    const prev = process.env.PAYMENTS_SECRETS
+    delete process.env.PAYMENTS_SECRETS
+    try {
+      fs.writeFileSync(file, 'PAYMENTS_SECRETS=1\n')
+      assert.equal(t.paymentsSecretsEnabled(undefined, file), true)
+      fs.writeFileSync(file, 'OTHER=1\n')
+      assert.equal(t.paymentsSecretsEnabled(undefined, file), false)
+      assert.equal(t.paymentsSecretsEnabled(undefined, path.join(dir, 'nope')), false)
+    } finally {
+      if (prev !== undefined) process.env.PAYMENTS_SECRETS = prev
+      fs.rmSync(dir, { recursive: true })
+    }
+  })
   test('the deployed functions declare no secrets', () => {
     for (const name of ['createCheckout', 'createPortalSession', 'paddleWebhook']) {
       const env = billing[name].__endpoint.secretEnvironmentVariables

@@ -24,8 +24,10 @@ const { defineSecret } = require('firebase-functions/params')
 const logger = require('firebase-functions/logger')
 const { getDatabase } = require('firebase-admin/database')
 const core = require('./lib/core.cjs')
+const { deployFlag } = require('./deployFlag')
 
-function typesafeSecretsEnabled(raw = process.env.TYPESAFE_SECRETS) {
+function typesafeSecretsEnabled(raw, file) {
+  if (raw === undefined) raw = deployFlag('TYPESAFE_SECRETS', process.env, file)
   return String(raw || '').trim() === '1'
 }
 

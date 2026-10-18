@@ -19,12 +19,14 @@ const logger = require('firebase-functions/logger')
 const { getDatabase } = require('firebase-admin/database')
 const { getAuth } = require('firebase-admin/auth')
 const { PRODUCTS } = require('./lib/core.cjs')
+const { deployFlag } = require('./deployFlag')
 
-// Secret binding is opt-in: PAYMENTS_SECRETS=1 in functions/.env (read at deploy
-// time too) declares the Paddle secrets, which needs Secret Manager on the project.
+// Secret binding is opt-in: PAYMENTS_SECRETS=1 in functions/.env (read from the file at
+// deploy time too) declares the Paddle secrets, which needs Secret Manager on the project.
 // Unset, nothing is bound, so the functions deploy on a project without Secret
 // Manager and answer "payments-not-configured" until the keys exist.
-function paymentsSecretsEnabled(raw = process.env.PAYMENTS_SECRETS) {
+function paymentsSecretsEnabled(raw, file) {
+  if (raw === undefined) raw = deployFlag('PAYMENTS_SECRETS', process.env, file)
   return String(raw || '').trim() === '1'
 }
 

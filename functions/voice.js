@@ -29,14 +29,13 @@
 // The pure checks (membership, cap, removal, public rooms, age, audio-only,
 // pulls by uid with blocks both ways, the call budget) live in
 // src/lib/voiceLogic.js, bundled into lib/core.cjs and shared with the app.
-const fs = require('node:fs')
-const path = require('node:path')
 const { onCall, HttpsError } = require('firebase-functions/v2/https')
 const { onValueCreated } = require('firebase-functions/v2/database')
 const { defineSecret } = require('firebase-functions/params')
 const logger = require('firebase-functions/logger')
 const { getDatabase } = require('firebase-admin/database')
 const core = require('./lib/core.cjs')
+const { deployFlag } = require('./deployFlag')
 
 const CF_BASE = 'https://rtc.live.cloudflare.com/v1'
 const DEFAULT_ICE = [{ urls: 'stun:stun.cloudflare.com:3478' }]
@@ -44,23 +43,6 @@ const TURN_TTL_S = 2 * 60 * 60
 
 const flag = (raw) => String(raw || '').trim() === '1'
 
-/**
- * The deploy-time switch `name`: the process env first, then functions/.env.
- * firebase-tools evaluates this file to decide which secrets to bind with an
- * environment that holds neither the .env file nor the shell's variables, so
- * `process.env.VOICE_SECRETS` is never set at that moment and the file has to
- * be read here.
- */
-function deployFlag(name, env = process.env, file = path.join(__dirname, '.env')) {
-  if (env[name] !== undefined && env[name] !== '') return env[name]
-  try {
-    for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
-      const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/)
-      if (m && m[1] === name) return m[2].replace(/^(["'])(.*)\1$/, '$2')
-    }
-  } catch { /* no .env: the switch is off */ }
-  return ''
-}
 const SECRETS_ON = flag(deployFlag('VOICE_SECRETS'))
 const TURN_ON = SECRETS_ON && flag(deployFlag('VOICE_TURN'))
 const CF_SFU_APP_ID = SECRETS_ON ? defineSecret('CF_SFU_APP_ID') : null
