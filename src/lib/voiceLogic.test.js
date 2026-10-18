@@ -164,9 +164,9 @@ describe('camera offers', () => {
 
   it('counts media sections and rejects non-SDP', async () => {
     const { offerMedia } = await import('./voiceLogic')
-    expect(offerMedia(sdp('audio', 'video'))).toEqual({ audio: 1, video: 1, other: 0 })
+    expect(offerMedia(sdp('audio', 'video'))).toEqual({ audio: 1, video: 1, other: 0, sendAudio: 1, sendVideo: 1 })
     expect(offerMedia('nope')).toBeNull()
-    expect(offerMedia(`v=0\r\n${'x'.repeat(21_000)}`)).toBeNull()
+    expect(offerMedia(`v=0\r\n${'x'.repeat(100_001)}`)).toBeNull()
   })
 
   it('ignores stopped (port 0) sections left by a camera turned off earlier', async () => {
@@ -179,6 +179,43 @@ describe('camera offers', () => {
     const { isCameraOffer } = await import('./voiceLogic')
     expect(isCameraOffer(sdp('video'))).toBe(true)
     expect(isCameraOffer(sdp('audio', 'video'))).toBe(true)
+  })
+
+  it('accepts a second participant turning the camera on over pulled remote voices and cameras', async () => {
+    const { isCameraOffer } = await import('./voiceLogic')
+    const dir = (kind, d) => `${sec(kind)}\r\na=${d}`
+    const offer = (...parts) => `v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n${parts.join('\r\n')}`
+    const mic = dir('audio', 'sendonly')
+    const cam = dir('video', 'sendonly')
+    const hear = dir('audio', 'recvonly')
+    expect(isCameraOffer(offer(mic, hear, cam))).toBe(true)
+    expect(isCameraOffer(offer(mic, hear, hear, hear, dir('video', 'recvonly'), dir('video', 'inactive'), cam))).toBe(true)
+    expect(isCameraOffer(offer(mic, hear, dir('video', 'sendrecv')))).toBe(true)
+  })
+
+  it('refuses a second sending video, a second sending mic, or a data channel among pulls', async () => {
+    const { isCameraOffer } = await import('./voiceLogic')
+    const dir = (kind, d) => `${sec(kind)}\r\na=${d}`
+    const offer = (...parts) => `v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n${parts.join('\r\n')}`
+    const mic = dir('audio', 'sendonly')
+    const cam = dir('video', 'sendonly')
+    const hear = dir('audio', 'recvonly')
+    expect(isCameraOffer(offer(mic, hear, cam, cam))).toBe(false)
+    expect(isCameraOffer(offer(mic, mic, cam))).toBe(false)
+    expect(isCameraOffer(offer(mic, hear, dir('video', 'recvonly')))).toBe(false)
+    expect(isCameraOffer(offer(mic, hear, cam, dir('application', 'sendrecv')))).toBe(false)
+  })
+
+  it('takes a full party re-offer well past the old 20,000-character cap', async () => {
+    const { isCameraOffer, MAX_OFFER_SDP } = await import('./voiceLogic')
+    const codecs = '\r\na=rtpmap:96 VP8/90000'.repeat(120)
+    const big = (kind, d) => `m=${kind} 9 UDP/TLS/RTP/SAVPF 96\r\na=mid:0\r\na=${d}${codecs}`
+    const parts = [big('audio', 'sendonly'), big('video', 'sendonly')]
+    for (let i = 0; i < 7; i++) parts.push(big('audio', 'recvonly'), big('video', 'recvonly'))
+    const offer = `v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n${parts.join('\r\n')}`
+    expect(offer.length).toBeGreaterThan(20_000)
+    expect(offer.length).toBeLessThan(MAX_OFFER_SDP)
+    expect(isCameraOffer(offer)).toBe(true)
   })
 
   it('refuses two cameras, no camera, two mics, or a data channel', async () => {

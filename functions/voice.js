@@ -171,7 +171,7 @@ async function handleVoice({ uid, data, db, cf, now = Date.now(), date = new Dat
   if (!mine?.sessionId || mine.attempt !== attempt) throw new HttpsError('failed-precondition', 'stale-attempt')
 
   if (op === 'renegotiate') {
-    if (typeof data.sdp !== 'string' || data.sdp.length > 20_000 || !data.sdp.startsWith('v=0')) throw new HttpsError('invalid-argument', 'bad-offer')
+    if (typeof data.sdp !== 'string' || data.sdp.length > core.MAX_OFFER_SDP || !data.sdp.startsWith('v=0')) throw new HttpsError('invalid-argument', 'bad-offer')
     await cf.renegotiate(mine.sessionId, data.sdp)
     return { ok: true }
   }

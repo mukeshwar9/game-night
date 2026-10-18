@@ -255,32 +255,50 @@ export function splitKeys(keys) {
 }
 
 /**
+ * The largest SDP the proxy accepts for a camera offer or a renegotiation. A
+ * full party's re-offer carries one audio and one video section per pulled
+ * person, and a browser video section alone is a few kilobytes of codecs.
+ */
+export const MAX_OFFER_SDP = 100_000
+
+/**
  * Count the media sections of an SDP offer: how many are audio, video, or
- * anything else (data channels, application sections).
+ * anything else (data channels, application sections), and how many audio and
+ * video sections send (a missing direction attribute means sendrecv).
  * @param {unknown} sdp
  */
 export function offerMedia(sdp) {
-  if (typeof sdp !== 'string' || sdp.length > 20_000 || !sdp.startsWith('v=0')) return null
+  if (typeof sdp !== 'string' || sdp.length > MAX_OFFER_SDP || !sdp.startsWith('v=0')) return null
   // A section with port 0 is a stopped transceiver (a camera turned off
   // earlier): it carries nothing, so it does not count.
-  const media = sdp.split(/\r?\n/).filter(l => l.startsWith('m=') && l.split(' ')[1] !== '0')
-  const kind = (l) => l.slice(2, l.indexOf(' '))
+  const sections = sdp.split(/\r?\n/).reduce((out, line) => {
+    if (line.startsWith('m=')) out.push({ head: line, sends: true })
+    else if (out.length && /^a=(recvonly|inactive)$/.test(line)) out[out.length - 1].sends = false
+    return out
+  }, [])
+  const media = sections.filter(s => s.head.split(' ')[1] !== '0')
+  const kind = (s) => s.head.slice(2, s.head.indexOf(' '))
+  const count = (k, sending) => media.filter(s => kind(s) === k && (!sending || s.sends)).length
   return {
-    audio: media.filter(l => kind(l) === 'audio').length,
-    video: media.filter(l => kind(l) === 'video').length,
-    other: media.filter(l => kind(l) !== 'audio' && kind(l) !== 'video').length,
+    audio: count('audio'),
+    video: count('video'),
+    other: media.filter(s => kind(s) !== 'audio' && kind(s) !== 'video').length,
+    sendAudio: count('audio', true),
+    sendVideo: count('video', true),
   }
 }
 
 /**
  * Whether an offer for turning the camera on is acceptable: audio and video
- * sections only, at most one video (the camera), at most one audio (the mic
- * already published in the same peer connection), at least one video.
+ * sections only. The offer rides the existing peer connection, so besides the
+ * new camera it carries the mic (at most one sending audio section) and one
+ * receive-only section per voice or camera already pulled. Exactly one video
+ * section may send (the camera).
  * @param {unknown} sdp
  */
 export function isCameraOffer(sdp) {
   const m = offerMedia(sdp)
-  return !!m && m.other === 0 && m.video === 1 && m.audio <= 1
+  return !!m && m.other === 0 && m.sendVideo === 1 && m.sendAudio <= 1
 }
 
 /**

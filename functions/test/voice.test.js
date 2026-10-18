@@ -181,6 +181,15 @@ describe('camera: camOn, camOff and friends-first video pulls', () => {
     assert.deepEqual(cf.log.filter(l => l[0] === 'push').at(-1).slice(0, 3), ['push', 'S2', '1'])
   })
 
+  test('camOn accepts a re-offer that also carries pulled remote voices and cameras', async () => {
+    const { db, cf } = await party3()
+    const sec = (kind, mid, dir) => `m=${kind} 9 UDP/TLS/RTP/SAVPF 96\r\na=mid:${mid}\r\na=${dir}`
+    const sdp = ['v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-', sec('audio', 0, 'sendonly'), sec('audio', 1, 'recvonly'), sec('audio', 2, 'recvonly'), sec('video', 3, 'recvonly'), sec('video', 4, 'sendonly')].join('\r\n')
+    const res = await call(db, cf, 'b', { op: 'camOn', sdp, mid: '4', attempt: 'att2' })
+    assert.equal(res.sdp, 'v=0 answer')
+    assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: `${sdp}\r\n${sec('video', 5, 'sendonly')}`, mid: '5', attempt: 'att2' })), 'bad-offer')
+  })
+
   test('camOn refuses audio-only, two-camera and data-channel offers, stale attempts, public rooms and cameras-off', async () => {
     const { db, cf } = await party3()
     assert.equal(await code(call(db, cf, 'b', { op: 'camOn', sdp: SDP, mid: '1', attempt: 'att2' })), 'bad-offer')
