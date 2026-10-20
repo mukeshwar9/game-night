@@ -288,9 +288,9 @@ describe('voice controller', () => {
       expect(f.sessions[0].wanted).toEqual(['b', 'b#v'])
     })
 
-    it('leaving voice (or the app going to the background) turns the camera off, and it stays off on return', async () => {
+    it('the app going to the background turns the camera off, and it comes back on return with the same audience', async () => {
       const { f, ctl } = await joined()
-      await ctl.startCamera()
+      await ctl.startCamera({ everyone: true })
       const track = ctl.getState().localVideo.track
       window.dispatchEvent(new Event('native-pause'))
       await flush()
@@ -299,6 +299,62 @@ describe('voice controller', () => {
       window.dispatchEvent(new Event('native-resume'))
       await flush()
       expect(f.sessions).toHaveLength(2)
+      expect(ctl.getState()).toMatchObject({ cam: 'on', camAll: true, camError: null })
+      expect(f.sessions[1].startCamera).toHaveBeenCalled()
+      expect(f.io.getCamera).toHaveBeenCalledTimes(2)
+      expect(f.io.published).toMatchObject({ cam: true, camAll: true })
+    })
+
+    it('a camera that was off before the background stays off on return', async () => {
+      const { f, ctl } = await joined()
+      window.dispatchEvent(new Event('native-pause'))
+      window.dispatchEvent(new Event('native-resume'))
+      await flush()
+      expect(f.sessions).toHaveLength(2)
+      expect(ctl.getState().cam).toBe('off')
+      expect(f.io.getCamera).not.toHaveBeenCalled()
+    })
+
+    it('leaving voice turns the camera off and it is not restored later', async () => {
+      const { f, ctl } = await joined()
+      await ctl.startCamera()
+      await ctl.leave()
+      window.dispatchEvent(new Event('native-pause'))
+      window.dispatchEvent(new Event('native-resume'))
+      await flush()
+      expect(f.sessions).toHaveLength(1)
+      expect(ctl.getState().cam).toBe('off')
+      expect(f.io.getCamera).toHaveBeenCalledTimes(1)
+    })
+
+    it('keeps the mic choice while restoring the camera on return', async () => {
+      const { f, ctl } = await joined()
+      ctl.toggleMute()
+      await ctl.startCamera()
+      window.dispatchEvent(new Event('native-pause'))
+      window.dispatchEvent(new Event('native-resume'))
+      await flush()
+      expect(ctl.getState()).toMatchObject({ cam: 'on', muted: false })
+      expect(f.sessions[1].muted).toBe(false)
+    })
+
+    it('falls back to camera off with the camera error when it cannot restart on return', async () => {
+      const { f, ctl } = await joined()
+      await ctl.startCamera()
+      f.io.getCamera.mockImplementationOnce(async () => { throw Object.assign(new Error('denied'), { name: 'NotAllowedError' }) })
+      window.dispatchEvent(new Event('native-pause'))
+      window.dispatchEvent(new Event('native-resume'))
+      await flush()
+      expect(ctl.getState()).toMatchObject({ cam: 'off', camError: 'cam-denied', status: 'connecting' })
+    })
+
+    it('does not restore the camera when the host switched cameras off while away', async () => {
+      const { f, ctl } = await joined()
+      await ctl.startCamera()
+      window.dispatchEvent(new Event('native-pause'))
+      ctl.setRoom(room({ camerasOff: true }))
+      window.dispatchEvent(new Event('native-resume'))
+      await flush()
       expect(ctl.getState().cam).toBe('off')
       expect(f.io.getCamera).toHaveBeenCalledTimes(1)
     })
