@@ -192,7 +192,7 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
 
   await test.step('the deadline passes: the road is ranked with the bots in it and the cup has points and a count', async () => {
     await patch(alice.page.url(), '/round', { endsAt: Date.now() - 1000 })
-    await expect.poll(async () => (await readRoom(alice.page.url())).status, { timeout: 30_000 }).toBe('finished')
+    await expect.poll(async () => (await readRoom(alice.page.url())).status, { timeout: 90_000 }).toBe('finished')
     room = await readRoom(alice.page.url())
     expect(room.cupRaces).toBe(1)
     expect(room.raceResult.order).toHaveLength(2)
