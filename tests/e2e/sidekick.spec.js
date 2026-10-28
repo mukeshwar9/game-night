@@ -141,22 +141,26 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
   const rid = room.round.id
 
   await test.step('a kick Alice sends to Bob is applied on Bob\'s phone', async () => {
-    // A kick only counts from a rider who is level with the victim (as a real one is), so send it
-    // while both are riding within a bike length or two of each other, and a lane or two across (the victim's phone refuses a kick from nowhere near): the first seconds after GO.
+    // The victim's phone only applies a kick from a rider level with it (its ghost of the kicker
+    // must be within a bike length or two), and the first seconds after GO are the only time two
+    // real bikes are level: a slower phone (Alice also drives the bots) is left behind within
+    // seconds, so a spec that waits for them to meet depends on CI speed. Instead Alice's report
+    // and her kick go in ONE write: Bob's phone snaps its ghost of her onto the reported spot in
+    // the same frame it reads the kick, exactly as it would had she been riding beside him.
     const stats = async () => (await readRoom(alice.page.url())).round.stats[rid]
     let landed = false
-    const tries = [{ vis: [await alice.page.evaluate(() => document.visibilityState), await bob.page.evaluate(() => document.visibilityState)] }]
+    const tries = []
     for (let n = 901; n < 960 && !landed; n++) {
       const all = await stats()
       const a = all[aliceUid]
       const b = all[bobUid]
-      if (!a || !b || a.s || b.s || b.sh || Math.abs(a.z - b.z) > 650 || Math.abs(a.x - b.x) > 1100) { if (tries.length < 14) tries.push({ t: Date.now() % 100000, a: a && [a.z, a.v, a.at % 100000], b: b && [b.z, b.v, b.at % 100000] }); await alice.page.waitForTimeout(100); continue }
-      await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}/k`, { [n]: `${bobUid}|1` })
+      if (!a || !b || a.s || b.s || b.sh) { tries.push({ n, a: a && [a.z, a.s], b: b && [b.z, b.s, b.sh] }); await alice.page.waitForTimeout(100); continue }
+      await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}`, { z: b.z, x: b.x, v: b.v, at: Date.now(), [`k/${n}`]: `${bobUid}|1` })
       for (let t = 0; t < 8 && !landed; t++) {
         await alice.page.waitForTimeout(150)
         const now = (await stats())[bobUid]
         landed = now.pp < b.pp || now.dn > b.dn
-        if (t === 7) tries.push({ n, a: { z: a.z, x: a.x }, b: { z: b.z, x: b.x, pp: b.pp }, after: { pp: now.pp, dn: now.dn, z: now.z } })
+        if (t === 7) tries.push({ n, b: { z: b.z, x: b.x, pp: b.pp }, after: { pp: now.pp, dn: now.dn, z: now.z } })
       }
     }
     expect(landed, JSON.stringify(tries)).toBe(true)
