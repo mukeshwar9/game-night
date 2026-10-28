@@ -421,6 +421,18 @@ export const GAME_RULES = {
     win: 'Places score 3, 2, 1 and 0 points, plus a bonus point for knocking off the rider who last knocked you off. Most points after 3 races wins the cup.',
   },
 
+  dustkick: {
+    objective: 'Race horses to the ranch gate and buck the riders beside you off the trail.',
+    howToPlay: [
+      'Tilt your phone to steer (or hold STEER); the horse gallops on its own. Tap BUCK L or BUCK R and your horse lashes out at the rider beside you. A kick slows them down and spooks their horse for a moment, and every kick you land adds to your SPURS meter.',
+      'It takes 3 kicks to throw a rider. Every kick costs you balance, a miss more than a hit, and too many in a row throw you off your own horse.',
+      'Hay bales fill SPURS, and so does riding in a rival\'s dust. Tap SPURS once and the whole meter goes on one burst of speed; the fuller it was, the longer it lasts. Every rider can take every bale.',
+      'Ride past a rope coil on a post to pick it up (one at a time, two on each road). Tap LASSO to throw it: after a short wind-up it ropes the nearest rider ahead of you, who is slowed while you reel in faster.',
+      'Tumbleweeds and mud slow you down. A rock or a cactus costs a horseshoe, and a fallen log throws you off, so watch for the sign before it. Bots fill empty seats up to 4 riders. The race ends 20 seconds after the first rider crosses the line.',
+    ],
+    win: 'Places score 3, 2, 1 and 0 points, plus a bonus point for knocking off the rider who last knocked you off. Most points after 3 races (Canyon, Prairie, Town) wins the cup.',
+  },
+
   fenderbender: {
     objective: 'Be the last car rolling: shove rivals off the road or let the traffic wreck them.',
     howToPlay: [

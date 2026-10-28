@@ -8,7 +8,7 @@ import { useSideKickPrefs } from '../hooks/useSideKickPrefs'
 import { useAuth } from '../lib/AuthContext'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import {
-  TRACKS, TRACK_ORDER, TRACK_SEED, DIFFICULTY, DIFFICULTY_IDS, CUP_RACES, BOT_NAMES,
+  TRACKS, DUST_TRACKS, TRACK_ORDER, DUST_TRACK_ORDER, TRACK_SEED, DIFFICULTY, DIFFICULTY_IDS, CUP_RACES, BOT_NAMES, DUST_BOT_NAMES,
   createWorld, standings, cupAward, formatRaceTime,
 } from '../lib/sideKickLogic'
 import { sounds } from '../lib/sounds'
@@ -17,18 +17,31 @@ import { cn } from '@/lib/utils'
 
 // SIDE KICK on one phone: you against three bots, three races to a cup (3 / 2 / 1 / 0
 // points a race). The same sim the online room runs, with no network. Behind the
-// setup sheet the four bots race each other, so the road is never empty.
+// setup sheet the four bots race each other, so the road is never empty. DUST KICK
+// is this page with `dust` on: the Western rules, roads and wording.
 
-const STORAGE_KEY = 'sidekick-settings'
-const TRACK_CHOICES = [['tour', 'CUP TOUR'], ['meadow', 'MEADOW'], ['pass', 'SWITCHBACK'], ['rush', 'RUSH HOUR'], ['random', 'RANDOM']]
+const VARIANT = {
+  sidekick: {
+    key: 'sidekick', title: 'SIDE KICK', storage: 'sidekick-settings', roads: TRACKS, order: TRACK_ORDER, botNames: BOT_NAMES, kick: 'KICK', boost: 'BOOST', road: 'road',
+    choices: [['tour', 'CUP TOUR'], ['meadow', 'MEADOW'], ['pass', 'SWITCHBACK'], ['rush', 'RUSH HOUR'], ['random', 'RANDOM']],
+    blurb: 'Three races, three bots. Pull level and kick them off the road. 3 / 2 / 1 / 0 points a race.',
+    hint: 'TILT OR HOLD STEER · TAP KICK L / R · TAP BOOST (NEAR MISSES AND SLIPSTREAM FILL IT) · KEYS ← → A D SPACE C',
+  },
+  dustkick: {
+    key: 'dustkick', title: 'DUST KICK', storage: 'dustkick-settings', roads: DUST_TRACKS, order: DUST_TRACK_ORDER, botNames: DUST_BOT_NAMES, kick: 'BUCK', boost: 'SPURS', road: 'trail',
+    choices: [['tour', 'CUP TOUR'], ['canyon', 'CANYON'], ['prairie', 'PRAIRIE'], ['town', 'TOWN']],
+    blurb: 'Three races, three bots. Buck them off the trail, grab hay and a rope coil. 3 / 2 / 1 / 0 points a race.',
+    hint: 'TILT OR HOLD STEER · TAP BUCK L / R · TAP SPURS (HAY, KICKS AND DUST FILL IT) · LASSO WITH A COIL · KEYS ← → A D SPACE E C',
+  },
+}
 const LEVEL_LABEL = { easy: 'EASY', normal: 'NORMAL', hard: 'HARD' }
 const DEFAULTS = { track: 'tour', level: 'normal', pixel: false }
 
-function readSettings() {
+function readSettings(v) {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
+    const raw = JSON.parse(localStorage.getItem(v.storage) || 'null')
     return {
-      track: TRACK_CHOICES.some(([id]) => id === raw?.track) ? raw.track : DEFAULTS.track,
+      track: v.choices.some(([id]) => id === raw?.track) ? raw.track : DEFAULTS.track,
       level: DIFFICULTY_IDS.includes(raw?.level) ? raw.level : DEFAULTS.level,
       pixel: !!raw?.pixel,
     }
@@ -39,10 +52,10 @@ const blankCup = () => ({ race: 0, pts: [0, 0, 0, 0], order: null })
 const randomSeed = () => (Math.random() * 1e9) | 0
 
 /** The road id for race `n` of a cup under these settings. */
-const trackIdFor = (cfg, n) => (cfg.track === 'tour' ? TRACK_ORDER[n % TRACK_ORDER.length] : cfg.track)
+const trackIdFor = (cfg, n, v) => (cfg.track === 'tour' ? v.order[n % v.order.length] : cfg.track)
 /** A road to build: its id and seed (a fresh seed each time for RANDOM). */
-function roadFor(cfg, n) {
-  const id = trackIdFor(cfg, n)
+function roadFor(cfg, n, v) {
+  const id = trackIdFor(cfg, n, v)
   return { id, seed: id === 'random' ? randomSeed() : TRACK_SEED }
 }
 
@@ -65,10 +78,12 @@ function Sheet({ children, testId }) {
   )
 }
 
-export default function SideKickDemo() {
+function Demo({ variant }) {
+  const v = VARIANT[variant]
+  const dust = variant === 'dustkick'
   const { profile } = useAuth()
-  const myAvatar = profile?.avatar || readStoredAvatar() || defaultAvatarForId('sidekick-you')
-  const [cfg, setCfg] = useState(readSettings)
+  const myAvatar = profile?.avatar || readStoredAvatar() || defaultAvatarForId(`${v.key}-you`)
+  const [cfg, setCfg] = useState(() => readSettings(v))
   const [phase, setPhase] = useState('idle')          // idle | racing | results
   const [cup, setCup] = useState(blankCup)
   const [result, setResult] = useState(null)
@@ -76,9 +91,9 @@ export default function SideKickDemo() {
   const phaseRef = useRef('idle')
   const cfgRef = useRef(cfg)
   const cupRef = useRef(cup)
-  const [record, setRecord] = useState(() => readBotRecord('sidekick'))
-  const names = ['YOU', ...BOT_NAMES.slice(0, 3)]
-  const avatars = [myAvatar, ...names.slice(1).map((n) => defaultAvatarForId(`sidekick-${n}`))]
+  const [record, setRecord] = useState(() => readBotRecord(v.key))
+  const names = ['YOU', ...v.botNames.slice(0, 3)]
+  const avatars = [myAvatar, ...names.slice(1).map((n) => defaultAvatarForId(`${v.key}-${n}`))]
   const avatarsRef = useRef(avatars)
   useEffect(() => { avatarsRef.current = avatars })
 
@@ -87,9 +102,9 @@ export default function SideKickDemo() {
   const setPhaseBoth = useCallback((p) => { phaseRef.current = p; setPhase(p) }, [])
 
   const attract = useCallback(() => {
-    const road = roadFor(cfgRef.current, 0)
+    const road = roadFor(cfgRef.current, 0, v)
     worldRef.current = createWorld({
-      seed: road.seed, trackId: road.id, difficulty: cfgRef.current.level, phase: 'race',
+      seed: road.seed, trackId: road.id, difficulty: cfgRef.current.level, phase: 'race', dust,
       riders: names.map((name, i) => ({ id: `r${i}`, name, avatar: avatarsRef.current[i], bot: true })),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- names is a constant list
@@ -101,7 +116,7 @@ export default function SideKickDemo() {
     const next = { ...cfgRef.current, ...patch }
     cfgRef.current = next
     setCfg(next)
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* storage unavailable */ }
+    try { localStorage.setItem(v.storage, JSON.stringify(next)) } catch { /* storage unavailable */ }
     const fresh = blankCup()
     cupRef.current = fresh
     setCup(fresh)
@@ -112,11 +127,11 @@ export default function SideKickDemo() {
 
   const startRace = (cupState = cupRef.current) => {
     sounds.touch()
-    const road = roadFor(cfgRef.current, cupState.race)
+    const road = roadFor(cfgRef.current, cupState.race, v)
     // Last place in the previous race starts in front: the order is best first, so it is back to front already.
     const grid = cupState.order
     worldRef.current = createWorld({
-      seed: road.seed, trackId: road.id, difficulty: cfgRef.current.level, phase: 'count',
+      seed: road.seed, trackId: road.id, difficulty: cfgRef.current.level, phase: 'count', dust,
       gridBackToFront: grid,
       riders: names.map((name, i) => ({ id: `r${i}`, name, avatar: avatars[i], bot: i > 0 })),
     })
@@ -145,7 +160,7 @@ export default function SideKickDemo() {
     setCup(next)
     const won = ids[0] === 0
     if (won) sounds.win(); else sounds.lose()
-    setRecord(recordBotResult('sidekick', cfgRef.current.level, won ? 'win' : 'loss'))
+    setRecord(recordBotResult(v.key, cfgRef.current.level, won ? 'win' : 'loss'))
     setResult({
       rows: order.map((r, place) => ({ i: r.i, name: r.name, done: r.done, time: r.time, hits: r.hits, offs: r.offs, gain: award[r.i] || 0, place: place + 1 })),
       cupOver: next.race >= CUP_RACES,
@@ -166,9 +181,9 @@ export default function SideKickDemo() {
     },
   })
 
-  const roadId = trackIdFor(cfg, phase === 'idle' ? 0 : Math.max(0, cup.race - (phase === 'results' ? 1 : 0)))
+  const roadId = trackIdFor(cfg, phase === 'idle' ? 0 : Math.max(0, cup.race - (phase === 'results' ? 1 : 0)), v)
   const raceNo = Math.min(CUP_RACES, (phase === 'results' ? cup.race : cup.race + 1))
-  const status = phase === 'idle' ? 'SIDE KICK · SOLO' : `RACE ${raceNo} OF ${CUP_RACES} · ${TRACKS[roadId].name}`
+  const status = phase === 'idle' ? `${v.title} · SOLO` : `RACE ${raceNo} OF ${CUP_RACES} · ${v.roads[roadId].name}`
   const level = DIFFICULTY[cfg.level]?.label ?? 'NORMAL'
   const rec = record[cfg.level]
 
@@ -176,11 +191,11 @@ export default function SideKickDemo() {
   if (phase === 'idle') {
     cover = (
       <Sheet testId="sidekick-start">
-        <p className="font-pixel text-2xl leading-tight text-retro-p1 text-glow-p1">SIDE KICK</p>
-        <p className="mt-2 font-mono text-xs leading-relaxed text-retro-dim">Three races, three bots. Pull level and kick them off the road. 3 / 2 / 1 / 0 points a race.</p>
+        <p className="font-pixel text-2xl leading-tight text-retro-p1 text-glow-p1">{v.title}</p>
+        <p className="mt-2 font-mono text-xs leading-relaxed text-retro-dim">{v.blurb}</p>
         <div className="mt-3 space-y-2">
-          <div className="flex flex-wrap justify-center gap-1.5" role="group" aria-label="Road">
-            {TRACK_CHOICES.map(([id, label]) => (
+          <div className="flex flex-wrap justify-center gap-1.5" role="group" aria-label={dust ? 'Trail' : 'Road'}>
+            {v.choices.map(([id, label]) => (
               <button key={id} type="button" aria-pressed={cfg.track === id} onClick={() => applyCfg({ track: id })} className={chip(cfg.track === id)}>{label}</button>
             ))}
           </div>
@@ -191,7 +206,7 @@ export default function SideKickDemo() {
           </div>
           <div className="flex justify-center gap-1.5" role="group" aria-label="Art style">
             {[[false, 'SMOOTH'], [true, 'PIXEL']].map(([px, label]) => (
-              <button key={label} type="button" aria-pressed={cfg.pixel === px} onClick={() => { const n = { ...cfgRef.current, pixel: px }; cfgRef.current = n; setCfg(n); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(n)) } catch { /* storage unavailable */ } }} className={chip(cfg.pixel === px)}>{label}</button>
+              <button key={label} type="button" aria-pressed={cfg.pixel === px} onClick={() => { const n = { ...cfgRef.current, pixel: px }; cfgRef.current = n; setCfg(n); try { localStorage.setItem(v.storage, JSON.stringify(n)) } catch { /* storage unavailable */ } }} className={chip(cfg.pixel === px)}>{label}</button>
             ))}
           </div>
           <SideKickPrefs />
@@ -234,10 +249,16 @@ export default function SideKickDemo() {
 
   return (
     <div className="mx-auto w-full max-w-sm">
-      <SideKickPlay run={run} controls={controls} avatars={avatars} enabled={phase === 'racing'} cover={cover} status={status} hideHud={phase === 'idle'} />
-      <p className="mt-2 text-center font-pixel text-[7px] leading-relaxed text-retro-dim">
-        TILT OR HOLD STEER · TAP KICK L / R · TAP BOOST (NEAR MISSES AND SLIPSTREAM FILL IT) · KEYS ← → A D SPACE C
-      </p>
+      <SideKickPlay run={run} controls={controls} avatars={avatars} enabled={phase === 'racing'} cover={cover} status={status} hideHud={phase === 'idle'} dust={dust} />
+      <p className="mt-2 text-center font-pixel text-[7px] leading-relaxed text-retro-dim">{v.hint}</p>
     </div>
   )
+}
+
+export default function SideKickDemo() {
+  return <Demo variant="sidekick" />
+}
+
+export function DustKickDemo() {
+  return <Demo variant="dustkick" />
 }

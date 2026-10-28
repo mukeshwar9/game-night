@@ -37,6 +37,7 @@ import { HEARTS as FENDER_HEARTS, HORN_COOLDOWN as FENDER_HORN, SQUEEZE_AT as FE
 import { TARGETS as SUSAN_TARGETS, TUNING as SUSAN } from './lazySusanLogic'
 import { QUIVER, GOLD_VALUE, WHEELS as QUIVER_WHEELS, WHEEL_SECONDS as QUIVER_WHEEL_S, HEARTS as QUIVER_HEARTS } from './quiverLogic'
 import { PIPS as SK_PIPS, CUP_POINTS as SK_POINTS, CUP_RACES as SK_RACES, RACE_END_AFTER_FIRST as SK_END } from './sideKickLogic'
+import { COILS_PER_RACE as DK_COILS } from './dustKickLogic'
 import { CHOP_GAME_MS, CHOP_STUN_MS, CHOP_WARN_CRATES } from './chopLogic'
 import {
   COINS_PER_HEART as BZ_COINS, HEARTS as BZ_HEARTS, MAX_HEARTS as BZ_MAX_HEARTS, ROUNDS_TO_WIN as BZ_ROUNDS, STONE_HP as BZ_STONE_HP,
@@ -218,6 +219,12 @@ const RULE_NUMBERS = {
     checks: [
       [3, SK_PIPS], [3, SK_POINTS[0]], [2, SK_POINTS[1]], [1, SK_POINTS[2]], [0, SK_POINTS[3]], [3, SK_RACES],
       [4, cfg('sidekick').maxPlayers], [20, SK_END],
+    ],
+  }),
+  dustkick: () => ({
+    checks: [
+      [3, SK_PIPS], [3, SK_POINTS[0]], [2, SK_POINTS[1]], [1, SK_POINTS[2]], [0, SK_POINTS[3]], [3, SK_RACES],
+      [4, cfg('dustkick').maxPlayers], [20, SK_END], [2, DK_COILS],
     ],
   }),
   arrowsparty: () => {

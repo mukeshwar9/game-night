@@ -895,6 +895,18 @@ export function SideKickIcon() {
   )
 }
 
+export function DustKickIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 22L8 3M21 22L16 3" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      <path d="M8.2 21c.4-4 1.6-6 3.8-6s3.4 2 3.8 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 15V9.6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M8 6.8h8M9.6 6.8V5c0-1.2.9-2 2.4-2s2.4.8 2.4 2v1.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.85" />
+      <path d="M15.4 11.6c3-.2 4.6 1 4.6 2.8s-1.4 2.6-2.8 2.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function ArtilleryIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">

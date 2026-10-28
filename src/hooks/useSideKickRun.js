@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { DT, MAXSPD, PIPS, BOOST_MIN, BOOST_TOP, CATCHUP_TOP, SLIPSTREAM_TOP, SLIPSTREAM_AFTER, NEAR_MISS_FILL, standings, step, formatRaceTime } from '../lib/sideKickLogic'
+import { HAY_FILL, ROPED_TOP, SPOOK_TOP } from '../lib/dustKickLogic'
 import { playSideKickEvent, createEngineHum } from '../lib/sideKickSound'
 import { isReducedMotion } from './useMotionPref'
 
@@ -48,11 +49,28 @@ export function hudOf(world, view) {
     wake: me.draft > SLIPSTREAM_AFTER && !down && !me.boosting,
     oil: me.oil > 0 && !down,
     lean: Math.round(Math.max(-1, Math.min(1, me.lean)) * 20) / 20,
-    chip: me.boosting ? `BOOST +${Math.round((BOOST_TOP - 1) * 100)}%` : me.oil > 0 && !down ? 'OIL · SLOWED' : cu ? `CATCH-UP +${Math.round((CATCHUP_TOP - 1) * 100)}%` : me.draft > SLIPSTREAM_AFTER ? `SLIPSTREAM +${Math.round((SLIPSTREAM_TOP - 1) * 100)}%` : null,
+    dust: !!world.dust,
+    rope: me.rope > 0 && !down,
+    winding: me.lassoT > 0,
+    chip: world.dust ? dustChip(me, down, cu) : me.boosting ? `BOOST +${Math.round((BOOST_TOP - 1) * 100)}%` : me.oil > 0 && !down ? 'OIL · SLOWED' : cu ? `CATCH-UP +${Math.round((CATCHUP_TOP - 1) * 100)}%` : me.draft > SLIPSTREAM_AFTER ? `SLIPSTREAM +${Math.round((SLIPSTREAM_TOP - 1) * 100)}%` : null,
     marked: me.mark >= 0 && world.riders[me.mark] ? world.riders[me.mark].name : null,
     count: world.phase === 'count' ? Math.max(1, Math.ceil(world.countT - 0.2)) : null,
     rail: world.riders.map((r) => ({ i: r.i, at: Math.round(Math.max(0, Math.min(1, r.z / world.track.finish)) * 1000) / 1000, down: r.state === 'down' })),
   }
+}
+
+/** The bonus chip of a Western rider: the strongest thing acting on the horse right now. */
+function dustChip(me, down, cu) {
+  if (me.boosting) return `SPURS +${Math.round((BOOST_TOP - 1) * 100)}%`
+  if (down) return null
+  if (me.roped > 0) return `ROPED · ${Math.round((1 - ROPED_TOP) * 100)}% SLOWER`
+  if (me.reel > 0) return 'REELING IN +12%'
+  if (me.spook > 0) return `SPOOKED · ${Math.round((1 - SPOOK_TOP) * 100)}% SLOWER`
+  if (me.oil > 0) return 'MUD · SLOWED'
+  if (cu) return `CATCH-UP +${Math.round((CATCHUP_TOP - 1) * 100)}%`
+  if (me.surge > 0) return 'HAY SURGE +5%'
+  if (me.draft > SLIPSTREAM_AFTER) return `DUST +${Math.round((SLIPSTREAM_TOP - 1) * 100)}%`
+  return null
 }
 
 function toastFor(ev, world, me) {
@@ -65,14 +83,24 @@ function toastFor(ev, world, me) {
       return null
     case 'miss': return ev.by === me ? ['WHIFF', 'dim'] : null
     case 'down':
-      if (ev.to === me) return [ev.why === 'car' ? 'WIPEOUT' : ev.why === 'over' ? 'TOO MANY KICKS · YOU FELL' : `KNOCKED OFF BY ${name(ev.by)}`, 'bad']
+      if (ev.to === me) return [ev.why === 'car' ? 'WIPEOUT' : ev.why === 'log' ? 'LOG · THROWN' : ev.why === 'over' ? 'TOO MANY KICKS · YOU FELL' : `KNOCKED OFF BY ${name(ev.by)}`, 'bad']
       if (ev.by === me) return [`${name(ev.to)} IS OFF THE BIKE`, 'good']
       return null
     case 'ghostdown': return ev.by === me ? [`${name(ev.to)} IS OFF THE BIKE`, 'good'] : null
     case 'payback': return ev.by === me ? [`PAYBACK! +1 CUP POINT`, 'good'] : null
-    case 'oil': return ev.to === me ? ['OIL · SLOWED', 'bad'] : null
+    case 'oil': return ev.to === me ? [world.dust ? 'MUD · SLOWED' : 'OIL · SLOWED', 'bad'] : null
     case 'nearmiss': return ev.to === me ? [`CLOSE! +${Math.round(NEAR_MISS_FILL * 100)}% BOOST`, 'good'] : null
-    case 'boostdry': return ev.to === me ? ['BOOST EMPTY', 'dim'] : null
+    case 'boostdry': return ev.to === me ? [world.dust ? 'SPURS EMPTY' : 'BOOST EMPTY', 'dim'] : null
+    case 'hay': return ev.to === me ? [`HAY! +${Math.round(HAY_FILL * 100)}% SPURS`, 'good'] : null
+    case 'coil': return ev.to === me ? ['ROPE COIL · TAP LASSO', 'good'] : null
+    case 'roped':
+      if (ev.by === me) return [`ROPED ${name(ev.to)}`, 'good']
+      if (ev.to === me) return [`ROPED BY ${name(ev.by)}`, 'bad']
+      return null
+    case 'lassomiss': return ev.by === me ? ['ROPE MISSED', 'dim'] : null
+    case 'rock': return ev.to === me ? ['ROCK · LOST A HORSESHOE', 'bad'] : null
+    case 'cactus': return ev.to === me ? ['CACTUS · LOST A HORSESHOE', 'bad'] : null
+    case 'weed': return ev.to === me ? ['TUMBLEWEED', 'dim'] : null
     case 'clang': return ev.by === me ? ['CLANG · THEY ARE SHIELDED', 'dim'] : null
     case 'up': return ev.to === me && ev.catchUp ? ['BACK ON · CATCH-UP', 'good'] : null
     default: return null

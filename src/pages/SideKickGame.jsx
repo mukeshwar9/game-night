@@ -13,11 +13,12 @@ import { getServerNow } from '../hooks/useServerClock'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import {
-  TRACKS, TRACK_SEED, RACE_MAX, DT, MAXSPD, BOT_NAMES, CUP_RACES, SYNC_MS,
-  createWorld, applyGhost, receiveKick, promoteBot, demoteBot, encodeRider, decodeRider, kickKey, parseKick,
+  TRACKS, DUST_TRACKS, TRACK_SEED, RACE_MAX, DT, MAXSPD, BOT_NAMES, DUST_BOT_NAMES, CUP_RACES, SYNC_MS,
+  createWorld, applyGhost, receiveKick, receiveLasso, promoteBot, demoteBot, encodeRider, decodeRider, kickKey, parseKick,
   raceEntry, raceIsDone, raceDecided, decorateRound, rosterOf, isBotId, gridFor, normalizeGrid, roundTrack,
-  trackForRace, trackLength, formatRaceTime,
+  trackForRace, dustTrackForRace, trackLength, formatRaceTime,
 } from '../lib/sideKickLogic'
+import { lassoKey } from '../lib/dustKickLogic'
 import { cn } from '@/lib/utils'
 
 // SIDE KICK online: a 2–4 rider road race with bots in the empty seats, run as a
@@ -27,13 +28,25 @@ import { cn } from '@/lib/utils'
 // phone and delivered to the victim as `k/{n} = "victim|side"` on the kicker's
 // node; the victim's phone applies the shove, the pip and the stagger. The room
 // coordinator's phone also drives the bots, writing their reports under `botN`.
+//
+// DUST KICK is the same page and the same wire with the Western rules switched on
+// (`dust`): a rope is a write-once `k/{n} = "victim|L"` beside the kicks, and the
+// room's `round.track` names Canyon, Prairie or Town instead of the three roads.
 
-const RACE = {
-  type: 'sidekick',
-  title: 'SIDE KICK',
-  sameWhat: 'ROAD',
+const botNamesOf = (dust) => (dust ? DUST_BOT_NAMES : BOT_NAMES)
+const trackDefs = (dust) => (dust ? DUST_TRACKS : TRACKS)
+
+const makeRace = (dust) => ({
+  type: dust ? 'dustkick' : 'sidekick',
+  title: dust ? 'DUST KICK' : 'SIDE KICK',
+  sameWhat: dust ? 'TRAIL' : 'ROAD',
   maxRacers: 4,
-  rules: [
+  rules: dust ? [
+    'TILT OR HOLD STEER · TAP BUCK L / R TO HIT A RIDER BESIDE YOU',
+    'THREE KICKS UNSEAT A RIDER · A KICK SLOWS AND SPOOKS THEM',
+    'HAY, KICKS AND DUST FILL SPURS · ONE TAP SPENDS IT · A ROPE COIL GIVES ONE LASSO',
+    `${CUP_RACES} RACES · CANYON, PRAIRIE, TOWN · 3 / 2 / 1 / 0 POINTS · BEST CUP WINS`,
+  ] : [
     'TILT OR HOLD STEER · TAP KICK L / R TO HIT A RIDER BESIDE YOU',
     'THREE HITS UNSEAT A RIDER · TOO MANY KICKS TIRE YOU OUT',
     'BOTS FILL EMPTY SEATS · NEAR MISSES AND SLIPSTREAM FILL BOOST · ONE TAP SPENDS IT',
@@ -51,10 +64,10 @@ const RACE = {
   decorate: decorateRound,
   durationMs: () => (RACE_MAX + 10) * 1000,
   // Each race of the cup rides the next named road; last place starts in front.
-  start: (cur) => ({ extras: { track: trackForRace(Number(cur?.cupRaces) || 0), ...(cur?.raceResult?.grid ? { grid: cur.raceResult.grid } : {}) } }),
+  start: (cur) => ({ extras: { track: (dust ? dustTrackForRace : trackForRace)(Number(cur?.cupRaces) || 0), ...(cur?.raceResult?.grid ? { grid: cur.raceResult.grid } : {}) } }),
   row: (stats, round) => {
     const s = decodeRider(stats)
-    const len = trackLength(roundTrack(round?.raw?.track))
+    const len = trackLength(roundTrack(round?.raw?.track, dust))
     return {
       primary: s ? (s.fin ? formatRaceTime(s.fin / 1000) : `${Math.round(Math.min(1, s.z / len) * 100)}%`) : '—',
       secondary: s ? `${s.hk} KICKS · ${s.dn} FALLS` : '',
@@ -63,17 +76,18 @@ const RACE = {
       detail: s ? String(Math.round(s.z)) : '',
     }
   },
-}
+})
 
 const statsBase = (statsPath) => statsPath.slice(0, statsPath.lastIndexOf('/'))
 
-function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase }) {
+function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase, dust }) {
   const players = game.players
   const roster = rosterOf(round.racers)
   const rosterKey = roster.join(',')
   const view = roster.indexOf(mySeat)
-  const trackId = roundTrack(round.raw?.track)
-  const avatars = roster.map((id) => (isBotId(id) ? defaultAvatarForId(`sidekick-${id}`) : players?.[id]?.avatar || null))
+  const trackId = roundTrack(round.raw?.track, dust)
+  const botNames = botNamesOf(dust)
+  const avatars = roster.map((id) => (isBotId(id) ? defaultAvatarForId(`${dust ? 'dustkick' : 'sidekick'}-${id}`) : players?.[id]?.avatar || null))
   const amCoord = isRoomCoordinator(mySeat, players, game.hostUid ?? null)
   const racing = phase === 'racing'
 
@@ -89,9 +103,9 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
   // and kicks already in the room are history, not new blows.
   useEffect(() => {
     const L = live.current
-    const names = roster.map((id, i) => (isBotId(id) ? BOT_NAMES[Number(id.slice(3)) - 1] ?? 'BOT' : (L.players?.[id]?.name || 'RIDER').toUpperCase().slice(0, 8) || `R${i + 1}`))
+    const names = roster.map((id, i) => (isBotId(id) ? botNames[Number(id.slice(3)) - 1] ?? 'BOT' : (L.players?.[id]?.name || 'RIDER').toUpperCase().slice(0, 8) || `R${i + 1}`))
     const world = createWorld({
-      seed: TRACK_SEED, trackId, seedRng: round.seed ?? 1, phase: 'count', difficulty: 'normal',
+      seed: TRACK_SEED, trackId, seedRng: round.seed ?? 1, phase: 'count', difficulty: 'normal', dust,
       gridBackToFront: gridFor(roster, normalizeGrid(L.grid)),
       riders: roster.map((id, i) => ({
         id, name: names[i], avatar: avatars[i], bot: isBotId(id),
@@ -113,7 +127,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
     worldRef.current = world
     return () => { worldRef.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new world per round / roster; the rest is read from `live`
-  }, [round.id, rosterKey])
+  }, [round.id, rosterKey, dust])
 
   const [prefs] = useSideKickPrefs()
   const controls = useSideKickControls({ enabled: racing })
@@ -151,7 +165,10 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
         seen.current.add(key)
         const p = parseKick(v)
         const to = p ? roster.indexOf(p.to) : -1
-        if (p && to >= 0 && world.riders[to].local) receiveKick(world, to, by, p.side)
+        if (p && to >= 0 && world.riders[to].local) {
+          if (p.lasso) receiveLasso(world, to, by)
+          else receiveKick(world, to, by, p.side)
+        }
       }
     }
   }
@@ -163,6 +180,8 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
       if (ev.t === 'send' && ev.kind === 'kick') {
         const kicker = world.riders[ev.by]
         write(kicker.id, { [`k/${kicker.kickCount}`]: kickKey(world.riders[ev.to].id, ev.side) })
+      } else if (ev.t === 'send' && ev.kind === 'lasso') {
+        write(world.riders[ev.by].id, { [`k/${ev.n}`]: lassoKey(world.riders[ev.to].id) })
       }
     }
     if (world.phase === 'done' && n.finalSent) return
@@ -174,7 +193,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
     if (ending) return
     for (const r of world.riders) {
       if (!r.local) continue
-      const urgent = events.some((e) => (e.t === 'down' && e.to === r.i) || (e.t === 'up' && e.to === r.i) || (e.t === 'finish' && e.to === r.i) || (e.t === 'swing' && e.by === r.i))
+      const urgent = events.some((e) => (e.t === 'down' && e.to === r.i) || (e.t === 'up' && e.to === r.i) || (e.t === 'finish' && e.to === r.i) || (e.t === 'swing' && e.by === r.i) || (e.t === 'lasso' && e.by === r.i))
       const every = r.done ? 400 : SYNC_MS
       if (urgent || now - (n.last[r.id] || 0) >= every) {
         n.last[r.id] = now
@@ -193,7 +212,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
   })
 
   const cupRace = (Number(game.cupRaces) || 0) + 1
-  const status = `RACE ${Math.min(CUP_RACES, cupRace)} OF ${CUP_RACES} · ${TRACKS[trackId].name}`
+  const status = `RACE ${Math.min(CUP_RACES, cupRace)} OF ${CUP_RACES} · ${trackDefs(dust)[trackId].name}`
   const finished = run.hud?.done
   const cover = finished ? (
     <div className="pointer-events-none absolute inset-x-0 top-[58%] flex justify-center">
@@ -206,21 +225,22 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase })
   if (view < 0) return null
   return (
     <div className="mx-auto w-full max-w-sm">
-      <SideKickPlay run={run} controls={controls} avatars={avatars} enabled={racing && !finished} cover={cover} status={status} />
+      <SideKickPlay run={run} controls={controls} avatars={avatars} enabled={racing && !finished} cover={cover} status={status} dust={dust} />
     </div>
   )
 }
 
 /** The road result with everyone on it (bots too) and what it was worth. */
-function SideKickFinal({ game, round, result, mySeat, players }) {
+function SideKickFinal({ game, round, result, mySeat, players, dust }) {
   if (!round || !result) return null
+  const botNames = botNamesOf(dust)
   const ids = rosterOf(round.racers)
   const order = Array.isArray(result.grid) ? result.grid.filter((id) => ids.includes(id)) : ids
-  const nameOf = (id) => (isBotId(id) ? BOT_NAMES[Number(id.slice(3)) - 1] ?? 'BOT' : (players?.[id]?.name || 'RIDER')).toUpperCase()
-  const avatarOf = (id) => (isBotId(id) ? defaultAvatarForId(`sidekick-${id}`) : players?.[id]?.avatar)
+  const nameOf = (id) => (isBotId(id) ? botNames[Number(id.slice(3)) - 1] ?? 'BOT' : (players?.[id]?.name || 'RIDER')).toUpperCase()
+  const avatarOf = (id) => (isBotId(id) ? defaultAvatarForId(`${dust ? 'dustkick' : 'sidekick'}-${id}`) : players?.[id]?.avatar)
   return (
     <div className="space-y-2 rounded border border-retro-border bg-retro-card p-3" data-testid="sidekick-final">
-      <p className="text-center font-pixel text-[9px] tracking-widest text-retro-dim">THE ROAD · BOTS INCLUDED</p>
+      <p className="text-center font-pixel text-[9px] tracking-widest text-retro-dim">{dust ? 'THE TRAIL' : 'THE ROAD'} · BOTS INCLUDED</p>
       <ol className="space-y-1.5" aria-label="Road result">
         {order.map((id, i) => {
           const s = decodeRider(round.stats?.[id])
@@ -242,6 +262,23 @@ function SideKickFinal({ game, round, result, mySeat, players }) {
   )
 }
 
+/** One room page per variant: the race config and the two inner components close over `dust`. */
+function makeGame(dust) {
+  const race = makeRace(dust)
+  const Racer = (props) => <SideKickRacer {...props} dust={dust} />
+  const Final = (props) => <SideKickFinal {...props} dust={dust} />
+  return function Game(props) {
+    return <RaceShell {...props} race={race} Racer={Racer} Final={Final} />
+  }
+}
+
+const SideKickRoom = makeGame(false)
+const DustKickRoom = makeGame(true)
+
+export function DustKickGame(props) {
+  return <DustKickRoom {...props} />
+}
+
 export default function SideKickGame(props) {
-  return <RaceShell {...props} race={RACE} Racer={SideKickRacer} Final={SideKickFinal} />
+  return <SideKickRoom {...props} />
 }

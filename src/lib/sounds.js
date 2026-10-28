@@ -347,6 +347,12 @@ export const sounds = {
     try { noise(ctx().currentTime, 0.3, 0.07, 900) } catch { /* audio unavailable */ }
     vibrate(20)
   },
+  // DUST KICK: a hay pickup, a rope coil, the lasso whirl and its catch, a rock, a cactus.
+  dustKickHay: () => { seq([[392, 0, 0.07, 'triangle', 0.07], [587, 0.06, 0.1, 'triangle', 0.07]]); vibrate(10) },
+  dustKickCoil: () => { seq([[300, 0, 0.06, 'triangle', 0.06], [450, 0.05, 0.06, 'triangle', 0.06], [675, 0.1, 0.1, 'triangle', 0.06]]) },
+  dustKickLasso: () => { try { noise(ctx().currentTime, 0.28, 0.07, 2600) } catch { /* audio unavailable */ }; seq([[220, 0, 0.12, 'sine', 0.05], [330, 0.1, 0.12, 'sine', 0.05]]) },
+  dustKickRoped: () => { seq([[180, 0, 0.08, 'sawtooth', 0.09], [120, 0.07, 0.14, 'sawtooth', 0.08]]); vibrate([0, 40, 30, 50]) },
+  dustKickThud: () => { try { noise(ctx().currentTime, 0.16, 0.1, 380) } catch { /* audio unavailable */ }; seq([[100, 0, 0.1, 'square', 0.08]]); vibrate(25) },
   sideKickFinish: () => {
     seq([[523, 0, 0.18, 'square', 0.07], [659, 0.11, 0.18, 'square', 0.07], [784, 0.22, 0.18, 'square', 0.07], [1047, 0.33, 0.3, 'square', 0.08]])
     vibrate([0, 30, 40, 30, 40, 90])

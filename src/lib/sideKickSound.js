@@ -23,6 +23,11 @@ export function playSideKickEvent(ev, me) {
     case 'nearmiss': if (ev.to === me) sounds.sideKickNearMiss(); break
     case 'boostdry': if (ev.to === me) sounds.sideKickBoostDry(); break
     case 'finish': if (ev.to === me) sounds.sideKickFinish(); break
+    case 'hay': if (ev.to === me) sounds.dustKickHay(); break
+    case 'coil': if (ev.to === me) sounds.dustKickCoil(); break
+    case 'lasso': if (ev.by === me) sounds.dustKickLasso(); break
+    case 'roped': if (ev.to === me) sounds.dustKickRoped(); else if (ev.by === me) sounds.sideKickHit(); break
+    case 'rock': case 'cactus': case 'weed': if (ev.to === me) sounds.dustKickThud(); break
     case 'payback': if (ev.by === me) sounds.sideKickPop(); break
     default: break
   }
