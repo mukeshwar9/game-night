@@ -32,8 +32,11 @@ async function openGame(page, label) {
 async function everyoneReady(players) {
   for (const { page } of players) {
     await page.getByRole('button', { name: 'READY', exact: true }).click()
-    await expect(page.getByRole('button', { name: '✓ READY' })).toBeVisible()
-      .catch(() => { /* the last tap starts the race straight away */ })
+    // The last tap starts the race straight away, so there is no ✓ READY to
+    // wait for. A long wait here ate the 3 s countdown and most of the round:
+    // a co-op round with nobody slicing ends ~10 s after GO.
+    await expect(page.getByRole('button', { name: '✓ READY' })).toBeVisible({ timeout: 2_000 })
+      .catch(() => {})
   }
 }
 

@@ -22,8 +22,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
     await expect(sheet.locator('summary').filter({ hasText: 'LOOK & FEEL' })).toBeFocused()
     await page.keyboard.press('Tab')
     await expect(sheet.locator('summary').filter({ hasText: /^AUDIO/ })).toBeFocused()
-    await page.keyboard.press('Tab')
-    await page.keyboard.press('Tab')
+    // Every collapsed group is a Tab stop (video call, privacy, … come and go
+    // with the build), so walk on until HELP & RESET rather than count them.
+    for (let i = 0; i < 6 && !(await help.evaluate((el) => el === document.activeElement)); i += 1) {
+      await page.keyboard.press('Tab')
+    }
     await expect(help).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(sheet.getByRole('button', { name: 'RESET ALL TO DEFAULTS' })).toBeVisible()

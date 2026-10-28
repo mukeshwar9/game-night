@@ -7,7 +7,7 @@
 
 import { MATCH_TARGET as ANAGRAMS_MATCH_TARGET } from './anagramsConfig'
 import { TARGET_SCORE as PASSWORD_TARGET } from './passwordLogic'
-import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from './arrowsLogic'
+import { ARROWS_MATCH_TARGET, getArrowsMatchEnd } from './arrowsMatchLogic'
 import { MATCH_TARGET as UPDRAFT_MATCH_TARGET } from './updraftConfig'
 
 /**

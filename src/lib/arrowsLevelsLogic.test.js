@@ -56,6 +56,7 @@ const LOW_COVERAGE = [1, 3, 4, 130, 140, 148, 149, 159, 167, 169, 170]
 describe('the 170-level campaign', { timeout: 180000 }, () => {
   it('has 170 levels, one seed each, in 17 chapters of ten', () => {
     expect(ARROWS_LEVEL_COUNT).toBe(170)
+    expect(ARROWS_LEVEL_SPECS).toHaveLength(ARROWS_LEVEL_COUNT)
     expect(ARROWS_LEVEL_SEEDS).toHaveLength(170)
     expect(ARROWS_LEVEL_SPECS).toHaveLength(170)
     expect(ARROWS_GENERATED_LEVELS).toBe(0)

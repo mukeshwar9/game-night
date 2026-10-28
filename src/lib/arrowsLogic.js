@@ -56,10 +56,10 @@
 // The geometry helpers at the bottom (`leavePose`, `roundedPathD`, …) are
 // pure too: ArrowsBoard.jsx calls them each animation frame.
 
-export const ARROWS_LIVES = 3
-export const ARROWS_MATCH_TARGET = 2
-export const ARROWS_MAX_ROUNDS = 3
-export const ARROWS_TIERS = ['easy', 'medium', 'hard']
+// Match flow lives in arrowsMatchLogic.js (small, so the entry bundle can load it
+// without the generator and solver); re-exported so existing imports keep working.
+import { ARROWS_TIERS } from './arrowsMatchLogic.js'
+export * from './arrowsMatchLogic.js'
 
 // Grid size, snake length and twists per tier. Widths are capped at 10
 // columns so a cell stays ~35px (a comfortable thumb target) on a 390px
@@ -159,10 +159,6 @@ export function seededRng(seed) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
-}
-
-export function randomArrowsSeed(rng = Math.random) {
-  return Math.floor(rng() * 2147483647) + 1
 }
 
 export function tierForRound(round) {
@@ -1392,62 +1388,6 @@ export function arrowsRoundWinner({ total, clearedX, clearedO, livesX, livesO })
   if (livesX <= 0) return 'O'
   if (livesO <= 0) return 'X'
   return null
-}
-
-// ── Match flow ─────────────────────────────────────────────────────────────
-
-// First to ARROWS_MATCH_TARGET round wins.
-export function arrowsMatchWinner(scores) {
-  const x = scores?.X || 0
-  const o = scores?.O || 0
-  if (x >= ARROWS_MATCH_TARGET) return 'X'
-  if (o >= ARROWS_MATCH_TARGET) return 'O'
-  return null
-}
-
-export function isFinalArrowsRound(game) {
-  return (game?.arrowsRound ?? 0) >= ARROWS_MAX_ROUNDS - 1
-}
-
-// Conclusive match end for a game object: someone hit the target, or the
-// final round finished (higher score wins, level scores draw). Returns
-// 'X' | 'O' | 'draw' | null while the match is still live.
-export function getArrowsMatchEnd(game) {
-  const target = arrowsMatchWinner(game?.scores)
-  if (target) return target
-  if (isFinalArrowsRound(game) && game?.status === 'finished') {
-    const x = game?.scores?.X || 0
-    const o = game?.scores?.O || 0
-    if (x === o) return 'draw'
-    return x > o ? 'X' : 'O'
-  }
-  return null
-}
-
-function roundFields(round, rng) {
-  return {
-    arrowsRound: round,
-    arrowsSeed: randomArrowsSeed(rng),
-    arrowsStartedAt: null,
-    arrowsGoneX: null,
-    arrowsGoneO: null,
-    arrowsLivesX: ARROWS_LIVES,
-    arrowsLivesO: ARROWS_LIVES,
-  }
-}
-
-// Config hook for Game.jsx's applyPlayAgain: advance easy → medium → hard.
-// Returns null when the match is over (callers start a new match instead).
-export function arrowsNextRound(game, rng = Math.random) {
-  if (arrowsMatchWinner(game?.scores)) return null
-  const round = (game?.arrowsRound ?? 0) + 1
-  if (round >= ARROWS_MAX_ROUNDS) return null
-  return roundFields(round, rng)
-}
-
-// Fresh round-0 state fragment (used by freshGameState in games.js).
-export function arrowsFreshState(rng = Math.random) {
-  return roundFields(0, rng)
 }
 
 // ── Geometry (board units: one cell = `size`) ──────────────────────────────

@@ -30,7 +30,8 @@ for (const type of SOLO_TYPES) {
 
     await page.goto(`/solo/${type}`)
     // The solo hub is headed "PLAY SOLO"; the fallback page says "NO SOLO DEMO".
-    await expect(page.getByRole('heading', { name: 'PLAY SOLO' }).or(page.getByText('NO SOLO DEMO')).or(page.getByText(ERROR_BOUNDARY_TEXT)).first()).toBeVisible()
+    // A game with its own solo hub (Arrows) is headed by its own name.
+    await expect(page.getByRole('heading', { name: 'PLAY SOLO' }).or(page.getByRole('heading', { level: 1 })).or(page.getByText('NO SOLO DEMO')).or(page.getByText(ERROR_BOUNDARY_TEXT)).first()).toBeVisible()
 
     await expect(page.getByText(ERROR_BOUNDARY_TEXT)).toHaveCount(0)
     if (!MISSING_SOLO_DEMO.has(type)) {

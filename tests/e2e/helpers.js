@@ -65,3 +65,30 @@ export function expectNoPageErrors(...players) {
     expect(cspViolations).toEqual([])
   }
 }
+
+// The signed-in anonymous user ({ uid, token }), read from the Auth SDK's
+// IndexedDB record. Specs run against a production build (E2E_PREVIEW=1), where
+// `import('/src/…')` inside the page does not exist, so they cannot ask the app.
+export async function authOf(page) {
+  let found = null
+  await expect.poll(async () => {
+    found = await page.evaluate(() => new Promise((resolve) => {
+      const open = indexedDB.open('firebaseLocalStorageDb')
+      open.onerror = () => resolve(null)
+      open.onsuccess = () => {
+        const db = open.result
+        if (!db.objectStoreNames.contains('firebaseLocalStorage')) return resolve(null)
+        const all = db.transaction('firebaseLocalStorage').objectStore('firebaseLocalStorage').getAll()
+        all.onerror = () => resolve(null)
+        all.onsuccess = () => {
+          const row = all.result.find((r) => String(r.fbase_key).startsWith('firebase:authUser:'))
+          resolve(row?.value?.uid ? { uid: row.value.uid, token: row.value.stsTokenManager?.accessToken ?? null } : null)
+        }
+      }
+    }))
+    return Boolean(found)
+  }).toBe(true)
+  return found
+}
+
+export const uidOf = async (page) => (await authOf(page)).uid
