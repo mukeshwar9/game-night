@@ -6,15 +6,19 @@ import { test, expect } from '@playwright/test'
 
 const PROGRESS_KEY = 'arrows-solo-v1'
 const SEEN_KEY = 'arrows-twists-seen'
+const REWARD_SEEN_KEY = 'gn-arrows-reward-seen'
 
-// Cleared through `upTo` with three stars each, and taught `seen`.
+// Cleared through `upTo` with three stars each, and taught `seen`. The reward
+// announcements for those stars count as already shown: their sheet would
+// otherwise open over the hub and cover the level tiles.
 async function seed(page, upTo, seen) {
-  await page.evaluate(({ upTo, seen, PROGRESS_KEY, SEEN_KEY }) => {
+  await page.evaluate(({ upTo, seen, PROGRESS_KEY, SEEN_KEY, REWARD_SEEN_KEY }) => {
     const levels = {}
     for (let n = 1; n <= upTo; n += 1) levels[`l${n}`] = 3
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({ levels, endless: { easy: 0, medium: 0, hard: 0 } }))
     localStorage.setItem(SEEN_KEY, JSON.stringify(Object.fromEntries(seen.map((k) => [k, true]))))
-  }, { upTo, seen, PROGRESS_KEY, SEEN_KEY })
+    localStorage.setItem(REWARD_SEEN_KEY, String(upTo * 3))
+  }, { upTo, seen, PROGRESS_KEY, SEEN_KEY, REWARD_SEEN_KEY })
   await page.reload()
   await expect(page.getByRole('heading', { name: 'ARROWS' })).toBeVisible()
 }
