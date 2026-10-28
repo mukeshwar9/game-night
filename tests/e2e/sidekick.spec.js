@@ -5,6 +5,7 @@
 import { test, expect } from '@playwright/test'
 import { createRoom, expectNoPageErrors, joinViaInvite, newPlayer, onboard } from './helpers.js'
 import { DB_ORIGIN } from './emulator.js'
+import { MAXSPD } from '../../src/lib/sideKickLogic.js'
 
 test.describe.configure({ timeout: 180_000 })
 
@@ -149,16 +150,18 @@ test('Side Kick online: both phones race, a kick lands, and a finished race scor
     // the same frame it reads the kick, exactly as it would had she been riding beside him.
     const stats = async () => (await readRoom(alice.page.url())).round.stats[rid]
     let landed = false
-    // Bob's phone is ahead of his last report by the sync delay, which is longer on a slow runner,
-    // so the kicker's spot is tried at a few distances past it.
-    const AHEAD = [0, 500, 1000, 1500, 2000]
+    // Bob's phone is ahead of his last report by the sync delay, which is longer on a slow runner
+    // and worth thousands of units at speed. Carry the report forward by its age at his speed, and
+    // try a few spots around it.
+    const JITTER = [0, 400, -400, 800, -800]
+    const ahead = (b) => (b.v / 1000) * MAXSPD * Math.max(0, Date.now() + 100 - b.at) / 1000
     const tries = []
     for (let n = 901; n < 926 && !landed; n++) {
       const all = await stats()
       const a = all[aliceUid]
       const b = all[bobUid]
       if (!a || !b || a.s || b.s || b.sh) { tries.push({ n, a: a && [a.z, a.s], b: b && [b.z, b.s, b.sh] }); await alice.page.waitForTimeout(100); continue }
-      await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}`, { z: b.z + AHEAD[n % AHEAD.length], x: b.x, v: b.v, at: Date.now(), [`k/${n}`]: `${bobUid}|1` })
+      await patch(alice.page.url(), `/round/stats/${rid}/${aliceUid}`, { z: Math.round(b.z + ahead(b) + JITTER[n % JITTER.length]), x: b.x, v: b.v, at: Date.now(), [`k/${n}`]: `${bobUid}|1` })
       for (let t = 0; t < 8 && !landed; t++) {
         await alice.page.waitForTimeout(150)
         const now = (await stats())[bobUid]
