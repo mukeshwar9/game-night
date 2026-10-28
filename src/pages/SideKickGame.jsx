@@ -33,6 +33,10 @@ import { cn } from '@/lib/utils'
 // (`dust`): a rope is a write-once `k/{n} = "victim|L"` beside the kicks, and the
 // room's `round.track` names Canyon, Prairie or Town instead of the three roads.
 
+function DustPrefs(props) {
+  return <SideKickPrefs {...props} dust />
+}
+
 const botNamesOf = (dust) => (dust ? DUST_BOT_NAMES : BOT_NAMES)
 const trackDefs = (dust) => (dust ? DUST_TRACKS : TRACKS)
 
@@ -56,7 +60,7 @@ const makeRace = (dust) => ({
   scaled: false,
   hideClock: true,
   hideLive: true,
-  Prefs: SideKickPrefs,
+  Prefs: dust ? DustPrefs : SideKickPrefs,
   liveCountdown: true,
   entry: (stats) => raceEntry(stats),
   isDone: raceIsDone,

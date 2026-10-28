@@ -24,7 +24,7 @@ export default function SideKickPlay({ run, controls, avatars, enabled = true, c
       <p className="min-w-0 truncate pr-9 font-pixel text-[9px] text-retro-dim tracking-wider">{status}</p>
       <div className="space-y-2">
         <SideKickArena rendererRef={run.rendererRef} avatars={avatars} dust={dust}>
-          {!hideHud && <SideKickHud hud={run.hud} toast={run.toast} ordinalOf={ordinal} camera={prefs.cam} onCamera={toggleCamera} lasso={dust && enabled ? controls.bind.lasso : null} />}
+          {!hideHud && <SideKickHud hud={run.hud} toast={run.toast} ordinalOf={ordinal} camera={prefs.cam} onCamera={dust ? null : toggleCamera} lasso={dust && enabled ? controls.bind.lasso : null} />}
           {cover}
         </SideKickArena>
         <EnableTiltButton className="w-full" />

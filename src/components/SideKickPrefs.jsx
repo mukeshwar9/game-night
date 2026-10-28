@@ -41,7 +41,8 @@ export function EnableTiltButton({ className }) {
   )
 }
 
-export default function SideKickPrefs({ className }) {
+/** `dust` (DUST KICK) has the chase camera only for now: the horse's-eye view comes later. */
+export default function SideKickPrefs({ className, dust = false }) {
   const [prefs, setPrefs] = useSideKickPrefs()
   const tilt = useTilt(true)
 
@@ -53,14 +54,16 @@ export default function SideKickPrefs({ className }) {
 
   return (
     <div className={cn('space-y-2', className)} data-testid="sidekick-prefs">
-      <div className="flex flex-wrap items-center justify-center gap-1.5" role="group" aria-label="Camera">
-        <span className="w-full font-pixel text-[7px] text-retro-dim sm:w-auto">CAMERA</span>
-        {CAMERAS.map((id) => (
-          <button key={id} type="button" aria-pressed={prefs.cam === id} data-testid={`sidekick-pref-cam-${id}`} onClick={() => setPrefs({ cam: id })} className={chip(prefs.cam === id)}>
-            {CAMERA_LABEL[id]}
-          </button>
-        ))}
-      </div>
+      {!dust && (
+        <div className="flex flex-wrap items-center justify-center gap-1.5" role="group" aria-label="Camera">
+          <span className="w-full font-pixel text-[7px] text-retro-dim sm:w-auto">CAMERA</span>
+          {CAMERAS.map((id) => (
+            <button key={id} type="button" aria-pressed={prefs.cam === id} data-testid={`sidekick-pref-cam-${id}`} onClick={() => setPrefs({ cam: id })} className={chip(prefs.cam === id)}>
+              {CAMERA_LABEL[id]}
+            </button>
+          ))}
+        </div>
+      )}
       {tilt.supported && (
         <>
           <div className="flex flex-wrap items-center justify-center gap-1.5" role="group" aria-label="Steering">

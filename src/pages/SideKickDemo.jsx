@@ -209,7 +209,7 @@ function Demo({ variant }) {
               <button key={label} type="button" aria-pressed={cfg.pixel === px} onClick={() => { const n = { ...cfgRef.current, pixel: px }; cfgRef.current = n; setCfg(n); try { localStorage.setItem(v.storage, JSON.stringify(n)) } catch { /* storage unavailable */ } }} className={chip(cfg.pixel === px)}>{label}</button>
             ))}
           </div>
-          <SideKickPrefs />
+          <SideKickPrefs dust={dust} />
           {rec && <p className="font-pixel text-[8px] text-retro-dim" aria-label={`Your record on ${level}: ${describeLevelRecord(rec)}`}>{level} RECORD {formatLevelRecord(rec)}</p>}
         </div>
         <button type="button" onClick={startCup} data-testid="sidekick-go" className="press mt-3 min-h-11 rounded bg-retro-cta px-5 py-2.5 font-pixel text-xs text-retro-bg hover:shadow-neon-cta">START CUP</button>
