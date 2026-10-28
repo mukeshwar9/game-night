@@ -17,7 +17,9 @@ export async function newPlayer(browser, contextOptions = {}) {
   // Chrome logs a blocked request as a console error; with E2E_CSP=1 the app
   // runs under the production policy, so any of these is a real regression.
   page.on('console', (msg) => {
-    if (msg.type() === 'error' && /Content Security Policy/i.test(msg.text())) cspViolations.push(msg.text())
+    // Not the emulator's long-poll fallback (`/.lp?`): the RTDB client probes it while a
+    // websocket is slow to open, and the production policy blocks the script either way.
+    if (msg.type() === 'error' && /Content Security Policy/i.test(msg.text()) && !/\/\.lp\?/.test(msg.text())) cspViolations.push(msg.text())
   })
   return { context, page, errors, cspViolations }
 }
