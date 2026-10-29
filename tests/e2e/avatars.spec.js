@@ -2,7 +2,7 @@
 // selectable), see both players' avatars drawn in a room, and confirm that avatar
 // strings saved before the redesign still render, never blank.
 import { test, expect } from '@playwright/test'
-import { createRoom, expectNoPageErrors, newPlayer } from './helpers.js'
+import { createRoom, expectNoPageErrors, newPlayer, uidOf } from './helpers.js'
 import { DB_ORIGIN } from './emulator.js'
 import { decodeAvatar, encodeAvatar } from '../../src/lib/avatarKit/catalog.js'
 
@@ -21,7 +21,7 @@ async function paintedCanvases(page) {
     const data = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
     let painted = 0
     for (let i = 3; i < data.length; i += 4) if (data[i] > 0) painted++
-    return { painted, total: c.width * c.height, width: c.width, cssWidth: c.getBoundingClientRect().width }
+    return { painted, total: c.width * c.height, width: c.width, cssWidth: c.offsetWidth }
   }))
 }
 
@@ -100,7 +100,7 @@ test('avatars saved before the redesign still render', async ({ browser, request
   })
 
   await test.step('the profile draws the migrated person as a character, not a blank', async () => {
-    const me = await page.evaluate(async () => (await import('/src/lib/auth.js')).getUid())
+    const me = await uidOf(page)
     for (const p of ['users', 'profiles']) {
       const res = await request.put(`${DB_ORIGIN}/${p}/${me}/avatar.json?ns=${NS}`, { headers, data: JSON.stringify(legacyPerson) })
       expect(res.ok()).toBe(true)
@@ -111,7 +111,7 @@ test('avatars saved before the redesign still render', async ({ browser, request
   })
 
   await test.step('a classic critter keeps its sprite', async () => {
-    const me = await page.evaluate(async () => (await import('/src/lib/auth.js')).getUid())
+    const me = await uidOf(page)
     for (const p of ['users', 'profiles']) {
       const res = await request.put(`${DB_ORIGIN}/${p}/${me}/avatar.json?ns=${NS}`, { headers, data: JSON.stringify('ghost.p2') })
       expect(res.ok()).toBe(true)
@@ -134,7 +134,7 @@ test('the pet has its own picker and saving it keeps the rest of the look', asyn
   await page.getByRole('button', { name: /^NEXT: PICK A LOOK/ }).click()
   await page.getByRole('button', { name: "LET'S PLAY", exact: true }).click()
   await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeHidden()
-  const me = await page.evaluate(async () => (await import('/src/lib/auth.js')).getUid())
+  const me = await uidOf(page)
   const before = decodeAvatar(await readNode(request, `users/${me}/avatar`))
 
   await test.step('the look editor has no pet tab', async () => {
@@ -181,7 +181,7 @@ test('the studio: one Tab stop per option grid, same-page deep links, and a save
   await page.getByRole('button', { name: /^NEXT: PICK A LOOK/ }).click()
   await page.getByRole('button', { name: "LET'S PLAY", exact: true }).click()
   await expect(page.getByRole('heading', { name: 'PICK YOUR LOOK' })).toBeHidden()
-  const me = await page.evaluate(async () => (await import('/src/lib/auth.js')).getUid())
+  const me = await uidOf(page)
   await page.goto('/profile')
   const studio = page.getByRole('dialog', { name: 'EDIT AVATAR' })
 

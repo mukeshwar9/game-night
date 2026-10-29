@@ -37,6 +37,12 @@ async function joinParty(page, url, name) {
 
 const group = (page, id) => page.getByTestId(id)
 
+// A group's game count, read from its heading once the group has rendered.
+async function groupCount(page, id, heading) {
+  await expect(group(page, id)).toContainText(heading)
+  return Number(heading.exec(await group(page, id).innerText())[1])
+}
+
 test('party first: gather, pick by party size, take turns, back to the party', async ({ browser, request }) => {
   test.setTimeout(240_000)
   const alice = await newPlayer(browser)
@@ -60,13 +66,15 @@ test('party first: gather, pick by party size, take turns, back to the party', a
     await joinParty(bob.page, url, 'Bob')
     await joinParty(carol.page, url, 'Carol')
     await expect(alice.page.getByTestId('party-count')).toHaveText('3 / 4')
-    await expect(group(alice.page, 'party-group-all')).toContainText('EVERYONE PLAYS · 19')
-    await group(alice.page, 'party-group-all').getByRole('button', { name: 'SHOW ALL 19' }).click()
-    await expect(group(alice.page, 'party-group-all').getByRole('button', { name: /^Play / })).toHaveCount(19)
-    await expect(group(alice.page, 'party-group-rotate')).toContainText('TAKE TURNS · 2 PLAY, WINNER STAYS · 63')
-    await group(alice.page, 'party-group-rotate').getByRole('button', { name: 'SHOW ALL 63' }).click()
-    await expect(group(alice.page, 'party-group-rotate').getByRole('button', { name: /^Play / })).toHaveCount(63)
-    await expect(group(alice.page, 'party-group-short')).toContainText('NEEDS MORE PLAYERS · 1')
+    // The catalogue grows with every game added, so the specs read each group's
+    // count off its heading and check the list agrees with it.
+    const all = await groupCount(alice.page, 'party-group-all', /EVERYONE PLAYS · (\d+)/)
+    await group(alice.page, 'party-group-all').getByRole('button', { name: `SHOW ALL ${all}` }).click()
+    await expect(group(alice.page, 'party-group-all').getByRole('button', { name: /^Play / })).toHaveCount(all)
+    const rotate = await groupCount(alice.page, 'party-group-rotate', /TAKE TURNS · 2 PLAY, WINNER STAYS · (\d+)/)
+    await group(alice.page, 'party-group-rotate').getByRole('button', { name: `SHOW ALL ${rotate}` }).click()
+    await expect(group(alice.page, 'party-group-rotate').getByRole('button', { name: /^Play / })).toHaveCount(rotate)
+    await expect(group(alice.page, 'party-group-short')).toContainText(/NEEDS MORE PLAYERS · \d+/)
     // Guests see who is picking and can't pick.
     await expect(bob.page.getByTestId('party-picking')).toContainText('Alice')
     await expect(group(bob.page, 'party-group-all').getByRole('button', { name: 'FIBBAGE' })).toBeDisabled()

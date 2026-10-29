@@ -100,7 +100,8 @@ test('three phones race one puzzle: setup, rival progress, a freeze, finish orde
   await test.step('Alice clears half her zone: Bob and Carol see it on their rival bars and in the room', async () => {
     const half = Math.floor(per / 2)
     await clear(alice.page, { order, per, seat: seatOf('Alice'), to: half })
-    await expect.poll(async () => Object.keys((await readRoom(alice.page.url())).round.stats?.[rid]?.[aliceUid]?.g ?? {}).length).toBe(half)
+    // RTDB hands back a dense run of keys as an array padded with nulls, so count the true ones.
+    await expect.poll(async () => Object.values((await readRoom(alice.page.url())).round.stats?.[rid]?.[aliceUid]?.g ?? {}).filter(Boolean).length).toBe(half)
     for (const { page } of [bob, carol]) {
       await expect(page.getByRole('list', { name: 'Racers' }).getByText(`${half}/${per}`)).toBeVisible()
     }
@@ -175,7 +176,7 @@ test('sabotage: a trailing racer\'s streak drops a crate on the leader', async (
 
   await test.step('Alice leads by four clears; Bob clears three in a row', async () => {
     await clear(alice.page, { order, per, seat: racers.indexOf(aliceUid), to: 4 })
-    await expect.poll(async () => Object.keys((await readRoom(alice.page.url())).round.stats?.[rid]?.[aliceUid]?.g ?? {}).length).toBe(4)
+    await expect.poll(async () => Object.values((await readRoom(alice.page.url())).round.stats?.[rid]?.[aliceUid]?.g ?? {}).filter(Boolean).length).toBe(4)
     await clear(bob.page, { order, per, seat: racers.indexOf(bobUid), to: 3 })
   })
 

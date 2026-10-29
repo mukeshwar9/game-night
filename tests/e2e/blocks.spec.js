@@ -2,7 +2,7 @@
 // blocks Bob, Bob's friend request and invite are refused by the database
 // rules, and the block follows Alice's account (blocks/{uid}).
 import { test, expect } from '@playwright/test'
-import { expectNoPageErrors, newPlayer, onboard } from './helpers.js'
+import { authOf, expectNoPageErrors, newPlayer, onboard, uidOf } from './helpers.js'
 import { DB_ORIGIN } from './emulator.js'
 
 const NS = 'demo-game-night-default-rtdb'
@@ -13,12 +13,6 @@ async function readNode(request, path) {
   expect(res.ok()).toBe(true)
   return res.json()
 }
-
-const uidOf = (page) => page.evaluate(async () => {
-  const auth = await import('/src/lib/auth.js')
-  await auth.authReady()
-  return auth.getUid()
-})
 
 test('a blocked player cannot send friend requests or invites', async ({ browser, request }) => {
   const alice = await newPlayer(browser)
@@ -64,16 +58,12 @@ test('a blocked player cannot send friend requests or invites', async ({ browser
   })
 
   await test.step("Bob's invite is refused by the database", async () => {
-    const outcome = await bob.page.evaluate(async (target) => {
-      const { inviteFriendToGame } = await import('/src/lib/social.js')
-      try {
-        await inviteFriendToGame(target, { gameId: 'ABC123', gameType: 'tictactoe' })
-        return 'sent'
-      } catch (e) {
-        return String(e?.code || e?.message || e)
-      }
-    }, aliceUid)
-    expect(outcome).toMatch(/permission_denied/i)
+    // The same write inviteFriendToGame makes, with Bob's own token.
+    const { token } = await authOf(bob.page)
+    const res = await request.post(`${DB_ORIGIN}/invites/${aliceUid}.json?ns=${NS}&auth=${token}`, {
+      data: JSON.stringify({ gameId: 'ABC123', gameType: 'tictactoe', fromUid: bobUid, fromName: 'Bob', fromAvatar: '', at: Date.now() }),
+    })
+    expect(res.status()).toBe(401)
     expect(await readNode(request, `invites/${aliceUid}`)).toBeNull()
   })
 

@@ -25,6 +25,11 @@ let pendingBack = false
 let settling = null
 let settle = () => {}
 
+// True while a closing overlay's own back-step is in flight. That popstate is
+// the marker being consumed, not a back gesture, so every other open overlay
+// (the editor under a paywall) must ignore it instead of closing too.
+let consuming = false
+
 export function waitForModalHistory() {
   return settling || Promise.resolve()
 }
@@ -58,6 +63,7 @@ export default function useModalHistory(onClose, enabled = true) {
     pushedRef.current = true
 
     const onPopState = () => {
+      if (consuming) return
       pushedRef.current = false
       onCloseRef.current()
     }
@@ -80,10 +86,12 @@ export default function useModalHistory(onClose, enabled = true) {
           const done = () => {
             window.removeEventListener('popstate', done)
             clearTimeout(fallback)
+            consuming = false
             endSettling()
           }
           const fallback = setTimeout(done, 400)
           window.addEventListener('popstate', done)
+          consuming = true
           window.history.back()
         }, 0)
       }

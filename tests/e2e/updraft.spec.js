@@ -50,7 +50,9 @@ test('two players race an UPDRAFT round to a result and rematch in the host\'s m
     for (const { page } of [alice, bob]) {
       await expect(page.getByText(result)).toBeVisible({ timeout: 10_000 })
     }
-    await expect(alice.page.getByText(result)).toHaveText(await bob.page.getByText(result).textContent())
+    // Each screen names the winner from its own seat ("YOU" / "BOB"), so compare the verdict.
+    const verdict = async (page) => (await page.getByText(result).textContent()).replace(/^\S+ (?=REACHED|CLIMBED)/, '')
+    expect(await verdict(alice.page)).toBe(await verdict(bob.page))
   })
 
   await test.step('PLAY AGAIN starts a new tower in the same mode', async () => {

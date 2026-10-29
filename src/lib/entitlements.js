@@ -2,7 +2,6 @@
 // only by Cloud Functions), the one access check the UI uses, and the calls that
 // start a checkout. Pure rules are in premium.js; prices in premiumCatalog.js.
 import { ref, onValue, get, set } from 'firebase/database'
-import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions'
 import { getApps, getApp } from 'firebase/app'
 import { db, usingEmulators } from './firebase'
 import { getUid } from './auth'
@@ -117,14 +116,17 @@ export function setViewAsPlayer(on) {
 
 // ---- Admin allowlist --------------------------------------------------------
 
-let functions = null
-function fns() {
-  if (!getApps().length) throw new Error('Firebase is not configured')
-  if (!functions) {
-    functions = getFunctions(getApp())
-    if (usingEmulators) connectFunctionsEmulator(functions, '127.0.0.1', Number(import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT) || 5001)
-  }
-  return functions
+// firebase/functions is only needed when a purchase or admin call is made, so it
+// loads on the first call instead of riding in the entry bundle.
+let functionsPromise = null
+function callable(name) {
+  if (!getApps().length) return Promise.reject(new Error('Firebase is not configured'))
+  functionsPromise ||= import('firebase/functions').then(m => {
+    const fns = m.getFunctions(getApp())
+    if (usingEmulators) m.connectFunctionsEmulator(fns, '127.0.0.1', Number(import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT) || 5001)
+    return { fns, httpsCallable: m.httpsCallable }
+  })
+  return functionsPromise.then(({ fns, httpsCallable }) => httpsCallable(fns, name))
 }
 
 /**
@@ -135,7 +137,7 @@ function fns() {
 export async function syncAdminAccess() {
   if (usingEmulators) return false
   try {
-    const res = await httpsCallable(fns(), 'syncAdminAccess')()
+    const res = await (await callable('syncAdminAccess'))()
     return res.data?.admin === true
   } catch {
     return false
@@ -162,7 +164,7 @@ export async function saveBirthYear(year) {
 
 /** Creates a sandbox checkout for a product id and returns its URL. */
 export async function createCheckoutUrl(product) {
-  const res = await httpsCallable(fns(), 'createCheckout')({ product })
+  const res = await (await callable('createCheckout'))({ product })
   const url = res.data?.url
   if (typeof url !== 'string') throw new Error('No checkout link')
   return url
@@ -170,7 +172,7 @@ export async function createCheckoutUrl(product) {
 
 /** A link to Paddle's customer portal: cancel, change card, receipts. */
 export async function createPortalUrl() {
-  const res = await httpsCallable(fns(), 'createPortalSession')()
+  const res = await (await callable('createPortalSession'))()
   const url = res.data?.url
   if (typeof url !== 'string') throw new Error('No portal link')
   return url
@@ -207,7 +209,7 @@ function loadRazorpay() {
 export async function payWithRazorpay(product, { label, name, email } = {}) {
   const [Razorpay, order] = await Promise.all([
     loadRazorpay(),
-    httpsCallable(fns(), 'createRazorpayOrder')({ product }).then(r => r.data),
+    (await callable('createRazorpayOrder'))({ product }).then(r => r.data),
   ])
   if (!order?.orderId || !order?.keyId) throw new Error('No order')
   const paid = await new Promise((resolve, reject) => {
@@ -225,7 +227,7 @@ export async function payWithRazorpay(product, { label, name, email } = {}) {
     })
     checkout.open()
   })
-  const res = await httpsCallable(fns(), 'verifyRazorpayPayment')({
+  const res = await (await callable('verifyRazorpayPayment'))({
     orderId: paid.razorpay_order_id,
     paymentId: paid.razorpay_payment_id,
     signature: paid.razorpay_signature,

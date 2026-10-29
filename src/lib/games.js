@@ -93,7 +93,7 @@ import {
 } from './chimpLogic'
 import { generateSeed } from './mathLogic'
 import { startStackMatch } from './animalStackCore'
-import { arrowsFreshState, arrowsNextRound } from './arrowsLogic'
+import { arrowsFreshState, arrowsNextRound } from './arrowsMatchLogic'
 import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, updraftFreshState } from './updraftConfig'
 import { ARCHERY_SEATS, archeryFormat } from './archeryLogic'
 import {

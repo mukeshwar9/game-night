@@ -37,7 +37,7 @@ test('search filters the solo picker and a pick switches the game', async ({ bro
   await search.fill('reversi')
   await sheet.getByRole('button', { name: /^REVERSI\b/ }).click()
   await expect(sheet).toBeHidden()
-  await expect(page.getByText('REVERSI', { exact: true })).toBeVisible()
+  await expect(page.getByText('REVERSI', { exact: true }).first()).toBeVisible()
   expectNoPageErrors(player)
   await player.context.close()
 })

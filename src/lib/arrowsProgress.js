@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { db } from './firebase'
 import { getUid } from './auth'
 import { cacheBelongsTo } from './playerCache'
-import { mergeProgress, normalizeProgress, sameProgress } from './arrowsLevelsLogic'
+import { mergeProgress, normalizeProgress, sameProgress } from './arrowsProgressLogic'
 
 const KEY = 'arrows-solo-v1'
 const SEEN_KEY = 'arrows-twists-seen'
