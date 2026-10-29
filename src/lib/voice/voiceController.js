@@ -93,6 +93,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
   let linkTimer = null
   let link = LINK_START
   let pausedAt = null
+  let camWasOn = false // the camera was on when the app went to the background
   const nodes = new Map() // uid -> { source, gain, analyser, el }
 
   const emit = (patch) => {
@@ -370,17 +371,23 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
   const onPause = () => {
     if (!session) return
     pausedAt = Date.now()
+    camWasOn = state.cam === 'on'
     leave('paused')
   }
-  const onResume = () => {
+  const onResume = async () => {
     const want = intent
     const was = pausedAt
+    const restoreCam = camWasOn
     pausedAt = null
+    camWasOn = false
     // The old session was closed on pause, so even a quick return gets a
     // fresh one: never a session revived past the SFU's idle window.
     if (want && was !== null) {
       emit({ notice: 'resumed' })
-      join({ listenOnly: want.listenOnly, keepMute: true })
+      await join({ listenOnly: want.listenOnly, keepMute: true })
+      // The camera consent was given this session (camAll is kept), so it
+      // comes straight back; a refusal or device error lands in camError.
+      if (restoreCam) await startCamera()
     }
   }
   if (typeof window !== 'undefined') {
