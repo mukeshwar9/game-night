@@ -111,6 +111,10 @@ test('Quiver: solo against a bot, as a team, and one phone for 2-4', async ({ br
   await shootOnce(me.page, 2, 6)
   await focusRoundTrip(me.page, 2, 5)
 
+  // Leaving full screen queues a history back-step that consumes the overlay's marker
+  // (useModalHistory, up to 400 ms). A goto landing before it gets popped back to
+  // /solo/quiver, whose SOLO chip is what the next line then finds.
+  await me.page.waitForTimeout(600)
   await me.page.goto('/local/quiver')
   await expect(table(me.page)).toBeVisible()
   await expect(me.page.getByRole('button', { name: 'SOLO', exact: true })).toHaveCount(0)
