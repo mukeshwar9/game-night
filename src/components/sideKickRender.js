@@ -51,8 +51,11 @@ function dominant(px, x0, x1, y0, y1, fallback) {
   return best ? best.map((v) => Math.round(v)) : fallback
 }
 
-/** @param {HTMLCanvasElement} canvas  sized by the renderer to W × H logical px */
-export function createSideKickRenderer(canvas) {
+/**
+ * @param {HTMLCanvasElement} canvas  sized by the renderer to W × H logical px
+ * @param {{ dust?: boolean }} [opts]  `dust` paints DUST KICK's trail: horses, hay, the Western roadside and a ranch gate
+ */
+export function createSideKickRenderer(canvas, { dust = false } = {}) {
   const home = canvas.getContext('2d')
   const dpr = Math.min(2, canvasPixelRatio() || 1)
   canvas.width = W * dpr
@@ -69,7 +72,9 @@ export function createSideKickRenderer(canvas) {
   let track = null
   let riders = []
   let cars = []
+  let weeds = []
   let segs = []
+  let look = null
   let phase = 'race'
   let viewIdx = 0
   let frameDt = DT
@@ -269,6 +274,213 @@ export function createSideKickRenderer(canvas) {
       if (up < 0.5) for (let i = 0; i < 3; i++) { const a = time * 5 + i * 2.1; c.save(); c.translate(26 + Math.cos(a) * 21, -58 + Math.sin(a) * 6); c.rotate(a * 2); poly(c, [0, -5, 1.5, -1.5, 5, 0, 1.5, 1.5, 0, 5, -1.5, 1.5, -5, 0, -1.5, -1.5], css(P.sunC)); c.restore() }
     }
 
+
+    // ── DUST KICK: the horse seen from behind, and the Western scenery ──────────
+    // The rider is the same avatar from behind as on the bike, under a hat and a duster; the horse
+    // bucks to kick (the rump drops, then a hind leg lashes out to the kick side) and gallops on four
+    // hooves. Colours are the theme's: coats and wood are mixes of the tokens (lib/sideKickPalette.js).
+    function drawHorse(c, r, time) {
+      const R = P.raw, C = P.rs[r.i], sp = r.speed / MAXSPD
+      if (r.state === 'down') return drawHorseDown(c, r, time, C, R)
+      const coat = mx(mx(R.coat, C, 0.3), R.paper, 0.18), coatD = mx(coat, BLACK, 0.4), spark = css(P.sunC, 1)
+      const kp = kickPose(r), k = kp.ext, ks = r.kickSide
+      const gal = (r.z / 34) * 6.283, sway = Math.sin(time * 7 + r.i) * (2 + 4 * sp)
+      softShadow(c, -8 - r.lean * 5, 52, 10)
+      if (P.dark) { c.globalCompositeOperation = 'lighter'; poly(c, [-13, -34, 13, -34, 58, -270, -58, -270], lg(c, 0, -34, 0, -270, 0, css(C, 0.18), 1, css(C, 0))); c.globalCompositeOperation = 'source-over' }
+      c.rotate(r.lean * 0.22 + r.rec * 0.5 + (r.oil > 0 ? Math.sin(time * 19 + r.i) * 0.12 * Math.min(1, r.oil / 0.4) : 0) + (r.wob > 0 ? Math.sin(time * 17) * 0.1 : 0))
+      c.scale(1 + r.sq * 0.1, 1 - r.sq * 0.08)
+      const rise = kp.ext * 7 - kp.tuck * 5 + Math.sin(gal * 2) * 1.6 * Math.min(1, sp * 1.4)
+      // Hind legs: the gallop lifts them in turn; on a kick the near one lashes out.
+      for (const s of [-1, 1]) {
+        const lash = kp.ext + kp.tuck > 0 && s === ks
+        const ph = Math.sin(gal + (s > 0 ? 0 : 2.4)), lift = Math.max(0, ph) * 13 * Math.min(1, sp * 1.3)
+        const hx = s * 11, hy = -42 - rise
+        const fx = lash ? s * (16 + 38 * k) : s * 13 + ph * 2, fy = lash ? -28 - 20 * k : -lift
+        limb(c, [hx, hy, s * 15, hy + 20 - lift * 0.4, fx, fy], 11, css(coatD))
+        limb(c, [hx, hy, s * 15, hy + 20 - lift * 0.4, fx, fy], 8, css(coat))
+        rr(c, fx - 6, fy - 3, 12, 6, 2.5, css(R.mane))
+      }
+      // Tail: a few swaying strands.
+      for (let i = -2; i <= 2; i++) limb(c, [i * 2, -58 - rise, i * 4 + sway * 0.4, -38 - rise, i * 6 + sway * (0.7 + i * 0.05), -14 - rise * 0.5 - Math.abs(i) * 3], 3.4, i & 1 ? css(R.mane) : css(mx(R.mane, coat, 0.3)))
+      // Rump and back: a lit barrel with a darker left side.
+      c.beginPath(); c.ellipse(0, -60 - rise, 24, 26, 0, 0, 7); c.fillStyle = lg(c, -24, 0, 24, 0, 0, css(coatD), 0.5, css(coat), 1, li(coat, 0.3)); c.fill()
+      c.beginPath(); c.ellipse(0, -60 - rise, 24, 26, 0, 0, 7); c.fillStyle = lg(c, 0, -86, 0, -34, 0, css(P.sunC, 0.18), 0.5, css(P.sunC, 0), 1, css(P.dkC, 0.3)); c.fill()
+      limb(c, [0, -80 - rise, 0, -44 - rise], 1.4, css(coatD, 0.5))
+      // Saddle blanket in the seat colour, then the saddle.
+      rr(c, -20, -80 - rise, 40, 22, 5, lg(c, -20, 0, 20, 0, 0, da(C, 0.34), 0.55, css(C), 1, li(C, 0.25))); rr(c, -20, -69 - rise, 40, 3.5, 1, css(R.paper, 0.75))
+      rr(c, -13, -86 - rise, 26, 12, 5, sideLit(c, -13, 13, R.wood, 0.35))
+      // Rider (the avatar from behind) with a hat and a duster.
+      const av = hasAv(r.i), J = av ? AVC[r.i].top : C, by = -rise * 0.8 - r.susp * 0.3
+      c.save(); c.translate(-ks * (3.5 * k + 1.5 * kp.tuck), by)
+      for (const s of [-1, 1]) { limb(c, [s * 9, -84, s * 25, -64, s * 24, -50], 9, s > 0 ? li(R.pants, 0.12) : da(R.pants, 0.3)); rr(c, s * 24 - 5, -52, 10, 8, 2.5, sideLit(c, s * 24 - 5, s * 24 + 5, R.tire, 0.3)) }
+      const fl = Math.sin(time * 14 + r.i) * 2.4 * sp
+      c.beginPath(); c.moveTo(-14, -118); c.quadraticCurveTo(0, -122, 14, -118); c.quadraticCurveTo(18, -100, 17 + fl * 0.4, -78); c.lineTo(23 + fl, -62); c.quadraticCurveTo(0, -60 + fl * 0.3, -23 - fl, -62); c.lineTo(-17 - fl * 0.4, -78); c.quadraticCurveTo(-18, -100, -14, -118); c.closePath()
+      c.fillStyle = lg(c, -18, 0, 18, 0, 0, da(J, 0.42), 0.5, css(J), 0.86, li(J, 0.3), 1, li(J, 0.12)); c.fill()
+      c.fillStyle = lg(c, 0, -122, 0, -62, 0, css(P.sunC, 0.16), 0.5, css(P.sunC, 0), 1, css(P.dkC, 0.22)); c.fill()
+      limb(c, [-13, -112, -24, -98, -22, -86], 8, da(J, 0.34)); limb(c, [13, -112, 24, -98, 22, -86], 8, li(J, 0.14))
+      rr(c, -9, -108, 18, 14, 3, av ? css(C) : css(R.paper)); c.fillStyle = av ? css(R.paper) : da(C, 0.3); c.font = '11px ' + fontFamily; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(r.i + 1), 0.5, -100.5)
+      rr(c, -15, -86, 30, 5, 2, css(R.wood))
+      const hx = r.look * 2.4
+      if (av) {
+        rr(c, -5, -125, 10, 7, 2.5, css(AVC[r.i].skin))
+        const f = AVS[r.i].back, kk = 1.9, x0 = hx - 12 * kk, y0 = -121 - 14 * kk
+        c.imageSmoothingEnabled = false
+        for (const d of [1.4, 1, 0.5]) c.drawImage(f.side, 0, 0, 24, 14, x0 - d * 1.2, y0 + d * 0.4, 24 * kk, 14 * kk)
+        c.drawImage(f.lit, 0, 0, 24, 14, x0, y0, 24 * kk, 14 * kk); c.imageSmoothingEnabled = true
+      } else { rr(c, -5, -126, 10, 7, 2.5, da(R.pants, 0.2)); circ(c, hx, -134, 10, rg(c, hx + 3, -137, 1, 12, 0, li(R.paper, 0.2), 1, da(R.paper, 0.4))) }
+      // The hat: a wide brim with a crown, tipped by the turn of the head.
+      c.save(); c.translate(hx, -143 + (av ? 3 : 0)); c.rotate(r.look * 0.08)
+      c.beginPath(); c.ellipse(0, 3, 21, 5.4, 0, 0, 7); c.fillStyle = lg(c, -21, 0, 21, 0, 0, da(R.hat, 0.3), 0.6, css(R.hat), 1, li(R.hat, 0.35)); c.fill()
+      rr(c, -10, -12, 20, 15, 5, lg(c, -10, 0, 10, 0, 0, da(R.hat, 0.3), 0.6, css(R.hat), 1, li(R.hat, 0.3))); rr(c, -10, -2.6, 20, 3.4, 1, css(C)); c.restore()
+      // A lasso being swung: a loop spinning over the rider's head.
+      if (r.lassoT > 0) {
+        const a = time * 22, rx = 26 + 4 * Math.sin(a * 0.5)
+        c.save(); c.translate(0, -156); c.beginPath(); c.ellipse(0, 0, rx, 7, 0, 0, 7); c.lineWidth = 3.4; c.strokeStyle = css(R.rope); c.stroke()
+        c.beginPath(); c.ellipse(0, 0, rx, 7, 0, a % 6.283, (a % 6.283) + 1.6); c.lineWidth = 3.4; c.strokeStyle = css(R.hayDark); c.stroke(); c.restore()
+      }
+      c.restore()
+      if (k > 0.2) { c.globalAlpha *= Math.min(1, k) * 0.85; c.beginPath(); c.arc(ks * 14, -40, 40 * k + 6, ks > 0 ? -0.55 : Math.PI - 0.45, ks > 0 ? 0.45 : Math.PI + 0.55); c.lineWidth = 4 - 2 * k; c.strokeStyle = spark; c.stroke(); c.globalAlpha = 1 }
+      // A caught rope: a loop drawn tight round the horse.
+      if (r.roped > 0) { c.beginPath(); c.ellipse(0, -62, 31, 38, 0, 0, 7); c.lineWidth = 4; c.strokeStyle = css(R.rope); c.stroke(); c.lineWidth = 1.6; c.strokeStyle = css(R.hayDark); c.stroke() }
+      if (r.flash > 0) { const f = 1 - r.flash / 0.18; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - f; c.beginPath(); c.arc(0, -62, 26 + f * 46, 0, 7); c.lineWidth = 7 * (1 - f) + 1; c.strokeStyle = spark; c.stroke(); circ(c, 0, -62, 30 * (1 - f), css(P.sunC, 0.5)); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over' }
+    }
+    // Off the horse: the horse stumbles onto its side and the rider tumbles, sits, and climbs back on.
+    function drawHorseDown(c, r, time, C, R) {
+      const p = 1 - r.t / (r.tMax || DOWN_T), up = clamp((p - 0.74) / 0.26, 0, 1), fall = clamp(p / 0.2, 0, 1)
+      const coat = mx(R.coat, C, 0.12), coatD = mx(coat, BLACK, 0.4)
+      softShadow(c, -10, 54, 8)
+      c.save(); c.translate(-18 * (1 - up), -4); c.rotate(lerp(ease.out(fall) * 1.42, 0, ease.inOut(up)))
+      for (const s of [-1, 1]) limb(c, [s * 11, -42, s * 15, -24, s * 14 + Math.sin(time * 12 + s) * 4 * (1 - up), -6], 10, css(coatD))
+      c.beginPath(); c.ellipse(0, -60, 24, 26, 0, 0, 7); c.fillStyle = lg(c, -24, 0, 24, 0, 0, css(coatD), 0.5, css(coat), 1, li(coat, 0.3)); c.fill()
+      rr(c, -20, -80, 40, 20, 5, css(C)); for (let i = -2; i <= 2; i++) limb(c, [i * 2, -58, i * 5, -36, i * 7, -16], 3.2, css(R.mane))
+      c.restore()
+      if (hasAv(r.i) && p >= 0.55) { c.save(); c.translate(lerp(40, 24, ease.inOut(up)), 0); c.rotate(Math.sin(time * 9) * 0.09 * (1 - up)); standee(c, r.i, 'idle', 0, 0, 64); c.restore(); if (up < 0.5) for (let i = 0; i < 3; i++) { const a = time * 5 + i * 2.1; circ(c, 40 + Math.cos(a) * 20, -70 + Math.sin(a) * 6, 3, css(P.sunC)) } return }
+      const hop = Math.abs(Math.sin(p * 10)) * 30 * Math.pow(1 - clamp(p / 0.6, 0, 1), 2)
+      c.save(); c.translate(lerp(24 + p * 14, 2, ease.inOut(up)), lerp(-12 - hop, -58, ease.inOut(up))); c.rotate(lerp(p < 0.55 ? p * 17 : 1.5, 0, ease.inOut(up)))
+      const flail = p < 0.55 ? time * 22 : 0
+      limb(c, [-8, 14, -14 + Math.sin(flail) * 6, 30], 9, da(R.pants, 0.2)); limb(c, [8, 14, 15 + Math.cos(flail) * 6, 28], 9, css(R.pants))
+      limb(c, [-13, -12, -24 + Math.cos(flail * 1.3) * 6, 2], 8, da(C, 0.3)); limb(c, [13, -12, 24 + Math.sin(flail * 1.3) * 6, 0], 8, li(C, 0.1))
+      { const J = hasAv(r.i) ? AVC[r.i].top : C; rr(c, -15, -19, 30, 35, 10, lg(c, -15, 0, 15, 0, 0, da(J, 0.42), 0.5, css(J), 1, li(J, 0.3))) }
+      if (hasAv(r.i)) { c.imageSmoothingEnabled = false; c.drawImage(AVS[r.i].back.lit, 0, 0, 24, 16, -21, -52, 42, 28); c.imageSmoothingEnabled = true }
+      else circ(c, 0, -28, 12, rg(c, 4.5, -33, 1.5, 16, 0, li(R.paper, 0.3), 1, da(R.paper, 0.4)))
+      c.beginPath(); c.ellipse(0, -46, 20, 5, 0, 0, 7); c.fillStyle = css(R.hat); c.fill(); rr(c, -9, -58, 18, 13, 4, css(R.hat))
+      c.restore()
+    }
+    function drawWeed(c, w, time) {
+      const R = P.raw, hop = Math.abs(Math.sin(time * 5 + w.spin * 9)) * 9, a0 = time * 4 * (w.dir || 1) + w.spin * 6
+      softShadow(c, 0, 24, 5, 0.9)
+      c.save(); c.translate(0, -15 - hop); c.rotate(a0)
+      for (let i = 0; i < 9; i++) { const a = i * 0.7 + w.spin; c.beginPath(); c.ellipse(0, 0, 14 + (i % 3) * 2, 6 + (i % 4), a, 0, 7); c.lineWidth = 1.7; c.strokeStyle = i & 1 ? css(mx(R.hay, R.trunk, 0.55)) : css(mx(R.trunk, R.hay, 0.3)); c.stroke() }
+      c.restore()
+    }
+    const DUSTPAINT = {
+      saguaro(g, v) {
+        const R = P.raw, hgt = 120 + v * 40, arm = 50 + v * 30
+        softShadow(g, -14, 44, 8); rr(g, -8, -hgt, 16, hgt, 8, sideLit(g, -8, 8, R.cactus, 0.42))
+        limb(g, [-6, -arm, -26, -arm - 2, -26, -arm - 34], 10, sideLit(g, -30, -6, R.cactus, 0.4)); limb(g, [6, -arm - 22, 25, -arm - 24, 25, -arm - 52], 10, css(R.cactus))
+        for (const x of [-3, 3]) limb(g, [x, -hgt + 6, x, -6], 1, css(mx(R.cactus, WHITE, 0.3), 0.5))
+      },
+      mesa(g, v) {
+        const R = P.raw, h = 110 + v * 70, w = 74 + v * 22
+        softShadow(g, -26, 100, 11)
+        poly(g, [-w, 0, -w + 10, -h * 0.55, -w + 22, -h * 0.58, -w + 30, -h, w - 30, -h, w - 22, -h * 0.62, w - 8, -h * 0.5, w, 0], lg(g, -w, 0, w, 0, 0, da(R.mesa, 0.5), 0.5, css(R.mesa), 1, li(R.mesa, 0.4)))
+        for (let q = 1; q < 5; q++) limb(g, [-w + 6, -h * q / 5, w - 6, -h * q / 5], 1.6, css(R.mesaDark, 0.4))
+        poly(g, [-w + 30, -h, w - 30, -h, w - 22, -h + 9, -w + 22, -h + 9], css(mx(R.mesa, R.paper, 0.35)))
+      },
+      boulder(g, v) {
+        const R = P.raw, w = 30 + v * 16
+        softShadow(g, -10, w * 1.7, 7); poly(g, [-w, 0, -w * 0.9, -w * 0.6, -w * 0.3, -w * 1.05, w * 0.45, -w * 0.95, w, -w * 0.4, w * 0.9, 0], lg(g, -w, 0, w, 0, 0, da(R.rockC, 0.4), 0.5, css(R.rockC), 1, li(R.rockC, 0.4)))
+        limb(g, [-w * 0.4, -w * 0.8, -w * 0.1, -w * 0.3], 1.4, css(R.rockDark, 0.5))
+      },
+      pole(g, v) {
+        const R = P.raw
+        softShadow(g, -6, 24, 4); rr(g, -3.5, -196, 7, 196, 2, sideLit(g, -3.5, 3.5, R.wood, 0.4)); rr(g, -28, -190, 56, 5, 2, css(R.wood)); rr(g, -22, -176, 44, 4, 2, css(R.wood))
+        for (const x of [-24, -12, 12, 24]) rr(g, x - 1.6, -197, 3.2, 8, 1.5, li(R.paper, 0.1))
+        if (v) limb(g, [-24, -190, -80, -168], 0.9, css(R.rockDark, 0.6)); else limb(g, [24, -190, 80, -168], 0.9, css(R.rockDark, 0.6))
+      },
+      wagon(g, v) {
+        const R = P.raw, col = P.rs[(v | 0) % 4]
+        softShadow(g, -10, 96, 8); rr(g, -76, -22, 152, 8, 2, css(R.tire))
+        for (const x of [-52, -30, 30, 52]) { circ(g, x, -11, 9, css(mx(R.tire, R.metal, 0.3))); circ(g, x, -11, 3.6, css(R.metal)) }
+        rr(g, -74, -76, 148, 58, 4, lg(g, -74, 0, 74, 0, 0, da(col, 0.4), 0.5, css(mx(col, R.wood, 0.4)), 1, li(col, 0.2)))
+        for (let x = -70; x < 72; x += 14) limb(g, [x, -74, x, -20], 1, css(R.mesaDark, 0.4))
+        rr(g, -78, -82, 156, 7, 2, css(mx(R.wood, BLACK, 0.2))); rr(g, -26, -52, 52, 32, 2, css(R.mesaDark, 0.4))
+      },
+      shop(g, v) {
+        const R = P.raw, wall = v < 0.5 ? R.house : mx(R.house, R.rockC, 0.3)
+        softShadow(g, -16, 120, 10)
+        rr(g, -56, -112, 112, 112, 2, sideLit(g, -56, 56, wall, 0.35))
+        poly(g, [-60, -112, -60, -128, -24, -128, -24, -140, 24, -140, 24, -128, 60, -128, 60, -112], sideLit(g, -60, 60, mx(wall, R.wood, 0.3), 0.35))
+        rr(g, -38, -134, 76, 16, 3, css(R.paper)); for (const x of [-26, -10, 8, 22]) rr(g, x, -131, 8, 3, 1, css(R.ink, 0.6))
+        for (const x of [-44, 20]) { rr(g, x, -88, 24, 30, 2, lg(g, 0, -88, 0, -58, 0, css(mx(R.sky0, P.dkC, 0.3)), 1, css(R.sky1))); limb(g, [x + 12, -88, x + 12, -58], 1.4, css(R.wood)) }
+        rr(g, -12, -62, 24, 62, 2, css(mx(R.wood, BLACK, 0.2))); rr(g, -62, -64, 124, 5, 1, css(mx(R.wood, BLACK, 0.1)))
+        for (let x = -60; x < 60; x += 12) rr(g, x, -59, 6, 14, 1, (x / 12) & 1 ? css(R.paper) : css(P.rs[(v * 4) | 0]))
+        for (const x of [-56, 52]) rr(g, x, -62, 4, 62, 1, css(R.wood))
+      },
+      tower(g) {
+        const R = P.raw
+        softShadow(g, -10, 70, 8)
+        for (const x of [-30, -10, 10, 30]) limb(g, [x * 0.5, -88, x, 0], 5, css(R.wood)); limb(g, [-28, -10, 28, -78], 2, css(R.wood)); limb(g, [28, -10, -28, -78], 2, css(R.wood))
+        rr(g, -42, -158, 84, 74, 8, lg(g, -42, 0, 42, 0, 0, da(R.wood, 0.4), 0.5, css(R.wood), 1, li(R.wood, 0.3)))
+        for (let y = -150; y < -88; y += 14) limb(g, [-42, y, 42, y], 2, css(R.rockDark, 0.7))
+        poly(g, [-48, -158, 0, -196, 48, -158], lg(g, -48, 0, 48, 0, 0, da(R.roof, 0.4), 0.5, css(R.roof), 1, li(R.roof, 0.3)))
+      },
+      hay(g) {
+        const R = P.raw
+        softShadow(g, -6, 40, 6)
+        rr(g, -24, -27, 48, 27, 5, lg(g, -24, 0, 24, 0, 0, da(R.hay, 0.3), 0.55, css(R.hay), 1, li(R.hay, 0.4))); rr(g, -24, -27, 48, 8, 4, li(R.hay, 0.4))
+        for (const x of [-10, 10]) rr(g, x - 1.4, -27, 2.8, 27, 1, css(R.hayDark, 0.8))
+        for (let i = 0; i < 7; i++) limb(g, [-20 + i * 6.5, -25, -17 + i * 6.5, -6], 0.9, css(R.hayDark, 0.4))
+        for (const q of [[-18, -31, -8, -37], [4, -30, 14, -38], [-2, -30, -6, -39]]) limb(g, [q[0], q[1], q[2], q[3]], 1.6, css(R.hay))
+        g.globalCompositeOperation = 'lighter'; circ(g, 0, -14, 26, rg(g, 0, -14, 2, 26, 0, css(P.sunC, P.dark ? 0.32 : 0.16), 1, css(P.sunC, 0))); g.globalCompositeOperation = 'source-over'
+      },
+      coil(g) {
+        const R = P.raw
+        softShadow(g, -6, 30, 5); rr(g, -5, -84, 10, 84, 3, sideLit(g, -5, 5, R.wood, 0.4)); rr(g, -6, -88, 12, 8, 3, li(R.wood, 0.25))
+        for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(0, -50 - i * 5, 24 - i * 1.6, 11 - i * 0.6, 0, 0, 7); g.lineWidth = 3.4; g.strokeStyle = i & 1 ? css(R.rope) : css(mx(R.rope, R.hayDark, 0.5)); g.stroke() }
+        limb(g, [20, -48, 28, -26, 24, -14], 2.6, css(R.rope)); circ(g, 0, -92, 3.6, css(P.t.cta))
+        g.globalCompositeOperation = 'lighter'; circ(g, 0, -58, 34, rg(g, 0, -58, 2, 34, 0, css(P.t.cta, P.dark ? 0.4 : 0.22), 1, css(P.t.cta, 0))); g.globalCompositeOperation = 'source-over'
+      },
+      rock(g, v) {
+        const R = P.raw, w = 44 + v * 12
+        softShadow(g, -12, w * 2, 8)
+        poly(g, [-w, 0, -w * 0.92, -w * 0.5, -w * 0.5, -w * 1.0, w * 0.1, -w * 1.18, w * 0.62, -w * 0.9, w, -w * 0.4, w * 0.9, 0], lg(g, -w, 0, w, 0, 0, da(R.rockDark, 0.2), 0.5, css(R.rockC), 1, li(R.rockC, 0.5)))
+        poly(g, [-w * 0.5, -w * 1.0, w * 0.1, -w * 1.18, w * 0.62, -w * 0.9, w * 0.2, -w * 0.72], css(mx(R.rockC, WHITE, 0.3), 0.7))
+        limb(g, [-w * 0.3, -w * 0.9, -w * 0.15, -w * 0.4, -w * 0.4, -w * 0.15], 1.8, css(R.rockDark, 0.8)); limb(g, [w * 0.3, -w * 0.8, w * 0.5, -w * 0.3], 1.6, css(R.rockDark, 0.7))
+      },
+      cactus(g, v) {
+        const R = P.raw
+        softShadow(g, -8, 38, 6)
+        g.beginPath(); g.ellipse(0, -22, 19, 23, 0, 0, 7); g.fillStyle = lg(g, -19, 0, 19, 0, 0, da(R.cactus, 0.4), 0.55, css(R.cactus), 1, li(R.cactus, 0.35)); g.fill()
+        for (const x of [-10, -3, 4, 11]) limb(g, [x, -42, x * 1.1, -2], 1.2, css(R.rockDark, 0.4))
+        for (let i = 0; i < 12; i++) circ(g, -14 + ((i * 7) % 28), -38 + ((i * 11) % 34), 1.1, css(R.paper, 0.9))
+        circ(g, 0, -46, 6, css(R.flower)); circ(g, 0, -46, 2.4, css(R.hay)); if (v > 0.5) circ(g, -9, -40, 3.4, css(R.flower))
+      },
+      log(g) {
+        const R = P.raw
+        softShadow(g, 0, 150, 9)
+        rr(g, -128, -42, 256, 42, 18, lg(g, 0, -42, 0, 0, 0, li(R.wood, 0.4), 0.45, css(R.wood), 1, da(R.wood, 0.5)))
+        for (let x = -108; x < 116; x += 26) limb(g, [x, -36, x + 9, -4], 1.5, css(R.rockDark, 0.5))
+        for (const s of [-1, 1]) { g.beginPath(); g.ellipse(s * 126, -21, 9, 21, 0, 0, 7); g.fillStyle = css(mx(R.wood, R.paper, 0.35)); g.fill(); g.beginPath(); g.ellipse(s * 126, -21, 4.5, 11, 0, 0, 7); g.lineWidth = 1.4; g.strokeStyle = css(R.rockDark, 0.5); g.stroke() }
+        rr(g, -128, -42, 256, 8, 4, 'rgba(255,255,255,.18)')
+      },
+      sign(g) {
+        const R = P.raw
+        softShadow(g, -8, 30, 5); rr(g, -3.5, -88, 7, 88, 2, sideLit(g, -3.5, 3.5, R.wood, 0.4))
+        poly(g, [0, -150, 36, -92, -36, -92], css(R.ink)); poly(g, [0, -141, 28, -97, -28, -97], lg(g, 0, -141, 0, -97, 0, li(R.hay, 0.2), 1, da(R.hay, 0.2)))
+        rr(g, -2.6, -130, 5.2, 17, 2, css(R.ink)); circ(g, 0, -105, 3, css(R.ink))
+      },
+      mud(g) {
+        const R = P.raw, rx = 150, ry = 30
+        g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 7); g.fillStyle = css(mx(R.trunk, BLACK, 0.5), 0.9); g.fill()
+        g.beginPath(); g.ellipse(-6, -2, rx * 0.8, ry * 0.7, 0, 0, 7); g.fillStyle = css(mx(R.trunk, R.hayDark, 0.4), 0.85); g.fill()
+        g.beginPath(); g.ellipse(rx * 0.28, -ry * 0.3, rx * 0.26, ry * 0.2, 0, 0, 7); g.fillStyle = css(mx(R.sky1, R.paper, 0.4), 0.45); g.fill()
+      },
+    }
+    const DUSTBOX = { saguaro: [-60, -190, 60, 12], mesa: [-110, -200, 110, 14], boulder: [-60, -80, 60, 12], pole: [-90, -210, 90, 8], wagon: [-100, -100, 100, 12], shop: [-100, -150, 100, 14], tower: [-70, -210, 70, 12], hay: [-44, -50, 44, 10], coil: [-50, -110, 50, 8], rock: [-80, -90, 80, 14], cactus: [-48, -60, 48, 10], log: [-170, -60, 170, 12], sign: [-52, -160, 52, 8], mud: [-170, -40, 170, 40] }
+    const DUSTUNITS = { saguaro: 11, mesa: 16, boulder: 10, pole: 11, wagon: 12, shop: 13, tower: 14, hay: 5.4, coil: 6, rock: 5.4, cactus: 5.4, log: 5.4, sign: 8, weed: 5.4, horse: 5.4 }
+    const dustSprite = (kind, v) => { const b = DUSTBOX[kind]; return sprite(`d-${kind}${v}`, b[0], b[1], b[2], b[3], (g) => DUSTPAINT[kind](g, v)) }
+
     // ── Traffic and scenery (painted once per theme) ─────────────────────────
     function paintCar(g, B, van) {
       const R = P.raw
@@ -385,7 +597,8 @@ export function createSideKickRenderer(canvas) {
           if (r.speed > 1500) { if (Math.random() < 0.8) puff('spark', r.z + 40, r.x - 0.012, 20, { vz: r.speed * (0.7 + Math.random() * 0.3), vx: (Math.random() - 0.5) * 0.5, vh: 300 + Math.random() * 600, life: 0.35, max: 0.35, size: 14 }); if (Math.random() < 0.5) puff('dust', r.z, r.x, 30, { vz: r.speed * 0.5, vh: 160, size: 120, grow: 2.5, life: 0.9, max: 0.9 }); skids.push({ z: r.z, x: r.x - 0.012, i: r.i, w: 0.9 }) }
           continue
         }
-        if (!r.brk && sp < 0.97 && Math.random() < 0.3 + (1 - sp) * 0.5) for (const s of [-1, 1]) puff('smoke', r.z - 30, r.x + s * 0.05, 100, { vz: r.speed * 0.72, vx: s * 0.05, vh: 110, size: 34, grow: 3.2, life: 0.5, max: 0.5 })
+        if (dust) { if (sp > 0.25 && Math.random() < 0.55 * sp) for (const s of [-1, 1]) puff('dust', r.z - 30, r.x + s * 0.05, 6, { vz: r.speed * 0.5, vx: s * 0.05, vh: 90, size: 38, grow: 3, life: 0.55, max: 0.55 }) }
+        else if (!r.brk && sp < 0.97 && Math.random() < 0.3 + (1 - sp) * 0.5) for (const s of [-1, 1]) puff('smoke', r.z - 30, r.x + s * 0.05, 100, { vz: r.speed * 0.72, vx: s * 0.05, vh: 110, size: 34, grow: 3.2, life: 0.5, max: 0.5 })
         if (Math.abs(r.x) > 1.02 && Math.random() < 0.7) { puff('dust', r.z - 20, r.x + (Math.random() - 0.5) * 0.06, 40, { vz: r.speed * 0.6, vh: 220, size: 90, grow: 3, life: 0.7, max: 0.7 }); if (Math.random() < 0.4) puff('chip', r.z, r.x, 30, { vz: r.speed * 0.8, vx: (Math.random() - 0.5) * 0.4, vh: 500 + Math.random() * 500, size: 12, life: 0.5, max: 0.5 }) }
         if (r.cu > 0 || r.boosting) for (const s of [-1, 1]) puff('spark', r.z - 20, r.x + s * 0.05, 95, { vz: r.speed * 0.8, vx: s * 0.1, vh: 40 + Math.random() * 120, life: 0.22, max: 0.22, size: 16 })
         if (r.oil > 0) {
@@ -426,6 +639,7 @@ export function createSideKickRenderer(canvas) {
       c.lineTo(W, HORIZ + 2); c.closePath(); c.fillStyle = lg(c, 0, base - amp, 0, HORIZ, 0, P.dark ? css(a) : li(a, 0.3), 1, da(a, 0.12)); c.fill()
     }
     function backdrop(c, time) {
+      if (dust) return dustBackdrop(c, time)
       const R = P.raw
       c.fillStyle = P.dark ? lg(c, 0, 0, 0, HORIZ, 0, P.sky0, 0.6, css(mx(R.sky0, R.sky1, 0.35)), 1, P.sky1) : lg(c, 0, 0, 0, HORIZ, 0, da(R.sky0, 0.22), 0.4, P.sky0, 0.8, P.sky1, 1, css(mx(R.sky1, P.sunC, 0.45)))
       c.fillRect(0, 0, W, HORIZ + 2)
@@ -450,6 +664,36 @@ export function createSideKickRenderer(canvas) {
       hills(c, HORIZ, 44, R.hillFar, skyOff * 0.25, 0.021)
       hills(c, HORIZ + 2, 25, R.hillNear, skyOff * 0.55 + 90, 0.034)
       c.fillStyle = lg(c, 0, HORIZ - 16, 0, HORIZ + 3, 0, css(R.fog, 0), 1, css(R.fog, 0.55)); c.fillRect(0, HORIZ - 16, W, 19)
+      c.fillStyle = P.grassA; c.fillRect(0, HORIZ, W, H - HORIZ)
+    }
+
+    // The Western sky: a low sun, thin cloud, far mesas stepping down to the verge.
+    function mesaRidge(c, base, scale, off, fill, shade) {
+      const mo = ((off % 1104) + 1104) % 1104, m0 = Math.floor(mo / 46), pk = (i) => (14 + peaks[(((i + m0) % 24) + 24) % 24] * 0.9) * scale, X = (i) => i * 46 - (mo % 46)
+      for (let i = -1; i <= 9; i++) {
+        const h = pk(i), x0 = X(i), w = 28 + (peaks[(((i + m0) % 24) + 24) % 24] % 18), left = x0, right = x0 + w
+        poly(c, [left - 10, base + 2, left, base - h * 0.72, left + 5, base - h, right - 5, base - h, right, base - h * 0.72, right + 10, base + 2], fill)
+        poly(c, [right - 5, base - h, right, base - h * 0.72, right + 10, base + 2, right - 2, base + 2], shade)
+      }
+    }
+    function dustBackdrop(c, time) {
+      const R = P.raw
+      c.fillStyle = lg(c, 0, 0, 0, HORIZ, 0, P.sky0, 0.55, css(mx(R.sky0, R.sky1, 0.55)), 1, P.sky1)
+      c.fillRect(0, 0, W, HORIZ + 2)
+      const sx = 238 - ((skyOff * 0.05) % 30 + 30) % 30, sy = HORIZ - 40
+      c.globalCompositeOperation = 'lighter'; c.fillStyle = rg(c, sx, sy, 6, 190, 0, css(R.sun0, P.dark ? 0.45 : 0.5), 0.4, css(R.sun1, 0.16), 1, css(R.sun1, 0)); c.fillRect(0, 0, W, HORIZ + 2); c.globalCompositeOperation = 'source-over'
+      circ(c, sx, sy, 30, lg(c, 0, sy - 30, 0, sy + 30, 0, css(R.sun0), 1, css(R.sun1)))
+      if (P.dark) for (const s of stars) { c.globalAlpha = 0.25 + 0.4 * Math.abs(Math.sin(time * 1.3 + s[3])); circ(c, s[0], s[1], s[2], P.paper) }
+      c.globalAlpha = 1
+      for (let i = 0; i < 4; i++) {
+        const far = i % 2, cx = ((i * 131 + 30 - skyOff * (far ? 0.07 : 0.14) + time * (far ? 1.2 : 2.6)) % (W + 220) + W + 220) % (W + 220) - 110, cy = (far ? 88 : 40) + (i * 23) % 36, sc = far ? 0.4 : 0.7
+        c.save(); c.translate(cx, cy); c.scale(sc, sc); c.globalAlpha = P.dark ? 0.12 : far ? 0.55 : 0.8; put(c, cloudSprite(i % 3)); c.restore()
+      }
+      mesaRidge(c, HORIZ, 1.35, skyOff * 0.1, css(mx(R.mount, R.sky1, 0.25)), css(mx(R.mount, P.dkC, 0.3)))
+      c.fillStyle = lg(c, 0, HORIZ - 50, 0, HORIZ + 2, 0, css(R.fog, 0), 1, css(R.fog, P.dark ? 0.45 : 0.55)); c.fillRect(0, HORIZ - 50, W, 52)
+      mesaRidge(c, HORIZ + 1, 0.8, skyOff * 0.22 + 120, css(mx(R.hillFar, R.rockC, 0.3)), css(mx(R.hillFar, P.dkC, 0.3)))
+      hills(c, HORIZ + 2, 22, R.hillNear, skyOff * 0.55 + 90, 0.034)
+      c.fillStyle = lg(c, 0, HORIZ - 14, 0, HORIZ + 3, 0, css(R.fog, 0), 1, css(R.fog, 0.55)); c.fillRect(0, HORIZ - 14, W, 17)
       c.fillStyle = P.grassA; c.fillRect(0, HORIZ, W, H - HORIZ)
     }
     function render(c, view, time, main) {
@@ -478,8 +722,10 @@ export function createSideKickRenderer(canvas) {
         strip(-1.09, 1.09, F[s.dark ? 'kerbA' : 'kerbB'][q])
         strip(-1, 1, F[s.dark ? 'roadA' : 'roadB'][q])
         if (n < 60) { const wear = css(P.dark ? BLACK : P.dkC, 0.1 * (1 - n / 60)); for (const l of LANEX) for (const o of [-0.09, 0.09]) poly(c, [x1 + w1 * (l + o - 0.04), yb, x1 + w1 * (l + o + 0.04), yb, x2 + w2 * (l + o + 0.04), y2, x2 + w2 * (l + o - 0.04), y2], wear) }
-        strip(-0.967, -0.943, F.edge[q]); strip(0.943, 0.967, F.edge[q])
-        if (s.dark) { strip(-0.514, -0.486, F.lane[q]); strip(0.486, 0.514, F.lane[q]); strip(-0.014, 0.014, F.center[q]) }
+        if (!dust) {
+          strip(-0.967, -0.943, F.edge[q]); strip(0.943, 0.967, F.edge[q])
+          if (s.dark) { strip(-0.514, -0.486, F.lane[q]); strip(0.486, 0.514, F.lane[q]); strip(-0.014, 0.014, F.center[q]) }
+        }
         maxy = y2
       }
       // The low sun (or the neon horizon) glances off the tarmac.
@@ -504,10 +750,12 @@ export function createSideKickRenderer(canvas) {
       const list = []
       for (let n = Math.min(DRAW, segs.length - bi) - 1; n >= 0; n--) { const s = segs[bi + n]; for (const q of s.spr) list.push({ z: s.z + SEG / 2, x: q.x, q }) }
       for (const car of cars) if (car.z > camZ && car.z < camZ + DRAW * SEG) list.push({ z: car.z, x: car.x, car })
+      for (const w of weeds) if (w.z > camZ && w.z < camZ + DRAW * SEG) list.push({ z: w.z, x: w.x, wd: w })
       for (const r of riders) if (!(first && r === cam)) list.push({ z: r.z, x: r.x, r })
       for (const w of wps) list.push({ z: w.z, x: w.x, w })
       list.sort((a, b) => b.z - a.z)
       for (const o of list) {
+        if (dust && o.q && (o.q.k === 'hay' || o.q.k === 'coil') && cam.got.has(o.q.id)) continue
         const p = pt(o.z, o.x); if (!p) continue
         const cx = p.cx, sy = p.y, unit = p.u, px = p.x, sc = p.sc
         if (px < -220 || px > W + 220) continue
@@ -521,6 +769,12 @@ export function createSideKickRenderer(canvas) {
           else if (w.kind === 'wind') { c.globalAlpha = a * 0.55; limb(c, [px, y, px, y + size * 1.6], Math.max(1, size * 0.07), P.paper) }
           else if (w.kind === 'chip') { c.globalAlpha = a; rr(c, px - size / 2, y - size / 2, size, size, size * 0.2, F.dirt[0]) }
           else { c.globalAlpha = a * (w.kind === 'smoke' ? 0.34 : 0.5); const d = dot(w.kind === 'smoke' ? mx(R.metal, R.paper, 0.5) : mx(R.dirt, R.paper, 0.35)); c.drawImage(d.cv, px - size, y - size, size * 2, size * 2) }
+        } else if (o.wd) {
+          const k = unit * DUSTUNITS.weed
+          c.translate(px, sy); c.scale(k, k); drawWeed(c, o.wd, time)
+        } else if (dust && o.q && o.q.k === 'oil') {
+          const k = unit * 5.4
+          c.translate(px, sy); c.scale(k, k); put(c, dustSprite('mud', 0))
         } else if (o.q && (o.q.k === 'oil' || o.q.k === 'patch')) {
           if (o.q.k === 'patch') { c.beginPath(); c.ellipse(px, sy, unit * (180 + o.q.v * 260), unit * (26 + o.q.v * 22), 0, 0, 7); c.fillStyle = css(P.dark ? BLACK : P.dkC, 0.14 + o.q.v * 0.1); c.fill() }
           else {
@@ -532,19 +786,21 @@ export function createSideKickRenderer(canvas) {
           }
         } else if (o.q && o.q.k === 'gate') {
           const w = sc * ROAD * W / 2 * 1.16, top = sy - unit * 1750, band = unit * 380, pw = unit * 130
-          for (const s of [-1, 1]) { softShadow2(c, cx + s * w - pw, sy, pw * 2.4, pw * 0.5); rr(c, cx + s * w - pw / 2, top, pw, sy - top, pw * 0.25, lg(c, cx + s * w - pw / 2, 0, cx + s * w + pw / 2, 0, 0, da(R.paper, 0.4), 0.6, css(R.paper), 1, li(R.paper, 0.3))) }
-          const face = o.q.v ? R.ink : P.rs[0]
+          const postC = dust ? R.wood : R.paper
+          for (const s of [-1, 1]) { softShadow2(c, cx + s * w - pw, sy, pw * 2.4, pw * 0.5); rr(c, cx + s * w - pw / 2, top, pw, sy - top, pw * 0.25, lg(c, cx + s * w - pw / 2, 0, cx + s * w + pw / 2, 0, 0, da(postC, 0.4), 0.6, css(postC), 1, li(postC, 0.3))) }
+          const face = dust ? mx(R.wood, BLACK, 0.2) : o.q.v ? R.ink : P.rs[0]
           rr(c, cx - w - pw / 2, top, 2 * w + pw, band, unit * 50, lg(c, 0, top, 0, top + band, 0, li(face, 0.3), 0.3, css(face), 1, da(face, 0.35)))
-          if (o.q.v) { const n = 14, cw = (2 * w) / n; for (let i = 0; i < n; i++) for (let j = 0; j < 2; j++) if ((i + j) % 2 === 0) { c.fillStyle = P.paper; c.fillRect(cx - w + i * cw, top + band * 0.14 + j * band * 0.36, cw, band * 0.36) } }
-          else if (band > 9) { c.fillStyle = P.dark ? P.ink : P.paper; c.font = Math.floor(band * 0.5) + 'px ' + fontFamily; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('START', cx, top + band * 0.55) }
-          for (let i = 0; i < 9; i++) { const bx = cx - w * 0.88 + i * w * 0.22, sw = Math.sin(time * 6 + i * 1.3) * band * 0.08; poly(c, [bx - band * 0.24, top + band, bx + band * 0.24, top + band, bx + sw, top + band * 1.65], P.seat[i % 4].main) }
+          if (o.q.v && !dust) { const n = 14, cw = (2 * w) / n; for (let i = 0; i < n; i++) for (let j = 0; j < 2; j++) if ((i + j) % 2 === 0) { c.fillStyle = P.paper; c.fillRect(cx - w + i * cw, top + band * 0.14 + j * band * 0.36, cw, band * 0.36) } }
+          else if (band > 9) { c.fillStyle = dust ? css(R.hay) : P.dark ? P.ink : P.paper; c.font = Math.floor(band * (dust ? 0.4 : 0.5)) + 'px ' + fontFamily; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(dust && o.q.v ? 'FINISH' : 'START', cx, top + band * 0.55) }
+          if (!dust) for (let i = 0; i < 9; i++) { const bx = cx - w * 0.88 + i * w * 0.22, sw = Math.sin(time * 6 + i * 1.3) * band * 0.08; poly(c, [bx - band * 0.24, top + band, bx + band * 0.24, top + band, bx + sw, top + band * 1.65], P.seat[i % 4].main) }
           c.fillStyle = css(P.dkC, 0.22); c.fillRect(cx - w, top + band, 2 * w, band * 0.18)
         } else {
-          const kind = o.r ? 'bike' : o.car ? 'car' : o.q.k, k = unit * UNITS[kind]
+          const kind = o.r ? 'bike' : o.car ? 'car' : o.q.k, k = unit * ((dust && DUSTUNITS[kind === 'bike' ? 'horse' : kind]) || UNITS[kind])
           c.translate(px, sy); c.scale(k, k)
           if (o.r) {
             if (o.r.shield > 0 && Math.floor(time * 14) % 2 === 0) c.globalAlpha = 0.4
-            drawBike(c, o.r, time); c.globalAlpha = 1
+            if (dust) drawHorse(c, o.r, time); else drawBike(c, o.r, time)
+            c.globalAlpha = 1
             if (main) { o.r._sx = px; o.r._sy = sy; o.r._k = k }
           } else if (o.car) {
             c.translate(0, Math.sin(time * 5 + o.car.z0) * 0.5); put(c, carSprite(o.car))
@@ -553,6 +809,11 @@ export function createSideKickRenderer(canvas) {
             if (far > 0) c.globalAlpha = 1 - far
             if (kind === 'flag') drawFlag(c, o.q, time)
             else if (kind === 'tuft') drawTuft(c, o.q, time)
+            else if (dust && DUSTPAINT[kind]) {
+              const qv = kind === 'pole' || kind === 'wagon' ? (o.q.v | 0) : Math.min(3, Math.floor((o.q.v || 0) * 4)) / 3
+              if (kind === 'saguaro') c.transform(1, 0, Math.sin(time * 0.9 + o.q.x * 5) * 0.012, 1, 0, 0)
+              put(c, dustSprite(kind, qv))
+            }
             else {
               const v = kind === 'pine' ? (o.q.v < 0.5 ? 0 : 1) : kind === 'tree' ? (o.q.v < 0.6 ? 0 : 1) : kind === 'house' ? (P.dark ? Math.floor(o.q.v * 3) : o.q.v < 0.5 ? 0 : 1) : kind === 'board' ? (o.q.v | 0) : kind === 'bush' ? 0 : o.q.v
               if (kind === 'pine' || kind === 'tree' || kind === 'bush') c.transform(1, 0, Math.sin(time * 1.3 + o.q.x * 7 + o.z * 0.001) * (kind === 'bush' ? 0.02 : 0.035), 1, 0, 0)
@@ -737,7 +998,7 @@ export function createSideKickRenderer(canvas) {
 
   function rebuild() {
     themeId = document.documentElement.getAttribute('data-theme') || ''
-    P = buildPalette(readSideKickTokens())
+    P = buildPalette(readSideKickTokens(), dust ? { dust: true, look } : {})
     sprCache.clear()
     const ff = getComputedStyle(document.documentElement).getPropertyValue('--font-pixel').trim()
     fontFamily = ff ? `${ff}, monospace` : 'monospace'
@@ -762,6 +1023,9 @@ export function createSideKickRenderer(canvas) {
     if (ev.t === 'down' && ev.to === view) shake = 14
     if (ev.t === 'boost' && ev.by === view) { fovPulse = 1; shake = Math.max(shake, 6) }
     if (ev.t === 'oil' && ev.to === view) shake = Math.max(shake, 5)
+    if (ev.t === 'roped') { burst(rs[ev.to], 'ROPED'); if (ev.to === view) shake = Math.max(shake, 8) }
+    if ((ev.t === 'rock' || ev.t === 'cactus') && ev.to === view) shake = Math.max(shake, 7)
+    if (ev.t === 'hay' && ev.to === view) for (let i = 0; i < 8; i++) parts.push({ k: 'star', x: W / 2 + (Math.random() - 0.5) * 60, y: H * 0.6, vx: (Math.random() - 0.5) * 240, vy: -120 - Math.random() * 180, life: 0.5, max: 0.5, alt: i % 2 })
     if (ev.t === 'nearmiss' && ev.to === view) {
       // CLOSE! on the side the car went by, and a rush of lines out to that edge.
       const x = W / 2 + (ev.side || 1) * 84, y = H * 0.56
@@ -789,11 +1053,12 @@ export function createSideKickRenderer(canvas) {
    * @param {{ pixel?: boolean, avatars?: boolean, reduced?: boolean, paused?: boolean }} [ui]
    */
   function draw(world, view, dt, ui = {}) {
+    if (dust && look !== world.track.id) { look = world.track.id; P = null }
     if (!P || themeId !== (document.documentElement.getAttribute('data-theme') || '')) rebuild()
     avatarsOn = ui.avatars !== false
-    camMode = ui.camera === 'first' ? 'first' : 'chase'
+    camMode = !dust && ui.camera === 'first' ? 'first' : 'chase'
     reducedNow = !!ui.reduced
-    track = world.track; riders = world.riders; cars = world.cars; segs = track.segs
+    track = world.track; riders = world.riders; cars = world.cars; weeds = world.weeds || []; segs = track.segs
     phase = world.phase; viewIdx = view; frameDt = dt || DT
     clock += frameDt
     const me = riders[view]

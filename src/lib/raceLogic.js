@@ -23,7 +23,7 @@ export const RACE_COUNTDOWN_MS = 3000
 // Cup races: a match of N rounds ranked on points rather than first to
 // RACE_MATCH_WINS round wins. The game's `decorate` hook supplies each round's
 // points (SIDE KICK: 3 / 2 / 1 / 0 by place among all four riders, bots too).
-export const CUP_RACES_BY_GAME = { sidekick: 3 }
+export const CUP_RACES_BY_GAME = { sidekick: 3, dustkick: 3 }
 // A cup whose length the host picks in the lobby keeps it in a room config
 // (ARROWS PARTY: 3 / 5 / 7 rounds in `arrowsPartyConfig.rounds`).
 const CUP_PICKED_BY_GAME = {

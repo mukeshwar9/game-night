@@ -10,7 +10,7 @@ import {
   WordDuelIcon, WordCoopIcon, WordRaceIcon, BlockadeIcon, PairsIcon, WordHuntIcon, PaintIcon, SketchIcon,
   PasswordIcon, AnagramsIcon, ArrowsIcon, UpdraftIcon,
   PacmacIcon, HexIcon, MinesIcon, HerdIcon, TriviaIcon, BattleshipIcon,
-  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, SideKickIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon,
+  MancalaIcon, CheckersIcon, AirHockeyIcon, PuckRushIcon, FenderBenderIcon, BonkBuggiesIcon, SideKickIcon, DustKickIcon, YachtIcon, FaceOffIcon, ChopChopIcon, DartsIcon, StickyFingersIcon, QuiverIcon, LazySusanIcon, BamboozleIcon, FirstCutIcon, ArtilleryIcon, ArcheryIcon,
   SimIcon, ChompIcon, BreakthroughIcon, AtaxxIcon, KamisadoIcon,
   OnitamaIcon, QuartoIcon, SantoriniIcon, LoaIcon, YavalathIcon,
   HeadsUpIcon, ChameleonIcon,
@@ -825,6 +825,20 @@ export const GAME_TYPES = [
     // against three bots. One phone is not offered: the chase view needs the whole screen.
     custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
     Page: lazyWithRetry(() => import('../pages/SideKickGame')),
+  },
+  {
+    type: 'dustkick', label: 'DUST KICK',
+    desc: 'race horses · buck, rope and spur', Icon: DustKickIcon,
+    badge: 'DK', maxWidth: 'max-w-sm',
+    category: 'reflex',
+    addedAt: '2026-10-29',
+    durationMin: 6, tags: ['skill', 'frantic', 'party'], solo: true,
+    // SIDE KICK's engine with the Western rules (sideKickLogic.js `dust: true`, dustKickLogic.js):
+    // 2-4 riders and bots in a three-race cup (Canyon, Prairie, Town). The horse bucks to kick, hay
+    // and kicks fill SPURS, a rope coil gives one lasso (`victim|L` under the thrower's `k/{n}`),
+    // and Western hazards replace traffic. /solo/dustkick is one rider against three bots.
+    custom: true, focusPage: true, simultaneous: true, race: true, nPlayer: true, minPlayers: 2, maxPlayers: 4,
+    Page: lazyWithRetry(() => import('../pages/DustKickGame')),
   },
   {
     type: 'pulprush', label: 'PULP RUSH',

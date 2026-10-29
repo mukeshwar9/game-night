@@ -8,6 +8,8 @@ The design board (study of the classic's mechanic, view comparison, the playable
 of review) is in `.lavish/side-kick/`. The classic it studies is Electronic Arts' Road Rash; this is Game
 Night's own game with its own name, art, tracks and rules, and nothing is copied from it.
 
+DUST KICK, the Wild West version, runs on this same engine with a `dust` rules option: see `docs/DUST-KICK.md`.
+
 ## Where it lives
 
 | Piece | File |

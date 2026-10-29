@@ -362,7 +362,8 @@ describe('cup races (SIDE KICK)', () => {
   const decorate = (r) => ({ points: { a: 3, b: 2, c: 1 }, grid: ['a', 'b', 'c', 'bot1'], seen: Object.keys(r.stats).length })
 
   it('knows which games run a cup', () => {
-    expect(CUP_RACES_BY_GAME).toEqual({ sidekick: 3 })
+    expect(CUP_RACES_BY_GAME).toEqual({ sidekick: 3, dustkick: 3 })
+    expect(cupRacesFor('dustkick')).toBe(3)
     expect(cupRacesFor('sidekick')).toBe(3)
     expect(cupRacesFor('chopchop')).toBe(0)
   })

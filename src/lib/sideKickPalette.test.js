@@ -78,3 +78,34 @@ describe('buildPalette over every theme', () => {
     expect(P.grassA).toMatch(/^rgb/)
   })
 })
+
+describe('the Western palette (DUST KICK) over every theme', () => {
+  const looks = ['canyon', 'prairie', 'town']
+  const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255
+  const re = /^rgba?\(\d{1,3},\d{1,3},\d{1,3}(,[\d.]+)?\)$/
+  it.each(ids)('%s: every Western colour is a valid rgb string in all three looks', (id) => {
+    for (const look of looks) {
+      const P = buildPalette(tokensOf(id), { dust: true, look })
+      for (const k of ['hay', 'hayDark', 'rope', 'wood', 'rockC', 'rockDark', 'cactus', 'mesa', 'mesaDark', 'coat', 'mane', 'hat', 'sky0', 'sky1', 'grassA', 'roadA', 'kerbA', 'fog', 'dirt']) {
+        expect(P[k], `${id} ${look} ${k}`).toMatch(re)
+      }
+      expect(P.fogTab.dirt).toHaveLength(25)
+    }
+  })
+  it.each(ids)('%s: the trail is darker than the verges and hay reads on the trail and on the sand', (id) => {
+    for (const look of looks) {
+      const P = buildPalette(tokensOf(id), { dust: true, look })
+      expect(lum(P.raw.roadA), `${id} ${look} trail darker than sand`).toBeLessThan(lum(P.raw.grassA))
+      expect(dist(P.raw.hay, P.raw.roadA), `${id} ${look} hay/trail`).toBeGreaterThan(60)
+      expect(dist(P.raw.hay, P.raw.grassA), `${id} ${look} hay/sand`).toBeGreaterThan(18)
+      expect(dist(P.raw.rockC, P.raw.roadA), `${id} ${look} rock/trail`).toBeGreaterThan(18)
+      expect(dist(P.raw.sky1, P.raw.grassA), `${id} ${look} sky/ground`).toBeGreaterThan(20)
+    }
+  })
+  it('leaves the SIDE KICK palette alone', () => {
+    const a = buildPalette(tokensOf('matcha'))
+    const b = buildPalette(tokensOf('matcha'), {})
+    expect(a.raw.roadA).toEqual(b.raw.roadA)
+    expect(a.raw.hay).toBeUndefined()
+  })
+})

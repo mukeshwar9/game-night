@@ -37,9 +37,42 @@ function nearestHue(cands, hue, within) {
 }
 
 /**
- * @param {Record<string, number[]>} T  token name → [r, g, b], see SK_TOKENS
+ * The Western raw colours (DUST KICK), all mixes of the theme's tokens: warm sand verges, a trail darker
+ * than the verges so gold hay never sits on gold sand, red rock, sage and weathered wood. The three
+ * looks differ in the sky only: a dusk canyon, a clear prairie and a golden-hour town.
+ * @returns {Record<string, number[]>}
  */
-export function buildPalette(T) {
+function dustRaw(t, dark, look, SKY) {
+  const sand = dark ? mx(t.cta, t.bg, 0.6) : mx(t.cta, t.card, 0.62)
+  const trail = dark ? mx(t.bg, sand, 0.18) : mx(t.text, sand, 0.58)
+  const rock = dark ? mx(t.danger, t.bg, 0.5) : mx(t.danger, sand, 0.5)
+  const wood = dark ? mx(t.structure, t.cta, 0.4) : mx(t.text, t.cta, 0.5)
+  const sage = dark ? mx(t.win, t.bg, 0.45) : mx(t.win, sand, 0.4)
+  const sky = dark
+    ? { sky0: t.bg, sky1: mx(mx(t.bg, t.p2, 0.3), t.danger, 0.25) }
+    : look === 'canyon' ? { sky0: mx(t.p2, t.card, 0.35), sky1: mx(t.danger, t.cta, 0.5) }
+      : look === 'town' ? { sky0: mx(SKY, t.cta, 0.2), sky1: mx(t.cta, t.card, 0.82) }
+        : { sky0: mx(SKY, t.text, 0.06), sky1: mx(SKY, t.card, 0.78) }
+  return {
+    ...sky,
+    mount: mx(rock, sky.sky1, dark ? 0.55 : 0.4), hillFar: mx(rock, sky.sky1, 0.55), hillNear: mx(sand, rock, 0.3),
+    grassA: sand, grassB: mx(sand, t.text, dark ? 0.1 : 0.06), dirt: mx(sand, t.text, 0.12),
+    roadA: trail, roadB: mx(trail, sand, 0.1), kerbA: mx(trail, t.text, 0.22), kerbB: mx(trail, sand, 0.3),
+    lane: trail, center: mx(trail, sand, 0.1), edge: mx(trail, sand, 0.3),
+    fog: mx(sky.sky1, sand, 0.3),
+    leaf0: mx(sage, t.text, 0.2), leaf1: sage, leaf2: mx(sage, t.card, 0.25), aut0: mx(sand, rock, 0.3), aut1: mx(sand, rock, 0.15), aut2: sand,
+    trunk: wood, post: mx(wood, sand, 0.2), house: mx(wood, sand, 0.35), roof: mx(wood, t.danger, 0.3),
+    hay: dark ? mx(t.cta, t.text, 0.4) : mx(t.cta, t.card, 0.14), hayDark: mx(t.cta, t.text, 0.4), rope: mx(sand, t.text, 0.1), wood, rockC: rock, rockDark: mx(rock, t.text, 0.35), cactus: sage, mesa: rock, mesaDark: mx(rock, t.text, 0.3),
+    coat: mx(wood, sand, 0.1), mane: mx(wood, t.text, 0.5), hat: mx(wood, t.text, 0.4), flower: t.p3,
+    sun0: dark ? t.cta : mx(t.cta, t.card, 0.4), sun1: dark ? t.danger : mx(t.danger, t.cta, 0.5),
+  }
+}
+
+/**
+ * @param {Record<string, number[]>} T  token name → [r, g, b], see SK_TOKENS
+ * @param {{ dust?: boolean, look?: string }} [opts]  `dust` swaps the road for DUST KICK's trail in `look` (canyon, prairie, town)
+ */
+export function buildPalette(T, opts = {}) {
   const t = { ...T, tintCta: T['tint-cta'] || mx(T.card, T.cta, 0.2), art1: T['art-1'] || null, art4: T['art-4'] || null }
   const dark = brightness(t.bg) < 0.4
   const ps = [t.p1, t.p2, t.p3, t.p4]
@@ -64,12 +97,13 @@ export function buildPalette(T) {
     trunk: mx(t.cta, t.text, 0.55), metal: mx(t.text, t.card, 0.58), tire: mx(t.text, BLACK, 0.35), tread: mx(t.text, t.card, 0.25), helmet: t.card, pants: mx(t.text, t.card, 0.12), sole: mx(t.cta, t.card, 0.35), lamp: t.danger, post: mx(t.text, t.card, 0.45), win: mx(SKY, t.card, 0.55), sun0: mx(t.tintCta, t.card, 0.4), sun1: t.tintCta,
     house: t.card, roof: mx(t.danger, t.card, 0.3), lit: mx(SKY, t.card, 0.4), ink: t.text, paper: t.card, pow: mx(t.cta, t.card, 0.45), cloud: t.card, flower: mx(t.p3, t.card, 0.2),
   }
+  if (opts.dust) Object.assign(raw, dustRaw(t, dark, opts.look, SKY))
   const P = {
     dark, t, raw, rs: ps,
     sunC: dark ? mx(t.cta, t.text, 0.5) : mx(t.card, t.tintCta, 0.5),
     dkC: dark ? BLACK : mx(t.text, SKY, 0.25),
   }
-  raw.dirt = dark ? mx(t.deep, t.structure, 0.35) : mx(mx(t.cta, t.text, 0.3), GROUND, 0.55)
+  if (!opts.dust) raw.dirt = dark ? mx(t.deep, t.structure, 0.35) : mx(mx(t.cta, t.text, 0.3), GROUND, 0.55)
   for (const k of Object.keys(raw)) P[k] = css(raw[k])
   P.seat = ps.map((p) => ({
     main: css(p),

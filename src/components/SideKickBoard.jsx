@@ -11,7 +11,7 @@ import { SEAT } from './sideKickSeats'
 const chip = 'absolute rounded-xl border border-retro-border/70 bg-retro-card/80 backdrop-blur-sm font-pixel pointer-events-none'
 
 /** The road. `avatars` is one avatar string (or null) per seat; the renderer draws the riders from them. */
-export function SideKickArena({ rendererRef, avatars, children, className }) {
+export function SideKickArena({ rendererRef, avatars, children, className, dust = false }) {
   const canvasRef = useRef(null)
   const avatarKey = (avatars || []).join('|')
   const avatarKeyRef = useRef(avatarKey)
@@ -19,21 +19,21 @@ export function SideKickArena({ rendererRef, avatars, children, className }) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return undefined
-    const renderer = createSideKickRenderer(canvas)
+    const renderer = createSideKickRenderer(canvas, { dust })
     renderer.setAvatars(avatarKeyRef.current ? avatarKeyRef.current.split('|').map((s) => s || null) : [])
     rendererRef.current = renderer
     return () => {
       renderer.dispose()
       rendererRef.current = null
     }
-  }, [rendererRef])
+  }, [rendererRef, dust])
   useEffect(() => {
     rendererRef.current?.setAvatars(avatarKey ? avatarKey.split('|').map((s) => s || null) : [])
   }, [avatarKey, rendererRef])
 
   return (
     <div className={cn('relative w-full overflow-hidden rounded-lg border border-retro-border bg-retro-deep', className)} style={{ aspectRatio: `${W} / ${H}` }}>
-      <canvas ref={canvasRef} data-testid="sidekick-arena" className="block h-full w-full" role="img" aria-label="Road ahead: your bike seen from behind, the other riders, traffic and the mirrors" />
+      <canvas ref={canvasRef} data-testid="sidekick-arena" className="block h-full w-full" role="img" aria-label={dust ? 'Trail ahead: your horse seen from behind, the other riders, hay, hazards and the mirrors' : 'Road ahead: your bike seen from behind, the other riders, traffic and the mirrors'} />
       {children}
     </div>
   )
@@ -54,10 +54,11 @@ function Rail({ rail }) {
   )
 }
 
-/** The boost meter: fills only from near misses and slipstream; one tap spends all of it. */
+/** The boost meter: fills only from near misses and slipstream (hay, kicks and dust in the west); one tap spends all of it. */
 function BoostMeter({ hud }) {
   const fill = hud.boosting ? hud.boostLeft : hud.boost
-  const label = hud.boosting ? 'BOOSTING' : hud.wake ? 'IN WAKE +' : hud.boostReady ? 'TAP BOOST' : 'BOOST'
+  const name = hud.dust ? 'SPURS' : 'BOOST'
+  const label = hud.boosting ? (hud.dust ? 'SPURRING' : 'BOOSTING') : hud.wake ? (hud.dust ? 'IN DUST +' : 'IN WAKE +') : hud.boostReady ? `TAP ${name}` : name
   return (
     <div
       className={cn(chip, 'bottom-11 left-2.5 flex w-[118px] items-center gap-1.5 px-2 pb-1.5 pt-2 text-[7px]', hud.boostReady || hud.boosting ? 'border-retro-cta text-retro-cta' : hud.wake ? 'border-retro-win text-retro-win' : 'text-retro-dim')}
@@ -80,7 +81,7 @@ function BoostMeter({ hud }) {
 }
 
 /** Glass chips over the road: place, clock, speed, balance, boost, bonus chip, one toast, the countdown. */
-export function SideKickHud({ hud, toast, ordinalOf, camera = 'chase', onCamera = null }) {
+export function SideKickHud({ hud, toast, ordinalOf, camera = 'chase', onCamera = null, lasso = null }) {
   if (!hud) return null
   return (
     <div className="absolute inset-0 pointer-events-none" data-testid="sidekick-hud">
@@ -113,6 +114,17 @@ export function SideKickHud({ hud, toast, ordinalOf, camera = 'chase', onCamera 
       </div>
       {hud.chip && hud.phase === 'race' && (
         <div className={cn(chip, 'bottom-2.5 right-2.5 px-2 pb-1.5 pt-2 text-[7px] text-retro-cta')} data-testid="sidekick-chip">{hud.chip}</div>
+      )}
+      {hud.dust && (hud.rope || hud.winding) && hud.phase === 'race' && !hud.down && lasso && (
+        <button
+          type="button"
+          {...lasso}
+          data-testid="dustkick-lasso"
+          aria-label="Throw the lasso"
+          className={cn(chip, 'press pointer-events-auto bottom-[68px] right-2.5 border-retro-cta px-3 pb-1.5 pt-2.5 text-[9px] text-retro-cta touch-none select-none', hud.winding && 'bg-retro-tint-cta')}
+        >
+          {hud.winding ? 'ROPE!' : 'LASSO'}
+        </button>
       )}
       {hud.marked && hud.phase === 'race' && (
         <div className={cn(chip, 'bottom-11 right-2.5 px-2 pb-1.5 pt-2 text-[7px] text-retro-danger')} data-testid="sidekick-grudge">GRUDGE · {hud.marked}</div>
@@ -194,7 +206,7 @@ function TiltGauge({ lean, onCenter }) {
 }
 
 /** The thumb pad: STEER ← → (or the tilt gauge), BOOST, KICK L / R. Kick buttons carry the strain bar. */
-export function SideKickPad({ bind, hud, enabled = true, className, tilt = null }) {
+export function SideKickPad({ bind, hud, enabled = true, className, tilt = null, dust = false }) {
   const risk = !!hud && hud.strain > 0.6
   const kickClass = (extra) => cn(extra, hud?.cool && 'opacity-60', risk && 'border-retro-danger text-retro-danger', !enabled && 'opacity-50')
   const strainBar = (
@@ -214,15 +226,15 @@ export function SideKickPad({ bind, hud, enabled = true, className, tilt = null 
           <PadButton label="STEER R" icon={ico.right} className="text-retro-p1" {...bind.steer(1)} />
         </>
       )}
-      <PadButton label="BOOST" icon={ico.boost} fill className={cn('text-retro-cta', hud?.boostReady && 'border-retro-cta', hud?.boosting && 'bg-retro-tint-cta', !enabled && 'opacity-50')} data-testid="sidekick-boost-btn" {...bind.boost}>
+      <PadButton label={dust ? 'SPURS' : 'BOOST'} icon={ico.boost} fill className={cn('text-retro-cta', hud?.boostReady && 'border-retro-cta', hud?.boosting && 'bg-retro-tint-cta', !enabled && 'opacity-50')} data-testid="sidekick-boost-btn" {...bind.boost}>
         <i
           aria-hidden="true"
           className="absolute inset-x-0 bottom-0 block origin-bottom bg-retro-cta/30 transition-transform duration-fast"
           style={{ height: '100%', transform: `scaleY(${hud?.boosting ? hud.boostLeft : (hud?.boost ?? 0)})` }}
         />
       </PadButton>
-      <PadButton label="KICK L" icon={ico.kickL} className={kickClass('text-retro-p2')} data-testid="sidekick-kick-l" {...bind.kick(-1)}>{strainBar}</PadButton>
-      <PadButton label="KICK R" icon={ico.kickR} className={kickClass('text-retro-p2')} data-testid="sidekick-kick-r" {...bind.kick(1)}>{strainBar}</PadButton>
+      <PadButton label={dust ? 'BUCK L' : 'KICK L'} icon={ico.kickL} className={kickClass('text-retro-p2')} data-testid="sidekick-kick-l" {...bind.kick(-1)}>{strainBar}</PadButton>
+      <PadButton label={dust ? 'BUCK R' : 'KICK R'} icon={ico.kickR} className={kickClass('text-retro-p2')} data-testid="sidekick-kick-r" {...bind.kick(1)}>{strainBar}</PadButton>
     </div>
   )
 }

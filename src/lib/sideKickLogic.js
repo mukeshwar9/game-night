@@ -15,6 +15,11 @@
 
 import { mulberry32, detCos } from './detMath'
 import { rankRace, RACE_COUNTDOWN_MS } from './raceLogic'
+import {
+  DUST_ORDER, DUST_KICK_SLOW, SPOOK_T, SPOOK_TOP, KICK_FILL, HAY_FILL, HAY_SURGE_T, HAY_SURGE_TOP, HAY_GRAB_X, COIL_GRAB_X,
+  LASSO_WIND, LASSO_RANGE_Z, LASSO_RANGE_X, ROPED_T, ROPED_TOP, REEL_T, REEL_TOP, WEED_HIT_X, WEED_HIT_Z, WEED_SLOW, WEED_WOBBLE,
+  ROCK_HIT_X, ROCK_SLOW, CACTUS_HIT_X, CACTUS_SLOW, LOG_HIT_X, buildDustFeatures, weedAt,
+} from './dustKickLogic'
 
 // ── Road ─────────────────────────────────────────────────────────────────
 export const SEG = 200
@@ -88,6 +93,7 @@ export const PAYBACK_BONUS = 1
 
 export const SOLO_NAMES = ['YOU', 'PLUM', 'RUBY', 'TEAL']
 export const BOT_NAMES = ['PLUM', 'RUBY', 'TEAL', 'MOSS']
+export const DUST_BOT_NAMES = ['SADIE', 'CLINT', 'ROSA', 'HANK']
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 const lerp = (a, b, t) => a + (b - a) * t
@@ -142,6 +148,15 @@ export const TRACKS = {
   },
 }
 export const TRACK_IDS = Object.keys(TRACKS)
+/** DUST KICK's roads borrow SIDE KICK's pieces; the look decides roadside, hazards and palette. */
+export const DUST_TRACKS = {
+  // The pass's switchbacks with a short straight after every other bend, where hay and logs can sit.
+  canyon: { name: 'RED CANYON', dust: true, pieces: () => TRACKS.pass.pieces().flatMap((q, n) => (n % 2 ? [q, [20, 40, 20, 0, 0]] : [q])) },
+  prairie: { name: 'PRAIRIE LINE', dust: true, pieces: TRACKS.meadow.pieces },
+  town: { name: 'MAIN STREET', dust: true, pieces: TRACKS.rush.pieces },
+}
+export const DUST_TRACK_ORDER = DUST_ORDER
+export const dustTrackForRace = (raceIndex) => DUST_ORDER[((raceIndex | 0) % DUST_ORDER.length + DUST_ORDER.length) % DUST_ORDER.length]
 /** The online cup rides these three in turn (RANDOM ROAD is solo only). */
 export const TRACK_ORDER = ['meadow', 'pass', 'rush']
 export const TRACK_SEED = 20261010
@@ -154,7 +169,7 @@ export const trackForRace = (raceIndex) => TRACK_ORDER[((raceIndex | 0) % TRACK_
  * @returns {{ id: string, name: string, segs: any[], finish: number, cars: any[] }}
  */
 export function buildTrack(seed, trackId = 'meadow') {
-  const def = TRACKS[trackId] || TRACKS.meadow
+  const def = TRACKS[trackId] || DUST_TRACKS[trackId] || TRACKS.meadow
   const rnd = mulberry32(seed)
   const segs = []
   const lastY = () => (segs.length ? segs[segs.length - 1].y2 : 0)
@@ -171,6 +186,12 @@ export function buildTrack(seed, trackId = 'meadow') {
   const finish = segs.length * SEG
   road(40, 140, 40, 0, 0)
   for (const s of segs) s.dark = Math.floor(s.i / 3) % 2 === 0
+  if (def.dust) {
+    const feat = buildDustFeatures(segs, { SEG, LANEX, finish, look: trackId, rnd })
+    segs[9].spr.push({ k: 'gate', x: 0, v: 0 })
+    segs[finish / SEG].spr.push({ k: 'gate', x: 0, v: 1 })
+    return { id: trackId, name: def.name, segs, finish, cars: [], dust: true, ...feat }
+  }
   for (let i = 4; i < segs.length; i++) {
     const s = segs[i]
     const side = rnd() < 0.5 ? -1 : 1
@@ -229,16 +250,18 @@ function newRider(i, desc, slot, tune) {
     cu: 0, cuTarget: -1, cuGap: 0, rec: 0, recV: 0, sq: 0, susp: 0, suspV: 0, slope: 0, brk: false, look: 0,
     // Ghost bookkeeping (only used while `local` is false).
     seenKick: 0, seenDown: 0, netAt: 0, netState: 0, netLean: 0, netCu: 0,
+    // DUST KICK: spooked / hay surge / mud-less wobble, the coil in hand, the lasso in flight, roped and reeling.
+    spook: 0, surge: 0, wob: 0, rope: 0, lassoT: 0, lassoN: 0, lastLasso: false, roped: 0, reel: 0, got: new Set(), lassos: 0,
   }
 }
 
 /**
  * A fresh race.
  * @param {{ seed?: number, trackId?: string, riders: { id?: string, name?: string, avatar?: string|null, bot?: boolean, local?: boolean }[],
- *   difficulty?: string, gridBackToFront?: number[], phase?: 'count'|'race', seedRng?: number }} o
+ *   difficulty?: string, gridBackToFront?: number[], phase?: 'count'|'race', seedRng?: number, dust?: boolean }} o
  */
-export function createWorld({ seed = TRACK_SEED, trackId = 'meadow', riders, difficulty = 'normal', gridBackToFront = null, phase = 'count', seedRng = seed }) {
-  const track = buildTrack(seed, trackId)
+export function createWorld({ seed = TRACK_SEED, trackId = 'meadow', riders, difficulty = 'normal', gridBackToFront = null, phase = 'count', seedRng = seed, dust = false }) {
+  const track = buildTrack(seed, dust && !DUST_TRACKS[trackId] ? 'canyon' : trackId)
   const diff = getDifficulty(difficulty)
   const count = Math.min(RIDERS, riders.length)
   let botK = 0
@@ -252,7 +275,8 @@ export function createWorld({ seed = TRACK_SEED, trackId = 'meadow', riders, dif
     return newRider(i, d, slotOf(i), tune)
   })
   return {
-    track, difficulty: diff, riders: list, cars: track.cars, t: 0,
+    track, difficulty: diff, riders: list, cars: track.cars, t: 0, dust: !!track.dust,
+    weeds: track.dust ? track.weeds.map((w) => ({ ...w })) : [],
     phase, countT: phase === 'count' ? COUNTDOWN : 0, firstFinishAt: null,
     events: [], rng: mulberry32(seedRng ^ 0x5bd1e995), uiSeed: seed,
   }
@@ -301,9 +325,9 @@ export function tryBoost(world, r) {
 }
 
 export function tryKick(world, r, side) {
-  if (r.cd > 0 || r.state !== 'ride' || r.stag > 0 || r.done) return false
+  if (r.cd > 0 || r.state !== 'ride' || r.stag > 0 || r.done || r.lassoT > 0) return false
   r.kickT = KICK_T; r.kickSide = side; r.kicked = false; r.cd = KICK_CD
-  r.kickCount++
+  r.kickCount++; r.lastLasso = false
   world.events.push({ t: 'swing', by: r.i })
   return true
 }
@@ -314,6 +338,7 @@ export function knockOff(world, r, why, by = -1) {
   r.cuGap = lead ? lead.z - r.z : 0
   r.cu = 0
   r.boosting = false; r.boostT = 0; r.oil = 0; r.nm = {}; r.strain = 0
+  r.spook = 0; r.surge = 0; r.wob = 0; r.lassoT = 0; r.roped = 0; r.reel = 0
   r.state = 'down'
   r.t = r.tMax = lead ? DOWN_T_BEHIND : DOWN_T
   r.offs++
@@ -329,7 +354,8 @@ export function knockOff(world, r, why, by = -1) {
  */
 export function applyHit(world, o, from, side) {
   o.vx += side * 1.35
-  o.speed *= 0.82
+  o.speed *= world.dust ? DUST_KICK_SLOW : 0.82
+  if (world.dust) o.spook = SPOOK_T
   o.stag = STAGGER
   o.flash = 0.18
   o.recV += side * 7
@@ -365,15 +391,72 @@ export function receiveKick(world, to, byIdx, side) {
   return true
 }
 
+/** The rider a lasso thrown now would catch: the nearest one ahead, close, riding and unshielded. */
+export function lassoTarget(world, r) {
+  return world.riders
+    .filter((o) => o !== r && !o.done && o.state === 'ride' && o.shield <= 0 && o.z > r.z && o.z - r.z <= LASSO_RANGE_Z && Math.abs(o.x - r.x) <= LASSO_RANGE_X)
+    .sort((a, b) => a.z - b.z)[0] ?? null
+}
+
+/** Tap LASSO: needs a coil in hand. A wind-up everyone can see, then the rope aims itself (`releaseLasso`). */
+export function tryLasso(world, r) {
+  if (!world.dust || r.rope <= 0 || r.lassoT > 0 || r.kickT > 0 || r.state !== 'ride' || r.stag > 0 || r.done) return false
+  r.rope = 0; r.lassoT = LASSO_WIND
+  r.kickCount++; r.lassoN = r.kickCount; r.lastLasso = true
+  world.events.push({ t: 'lasso', by: r.i })
+  return true
+}
+
+function releaseLasso(world, r) {
+  const o = lassoTarget(world, r)
+  if (!o) { world.events.push({ t: 'lassomiss', by: r.i }); return }
+  r.reel = REEL_T; r.lassos++
+  if (o.local) applyRope(world, o, r)
+  else {
+    o.flash = 0.18; o.recV += 5
+    world.events.push({ t: 'roped', by: r.i, to: o.i, ghost: true })
+    world.events.push({ t: 'send', kind: 'lasso', by: r.i, to: o.i, n: r.lassoN })
+  }
+}
+
+/** The victim's side of a caught rope: a pull back, then ROPED_T at ROPED_TOP of top speed. */
+export function applyRope(world, o, from) {
+  o.roped = ROPED_T
+  o.flash = 0.18; o.recV += 5; o.sq = 1
+  world.events.push({ t: 'roped', by: from.i, to: o.i })
+}
+
+/**
+ * A lasso arriving over the network, addressed to local rider `to`. Judged like a kick: the thrower's
+ * phone aimed it at a ghost, and this phone only checks it with wide slack (the thrower must be behind
+ * and not far). A shielded, fallen or finished rider slips the loop.
+ */
+export function receiveLasso(world, to, byIdx) {
+  const o = world.riders[to]
+  const k = world.riders[byIdx]
+  if (!world.dust || !o || !k || !o.local || o === k || world.phase === 'count' || world.phase === 'done') return false
+  if (o.z - k.z < -REACH_Z || o.z - k.z > LASSO_RANGE_Z * 3 || Math.abs(k.x - o.x) > LASSO_RANGE_X * 4) return false
+  if (o.state !== 'ride' || o.shield > 0 || o.done) { world.events.push({ t: 'clang', by: byIdx, to }); return false }
+  applyRope(world, o, k)
+  return true
+}
+
 function botDrive(world, r) {
   const { riders, cars } = world
   r.think -= DT; r.hunt -= DT
   if (r.think <= 0) {
     r.think = 0.16 + world.rng() * 0.1
-    const danger = (x) => cars.some((c) => { const dz = c.z - r.z; return dz > -250 && dz < 2400 && Math.abs(c.x - x) < 0.31 })
+    const danger = world.dust
+      ? (x) => world.track.haz.some((h) => { const dz = h.z - r.z; return dz > -250 && dz < 4800 && Math.abs(h.x - x) < h.hw + 0.17 })
+        || world.weeds.some((w) => { const dz = w.z - r.z; return dz > -250 && dz < 2400 && Math.abs(w.x - x) < 0.3 })
+      : (x) => cars.some((c) => { const dz = c.z - r.z; return dz > -250 && dz < 2400 && Math.abs(c.x - x) < 0.31 })
+    // In the west a bot also goes for the nearest hay (or a coil when its hand is empty) that is ahead and clear.
+    const loot = world.dust ? world.track.hay.find((q) => q.z - r.z > 300 && q.z - r.z < 4800 && Math.abs(q.x - r.x) < 0.8 && !r.got.has(q.id) && (q.k === 'hay' || r.rope <= 0) && !danger(q.x)) : null
     if (danger(r.x) || danger(r.tx)) {
       const free = LANEX.filter((l) => !danger(l)).sort((a, b) => Math.abs(a - r.x) - Math.abs(b - r.x))
       if (free.length) r.tx = free[0]
+    } else if (loot && world.rng() < 0.8) {
+      r.tx = clamp(loot.x, -0.95, 0.95)
     } else if (r.hunt <= 0) {
       const prey = riders.find((o) => o !== r && o.state === 'ride' && !o.done && Math.abs(o.z - r.z) < 800 && Math.abs(o.x - r.x) < 0.8)
       if (prey && world.rng() < 0.45 * r.aggr) { r.tx = clamp(prey.x + (Math.sign(r.x - prey.x) || 1) * 0.22, -0.85, 0.85); r.hunt = 1.1 }
@@ -384,6 +467,7 @@ function botDrive(world, r) {
     const o = riders.find((q) => inReach(r, q, side))
     if (o && r.strain < 0.55 && world.rng() < (o.bot ? 0.9 : 0.85) * r.aggr * DT) tryKick(world, r, side)
   }
+  if (world.dust && r.rope > 0 && r.lassoT <= 0 && lassoTarget(world, r) && world.rng() < 1.4 * r.aggr * DT) tryLasso(world, r)
   // A bot taps boost once the meter is half full, on a straight, with someone to chase.
   if (!r.boosting && r.boost >= 0.5 && Math.abs(segAt(world.track, r.z).curve) < 1.2 && riders.some((o) => o.z > r.z && o.z - r.z < 6000)) r.wantBoost = true
   return clamp((r.tx - r.x) * 7, -1, 1)
@@ -394,6 +478,56 @@ function humanFocus(world) {
   const hs = humans(world).filter((r) => !r.done)
   if (!hs.length) return null
   return hs.reduce((a, r) => a + r.z, 0) / hs.length
+}
+
+/**
+ * Everything the rider crossed this step on a Western road: hay and coils are picked up (personal, so
+ * nothing goes over the network), mud slows, a rock or cactus costs a horseshoe, a log throws the
+ * rider, and a tumbleweed rolling across the trail costs a little speed. A remount shield ignores
+ * the hazards but still takes hay.
+ */
+function dustHazards(world, r, zi) {
+  const { track } = world
+  const last = Math.floor(r.z / SEG)
+  const hurt = () => { r.pips = Math.max(1, r.pips - 1); r.sinceHit = 0; r.flash = 0.18; r.sq = 1 }
+  for (let si = zi + 1; si <= last && r.state === 'ride'; si++) {
+    const seg = track.segs[si]
+    if (!seg) break
+    for (const q of seg.spr) {
+      const dx = Math.abs(q.x - r.x)
+      if (q.k === 'hay' && dx < HAY_GRAB_X && !r.got.has(q.id)) {
+        r.got.add(q.id); fillBoost(r, HAY_FILL); r.surge = HAY_SURGE_T
+        world.events.push({ t: 'hay', to: r.i, fill: HAY_FILL })
+      } else if (q.k === 'coil' && dx < COIL_GRAB_X && !r.got.has(q.id) && r.rope <= 0) {
+        r.got.add(q.id); r.rope = 1
+        world.events.push({ t: 'coil', to: r.i })
+      } else if (r.shield > 0 || r.done) continue
+      else if (q.k === 'oil' && dx < 0.15) {
+        if (r.oil <= 0.3) { r.speed *= OIL_GRAB; world.events.push({ t: 'oil', to: r.i }) }
+        r.oil = OIL_T; r.vx += (world.rng() < 0.5 ? -1 : 1) * 0.6; r.recV += (world.rng() - 0.5) * 12
+      } else if (q.k === 'rock' && dx < ROCK_HIT_X) {
+        r.speed *= ROCK_SLOW; r.stag = STAGGER; hurt()
+        world.events.push({ t: 'rock', to: r.i })
+      } else if (q.k === 'cactus' && dx < CACTUS_HIT_X) {
+        r.speed *= CACTUS_SLOW; r.vx -= (Math.sign(r.x) || 1) * 0.9; hurt()
+        world.events.push({ t: 'cactus', to: r.i })
+      } else if (q.k === 'log' && dx < LOG_HIT_X) {
+        r.vx = (Math.sign(r.x - q.x) || 1) * 0.7
+        knockOff(world, r, 'log')
+        return
+      }
+    }
+  }
+  if (r.state !== 'ride') return
+  for (let wi = 0; wi < world.weeds.length; wi++) {
+    const w = world.weeds[wi]
+    const key = `w${wi}`
+    if (Math.abs(w.z - r.z) < WEED_HIT_Z && Math.abs(w.x - r.x) < WEED_HIT_X) {
+      if (r.shield > 0 || r.done || r.nm[key]) continue
+      r.nm[key] = 1; r.speed *= WEED_SLOW; r.wob = WEED_WOBBLE; r.recV += (w.x > r.x ? 1 : -1) * 6
+      world.events.push({ t: 'weed', to: r.i })
+    } else delete r.nm[key]
+  }
 }
 
 function stepRider(world, r, input) {
@@ -426,12 +560,18 @@ function stepRider(world, r, input) {
       else { r.buf.t -= DT; if (r.buf.t <= 0) r.buf = null }
     }
     if (input?.boost) r.bbuf = BOOST_BUFFER
+    if (input?.lasso) tryLasso(world, r)
   }
   if (r.oil > 0) {
     // The wander: a sway that fades with the slick.
     r.oilPh += DT * 17
     steer = clamp(steer * 0.75 + Math.sin(r.oilPh) * OIL_WOBBLE * Math.min(1, r.oil / 0.4), -1, 1)
     r.oil = Math.max(0, r.oil - DT)
+  }
+  if (r.wob > 0) {
+    r.oilPh += DT * 17
+    steer = clamp(steer * 0.8 + Math.sin(r.oilPh) * 0.5 * Math.min(1, r.wob / 0.3), -1, 1)
+    r.wob = Math.max(0, r.wob - DT)
   }
   if (r.stag > 0) { r.stag -= DT; steer *= 0.35 }
   if (r.strainT > 0) r.strainT -= DT; else r.strain = Math.max(0, r.strain - STRAIN_DECAY * DT)
@@ -471,6 +611,16 @@ function stepRider(world, r, input) {
     else top *= CATCHUP_TOP
   }
   if (r.oil > 0) top *= lerp(1, OIL_TOP, Math.min(1, r.oil / 0.3))
+  if (world.dust) {
+    if (r.spook > 0) { r.spook = Math.max(0, r.spook - DT); top *= SPOOK_TOP }
+    if (r.surge > 0) { r.surge = Math.max(0, r.surge - DT); top *= HAY_SURGE_TOP }
+    if (r.roped > 0) { r.roped = Math.max(0, r.roped - DT); top *= ROPED_TOP }
+    if (r.reel > 0) { r.reel = Math.max(0, r.reel - DT); top *= REEL_TOP }
+    if (r.lassoT > 0) {
+      r.lassoT -= DT
+      if (r.lassoT <= 0) { r.lassoT = 0; releaseLasso(world, r) }
+    }
+  }
   if (Math.abs(r.x) > 1) top = Math.min(top, 0.42)
   if (r.done) top = 0.3
   const target = top * MAXSPD
@@ -483,7 +633,8 @@ function stepRider(world, r, input) {
   const zi = Math.floor(r.z / SEG)
   r.z += r.speed * DT
   // Oil: slows you and makes the bike wander for a moment, never a pip.
-  if (Math.floor(r.z / SEG) !== zi && r.shield <= 0) {
+  if (world.dust) dustHazards(world, r, zi)
+  else if (Math.floor(r.z / SEG) !== zi && r.shield <= 0) {
     for (const q of segAt(track, r.z).spr) {
       if (q.k === 'oil' && Math.abs(q.x - r.x) < 0.15) {
         if (r.oil <= 0.3) { r.speed *= OIL_GRAB; world.events.push({ t: 'oil', to: r.i }) }
@@ -499,6 +650,7 @@ function stepRider(world, r, input) {
       const o = kickTarget(world, r, r.kickSide)
       if (o) {
         r.strain += STRAIN_HIT; r.hits++
+        if (world.dust) { fillBoost(r, KICK_FILL); world.events.push({ t: 'spurs', to: r.i, fill: KICK_FILL }) }
         if (o.local) applyHit(world, o, r, r.kickSide)
         else {
           // A ghost: show the blow now, let the victim's phone decide what it costs.
@@ -555,6 +707,7 @@ function stepGhost(world, r) {
   r.look = lerp(r.look, r.kickT > 0 ? r.kickSide : r.netLean * 0.5, 1 - Math.exp(-12 * DT))
   r.lean = lerp(r.lean, r.netLean, 1 - Math.exp(-10 * DT))
   if (r.kickT > 0) r.kickT -= DT
+  if (r.lassoT > 0) r.lassoT -= DT
   if (r.state === 'down' && r.t > 0) r.t -= DT
   r.shield = Math.max(0, r.shield - DT)
   r.oil = Math.max(0, r.oil - DT)
@@ -577,6 +730,7 @@ export function step(world, inputs = [], dt = DT, clockT = null) {
   if (world.phase === 'done') return
   world.t = clockT != null ? clockT : world.t + dt
   for (const c of world.cars) c.z = c.z0 + c.spd * world.t
+  for (const w of world.weeds) Object.assign(w, weedAt(w, world.t))
   for (const r of world.riders) {
     if (r.local) stepRider(world, r, inputs[r.i])
     else stepGhost(world, r)
@@ -595,7 +749,7 @@ export function step(world, inputs = [], dt = DT, clockT = null) {
       }
     }
   }
-  for (const k of Object.keys(inputs)) if (inputs[k]) { inputs[k].kick = 0; inputs[k].boost = false }
+  for (const k of Object.keys(inputs)) if (inputs[k]) { inputs[k].kick = 0; inputs[k].boost = false; inputs[k].lasso = false }
   if (world.phase === 'race' && raceShouldEnd(world)) { world.phase = 'finishing'; world.countT = FINISH_GRACE }
   if (world.phase === 'finishing') {
     world.countT -= DT
@@ -643,7 +797,7 @@ export function encodeRider(r, serverMs) {
     z: Math.round(r.z), x: Math.round(r.x * 1000), v: Math.round((r.speed / MAXSPD) * 1000),
     s: r.state === 'down' ? 1 : 0, ln: Math.round(clamp(r.lean, -1, 1) * 100),
     pp: r.pips, bo: r.boosting ? 1 : 0, sh: r.shield > 0 ? 1 : 0, sg: r.stag > 0 ? 1 : 0, cu: r.cu > 0 ? 1 : 0, ol: r.oil > 0 ? 1 : 0, bm: Math.round(clamp(r.boost, 0, 1) * 100),
-    kn: r.kickCount, ks: r.kickSide > 0 ? 1 : 0, dn: r.offs, dw: r.lastDownBy + 1,
+    kn: r.kickCount, ks: r.lastLasso ? 2 : r.kickSide > 0 ? 1 : 0, ro: r.roped > 0 ? 1 : 0, dn: r.offs, dw: r.lastDownBy + 1,
     hk: r.hits, pb: r.paybacks, fin: r.done ? Math.max(1, Math.round(r.time * 1000)) : 0,
     at: Math.round(serverMs),
   }
@@ -659,7 +813,7 @@ export function decodeRider(raw) {
     z: num(raw.z, 0, 1e7), x: num(raw.x, -2000, 2000) / 1000, v: num(raw.v, 0, 1400) / 1000,
     s: raw.s === 1 || raw.s === '1' ? 1 : 0, ln: num(raw.ln, -100, 100) / 100,
     pp: Math.round(num(raw.pp, 0, PIPS, PIPS)), bo: raw.bo ? 1 : 0, sh: raw.sh ? 1 : 0, sg: raw.sg ? 1 : 0, cu: raw.cu ? 1 : 0, ol: raw.ol ? 1 : 0, bm: Math.round(num(raw.bm, 0, 100)) / 100,
-    kn: Math.round(num(raw.kn, 0, 9999)), ks: raw.ks ? 1 : 0, dn: Math.round(num(raw.dn, 0, 9999)), dw: Math.round(num(raw.dw, 0, RIDERS)),
+    kn: Math.round(num(raw.kn, 0, 9999)), ks: Number(raw.ks) === 2 ? 2 : raw.ks ? 1 : 0, ro: raw.ro ? 1 : 0, dn: Math.round(num(raw.dn, 0, 9999)), dw: Math.round(num(raw.dw, 0, RIDERS)),
     hk: Math.round(num(raw.hk, 0, 9999)), pb: Math.round(num(raw.pb, 0, 99)), fin: Math.round(num(raw.fin, 0, 1e7)),
     at: num(raw.at, 0, 1e15),
   }
@@ -686,6 +840,7 @@ export function applyGhost(world, r, snap, nowMs, meIdx = -1) {
   r.stag = snap.sg ? 0.3 : 0
   r.shield = snap.sh ? Math.max(r.shield, 0.2) : 0
   r.boosting = !!snap.bo
+  r.roped = snap.ro ? Math.max(r.roped, 0.3) : 0
   r.oil = snap.ol ? Math.max(r.oil, 0.3) : 0
   r.cu = snap.cu ? 1 : 0
   r.pips = snap.pp
@@ -695,7 +850,11 @@ export function applyGhost(world, r, snap, nowMs, meIdx = -1) {
     if (!wasDown) { r.state = 'down'; r.tMax = r.t = snap.cu || r.cuTarget >= 0 ? DOWN_T_BEHIND : DOWN_T; r.offs = snap.dn }
   } else if (wasDown) { r.state = 'ride'; r.t = 0 }
   if (snap.kn > r.seenKick) {
-    if (!fresh) { r.kickT = KICK_T; r.kickSide = snap.ks ? 1 : -1; r.kicked = true }
+    if (!fresh) {
+      // ks 2 is a lasso (the rope winds up for LASSO_WIND), 1 a kick to the right, 0 to the left.
+      if (snap.ks === 2) r.lassoT = LASSO_WIND
+      else { r.kickT = KICK_T; r.kickSide = snap.ks ? 1 : -1; r.kicked = true }
+    }
     r.seenKick = snap.kn
   }
   if (snap.fin > 0 && !r.done) { r.done = true; r.time = snap.fin / 1000; r.tx = r.x }
@@ -729,6 +888,7 @@ export function parseKick(v) {
   if (typeof v !== 'string') return null
   const at = v.lastIndexOf('|')
   if (at < 1) return null
+  if (v.slice(at + 1) === 'L') return { to: v.slice(0, at), side: 0, lasso: true }
   const side = v.slice(at + 1) === '1' ? 1 : v.slice(at + 1) === '-1' ? -1 : 0
   return side ? { to: v.slice(0, at), side } : null
 }
@@ -814,7 +974,7 @@ export function gridFor(roster, lastOrder) {
 const lengthCache = new Map()
 /** Metres to the flag on a named road (built once, then remembered): the denominator of a progress bar. */
 export function trackLength(trackId) {
-  const id = TRACKS[trackId] ? trackId : 'meadow'
+  const id = TRACKS[trackId] || DUST_TRACKS[trackId] ? trackId : 'meadow'
   if (!lengthCache.has(id)) lengthCache.set(id, buildTrack(TRACK_SEED, id).finish)
   return lengthCache.get(id)
 }
@@ -829,4 +989,6 @@ export function normalizeGrid(raw) {
 }
 
 /** The road a round is on: a known id from the round, else the first named road. */
-export const roundTrack = (raw) => (TRACKS[raw] && raw !== 'random' ? raw : TRACK_ORDER[0])
+export const roundTrack = (raw, dust = false) => (dust
+  ? (DUST_TRACKS[raw] ? raw : DUST_ORDER[0])
+  : (TRACKS[raw] && raw !== 'random' ? raw : TRACK_ORDER[0]))

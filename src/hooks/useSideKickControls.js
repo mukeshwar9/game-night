@@ -11,7 +11,7 @@ import { useSideKickPrefs, useTilt } from './useSideKickPrefs'
 // thumb: KICK L and KICK R (tap), and BOOST (tap: one tap spends the whole
 // meter). Throttle is automatic. Buttons are plain pointer targets, so steer
 // and kick work together under multi-touch. Keyboard: arrows steer, A / Z kick
-// left, D / X kick right, Space / ArrowUp / W boost, C switches camera. A pressed steer button or
+// left, D / X kick right, Space / ArrowUp / W boost, E / L lasso (DUST KICK), C switches camera. A pressed steer button or
 // key always wins over the tilt.
 //
 //   bind.steer(-1|1), bind.boost, bind.kick(-1|1) → handlers to spread on a button
@@ -23,12 +23,13 @@ const KEYS = {
   left: ['ArrowLeft'], right: ['ArrowRight'],
   boost: [' ', 'ArrowUp', 'w'],
   kickL: ['a', 'z'], kickR: ['d', 'x'],
+  lasso: ['e', 'l'],
   cam: ['c'],
 }
 const norm = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key)
 
 export function useSideKickControls({ enabled = true } = {}) {
-  const input = useRef({ steer: 0, kick: 0, boost: false })
+  const input = useRef({ steer: 0, kick: 0, boost: false, lasso: false })
   const held = useRef({ l: false, r: false })
   const keys = useRef(new Set())
   const enabledRef = useRef(enabled)
@@ -41,7 +42,7 @@ export function useSideKickControls({ enabled = true } = {}) {
   const reset = useCallback(() => {
     held.current = { l: false, r: false }
     keys.current.clear()
-    input.current.steer = 0; input.current.kick = 0; input.current.boost = false
+    input.current.steer = 0; input.current.kick = 0; input.current.boost = false; input.current.lasso = false
   }, [])
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function useSideKickControls({ enabled = true } = {}) {
       if (KEYS.kickL.includes(k)) input.current.kick = -1
       else if (KEYS.kickR.includes(k)) input.current.kick = 1
       else if (KEYS.boost.includes(k)) input.current.boost = true
+      else if (KEYS.lasso.includes(k)) input.current.lasso = true
       else if (KEYS.cam.includes(k)) setPrefs({ cam: getPrefs().cam === 'first' ? 'chase' : 'first' })
     }
     const up = (e) => { keys.current.delete(norm(e)) }
@@ -101,6 +103,14 @@ export function useSideKickControls({ enabled = true } = {}) {
       },
       onContextMenu: (e) => e.preventDefault(),
     },
+    lasso: {
+      onPointerDown: (e) => {
+        if (!enabledRef.current) return
+        e.preventDefault()
+        input.current.lasso = true
+      },
+      onContextMenu: (e) => e.preventDefault(),
+    },
     kick: (side) => ({
       onPointerDown: (e) => {
         if (!enabledRef.current) return
@@ -128,7 +138,7 @@ export function useSideKickControls({ enabled = true } = {}) {
       if (!pressed) steer = lean
     }
     i.steer = on ? steer : 0
-    if (!on) i.boost = false
+    if (!on) { i.boost = false; i.lasso = false }
     return i
   }, [])
 
