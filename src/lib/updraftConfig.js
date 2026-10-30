@@ -10,7 +10,7 @@ export const COOP_LIVES = 3
 
 export const UPDRAFT_MODES = {
   chaos: { id: 'chaos', label: 'CHAOS', blurb: 'PICKUPS SABOTAGE YOUR RIVAL' },
-  pure: { id: 'pure', label: 'PURE', blurb: 'JUST THE CLIMB' },
+  pure: { id: 'pure', label: 'PURE', blurb: 'JUST THE CLIMB (AND FEATHERS)' },
 }
 export const UPDRAFT_MODE_IDS = /** @type {const} */ (['chaos', 'pure'])
 /** The host's lobby pick; anything else (including unset) is the CHAOS default. */

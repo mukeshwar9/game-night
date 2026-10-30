@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CRUMBLE_COUNT, GATE_EVERY, GRAVITY, HOPPER_H, HOPPER_W, JUMP_V, MAX_CHAIN_GAP, MAX_JUMP_H, PLAT_W,
-  SPRING_V, STEP_DT, SUMMIT_Y, VIEW_H, WORLD_W, COOP_GOAL_Y, COOP_LIVES,
-  advanceRun, botInput, checkpointFor, closedGateAbove, coopOutcome, createRun, curseAhead, dragInput,
+  CAM_FRACTION, CAM_LOOKAHEAD, CRUMBLE_COUNT, CURSED_BOUNCE, CURSED_V, FEATHER_MS, GATE_EVERY, GRAVITY, HOPPER_H,
+  HOPPER_W, JUMP_V, MAX_CHAIN_GAP, MAX_JUMP_H, PLAT_W, SPRING_V, STEP_DT, SUMMIT_Y, UNITS_PER_M, VENT_H, VENT_W,
+  VIEW_H, WORLD_W, COOP_GOAL_Y, COOP_LIVES,
+  advanceRun, botInput, cameraTarget, checkpointFor, closedGateAbove, coopOutcome, createRun, curseAhead,
+  curseTargets, dragInput,
   generateTower, getUpdraftMode, keysEarned, hazardForPickup, normalizeHazards, normalizeKeys, normalizeSeat,
   platformX, raceOutcome, respawnRun, seededRng, stepRun, tiltInput, toMetres, updraftFreshState, wrapDx,
 } from './updraftLogic'
@@ -36,6 +38,9 @@ describe('seededRng / generateTower', () => {
       }
       expect(MAX_CHAIN_GAP).toBeLessThan(MAX_JUMP_H)
       expect(chain.at(-1).y).toBeGreaterThanOrEqual(SUMMIT_Y)
+      // The curve steepens: the last stretch reaches for the widest gaps.
+      const high = chain.filter(p => p.y > SUMMIT_Y * 0.85)
+      expect(Math.max(...high.slice(1).map((p, i) => p.y - high[i].y))).toBeGreaterThan(MAX_CHAIN_GAP - 25)
       for (const p of t.platforms) {
         for (const time of [0, 0.7, 3.3]) {
           const x = platformX(p, time)
@@ -59,12 +64,35 @@ describe('seededRng / generateTower', () => {
 
   it('places pickups without changing the platform layout', () => {
     const t = generateTower(11)
-    expect(t.pickups.length).toBeGreaterThan(3)
+    expect(t.pickups.filter(k => k.kind === 'gem').length).toBeGreaterThan(3)
+    expect(t.pickups.some(k => k.kind === 'feather')).toBe(true)
+    expect(new Set(t.pickups.map(k => k.id)).size).toBe(t.pickups.length)
     expect(t.gates).toEqual([])
     const coop = generateTower(11, { coop: true, top: COOP_GOAL_Y })
-    expect(coop.gates).toEqual([500, 1000, 1500, 2000, 2500])
-    expect(coop.keys.map(k => k.gate)).toEqual([1, 2, 3, 4, 5])
+    expect(coop.gates).toEqual([1, 2, 3, 4].map(g => g * GATE_EVERY))
+    expect(GATE_EVERY / UNITS_PER_M).toBe(60)
+    expect(coop.keys.map(k => k.gate)).toEqual([1, 2, 3, 4])
     coop.keys.forEach((k, i) => expect(k.y).toBeLessThan(coop.gates[i]))
+    // Co-op gems are BOOSTs, and the co-op tower has no feathers.
+    expect(coop.pickups.length).toBeGreaterThan(0)
+    expect(coop.pickups.every(k => k.kind === 'boost')).toBe(true)
+  })
+
+  it('adds vents and feathers without touching the chain, so MAX_CHAIN_GAP still holds', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const t = generateTower(seed)
+      expect(t.vents.length).toBeGreaterThan(2)
+      for (const v of t.vents) {
+        expect(v.x).toBeGreaterThanOrEqual(0)
+        expect(v.x + VENT_W).toBeLessThanOrEqual(WORLD_W)
+        expect(v.y + VENT_H).toBeLessThan(SUMMIT_Y)
+      }
+      // The platforms are the same with or without the new kinds' streams.
+      const bare = generateTower(seed, { coop: true })
+      expect(bare.platforms).toEqual(t.platforms)
+      const chain = t.platforms.filter(p => p.chain)
+      for (let i = 1; i < chain.length; i++) expect(chain[i].y - chain[i - 1].y).toBeLessThanOrEqual(MAX_CHAIN_GAP + 1)
+    }
   })
 })
 
@@ -118,6 +146,19 @@ describe('stepRun physics', () => {
     expect(out.run.y).toBeLessThan(0)
   })
 
+  it('a cursed platform gives a lower bounce than a normal one', () => {
+    const tower = { seed: 0, top: 10_000, pickups: [], gates: [], keys: [], platforms: [{ id: 5, x: 150, y: 300, kind: 'normal', chain: true }] }
+    const fresh = { ...createRun(), x: 160, y: 301, vy: -300 }
+    const normal = stepRun(fresh, tower, 0, STEP_DT).run
+    const cursed = stepRun({ ...fresh, cursed: { 5: true } }, tower, 0, STEP_DT).run
+    expect(normal.vy).toBe(JUMP_V)
+    expect(cursed.vy).toBe(CURSED_V)
+    expect(cursed.vy).toBeLessThan(normal.vy)
+    // 60% of a normal bounce's height.
+    expect(cursed.vy ** 2 / (2 * GRAVITY)).toBeCloseTo(CURSED_BOUNCE * MAX_JUMP_H, 5)
+    expect(CURSED_BOUNCE).toBe(0.6)
+  })
+
   it('breaks crumble and cursed platforms after one bounce', () => {
     const tower = {
       seed: 0, top: 10_000, pickups: [], gates: [], keys: [],
@@ -152,12 +193,57 @@ describe('stepRun physics', () => {
     expect(stepRun(top.run, tower, 1, STEP_DT).run).toBe(top.run)
   })
 
-  it('camera only moves up', () => {
-    const tower = generateTower(3)
-    const up = stepRun({ ...createRun(), y: 1000, vy: 10, camY: 0 }, tower, 0, STEP_DT)
-    expect(up.run.camY).toBeCloseTo(1000 - VIEW_H * 0.4, 0)
-    const down = stepRun({ ...up.run, vy: -10 }, tower, 0, STEP_DT)
-    expect(down.run.camY).toBe(up.run.camY)
+  it('camera eases up toward its target and never moves down', () => {
+    const tower = { seed: 0, top: 100_000, pickups: [], gates: [], keys: [], platforms: [] }
+    let run = { ...createRun(), y: 1000, vy: 10, camY: 0 }
+    const first = stepRun(run, tower, 0, STEP_DT).run
+    expect(first.camY).toBeGreaterThan(0)
+    expect(first.camY).toBeLessThan(1000 - VIEW_H * CAM_FRACTION) // eased, not snapped
+    for (let i = 0; i < 360; i++) run = stepRun({ ...run, y: 1000, vy: 10 }, tower, 0, STEP_DT).run
+    expect(run.camY).toBeCloseTo(1000 - VIEW_H * CAM_FRACTION, 0)
+    const down = stepRun({ ...run, y: 900, vy: -10 }, tower, 0, STEP_DT)
+    expect(down.run.camY).toBe(run.camY)
+  })
+
+  it('camera looks further ahead while a launch is rising', () => {
+    expect(cameraTarget(1000, JUMP_V)).toBe(1000 - VIEW_H * CAM_FRACTION)
+    expect(cameraTarget(1000, SPRING_V)).toBe(1000 - VIEW_H * CAM_LOOKAHEAD)
+  })
+
+  it('a vent lifts a hopper flying through it', () => {
+    const vents = [{ id: 0, x: 150, y: 100 }]
+    const tower = { seed: 0, top: 10_000, pickups: [], gates: [], keys: [], platforms: [], vents }
+    const run = { ...createRun(), x: 160, y: 150, vy: -200 }
+    const out = stepRun(run, tower, 0, STEP_DT)
+    expect(out.run.vy).toBeGreaterThan(run.vy)
+    expect(out.events).toContainEqual({ type: 'vent', id: 0 })
+    const outside = stepRun({ ...run, x: 20 }, { ...tower }, 0, STEP_DT)
+    expect(outside.run.vy).toBeLessThan(run.vy)
+    // Entering once is one event.
+    expect(stepRun(out.run, tower, 0, STEP_DT).events).toEqual([])
+  })
+
+  it('a feather floats the hopper for a while', () => {
+    const tower = { seed: 0, top: 10_000, gates: [], keys: [], platforms: [], pickups: [{ id: 0, x: 180, y: 110, kind: 'feather' }] }
+    const run = { ...createRun(), x: 180 - HOPPER_W / 2, y: 100, vy: 10 }
+    const got = stepRun(run, tower, 0, STEP_DT, { pickups: ['feather'] })
+    expect(got.events).toEqual([{ type: 'pickup', id: 0, kind: 'feather' }])
+    expect(got.run.floatUntil).toBeCloseTo(STEP_DT + FEATHER_MS / 1000, 5)
+    const floaty = stepRun(got.run, tower, 0, STEP_DT).run
+    const plain = stepRun({ ...got.run, floatUntil: 0 }, tower, 0, STEP_DT).run
+    expect(got.run.vy - floaty.vy).toBeLessThan(got.run.vy - plain.vy)
+  })
+
+  it('a BOOST turns the next landing into a spring launch', () => {
+    const tower = { seed: 0, top: 10_000, pickups: [], gates: [], keys: [], platforms: [{ id: 0, x: 150, y: 0, kind: 'normal', chain: true }] }
+    const run = { ...createRun(), x: 160, y: 1, vy: -300, boost: 1 }
+    const out = stepRun(run, tower, 0, STEP_DT)
+    expect(out.run.vy).toBe(SPRING_V)
+    expect(out.run.boost).toBe(0)
+    expect(out.run.springs).toBe(1)
+    expect(out.events).toEqual([{ type: 'bounce', kind: 'boost' }])
+    expect(out.run.land).toMatchObject({ t: STEP_DT, kind: 'boost', id: 0, y: 0 })
+    expect(stepRun({ ...out.run, y: 1, vy: -300 }, tower, 0, STEP_DT).run.vy).toBe(JUMP_V)
   })
 
   it('applies gust drift sideways', () => {
@@ -166,13 +252,14 @@ describe('stepRun physics', () => {
     expect(out.run.x - createRun().x).toBeCloseTo(14, 5)
   })
 
-  it('collects pickups only when enabled, once each', () => {
-    const tower = { seed: 0, top: 10_000, gates: [], keys: [], platforms: [], pickups: [{ id: 0, x: 180, y: 110 }] }
+  it('collects pickups only of the enabled kinds, once each', () => {
+    const tower = { seed: 0, top: 10_000, gates: [], keys: [], platforms: [], pickups: [{ id: 0, x: 180, y: 110, kind: 'gem' }] }
     const run = { ...createRun(), x: 180 - HOPPER_W / 2, y: 100, vy: 10 }
     expect(stepRun(run, tower, 0, STEP_DT).events).toEqual([])
-    const got = stepRun(run, tower, 0, STEP_DT, { pickups: true })
-    expect(got.events).toEqual([{ type: 'pickup', id: 0 }])
-    expect(stepRun({ ...got.run, vy: 10 }, tower, 0, STEP_DT, { pickups: true }).events).toEqual([])
+    expect(stepRun(run, tower, 0, STEP_DT, { pickups: ['feather'] }).events).toEqual([])
+    const got = stepRun(run, tower, 0, STEP_DT, { pickups: ['gem'] })
+    expect(got.events).toEqual([{ type: 'pickup', id: 0, kind: 'gem' }])
+    expect(stepRun({ ...got.run, vy: 10 }, tower, 0, STEP_DT, { pickups: ['gem'] }).events).toEqual([])
   })
 })
 
@@ -228,6 +315,18 @@ describe('hazards', () => {
     }
   })
 
+  it('curseAhead curses the telegraphed targets while they are still ahead', () => {
+    const tower = generateTower(8)
+    const run = { ...createRun(), y: 300 }
+    const ids = curseTargets(run, tower)
+    expect(ids).toHaveLength(CRUMBLE_COUNT)
+    expect(Object.keys(curseAhead(run, tower, ids).cursed).map(Number)).toEqual(ids)
+    // Climbed past them during the warning: the next ones above get it instead.
+    const higher = { ...run, y: 2000 }
+    const late = Object.keys(curseAhead(higher, tower, ids).cursed).map(Number)
+    expect(late).toEqual(curseTargets(higher, tower))
+  })
+
   it('hazardForPickup is deterministic and valid', () => {
     expect(hazardForPickup(5, 2)).toBe(hazardForPickup(5, 2))
     const kinds = new Set(Array.from({ length: 30 }, (_, i) => hazardForPickup(99, i)))
@@ -237,8 +336,8 @@ describe('hazards', () => {
 
   it('normalizeHazards drops junk and orders by time', () => {
     expect(normalizeHazards(null)).toEqual([])
-    expect(normalizeHazards({ b: { k: 'fog', at: 20 }, a: { k: 'gust', at: 10 }, c: { k: 'nuke', at: 5 }, d: 'x' }))
-      .toEqual([{ id: 'a', k: 'gust', at: 10 }, { id: 'b', k: 'fog', at: 20 }])
+    expect(normalizeHazards({ b: { k: 'fog', at: 20 }, a: { k: 'gust', at: 10 }, c: { k: 'nuke', at: 5 }, d: 'x', e: { k: 'boost', at: 30 } }))
+      .toEqual([{ id: 'a', k: 'gust', at: 10 }, { id: 'b', k: 'fog', at: 20 }, { id: 'e', k: 'boost', at: 30 }])
   })
 })
 
@@ -249,7 +348,7 @@ describe('co-op gates', () => {
     expect(closedGateAbove(tower, 0, {})).toBe(GATE_EVERY)
     expect(closedGateAbove(tower, 0, { 1: true })).toBe(2 * GATE_EVERY)
     expect(closedGateAbove(tower, GATE_EVERY + 10, { 1: true, 2: true })).toBe(3 * GATE_EVERY)
-    expect(closedGateAbove(tower, 0, { 1: true, 2: true, 3: true, 4: true, 5: true })).toBe(null)
+    expect(closedGateAbove(tower, 0, { 1: true, 2: true, 3: true, 4: true })).toBe(null)
   })
 
   it('a closed gate stops a rising hopper', () => {
@@ -262,7 +361,7 @@ describe('co-op gates', () => {
   it('earns a key by grabbing it or by climbing past its gate', () => {
     expect(keysEarned(tower, createRun())).toEqual([])
     expect(keysEarned(tower, { ...createRun(), keys: { 2: true } })).toEqual([2])
-    expect(keysEarned(tower, { ...createRun(), best: 1000, keys: { 3: true } })).toEqual([1, 2, 3])
+    expect(keysEarned(tower, { ...createRun(), best: 2 * GATE_EVERY, keys: { 3: true } })).toEqual([1, 2, 3])
   })
 
   it('grabs a key once', () => {
@@ -275,17 +374,18 @@ describe('co-op gates', () => {
 
   it('checkpoints at the last gate passed and respawns on a solid platform below it', () => {
     expect(checkpointFor(tower, 0)).toBe(0)
-    expect(checkpointFor(tower, 1200)).toBe(1000)
-    const back = respawnRun({ ...createRun(), dead: true, camY: 2000 }, tower, 1000)
+    expect(checkpointFor(tower, 2 * GATE_EVERY + 200)).toBe(2 * GATE_EVERY)
+    const back = respawnRun({ ...createRun(), dead: true, camY: 2 * GATE_EVERY + 500 }, tower, 2 * GATE_EVERY)
     expect(back.dead).toBe(false)
-    expect(back.y).toBeLessThanOrEqual(1000)
+    expect(back.y).toBeLessThanOrEqual(2 * GATE_EVERY)
+    expect(back.camY).toBeLessThan(back.y)
     expect(back.vy).toBe(JUMP_V)
     const p = tower.platforms.find(q => q.y === back.y)
     expect(p && p.kind !== 'crumble' && p.kind !== 'moving').toBe(true)
   })
 
   it('a bot with its partner holding every key climbs to the co-op goal', () => {
-    const all = { 1: true, 2: true, 3: true, 4: true, 5: true }
+    const all = { 1: true, 2: true, 3: true, 4: true }
     let run = createRun()
     for (let t = 0; t < 120 && !run.dead && !run.top; t += STEP_DT) {
       run = stepRun(run, tower, botInput(run, tower), STEP_DT, { goal: COOP_GOAL_Y, ceiling: closedGateAbove(tower, run.y, all) }).run
@@ -302,9 +402,10 @@ describe('outcomes', () => {
   })
 
   it('a faller loses only once the survivor passes them', () => {
-    expect(raceOutcome({ X: seat({ dead: true, best: 1200 }), O: seat({ best: 1100 }) })).toBe(null)
-    expect(raceOutcome({ X: seat({ dead: true, best: 1200 }), O: seat({ best: 1210 }) })).toBe('O')
-    expect(raceOutcome({ X: seat({ best: 999 }), O: seat({ dead: true, best: 990 }) })).toBe(null) // same metre
+    const m = UNITS_PER_M
+    expect(raceOutcome({ X: seat({ dead: true, best: 120 * m }), O: seat({ best: 110 * m }) })).toBe(null)
+    expect(raceOutcome({ X: seat({ dead: true, best: 120 * m }), O: seat({ best: 121 * m }) })).toBe('O')
+    expect(raceOutcome({ X: seat({ best: 100 * m - 1 }), O: seat({ dead: true, best: 99 * m }) })).toBe(null) // same metre
   })
 
   it('both fallen or time up: higher best wins, same metre draws', () => {
@@ -333,7 +434,7 @@ describe('firebase shapes', () => {
   })
 
   it('toMetres floors to whole metres', () => {
-    expect(toMetres(1239)).toBe(123)
+    expect(toMetres(123 * UNITS_PER_M + UNITS_PER_M - 1)).toBe(123)
     expect(toMetres(-5)).toBe(0)
   })
 

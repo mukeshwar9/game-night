@@ -56,11 +56,30 @@ export function useUpdraftRun({ tower, active, readInput, envFor, onEvents, onFr
 export function playRunSounds(events, sounds) {
   for (const e of events) {
     if (e.type === 'bounce') {
-      if (e.kind === 'spring') sounds.join()
+      if (e.kind === 'spring' || e.kind === 'boost') sounds.join()
       else if (e.kind === 'crumble') sounds.wall()
       else sounds.step()
-    } else if (e.type === 'pickup') sounds.hit(3)
+    } else if (e.type === 'pickup') {
+      if (e.kind === 'feather') sounds.boing()
+      else sounds.hit(3)
+    } else if (e.type === 'vent') sounds.warp()
     else if (e.type === 'key') sounds.go()
     else if (e.type === 'fall') sounds.miss()
   }
+}
+
+/**
+ * A short-lived line on the arena ("SENT GUST TO BOB"): `[notice, show]`,
+ * where `show(text)` replaces any notice still up.
+ */
+export function useNotice(ms = 1600) {
+  const [notice, setNotice] = useState(null)
+  const timer = useRef(null)
+  const show = useCallback((text) => {
+    clearTimeout(timer.current)
+    setNotice(text)
+    timer.current = setTimeout(() => setNotice(null), ms)
+  }, [ms])
+  useEffect(() => () => clearTimeout(timer.current), [])
+  return [notice, show]
 }

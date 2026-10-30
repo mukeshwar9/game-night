@@ -80,6 +80,7 @@ import { ARROWS_REWARD_LADDER, ARROWS_REWARD_GOAL } from './arrowsRewardsLogic'
 import { ARROWS_CHAPTER_GOLD, ARROWS_CHAPTERS, ARROWS_LEVEL_COUNT } from './arrowsLevelsLogic'
 import {
   SUMMIT_M, ROUND_LIMIT_MS as UPDRAFT_ROUND_MS, COOP_GOAL_M, GATE_EVERY, UNITS_PER_M, COOP_LIMIT_MS,
+  CRUMBLE_COUNT, CURSED_BOUNCE, FEATHER_MS,
 } from './updraftLogic'
 import { MATCH_TARGET as UPDRAFT_MATCH_TARGET, COOP_LIVES } from './updraftConfig'
 import { ROUND_CAP_S, HITS_WIN_MARGIN, SHIP_MAX_HP } from './spaceduelLogic'
@@ -409,12 +410,13 @@ const RULE_NUMBERS = {
   }),
   updraft: () => ({
     checks: [
-      [400, SUMMIT_M], [2, secs(UPDRAFT_ROUND_MS) / 60], [2, UPDRAFT_MATCH_TARGET],
+      [400, SUMMIT_M], [75, secs(UPDRAFT_ROUND_MS)], [2, UPDRAFT_MATCH_TARGET], [2, secs(FEATHER_MS)],
+      [60, CURSED_BOUNCE * 100],
     ],
   }),
   updraftduo: () => ({
     checks: [
-      [300, COOP_GOAL_M], [50, GATE_EVERY / UNITS_PER_M], [3, COOP_LIVES], [3, secs(COOP_LIMIT_MS) / 60],
+      [300, COOP_GOAL_M], [60, GATE_EVERY / UNITS_PER_M], [3, COOP_LIVES], [2, secs(COOP_LIMIT_MS) / 60],
     ],
   }),
   tron: () => ({ checks: [], prose: [180] }),
@@ -639,6 +641,10 @@ describe('HOW TO PLAY rules match the code', () => {
     const round = (armed) => ({ systems: Array.from({ length: 2 }, (_, i) => ({ armed: i < armed })) })
     expect(dockLimit(round(1)) - dockLimit(round(0))).toBe(1)
     expect(dockLimit(round(2)) - dockLimit(round(1))).toBe(1)
+  })
+
+  it('updraft: a crumble hazard curses three platforms', () => {
+    expect(CRUMBLE_COUNT).toBe(3)
   })
 
   it('pacmac respawns two seconds after a catch', () => {

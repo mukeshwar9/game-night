@@ -457,7 +457,7 @@
               "$id": {
                 ".validate": "newData.hasChildren(['k', 'at']) && (data.exists() || ($target === 'X' && auth.uid === root.child('games').child($gameId).child('players').child('O').child('playerId').val()) || ($target === 'O' && auth.uid === root.child('games').child($gameId).child('players').child('X').child('playerId').val()))",
                 "k": {
-                  ".validate": "(newData.val() === 'crumble' || newData.val() === 'gust' || newData.val() === 'fog') && (!data.exists() || newData.val() === data.val())"
+                  ".validate": "(newData.val() === 'crumble' || newData.val() === 'gust' || newData.val() === 'fog' || newData.val() === 'boost' && newData.parent().parent().parent().parent().parent().child('gameType').val() === 'updraftduo') && (!data.exists() || newData.val() === data.val())"
                 },
                 "at": {
                   ".validate": "newData.isNumber() && (!data.exists() || newData.val() === data.val())"
