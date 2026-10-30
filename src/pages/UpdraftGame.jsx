@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { push, ref } from 'firebase/database'
 import { toast } from 'sonner'
 import { db } from '../lib/firebase'
@@ -6,16 +6,17 @@ import GameStatus from '../components/GameStatus'
 import GameSwitcher from '../components/GameSwitcher'
 import UpdraftArena from '../components/UpdraftArena'
 import { ThumbBand } from '../components/UpdraftControls'
+import { SeatStatus } from '../components/UpdraftIcons'
 import TouchCoachmark from '../components/TouchCoachmark'
 import useBusy from '../hooks/useBusy'
 import useServerClock from '../hooks/useServerClock'
 import { useUpdraftControls } from '../hooks/useUpdraftControls'
 import { useUpdraftHazards } from '../hooks/useUpdraftHazards'
 import { settleRoom, useHiddenFall, useRoomWriter, useSeatSync, useUpdraftAutoStart } from '../hooks/useUpdraftRoom'
-import { playRunSounds, useUpdraftRun } from '../hooks/useUpdraftRun'
+import { playRunSounds, useNotice, useUpdraftRun } from '../hooks/useUpdraftRun'
 import {
-  COUNTDOWN_MS, MATCH_TARGET, ROUND_LIMIT_MS, SUMMIT_Y, UPDRAFT_MODES, VIEW_H, createRun, generateTower,
-  getUpdraftMode, hazardForPickup, normalizeHazards, normalizeSeat, raceOutcome, toMetres,
+  COUNTDOWN_MS, MATCH_TARGET, ROUND_LIMIT_MS, SUMMIT_Y, UPDRAFT_MODES, VIEW_H, climbStats, createRun, generateTower,
+  getUpdraftMode, versusPickups, hazardForPickup, normalizeHazards, normalizeSeat, raceOutcome, toMetres,
 } from '../lib/updraftLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -26,8 +27,9 @@ import { cn } from '@/lib/utils'
 // model: no shared physics, so latency never touches the controls). First to
 // the summit takes the round; a climber who falls loses once the other
 // passes their best height. CHAOS mode (the host's lobby pick, default)
-// turns pickups into hazards pushed to `updraft/haz/{rival}`. One guarded
-// transaction settles the round, so a photo finish goes to whoever lands it.
+// turns gem pickups into hazards pushed to `updraft/haz/{rival}`; feathers
+// (a self-boost) are in both modes. One guarded transaction settles the
+// round, so a photo finish goes to whoever lands it.
 
 function playerName(game, sym) {
   return game.players?.[sym]?.name?.toUpperCase() ?? sym
@@ -58,19 +60,23 @@ export default function UpdraftGame({
   const touchRef = useRef(null)
   const controls = useUpdraftControls(arenaRef, touchRef, isRacing && !isSpectator)
 
+  const [notice, showNotice] = useNotice()
+  const [sent, setSent] = useState(0)
   const climber = useUpdraftRun({
     tower,
     active: isRacing && !isSpectator,
     readInput: controls.readInput,
-    envFor: () => ({ goal: SUMMIT_Y, pickups: chaos, drift: hazards.drift() }),
+    envFor: () => ({ goal: SUMMIT_Y, pickups: versusPickups(chaos), drift: hazards.drift() }),
     onEvents: (events) => {
       playRunSounds(events, sounds)
-      if (!chaos) return
       for (const e of events) {
-        if (e.type === 'pickup') {
-          push(ref(db, `games/${gameId}/updraft/haz/${op}`), { k: hazardForPickup(seed, e.id), at: Date.now() })
-            .catch(() => toast.error('SYNC FAILED — CHECK CONNECTION'))
-        }
+        if (e.type === 'pickup' && e.kind === 'feather') showNotice('FEATHER — FLOAT!')
+        if (!chaos || e.type !== 'pickup' || e.kind !== 'gem') continue
+        const k = hazardForPickup(seed, e.id)
+        showNotice(`SENT ${k.toUpperCase()} TO ${playerName(game, op)}`)
+        setSent(n => n + 1)
+        push(ref(db, `games/${gameId}/updraft/haz/${op}`), { k, at: Date.now() })
+          .catch(() => toast.error('SYNC FAILED — CHECK CONNECTION'))
       }
     },
   })
@@ -86,6 +92,7 @@ export default function UpdraftGame({
     seenSeed.current = seed
     hazards.reset()
     handled.current = new Set()
+    setSent(0)
     const mine = normalizeSeat(game.updraft?.[me])
     const midRound = game.updraft?.startedAt != null && (mine.best > 0 || mine.dead || mine.top)
     climber.setRun(midRound ? { ...createRun(), best: mine.best, dead: !mine.top, top: mine.top } : createRun())
@@ -157,10 +164,7 @@ export default function UpdraftGame({
     </div>
   )
 
-  const status = (sym) => {
-    const s = sym === me && !isSpectator ? normalizeSeat(run) : remote[sym]
-    return s.top ? '⚑' : s.dead ? '✕' : ''
-  }
+  const status = (sym) => <SeatStatus seat={sym === me && !isSpectator ? normalizeSeat(run) : remote[sym]} />
   const hud = (
     <>
       {['X', 'O'].map(sym => (
@@ -233,12 +237,16 @@ export default function UpdraftGame({
       mySide={viewSide}
       ghost={{ x: Number(u[ghostSide]?.x) || 0, y: ghostSeat.y, dead: ghostSeat.dead }}
       ghostSide={ghostSide}
+      ghostTag={`${playerName(game, ghostSide)} ${toMetres(ghostSeat.y)}m`}
       goal={SUMMIT_Y}
-      pickupsOn={chaos && !isSpectator}
+      pickups={isSpectator ? [] : versusPickups(chaos)}
       fog={!isSpectator && hazards.fog}
       gust={isSpectator ? 0 : hazards.gust}
+      marked={isSpectator ? [] : hazards.marked}
       banner={isSpectator ? null : hazards.banner}
+      notice={isSpectator ? null : notice}
       rail={[{ side: 'X', y: heights.X }, { side: 'O', y: heights.O }]}
+      lead={isSpectator ? null : toMetres(heights[me]) - toMetres(heights[op])}
       hud={hud}
       label={`Updraft race. ${liveMsg}`}
       overlay={preRace && (
@@ -258,6 +266,9 @@ export default function UpdraftGame({
       <div className="space-y-3 max-w-sm mx-auto">
         {header}
         <p className="text-center font-pixel text-[9px] text-retro-cta">{why}</p>
+        {!isSpectator && (
+          <p className="text-center font-pixel text-[8px] text-retro-dim tabular-nums">YOUR CLIMB · {climbStats(run, { sent, took: hazards.took })}</p>
+        )}
         <div className="grid grid-cols-2 gap-2 font-pixel text-[9px] text-center">
           {['X', 'O'].map(sym => (
             <div key={sym} className={cn('rounded border-2 p-2 bg-retro-card', sym === 'X' ? 'border-retro-p1 text-retro-p1' : 'border-retro-p2 text-retro-p2')}>

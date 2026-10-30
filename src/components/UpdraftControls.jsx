@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import useBusy from '../hooks/useBusy'
 import { tiltSupported } from '../hooks/useUpdraftControls'
+import UpdraftIcon from './UpdraftIcons'
 import { cn } from '@/lib/utils'
 
 // The thumb band under the UPDRAFT arena (part of the drag area, so a thumb
@@ -15,8 +16,8 @@ export function ThumbBand({ tilt, setTilt }) {
   )
   return (
     <div className="flex items-stretch gap-2 h-16">
-      <div className="flex-1 flex items-center justify-center rounded border-2 border-dashed border-retro-border text-retro-dim font-pixel text-[8px] tracking-widest">
-        ◀ DRAG TO STEER ▶
+      <div className="flex-1 flex items-center justify-center gap-1.5 rounded border-2 border-dashed border-retro-border text-retro-dim font-pixel text-[8px] tracking-widest">
+        <UpdraftIcon name="arrow" /> DRAG TO STEER <UpdraftIcon name="arrow" flip />
       </div>
       {canTilt && (
         <button

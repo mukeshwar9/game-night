@@ -2487,6 +2487,20 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
 .bz-count { animation: bz-pop var(--dur-page) var(--ease-enter) both; }
 .bz-bob   { animation: bz-bob 0.8s ease-in-out infinite; }
 
+/* UPDRAFT: the hazard warning's fuse drains over the telegraph (duration set
+   inline); vent air rises and pickups bob in pixel steps (the game announcing). */
+@keyframes updraft-fuse {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+@keyframes updraft-air {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(-900%); opacity: 0; }
+}
+.updraft-fuse { transform-origin: left; animation: updraft-fuse linear forwards; }
+.updraft-air  { animation: updraft-air 0.9s steps(6) infinite; }
+.updraft-bob  { animation: bz-bob 0.8s steps(4) infinite; }
+
 /* Quiver: the domed arcade button at each seat. The colour is the seat's own
    theme token (--pad), lit from the top left; the wheel itself is on a canvas. */
 .quiver-pad {

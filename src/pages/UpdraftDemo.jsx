@@ -1,23 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import UpdraftArena from '../components/UpdraftArena'
 import { ThumbBand } from '../components/UpdraftControls'
+import UpdraftIcon from '../components/UpdraftIcons'
 import TouchCoachmark from '../components/TouchCoachmark'
 import useFocusArena from '../hooks/useFocusArena'
 import { useUpdraftControls } from '../hooks/useUpdraftControls'
 import { useUpdraftHazards } from '../hooks/useUpdraftHazards'
-import { playRunSounds, useUpdraftRun } from '../hooks/useUpdraftRun'
+import { playRunSounds, useNotice, useUpdraftRun } from '../hooks/useUpdraftRun'
 import {
-  COUNTDOWN_MS, GUST_DRIFT, SUMMIT_Y, botInput, createRun, curseAhead, generateTower, hazardForPickup, normalizeSeat,
-  raceOutcome, randomUpdraftSeed, toMetres,
+  COUNTDOWN_MS, GUST_DRIFT, SUMMIT_Y, botInput, climbStats, createRun, curseAhead, generateTower, hazardForPickup,
+  normalizeSeat, raceOutcome, randomUpdraftSeed, toMetres, versusPickups,
 } from '../lib/updraftLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
 // Solo UPDRAFT: race a bot ghost up the same seeded tower. CHAOS (default)
-// turns pickups into sabotage both ways, exactly like a live room.
+// turns gem pickups into sabotage both ways, exactly like a live room. Your
+// best summit time per level stays on this device.
 const LEVELS = { easy: 0.5, normal: 0.8, hard: 1 }
 const COUNTDOWN_SECS = COUNTDOWN_MS / 1000
 const BOT_GUST_MS = 3000
+const BEST_KEY = 'updraft-demo-best'
+
+function readBests() {
+  try { return JSON.parse(localStorage.getItem(BEST_KEY) || '{}') || {} } catch { return {} }
+}
 
 export default function UpdraftDemo() {
   const [level, setLevel] = useState('normal')
@@ -25,6 +32,9 @@ export default function UpdraftDemo() {
   const [seed, setSeed] = useState(() => randomUpdraftSeed())
   const [count, setCount] = useState(COUNTDOWN_SECS)
   const [result, setResult] = useState(null)
+  const [bests, setBests] = useState(readBests)
+  const [sent, setSent] = useState(0)
+  const [notice, showNotice] = useNotice()
   const tower = useMemo(() => generateTower(seed), [seed])
   const arenaRef = useRef(null)
   const touchRef = useRef(null)
@@ -54,12 +64,23 @@ export default function UpdraftDemo() {
   const me = useUpdraftRun({
     tower, active: live,
     readInput: controls.readInput,
-    envFor: () => ({ goal: SUMMIT_Y, pickups: chaos, drift: hazardsRef.current?.drift() ?? 0 }),
-    onEvents: (events) => {
+    envFor: () => ({ goal: SUMMIT_Y, pickups: versusPickups(chaos), drift: hazardsRef.current?.drift() ?? 0 }),
+    onEvents: (events, run) => {
       playRunSounds(events, sounds)
       for (const e of events) {
-        if (e.type !== 'pickup') continue
+        if (e.type === 'top') {
+          setBests(prev => {
+            if (prev[level] != null && prev[level] <= run.t) return prev
+            const next = { ...prev, [level]: run.t }
+            try { localStorage.setItem(BEST_KEY, JSON.stringify(next)) } catch { /* private mode */ }
+            return next
+          })
+        }
+        if (e.type === 'pickup' && e.kind === 'feather') showNotice('FEATHER — FLOAT!')
+        if (e.type !== 'pickup' || e.kind !== 'gem') continue
         const k = hazardForPickup(seed, e.id)
+        showNotice(`SENT ${k.toUpperCase()} TO GHOST`)
+        setSent(n => n + 1)
         const b = botRef.current
         if (k === 'crumble') b.setRun(curseAhead(b.runRef.current, tower))
         else if (k === 'gust') {
@@ -75,10 +96,11 @@ export default function UpdraftDemo() {
   const bot = useUpdraftRun({
     tower, active: live,
     readInput: (run) => botInput(run, tower, LEVELS[level]),
-    envFor: () => ({ goal: SUMMIT_Y, pickups: chaos, drift: botDrift.current }),
+    envFor: () => ({ goal: SUMMIT_Y, pickups: versusPickups(chaos), drift: botDrift.current }),
     onEvents: (events) => {
       for (const e of events) {
-        if (e.type === 'pickup') hazardsRef.current?.receive({ k: hazardForPickup(seed, 1000 + e.id), at: hazardNo.current++ })
+        const mine = meRef.current?.runRef.current
+        if (e.type === 'pickup' && e.kind === 'gem' && mine && !mine.dead && !mine.top) hazardsRef.current?.receive({ k: hazardForPickup(seed, 1000 + e.id), at: hazardNo.current++ })
       }
     },
     onFrame: judge,
@@ -115,6 +137,7 @@ export default function UpdraftDemo() {
     me.setRun(createRun())
     bot.setRun(createRun())
     setResult(null)
+    setSent(0)
     setCount(COUNTDOWN_SECS)
     if (opts.level) setLevel(opts.level)
     if (opts.chaos !== undefined) setChaos(opts.chaos)
@@ -154,12 +177,16 @@ export default function UpdraftDemo() {
           mySide="X"
           ghost={{ x: bot.run.x, y: bot.run.y, dead: bot.run.dead }}
           ghostSide="O"
+          ghostTag={`GHOST ${toMetres(bot.run.y)}m`}
           goal={SUMMIT_Y}
-          pickupsOn={chaos}
+          pickups={versusPickups(chaos)}
           fog={hazards.fog}
           gust={hazards.gust}
+          marked={hazards.marked}
           banner={hazards.banner}
+          notice={notice}
           rail={[{ side: 'X', y: me.run.best }, { side: 'O', y: bot.run.best }]}
+          lead={toMetres(me.run.best) - toMetres(bot.run.best)}
           label={`You ${toMetres(me.run.best)} metres, ghost ${toMetres(bot.run.best)} metres, summit ${toMetres(SUMMIT_Y)}`}
           hud={(
             <>
@@ -180,6 +207,10 @@ export default function UpdraftDemo() {
                     {result === 'X' ? (me.run.top ? 'SUMMIT!' : 'YOU OUTCLIMBED IT') : result === 'draw' ? 'DRAW' : me.run.dead ? 'YOU FELL' : 'GHOST SUMMITED'}
                   </p>
                   <p className="font-pixel text-[8px] text-retro-dim">YOU {toMetres(me.run.best)}m · GHOST {toMetres(bot.run.best)}m</p>
+                  <p className="font-pixel text-[8px] text-retro-dim tabular-nums">{climbStats(me.run, { sent, took: hazards.took })}</p>
+                  {bests[level] != null && (
+                    <p className="font-pixel text-[8px] text-retro-cta tabular-nums">BEST {level.toUpperCase()} SUMMIT {bests[level].toFixed(1)}s</p>
+                  )}
                   <button
                     type="button"
                     onClick={() => restart()}
@@ -194,7 +225,9 @@ export default function UpdraftDemo() {
         <ThumbBand tilt={controls.tilt} setTilt={controls.setTilt} />
       </div>
       <p className="text-center font-pixel text-[8px] text-retro-dim leading-relaxed">
-        YOU BOUNCE BY YOURSELF — JUST STEER.{chaos ? <><br />◆ PICKUPS SEND YOUR RIVAL A HAZARD.</> : null}
+        YOU BOUNCE BY YOURSELF — JUST STEER.
+        <br /><UpdraftIcon name="feather" className="text-retro-win" /> FEATHERS FLOAT YOU UP.
+        {chaos ? <><br /><UpdraftIcon name="gem" className="text-retro-cta" /> GEMS SEND YOUR RIVAL A HAZARD.</> : null}
       </p>
     </div>
   )

@@ -44,7 +44,7 @@ test('two players race an UPDRAFT round to a result and rematch in the host\'s m
     // Hopping idle, either climber may also fall on their own; hiding both
     // tabs guarantees both falls either way.
     await hideTab(alice.page)
-    await expect(bob.page.getByText(/^ALICE\s*\d+m ✕$/)).toBeVisible({ timeout: 10_000 })
+    await expect(bob.page.getByText(/^ALICE\s*\d+m\s*FELL$/)).toBeVisible({ timeout: 10_000 })
     await hideTab(bob.page)
     const result = /REACHED THE SUMMIT|CLIMBED HIGHER|SAME HEIGHT — DRAW/
     for (const { page } of [alice, bob]) {
@@ -82,14 +82,15 @@ test('UPDRAFT CO-OP: gates wait on the partner and a fall costs a shared life', 
   })
 
   await test.step('each sees the first gate waiting on the other', async () => {
-    await expect(alice.page.getByText('GATE 1 · BOB HAS THE KEY')).toBeVisible({ timeout: 15_000 })
-    await expect(bob.page.getByText('GATE 1 · ALICE HAS THE KEY')).toBeVisible({ timeout: 15_000 })
+    // The label tracks how far the partner is from that gate's key.
+    await expect(alice.page.getByText(/^GATE 1 · BOB (\d+m FROM KEY|AT THE KEY)$/)).toBeVisible({ timeout: 15_000 })
+    await expect(bob.page.getByText(/^GATE 1 · ALICE (\d+m FROM KEY|AT THE KEY)$/)).toBeVisible({ timeout: 15_000 })
     await expect(alice.page.getByLabel('3 lives', { exact: true })).toBeVisible()
   })
 
   await test.step('a fall costs the team a life on both screens', async () => {
     // Wait for the run clock to start (the countdown is over).
-    await expect(alice.page.getByText(/^2:\d\d$/)).toBeVisible({ timeout: 20_000 })
+    await expect(alice.page.getByText(/^1:\d\d$/)).toBeVisible({ timeout: 20_000 })
     await hideTab(alice.page)
     for (const { page } of [alice, bob]) {
       await expect(page.getByLabel('2 lives', { exact: true })).toBeVisible({ timeout: 10_000 })

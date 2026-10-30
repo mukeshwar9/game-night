@@ -708,22 +708,22 @@ export const GAME_RULES = {
     objective: 'Race your rival up the same tower of platforms — first to 400 m wins.',
     howToPlay: [
       'Your hopper bounces on its own. Drag left or right anywhere on the tower or the band below it to steer (←/→ or A/D on a keyboard; TILT can be switched on on phones).',
-      'Fly off one side of the screen and you come back on the other. Coiled platforms launch you higher; dashed ones crumble after one bounce.',
-      'Your rival climbs an identical tower at the same time and shows as a dashed ghost, with both heights on the rail at the right.',
-      'In CHAOS mode (the host picks it in the lobby) a gold ◆ pickup sends your rival a hazard: crumbling platforms, a gust of wind or fog — each announced a second before it hits.',
+      'Fly off one side of the screen and you come back on the other. Coiled platforms launch you higher, rising-air vents lift you as you pass through, and cracked platforms crumble after one bounce. The higher you climb, the wider the gaps and the more platforms slide.',
+      'Your rival climbs an identical tower at the same time and shows as a dashed ghost, with both heights and your lead on the rail at the right.',
+      'A green feather lets you float for 2 seconds. In CHAOS mode (the host picks it in the lobby) a gold gem also sends your rival a hazard, announced a second before it hits: three platforms ahead turn cursed (a 60% bounce, then they break), a gust of wind pushes them sideways, or fog hides the top of their screen.',
     ],
-    win: 'Reach the 400 m flag first to take the round. Fall off the bottom and your rival only has to climb past your height; if both fall, or the 2-minute clock runs out, the higher climb wins. Win 2 rounds to take the match.',
+    win: 'Reach the 400 m flag first to take the round. Fall off the bottom and your rival only has to climb past your height; if both fall, or the 75-second clock runs out, the higher climb wins. Win 2 rounds to take the match.',
   },
 
   updraftduo: {
     objective: 'Climb twin towers together and both reach the 300 m flag before time runs out.',
     howToPlay: [
       'You each climb your own copy of the same tower. Steer by dragging left or right; bouncing is automatic.',
-      'Every 50 m a gate blocks your way. Only your partner can open it — by grabbing the matching ⚷ key on their tower (or climbing past their own gate there). Your keys open their gates.',
-      'Call out when you are stuck: the gate label says whose key you need.',
+      'Every 60 m a gate blocks your way. Only your partner can open it — by grabbing the matching key on their tower (or climbing past their own gate there). Your keys open their gates.',
+      'The gate label shows how far your partner is from the key you need. Grab a BOOST and your partner\'s next landing launches them like a spring.',
       'The team shares 3 lives. A fall costs one and puts you back at the last gate you passed.',
     ],
-    win: 'You clear the run when both of you reach the flag within 3 minutes. Running out of lives or time ends the run. Cleared runs count for both of you.',
+    win: 'You clear the run when both of you reach the flag within 2 minutes. Running out of lives or time ends the run. Cleared runs count for both of you.',
   },
 
   tron: {
