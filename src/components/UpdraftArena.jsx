@@ -239,6 +239,8 @@ const UpdraftArena = forwardRef(function UpdraftArena({
   const look = run.dead ? 0 : Math.sign(run.vx || 0)
   const brokenLand = land && run.broken[land.id] && age < PIECES_S && feel ? tower?.platforms.find(p => p.id === land.id) : null
   const sky = Math.min(1, Math.max(0, camY / goal))
+  // The next closed gate, announced at the top while it is still above the screen.
+  const nextGate = gates.some(g => !g.open && inView(g.y)) ? null : gates.find(g => !g.open && g.y > hi && g.label)
 
   return (
     <div
@@ -322,6 +324,11 @@ const UpdraftArena = forwardRef(function UpdraftArena({
       )}
       {rail.length > 0 && <Rail goal={goal} marks={rail} lead={lead} />}
       {hud && <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-2 font-pixel text-[8px] pointer-events-none">{hud}</div>}
+      {nextGate && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-9 flex items-center gap-1 px-1.5 py-1 rounded-sm bg-retro-deep/80 font-pixel text-[7px] text-retro-p2 whitespace-nowrap pointer-events-none">
+          <UpdraftIcon name="lock" />{nextGate.label}
+        </div>
+      )}
       {banner && (
         <div key={banner.id} className="absolute left-1/2 -translate-x-1/2 top-9 overflow-hidden rounded bg-retro-danger text-retro-bg font-pixel text-[8px] whitespace-nowrap shadow-neon-danger" role="status">
           <span className="flex items-center gap-1.5 px-2.5 py-1.5"><UpdraftIcon name="warn" />{banner.text}</span>
