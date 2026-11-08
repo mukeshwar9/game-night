@@ -41,6 +41,15 @@ import {
   podium,
 } from '../lib/sketchStageLogic'
 import { replayOver } from '../lib/sketchReplayLogic'
+import {
+  HEART_HINT_MS,
+  MAX_HEART_FLOATS,
+  foldLikes,
+  heartView,
+  likeCount,
+  newHeartsFrom,
+  crowdFavourite,
+} from '../lib/sketchFavesLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
 import { scaledMs, timersOff } from '../lib/timerScale'
@@ -50,13 +59,15 @@ import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
 import ReportButton from '../components/ReportButton'
 import BottomSheet from '../components/BottomSheet'
-import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, Gallery } from '../components/SketchStage'
+import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, Gallery, HeartButton, CrowdFavourite } from '../components/SketchStage'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
 import PixelDots from '../components/loading/PixelDots'
 import WordFeedback from '../components/WordFeedback'
 import { sounds } from '../lib/sounds'
+import { haptic } from '../lib/haptics'
+import { isReducedMotion } from '../hooks/useMotionPref'
 import { cn } from '@/lib/utils'
 import useBusy from '@/hooks/useBusy'
 import { toast } from 'sonner'
@@ -91,6 +102,11 @@ function normalizeRound(raw) {
     correct: raw.correct ?? {},
     // letter hints the artist's phone published (see sketchLogic 'Letter hints')
     hints: normalizeHints(raw.hints, raw.wordPattern ?? ''),
+    // hearts on this drawing, and the match's heart tally (sketchFavesLogic.js)
+    likes: raw.likes ?? null,
+    faves: raw.faves ?? null,
+    // the drawing has something on it (hearts need one)
+    hasDrawing: !!(raw.strokes || raw.fills),
     scored: !!raw.scored,
   }
 }
@@ -224,6 +240,8 @@ export default function SketchGame({
   const [showAllGuesses, setShowAllGuesses] = useState(false)
   const [replayDoneKey, setReplayDoneKey] = useState(null) // reveal (round + revealAt) whose replay finished here
   const [galleryStore, setGalleryStore] = useState(() => loadGallery(gameId))
+  const [heartFloats, setHeartFloats] = useState([])     // others' hearts rising from the button: [{ id }]
+  const [heartHint, setHeartHint] = useState(null)       // { seed, key }: the reveal that shows TAP ♥ this match
   const drawingRef = useRef({ strokes: {}, fills: {} })   // the canvas's latest content (gallery source)
   const galleryAddedRef = useRef(null)                    // round id already saved to the gallery
   const hintPublishRef = useRef(null)                     // `${roundKey}:${n}` this phone already sent
@@ -237,6 +255,7 @@ export default function SketchGame({
   const [skippingChoosing, runSkipChoosing] = useBusy()   // choosing: SKIP ROUND
   const [skippingDrawing, runSkipDrawing] = useBusy()     // drawing: SKIP ROUND (artist offline)
   const [endingRound, runEndRound] = useBusy()           // drawing, timers off: END ROUND
+  const [hearting, runHeart] = useBusy()                 // drawing (solved) / reveal: the heart
 
   const pickedRef = useRef(false)                    // this client already picked/auto-picked this round
   const correctSentRef = useRef(false)                // this client already published its own correct guess
@@ -251,6 +270,9 @@ export default function SketchGame({
   const artistOfflineSinceStoredRef = useRef(null)    // last `artistOfflineSince` value already pushed into state
   const chatRef = useRef(null)
   const lastGuessAtRef = useRef(0)                    // client-side guess throttle (see MIN_GUESS_INTERVAL_MS)
+  const prevLikesRef = useRef(round?.likes ?? null)   // hearts last seen, to float only new ones
+  const floatIdRef = useRef(0)
+  const floatTimersRef = useRef(new Set())             // pending float clean-ups, cleared on unmount
 
   // Always-fresh ref mirror of `round` — updated post-render (in an effect, not
   // during render, so this stays clear of the "no ref access during render"
@@ -443,8 +465,11 @@ export default function SketchGame({
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'reveal' || r.endsAt !== expectedEndsAt) return // already advanced / stale
-        const result = nextRoundState(withLists(r))
-        if (result.finished) return { ...current, status: 'finished', proposal: null }
+        // This drawing's hearts join the match tally in the same write, so a
+        // coordinator hand-off cannot count them twice (foldLikes replaces).
+        const faves = foldLikes(r.faves, r)
+        const result = nextRoundState(withLists({ ...r, faves }))
+        if (result.finished) return { ...current, status: 'finished', proposal: null, round: { ...r, faves, likes: null } }
         return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt } }
       })
     } catch {
@@ -453,6 +478,25 @@ export default function SketchGame({
       hostActionInFlightRef.current = false
     }
   }, [gameId, now, chooseMs]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Player: heart the drawing, or take the heart back -------------------
+  // One heart per player per drawing; it never touches the score. A tap that
+  // lands after the round moved on is refused by the rules and dropped
+  // silently; any other failure says so.
+  const handleHeart = useCallback(async () => {
+    const r = roundRef.current
+    if (!r || !mySeat) return
+    const mine = r.likes?.[mySeat] === true
+    sounds.emote()
+    haptic(10)
+    try {
+      await set(ref(db, `games/${gameId}/round/likes/${mySeat}`), mine ? null : true)
+    } catch {
+      const cur = roundRef.current
+      const sameRound = cur && cur.cycle === r.cycle && cur.artist === r.artist && cur.phase !== 'choosing'
+      if (sameRound) toast.error('HEART FAILED — CHECK CONNECTION')
+    }
+  }, [gameId, mySeat])
 
   // ---- Reset per-round local state when a NEW round begins ----------------
   useEffect(() => {
@@ -553,6 +597,35 @@ export default function SketchGame({
     const t = setTimeout(() => setHintFlash(null), 3000)
     return () => clearTimeout(t)
   }, [hintFlash])
+
+  // ---- Hearts from others float up from the button (not under reduced motion) --
+  useEffect(() => {
+    const likes = round?.likes ?? null
+    const fresh = newHeartsFrom(prevLikesRef.current, likes, mySeat)
+    prevLikesRef.current = likes
+    if (fresh.length === 0 || isReducedMotion()) return undefined
+    const added = fresh.map(() => ({ id: ++floatIdRef.current }))
+    setHeartFloats(list => [...list, ...added].slice(-MAX_HEART_FLOATS))
+    const ids = new Set(added.map(f => f.id))
+    const t = setTimeout(() => {
+      floatTimersRef.current.delete(t)
+      setHeartFloats(list => list.filter(f => !ids.has(f.id)))
+    }, 1300)
+    floatTimersRef.current.add(t)
+    return undefined
+  }, [round?.likes, mySeat])
+  useEffect(() => {
+    const timers = floatTimersRef.current
+    return () => { timers.forEach(clearTimeout); timers.clear() }
+  }, [])
+
+  // ---- The match's first reveal this phone can heart: TAP ♥ IF YOU LOVE IT --
+  const canHeartReveal = round?.phase === 'reveal'
+    && heartView({ round, uid: mySeat, isPlayer, hasDrawing: !!round?.hasDrawing }) === 'button'
+  // (state adjusted during render: it changes once per match)
+  if (canHeartReveal && round.revealAt != null && heartHint?.seed !== round.matchSeed) {
+    setHeartHint({ seed: round.matchSeed, key: `${roundKey}:${round.revealAt}` })
+  }
 
   // ---- Reveal: keep this round's drawing for the end-of-match gallery -------
   // Built locally from the strokes this phone already holds; nothing is sent.
@@ -683,6 +756,12 @@ export default function SketchGame({
 
         {matchOver ? (
           <>
+            <CrowdFavourite
+              award={crowdFavourite(game.round?.faves, { order: normalizeList(game.round?.order) })}
+              entries={galleryFor(galleryStore, game.round?.matchSeed)}
+              players={players}
+              order={normalizeList(game.round?.order)}
+            />
             <Podium rows={podium(order, scores)} players={players} mySeat={mySeat} />
             <Gallery entries={galleryFor(galleryStore, game.round?.matchSeed)} />
           </>
@@ -792,6 +871,9 @@ export default function SketchGame({
   const canReportArtist = !isArtist && (round.phase === 'drawing' || round.phase === 'reveal')
   const inPlay = round.phase === 'drawing' || round.phase === 'reveal'
   const newestHintN = hintFlash
+  const heart = heartView({ round, uid: mySeat, isPlayer, hasDrawing: round.hasDrawing })
+  const showHeartHint = heart === 'button' && round.phase === 'reveal' && round.revealAt != null
+    && heartHint?.key === revealKey && nowMs - round.revealAt < HEART_HINT_MS
 
   return (
     <div className="space-y-2" ref={stageRef} data-testid="sketch-stage" data-phase={round.phase} data-role={stageRole}>
@@ -921,7 +1003,16 @@ export default function SketchGame({
             onContent={(strokes, fills) => { drawingRef.current = { strokes, fills } }}
             replay={round.phase === 'reveal' ? { startAt: round.revealAt, onDone: () => setReplayDoneKey(revealKey) } : null}
           >
-            <GuessBubbles entries={chatEntries} players={players} mySeat={mySeat} />
+            <GuessBubbles entries={chatEntries} players={players} mySeat={mySeat} reserveRight={!!heart} />
+            <HeartButton
+              view={heart}
+              count={likeCount(round.likes)}
+              mine={round.likes?.[mySeat] === true}
+              onToggle={() => runHeart(handleHeart)}
+              busy={hearting}
+              floats={heartFloats}
+              hint={showHeartHint}
+            />
             {hintFlash != null && !isArtist && (
               <span
                 role="status"

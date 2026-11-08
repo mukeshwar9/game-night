@@ -33,6 +33,13 @@ deck files, and `commit.js` for keeping the word secret.
   3. **Reveal (8 s):** word revealed, then the drawing replays as a time-lapse on every screen
      at once (3.5 s, synced to `round.revealAt`; tap to skip, reduced motion fades it in), then
      the per-round score deltas fly. Timeline and pacing: `sketchReplayLogic.js`.
+- **Hearts and CROWD FAVOURITE:** one heart per player per drawing, at the drawing's
+  bottom-right: guessers who already got the word can heart during the drawing, everyone seated
+  but the artist at the reveal (the artist and spectators see the count only). A second tap takes
+  it back. When the reveal advances, the hearts fold into a match tally; at the match end the
+  drawing with the most hearts (at least 2) is CROWD FAVOURITE, above the podium; ties share it
+  (up to 3, in play order). 2-player rooms show hearts but give no award. Hearts never touch
+  the score. Logic: `sketchFavesLogic.js`.
 - **Scoring (tunable constants in `sketchLogic.js`):** guessers earn by order of correct guess —
   1st: 100, 2nd: 90, 3rd: 80, … floor 50. Artist earns 25 per correct guesser (so a word everyone
   gets beats an impossible one). No points for the artist if nobody guesses.
@@ -99,6 +106,8 @@ round: {
   chat: { pushId: { uid, text } },       // wrong guesses only
   correct: { uid: { at } },
   scored: true,                 // idempotent score application (fibbage pattern)
+  likes: { uid: true },         // hearts on this drawing; cleared each round
+  faves: { 'cycle:artist': n }, // the match's heart tally, folded in by whoever advances the reveal
   revealWord: string,           // written by artist at reveal
 }
 scores/{uid}: number            // party standard, applied by host
