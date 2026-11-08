@@ -1008,8 +1008,9 @@ export const GAME_RULES = {
       'Stuck? The artist\'s phone reveals one letter at half time and another at three quarters of the clock, never more than a third of the word.',
       'Before the match the host can change MATCH SETUP: 1–3 draws each, 45–120 seconds a drawing (75 by default) and 0–2 letter hints. Everyone sees the setup in the lobby, and it locks when the match starts.',
       'Guessing correctly locks you in early and reveals the word to you — keep it secret from the others still guessing.',
+      'Arrived mid-match? Tap JOIN under the drawing: you start on 0 points, guess from the next round and draw from the next cycle. Join in the last cycle and you only guess.',
     ],
-    win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. MEDIUM words pay ×1.2 and HARD words ×1.5. By default everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
+    win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. Scoring follows each round\'s guessers, so a 2-player match that gains a third player scores like a 3-player one from then on. MEDIUM words pay ×1.2 and HARD words ×1.5. By default everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
   },
 
   pairs: {
