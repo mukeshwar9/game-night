@@ -1,12 +1,14 @@
 // The pieces of SKETCH's stage screen: a strip of faces, the timer ring, the
-// blanks (with hint letters), guess bubbles over the drawing, and the
-// end-of-match podium and gallery. Rendering only; the rules are in
-// src/lib/sketchLogic.js and src/lib/sketchStageLogic.js.
+// blanks (with hint letters), guess bubbles over the drawing, the heart on the
+// drawing, and the end-of-match CROWD FAVOURITE, podium and gallery. Rendering
+// only; the rules are in src/lib/sketchLogic.js, src/lib/sketchStageLogic.js
+// and src/lib/sketchFavesLogic.js.
 import { useEffect, useRef } from 'react'
 import Avatar from './Avatar'
 import { DrawingThumb } from './SketchDrawing'
 import { blankCells, tierMultiplier } from '../lib/sketchLogic'
 import { RING_RADIUS, RING_CIRCUMFERENCE, ringState, recentBubbles } from '../lib/sketchStageLogic'
+import { heartAriaLabel, heartsOf, parseFaveKey } from '../lib/sketchFavesLogic'
 import { cn } from '@/lib/utils'
 
 const HOLD_MS = 500
@@ -200,11 +202,15 @@ export function Blanks({ pattern, hints, flashN = null, solvedWord = null }) {
 // ---------------------------------------------------------------------------
 const AGE_OPACITY = ['opacity-100', 'opacity-90', 'opacity-70', 'opacity-50']
 
-export function GuessBubbles({ entries, players, mySeat }) {
+export function GuessBubbles({ entries, players, mySeat, reserveRight = false }) {
   const bubbles = recentBubbles(entries)
   if (bubbles.length === 0) return null
   return (
-    <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex flex-col items-start gap-1" data-testid="sketch-bubbles" aria-hidden="true">
+    <div
+      className={cn('pointer-events-none absolute bottom-1.5 left-1.5 flex flex-col items-start gap-1', reserveRight ? 'right-14' : 'right-1.5')}
+      data-testid="sketch-bubbles"
+      aria-hidden="true"
+    >
       {bubbles.map(b => (
         <span
           key={b.key}
@@ -218,6 +224,137 @@ export function GuessBubbles({ entries, players, mySeat }) {
         </span>
       ))}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Heart: one per player per drawing, at the drawing's bottom-right. `view` is
+// 'button' (tap to heart, tap again to take it back) or 'count' (the artist
+// and spectators see the count only). Others' hearts float up from it
+// (`floats`, already capped and skipped under reduced motion); `hint` shows
+// TAP ♥ IF YOU LOVE IT on the match's first reveal. It sits above the replay's
+// tap-to-skip layer, so hearts are open the whole reveal.
+// ---------------------------------------------------------------------------
+const HEART_FULL = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
+const HEART_EMPTY = ['.XX.XX.', 'X..X..X', 'X.....X', '.X...X.', '..X.X..', '...X...']
+
+export function PixelHeart({ filled, className }) {
+  const rows = filled ? HEART_FULL : HEART_EMPTY
+  return (
+    <svg viewBox="0 0 7 6" shapeRendering="crispEdges" aria-hidden="true" className={cn('fill-current', className)}>
+      {rows.flatMap((row, y) => [...row].map((ch, x) => (ch === 'X' ? <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" /> : null)))}
+    </svg>
+  )
+}
+
+export function HeartButton({ view, count, mine, onToggle, busy = false, floats = [], hint = false }) {
+  if (!view) return null
+  const face = (
+    <>
+      <PixelHeart filled={mine || view === 'count'} className="h-3.5 w-4" />
+      <span className="font-pixel text-[10px] tabular-nums">{count}</span>
+    </>
+  )
+  return (
+    <div className="absolute bottom-1.5 right-1.5 z-10 flex flex-col items-end" data-testid="sketch-heart">
+      {floats.map((f, i) => (
+        <span
+          key={f.id}
+          aria-hidden="true"
+          className="sketch-pts-fly pointer-events-none absolute bottom-full text-retro-p3"
+          style={{ right: `${8 + (i % 4) * 7}px` }}
+        >
+          <PixelHeart filled className="h-3 w-3.5" />
+        </span>
+      ))}
+      {hint && (
+        <span
+          role="status"
+          className="sketch-bubble-in pointer-events-none mb-1 whitespace-nowrap rounded border border-retro-p3 bg-retro-card px-2 py-0.5 font-pixel text-[8px] tracking-wider text-retro-p3"
+          data-testid="sketch-heart-hint"
+        >
+          TAP ♥ IF YOU LOVE IT
+        </span>
+      )}
+      {view === 'button' ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={busy}
+          aria-pressed={mine}
+          aria-busy={busy || undefined}
+          aria-label={heartAriaLabel(count)}
+          className={cn(
+            'flex min-h-11 min-w-11 items-center justify-center gap-1 rounded border-2 border-retro-p3 px-2 transition press touch-manipulation',
+            mine ? 'bg-retro-p3 text-retro-bg' : 'bg-retro-card/95 text-retro-p3',
+          )}
+        >
+          {face}
+        </button>
+      ) : (
+        <span
+          role="img"
+          aria-label={`${count} heart${count === 1 ? '' : 's'}`}
+          className="flex min-h-8 items-center gap-1 rounded border border-retro-p3 bg-retro-card/95 px-2 text-retro-p3"
+        >
+          {face}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CROWD FAVOURITE: the most-hearted drawing of the match (sketchFavesLogic's
+// crowdFavourite), above the podium. Ties show up to three drawings side by
+// side. A drawing this phone never saw (not in its gallery) shows as text.
+// ---------------------------------------------------------------------------
+export function CrowdFavourite({ award, entries, players, order }) {
+  if (!award || award.keys.length === 0) return null
+  const tied = award.keys.length > 1
+  const byId = new Map((entries || []).map(e => [e.id, e]))
+  const items = award.keys.map(key => {
+    const entry = byId.get(key) || null
+    const artist = parseFaveKey(key)?.artist
+    const name = players?.[artist]?.name || entry?.artistName || '???'
+    return { key, entry, name }
+  })
+  return (
+    <section
+      className="space-y-2 rounded border-2 border-retro-p3 bg-retro-card p-2.5"
+      aria-label={tied ? `Crowd favourites, tied at ${award.hearts} hearts` : 'Crowd favourite'}
+      data-testid="sketch-crowd-favourite"
+    >
+      <p className="flex items-center justify-center gap-1.5 font-pixel text-[10px] tracking-widest text-retro-p3 text-glow-p3">
+        <PixelHeart filled className="h-3 w-3.5" />
+        {tied ? `CROWD FAVOURITES · TIED AT ♥ ${award.hearts}` : 'CROWD FAVOURITE'}
+      </p>
+      <ul className={cn('flex justify-center gap-2', tied && 'items-start')}>
+        {items.map(({ key, entry, name }) => (
+          <li key={key} className={cn('min-w-0 space-y-1', tied ? 'flex-1 max-w-[33%]' : 'w-40')}>
+            {entry && (
+              <DrawingThumb
+                strokes={entry.strokes}
+                fills={entry.fills}
+                className="block rounded-sm border border-retro-border"
+                label={`${entry.word}, drawn by ${name}`}
+              />
+            )}
+            {tied ? (
+              <>
+                {entry && <p className="truncate font-pixel text-[8px] text-retro-text">{String(entry.word).toUpperCase()}</p>}
+                <p className="truncate font-pixel text-[8px] text-retro-dim">BY {name.toUpperCase()}</p>
+              </>
+            ) : (
+              <p className="font-pixel text-[9px] text-retro-text">
+                {entry ? `${String(entry.word).toUpperCase()} · ` : ''}BY {name.toUpperCase()}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {!tied && <p className="font-pixel text-[9px] tabular-nums text-retro-p3">{heartsOf(award.hearts, order)}</p>}
+    </section>
   )
 }
 

@@ -20,6 +20,8 @@
 //     drawStartedAt: epoch-ms,           // server time the artist locked a word (scoring window)
 //     drawMs:      number,               // that drawing phase's length after the room's timer scale
 //     revealAt:    epoch-ms,             // server time the round flipped to reveal (replay clock)
+//     likes:       { [uid]: true },                   // hearts on this drawing (sketchFavesLogic.js)
+//     faves:       { ['cycle:artist']: count },       // the match's heart tally, carried round to round
 //     strokes:     { [pushId]: { c, w, p } },         // artist-only writes
 //     chat:        { [pushId]: { uid, text } },       // wrong guesses only
 //     correct:     { [uid]: { at } },                 // uid's own write, once
@@ -238,8 +240,10 @@ export function matchOver(order, artist, cycle, cycles = cyclesFor(order.length)
 // adds `endsAt: now() + CHOOSE_MS` before writing `round` (this function does
 // not touch wall-clock time). `used` carries forward round.used + round.options
 // (the 3 offered candidates, whether or not the chosen one was ever confirmed).
+// `faves` (the match's heart tally) carries forward as given: the caller folds
+// the ending round's hearts in first (sketchFavesLogic.foldLikes).
 export function nextRoundState(round) {
-  const { order, artist, cycle, used, options, matchSeed } = round
+  const { order, artist, cycle, used, options, matchSeed, faves } = round
   const carryUsed = [...(used || []), ...(options || [])]
   if (matchOver(order, artist, cycle, roundCycles(round))) return { finished: true }
   const idx = order.indexOf(artist)
@@ -264,6 +268,8 @@ export function nextRoundState(round) {
       correct: null,
       hints: null,
       revealAt: null,
+      likes: null,
+      faves: faves ?? null,
       scored: false,
       // caller adds: endsAt: now() + CHOOSE_MS
     },

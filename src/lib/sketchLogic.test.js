@@ -261,6 +261,18 @@ describe('nextRoundState', () => {
     expect(result.round.scored).toBe(false)
     expect(result.round.hints).toBeNull()
     expect(result.round.revealAt).toBeNull()
+    expect(result.round.likes).toBeNull()
+    expect(result.round.faves).toBeNull()
+  })
+
+  it('carries the match\'s heart tally forward and clears the round\'s hearts', () => {
+    const round = {
+      order: ['a', 'b', 'c'], artist: 'a', cycle: 1, used: [], options: [5, 6, 7],
+      likes: { b: true, c: true }, faves: { '1:a': 2 },
+    }
+    const result = nextRoundState(round)
+    expect(result.round.faves).toEqual({ '1:a': 2 })
+    expect(result.round.likes).toBeNull()
   })
 
   it('final round of the match returns { finished: true }', () => {
