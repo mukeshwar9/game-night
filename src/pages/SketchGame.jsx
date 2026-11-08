@@ -51,7 +51,8 @@ import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
 import ReportButton from '../components/ReportButton'
 import BottomSheet from '../components/BottomSheet'
-import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, Gallery, HeartSpot, CrowdFavourite } from '../components/SketchStage'
+import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, HeartSpot, CrowdFavourite } from '../components/SketchStage'
+import SketchGalleryShare from '../components/SketchShare'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
@@ -110,6 +111,18 @@ const TIER_LABELS = { 1: 'EASY', 2: 'MEDIUM', 3: 'HARD' }
 
 // True when a strokes/fills map holds anything drawable (hearts need a drawing).
 const hasMarks = (items) => Object.values(items || {}).some(v => Array.isArray(v?.p) && v.p.length >= 2)
+
+// The CROWD FAVOURITE for the PDF cover: a title and one line per drawing.
+function favouriteLine(award, gallery, players) {
+  if (!award) return null
+  const lines = award.entries.map(e => {
+    const word = gallery.find(g => g.id === e.key)?.word
+    const by = `BY ${(players?.[e.artist]?.name || '???').toUpperCase()}`
+    return word ? `${String(word).toUpperCase()} ${by}` : by
+  })
+  const title = award.entries.length > 1 ? `♥ CROWD FAVOURITES · TIED AT ♥ ${award.count}` : `♥ CROWD FAVOURITE · ♥ ${award.count}`
+  return { title, lines }
+}
 
 // "×1.5" for tiers that pay extra, '' for ×1.
 function multiplierLabel(tier) {
@@ -687,6 +700,11 @@ export default function SketchGame({
     const iWon = winners.includes(mySeat)
     const enough = playerCount >= MIN_PLAYERS
     const winnerNames = winners.map(id => (players[id]?.name || '???').toUpperCase())
+    // Match end: the heart tally (S5), this phone's drawings and the podium.
+    const finalFaves = normalizeFaves(game.round?.faves)
+    const gallery = matchOver ? galleryFor(galleryStore, game.round?.matchSeed) : []
+    const award = matchOver ? crowdFavourite(finalFaves, { playerCount: Math.max(playerCount, normalizeList(game.round?.order).length) }) : null
+    const podiumRows = matchOver ? podium(order, scores) : []
 
     return (
       <div className="space-y-5 text-center">
@@ -723,14 +741,14 @@ export default function SketchGame({
 
         {matchOver ? (
           <>
-            <CrowdFavourite
-              award={crowdFavourite(game.round?.faves, { playerCount: Math.max(playerCount, normalizeList(game.round?.order).length) })}
-              gallery={galleryFor(galleryStore, game.round?.matchSeed)}
-              players={players}
-              voters={playerCount - 1}
+            <CrowdFavourite award={award} gallery={gallery} players={players} voters={playerCount - 1} />
+            <Podium rows={podiumRows} players={players} mySeat={mySeat} />
+            <SketchGalleryShare
+              entries={gallery}
+              hearts={finalFaves}
+              podiumRows={podiumRows.map(r => ({ ...r, name: players[r.id]?.name || '???' }))}
+              favourite={favouriteLine(award, gallery, players)}
             />
-            <Podium rows={podium(order, scores)} players={players} mySeat={mySeat} />
-            <Gallery entries={galleryFor(galleryStore, game.round?.matchSeed)} />
           </>
         ) : (
           <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">

@@ -82,3 +82,44 @@ describe('shareImage', () => {
     await expect(noFiles.shareImage({ blob, filename: 'card.png' })).resolves.toBe('unavailable')
   })
 })
+
+describe('shareFiles', () => {
+  const png = (n) => ({ blob: new Blob([`png${n}`], { type: 'image/png' }), filename: `sketch-${n}.png` })
+
+  it('shares every file in one web sheet when the browser can take them', async () => {
+    const navShare = vi.fn().mockResolvedValue(undefined)
+    const canShare = vi.fn().mockReturnValue(true)
+    const s = createShare({ native: false, nav: { share: navShare, canShare } })
+    await expect(s.shareFiles({ files: [png(1), png(2)], text: 'drawings' })).resolves.toBe('shared')
+    const { files } = navShare.mock.calls[0][0]
+    expect(files.map(f => f.name)).toEqual(['sketch-1.png', 'sketch-2.png'])
+    expect(files[0].type).toBe('image/png')
+  })
+
+  it('reports unavailable when the browser cannot share files, so the caller downloads', async () => {
+    const s = createShare({ native: false, nav: { share: vi.fn(), canShare: () => false } })
+    await expect(s.shareFiles({ files: [png(1)] })).resolves.toBe('unavailable')
+    const none = createShare({ native: false, nav: {} })
+    await expect(none.shareFiles({ files: [png(1)] })).resolves.toBe('unavailable')
+    await expect(none.shareFiles({ files: [] })).resolves.toBe('unavailable')
+  })
+
+  it('writes each file to the cache folder and shares all the uris in the shell', async () => {
+    const writeFile = vi.fn(async ({ path }) => ({ uri: `file:///cache/${path}` }))
+    const share = vi.fn().mockResolvedValue({})
+    const s = createShare({
+      native: true,
+      loadFilesystem: async () => ({ Filesystem: { writeFile }, Directory: { Cache: 'CACHE' } }),
+      loadShare: async () => ({ Share: { share } }),
+    })
+    const pdf = { blob: new Blob(['%PDF'], { type: 'application/pdf' }), filename: 'sketch.pdf' }
+    await expect(s.shareFiles({ files: [png(1), pdf] })).resolves.toBe('shared')
+    expect(writeFile).toHaveBeenCalledTimes(2)
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ files: ['file:///cache/sketch-1.png', 'file:///cache/sketch.pdf'] }))
+  })
+
+  it('treats a closed sheet as cancelled', async () => {
+    const s = createShare({ native: false, nav: { share: () => Promise.reject(Object.assign(new Error('x'), { name: 'AbortError' })), canShare: () => true } })
+    await expect(s.shareFiles({ files: [png(1)] })).resolves.toBe('cancelled')
+  })
+})

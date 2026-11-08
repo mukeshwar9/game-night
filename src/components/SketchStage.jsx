@@ -250,23 +250,61 @@ export function Podium({ rows, players, mySeat }) {
   )
 }
 
-export function Gallery({ entries }) {
+// The match's drawings, swipeable. Each card: the picture (tap to open the
+// viewer), the word, the artist, its hearts and SHARE; the header has SHARE ALL
+// (S4). `sharingId` is the card whose SHARE is busy.
+export function Gallery({ entries, hearts = {}, onOpen, onShare, sharingId = null, onShareAll, shareAllBusy = false }) {
   if (!entries || entries.length === 0) return null
   return (
     <section className="space-y-1.5" aria-label="This match's drawings" data-testid="sketch-gallery">
-      <p className="font-pixel text-[9px] tracking-widest text-retro-dim">THIS MATCH&apos;S DRAWINGS</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-pixel text-[9px] tracking-widest text-retro-dim">THIS MATCH&apos;S DRAWINGS</p>
+        {onShareAll && entries.length > 1 && (
+          <button
+            type="button"
+            onClick={onShareAll}
+            disabled={shareAllBusy}
+            className="min-h-11 rounded border border-retro-cta px-3 font-pixel text-[8px] text-retro-cta transition press disabled:opacity-50"
+          >
+            SHARE ALL {entries.length}
+          </button>
+        )}
+      </div>
       <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
         {entries.map(e => (
-          <li key={e.id} className="w-[72%] max-w-[260px] shrink-0 snap-center space-y-1 rounded border-2 border-retro-border bg-retro-card p-1.5">
-            <DrawingThumb strokes={e.strokes} fills={e.fills} className="block rounded-sm" label={`${e.word}, drawn by ${e.artistName}`} />
-            <p className="truncate font-pixel text-[10px] text-retro-text">{String(e.word).toUpperCase()}</p>
-            <p className="truncate font-pixel text-[8px] text-retro-dim">
-              {String(e.artistName).toUpperCase()}{tierMultiplier(e.tier) > 1 ? ` · ×${tierMultiplier(e.tier)}` : ''}
-            </p>
+          <li key={e.id} className="w-[72%] max-w-[260px] shrink-0 snap-center space-y-1 rounded border-2 border-retro-border bg-retro-card p-1.5" data-testid="sketch-gallery-card">
+            {onOpen ? (
+              <button type="button" onClick={() => onOpen(e)} className="block w-full rounded-sm press-card" aria-label={`Open ${e.word}, drawn by ${e.artistName}`}>
+                <DrawingThumb strokes={e.strokes} fills={e.fills} className="block rounded-sm" label={`${e.word}, drawn by ${e.artistName}`} />
+              </button>
+            ) : (
+              <DrawingThumb strokes={e.strokes} fills={e.fills} className="block rounded-sm" label={`${e.word}, drawn by ${e.artistName}`} />
+            )}
+            <div className="flex items-end justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate font-pixel text-[10px] text-retro-text">{String(e.word).toUpperCase()}</p>
+                <p className="truncate font-pixel text-[8px] text-retro-dim">
+                  {String(e.artistName).toUpperCase()}{tierMultiplier(e.tier) > 1 ? ` · ×${tierMultiplier(e.tier)}` : ''}
+                  {hearts[e.id] > 0 && <span className="text-retro-p3"> · ♥ {hearts[e.id]}</span>}
+                </p>
+              </div>
+              {onShare && (
+                <button
+                  type="button"
+                  onClick={() => onShare(e)}
+                  disabled={sharingId != null}
+                  className="min-h-11 shrink-0 rounded border border-retro-border px-2.5 font-pixel text-[8px] text-retro-text transition press disabled:opacity-50"
+                >
+                  {sharingId === e.id ? 'SHARING…' : 'SHARE'}
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
-      {entries.length > 1 && <p className="text-center font-pixel text-[8px] text-retro-dim">{entries.length} DRAWINGS · SWIPE</p>}
+      <p className="text-center font-pixel text-[8px] leading-relaxed text-retro-dim">
+        {entries.length} DRAWING{entries.length === 1 ? '' : 'S'}{entries.length > 1 ? ' · SWIPE' : ''} · THEY STAY ON THIS PHONE UNTIL YOU CLOSE THE TAB
+      </p>
     </section>
   )
 }
