@@ -1,35 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import MancalaBoard from '../components/MancalaBoard'
-import { INITIAL_PITS, applyMancalaMove, legalPits } from '../lib/mancalaLogic'
+import { INITIAL_PITS, applyMancalaMove } from '../lib/mancalaLogic'
+import { pickMancalaPit } from '../lib/mancalaBot'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
-// Solo MANCALA vs a greedy bot — fully local, no Firebase.
+// Solo MANCALA vs a bot — fully local, no Firebase. The CPU level (mancalaBot.js)
+// is picked above the board and remembered.
 
 const BOT_DELAY_MS = 700
-
-function botPick(pits) {
-  const legal = legalPits(pits, 'O')
-  if (!legal.length) return null
-  let best = null
-  let bestScore = -Infinity
-  for (const pit of legal) {
-    const moved = applyMancalaMove(pits, pit, 'O')
-    if (!moved) continue
-    let score = moved.pits[13] * 10
-    if (moved.extraTurn) score += 25
-    score += moved.captured * 8
-    score += Math.random() * 3 // tie-break noise
-    if (score > bestScore) { bestScore = score; best = pit }
-  }
-  return best
-}
 
 export default function MancalaDemo() {
   const [pits, setPits] = useState(INITIAL_PITS)
   const [turn, setTurn] = useState('me')
   const [last, setLast] = useState(null)
   const [banner, setBanner] = useState(null)
+  const [level, setLevel] = useBotDifficulty('mancala', BOT_LEVEL_IDS)
   const timerRef = useRef(null)
 
   const done = pits[6] + pits[13] === 48
@@ -75,7 +64,7 @@ export default function MancalaDemo() {
     if (turn !== 'bot' || done) return
     timerRef.current = setTimeout(() => {
       setPits(current => {
-        const pit = botPick(current)
+        const pit = pickMancalaPit(current, 'O', level)
         if (pit == null) return current
         const before = current[pit]
         const moved = applyMancalaMove(current, pit, 'O')
@@ -96,7 +85,7 @@ export default function MancalaDemo() {
       })
     }, BOT_DELAY_MS)
     return () => clearTimeout(timerRef.current)
-  }, [turn, done, pits])
+  }, [turn, done, pits, level])
 
   useEffect(() => {
     if (!banner) return
@@ -113,6 +102,7 @@ export default function MancalaDemo() {
 
   return (
     <div className="space-y-4">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       {/* Score strip */}
       <div className="flex items-center justify-between font-pixel text-[9px]">
         <span className={cn('text-retro-p1', myTurn && 'text-glow-p1')}>

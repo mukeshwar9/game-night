@@ -6,34 +6,20 @@ import {
   getCheckersWinner,
   INITIAL_CHECKERS,
 } from "../lib/checkersLogic";
+import { pickCheckersMove } from "../lib/checkersBot";
 import { sounds } from "../lib/sounds";
 import { cn } from "@/lib/utils";
+import CpuDifficultyChips from "../components/CpuDifficultyChips";
+import useBotDifficulty from "../hooks/useBotDifficulty";
+import { BOT_LEVEL_IDS } from "../lib/botLevels";
 
-// Solo CHECKERS vs a greedy bot — fully local, no Firebase.
+// Solo CHECKERS vs a bot — fully local, no Firebase. The CPU level (checkersBot.js)
+// is picked above the board and remembered.
 
 const BOT_DELAY_MS = 700;
 
 function pieceCount(board, side) {
   return board.filter((p) => p && p.toUpperCase() === side).length;
-}
-
-// Greedy O: max captures, then crowning, then avoid landing where X can
-// jump back next turn; ties broken by a little randomness.
-function pickBotMove(board) {
-  const moves = getLegalMoves(board, "O");
-  if (!moves.length) return null;
-  const scored = moves.map((m) => {
-    const applied = applyCheckersMove(board, m.from, m.to);
-    let score = m.captures.length * 100 + (m.promotes ? 50 : 0);
-    const hunted =
-      applied &&
-      getLegalMoves(applied.board, "X").some((r) => r.captures.includes(m.to));
-    if (hunted) score -= m.captures.length > 0 ? 10 : 40;
-    score += Math.random() * 5;
-    return { move: m, score };
-  });
-  scored.sort((a, b) => b.score - a.score);
-  return scored[0].move;
 }
 
 export default function CheckersDemo() {
@@ -44,6 +30,7 @@ export default function CheckersDemo() {
   const [banner, setBanner] = useState(null);
   const [result, setResult] = useState(null); // null | 'win' | 'lose' | 'draw'
   const botTimerRef = useRef(null);
+  const [level, setLevel] = useBotDifficulty("checkers", BOT_LEVEL_IDS);
 
   const done = result !== null;
   const myTurn = turn === "me" && !done;
@@ -67,7 +54,7 @@ export default function CheckersDemo() {
   useEffect(() => {
     if (turn !== "bot" || done) return;
     botTimerRef.current = setTimeout(() => {
-      const move = pickBotMove(board);
+      const move = pickCheckersMove(board, "O", level);
       if (!move) {
         setResult("win");
         sounds.win();
@@ -96,7 +83,7 @@ export default function CheckersDemo() {
       setTurn("me");
     }, BOT_DELAY_MS);
     return () => clearTimeout(botTimerRef.current);
-  }, [turn, done, board]);
+  }, [turn, done, board, level]);
 
   useEffect(() => () => clearTimeout(botTimerRef.current), []);
 
@@ -155,6 +142,7 @@ export default function CheckersDemo() {
 
   return (
     <div className="space-y-4">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       {/* Status */}
       <p className={cn(
         "font-pixel text-[10px] text-center",
