@@ -11,6 +11,7 @@ import {
 } from '../lib/airhockeyLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import useBotDifficulty from '../hooks/useBotDifficulty'
 import { readBotRecord, recordBotResult, easierLevel, formatLevelRecord, describeLevelRecord } from '../lib/botRecordLogic'
 
 // Solo AIR HOCKEY vs reaction-delay AI — the physics-tuning environment.
@@ -21,11 +22,11 @@ const KEY_SPEED = 0.012 // court units per tick while a key is held
 
 export default function AirHockeyDemo() {
   const [state, setState] = useState(createState)
-  const [difficulty, setDifficulty] = useState('normal')
+  const [difficulty, setDifficulty] = useBotDifficulty('airhockey', DIFFICULTIES)
   // Your W–L against each level. A table counts under the easiest level picked
   // after its first goal, so a late switch to HARD can't claim a HARD win.
   const [record, setRecord] = useState(() => readBotRecord('airhockey'))
-  const countedLevelRef = useRef('normal')
+  const countedLevelRef = useRef(difficulty)
   const pickDifficulty = (d) => {
     setDifficulty(d)
     const { X, O } = state.score
@@ -157,6 +158,29 @@ export default function AirHockeyDemo() {
 
   return (
     <div className="space-y-3">
+      {/* CPU row: same chips, label and placement as the board-game demos (with your record per level) */}
+      <div role="group" aria-label="CPU difficulty" className="flex items-center justify-center gap-1.5">
+        <span className="font-pixel text-[8px] text-retro-dim tracking-widest mr-1">CPU</span>
+        {DIFFICULTIES.map(d => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => pickDifficulty(d)}
+            aria-pressed={difficulty === d}
+            aria-label={`${d}, your record ${describeLevelRecord(record[d])}`}
+            className={cn(
+              'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition press flex flex-col items-center justify-center gap-1',
+              difficulty === d
+                ? 'border-retro-cta text-retro-cta shadow-neon-cta'
+                : 'border-retro-border text-retro-dim hover:border-retro-p1/50',
+            )}
+          >
+            <span>{d}</span>
+            {formatLevelRecord(record[d]) && <span className="text-[7px] text-retro-dim">{formatLevelRecord(record[d])}</span>}
+          </button>
+        ))}
+      </div>
+
       {/* Score strip */}
       <div className="flex items-center justify-between font-pixel text-[10px]">
         <span className="text-retro-p1">YOU {state.score.X}</span>
@@ -183,26 +207,6 @@ export default function AirHockeyDemo() {
         </div>
       ) : (
         <>
-          {/* Difficulty picker */}
-          <div className="flex justify-center gap-1.5">
-            {DIFFICULTIES.map(d => (
-              <button
-                key={d}
-                onClick={() => pickDifficulty(d)}
-                aria-pressed={difficulty === d}
-                aria-label={`${d}, your record ${describeLevelRecord(record[d])}`}
-                className={cn(
-                  'px-3 py-1 font-pixel text-[8px] uppercase rounded border-2 transition press flex flex-col items-center gap-0.5',
-                  difficulty === d
-                    ? 'border-retro-cta text-retro-cta shadow-neon-cta'
-                    : 'border-retro-border text-retro-dim hover:border-retro-p1/50',
-                )}
-              >
-                <span>{d}</span>
-                {formatLevelRecord(record[d]) && <span className="text-[7px] text-retro-dim">{formatLevelRecord(record[d])}</span>}
-              </button>
-            ))}
-          </div>
           <p className="font-mono text-[10px] text-retro-dim text-center leading-relaxed">
             DRAG YOUR MALLET · DEFEND THE BOTTOM GOAL<br />
             <span className="kbd-hint">ARROWS / WASD ALSO WORK</span>
