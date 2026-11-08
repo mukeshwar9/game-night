@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { ref, runTransaction } from 'firebase/database'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { push, ref, runTransaction } from 'firebase/database'
 import { toast } from 'sonner'
 import { db } from '../lib/firebase'
 import { CoopEndActions, CoopTeamBar } from '../components/CoopShell'
 import GameSwitcher from '../components/GameSwitcher'
 import UpdraftArena from '../components/UpdraftArena'
-import { ThumbBand } from '../components/UpdraftControls'
+import { HudPill, ThumbRail, UpdraftHud } from '../components/UpdraftControls'
+import UpdraftIcon from '../components/UpdraftIcons'
+import UpdraftStage, { EnterStageButton } from '../components/UpdraftStage'
 import TouchCoachmark from '../components/TouchCoachmark'
+import useOwnAvatar from '../hooks/useOwnAvatar'
 import useServerClock from '../hooks/useServerClock'
 import { useUpdraftControls } from '../hooks/useUpdraftControls'
 import { settleRoom, useHiddenFall, useRoomWriter, useSeatSync, useUpdraftAutoStart } from '../hooks/useUpdraftRoom'
-import { playRunSounds, useUpdraftRun } from '../hooks/useUpdraftRun'
+import { playRunSounds, useNotice, useUpdraftRun } from '../hooks/useUpdraftRun'
 import {
   COOP_GOAL_Y, COOP_LIMIT_MS, COOP_LIVES, COUNTDOWN_MS, VIEW_H, checkpointFor, closedGateAbove, coopOutcome,
-  createRun, generateTower, keysEarned, normalizeKeys, normalizeSeat, respawnRun, toMetres,
+  createRun, generateTower, keysEarned, normalizeHazards, normalizeKeys, normalizeSeat, respawnRun, toMetres,
 } from '../lib/updraftLogic'
 import { sounds } from '../lib/sounds'
 
@@ -23,7 +26,17 @@ import { sounds } from '../lib/sounds'
 // shares COOP_LIVES falls — a fall respawns you at your last gate — and wins
 // together when both reach the flag before the timer runs out. Keys land in
 // `updraft/keys/{seat}`; lives and the run's end are whole-room transactions
-// (a clear credits both seats, the co-op scoring precedent).
+// (a clear credits both seats, the co-op scoring precedent). A grabbed BOOST
+// rides `updraft/haz/{partner}` and turns the partner's next landing into a
+// spring launch. Like the versus race, the climb takes the whole screen
+// (UpdraftStage), with both faces on the 0–300 m side rail.
+
+const COOP_PICKUPS = ['boost']
+
+function sendBoost(gameId, to) {
+  push(ref(db, `games/${gameId}/updraft/haz/${to}`), { k: 'boost', at: Date.now() })
+    .catch(() => toast.error('SYNC FAILED — CHECK CONNECTION'))
+}
 
 const RESPAWN_MS = 900
 
@@ -59,14 +72,22 @@ export default function UpdraftCoopGame({
   useEffect(() => { partnerKeysRef.current = keys[op] })
 
   const respawnTimer = useRef(null)
+  const [notice, showNotice] = useNotice()
+  const [staged, setStaged] = useState(true)
+  const myAvatar = useOwnAvatar()
   const climber = useUpdraftRun({
     tower,
     active: isRacing && !isSpectator,
     readInput: controls.readInput,
-    envFor: (r) => ({ goal: COOP_GOAL_Y, ceiling: closedGateAbove(tower, r.y, partnerKeysRef.current) }),
+    envFor: (r) => ({ goal: COOP_GOAL_Y, pickups: COOP_PICKUPS, ceiling: closedGateAbove(tower, r.y, partnerKeysRef.current) }),
     onEvents: (events) => {
       playRunSounds(events, sounds)
       if (events.some(e => e.type === 'fall')) loseLife()
+      for (const e of events) {
+        if (e.type !== 'pickup' || e.kind !== 'boost') continue
+        showNotice(`BOOST SENT TO ${playerName(game, op)}`)
+        sendBoost(gameId, op)
+      }
     },
   })
   const run = climber.run
@@ -89,9 +110,11 @@ export default function UpdraftCoopGame({
   // New run (new seed): a fresh climber. A reload mid-run starts back at the
   // last gate passed.
   const seenSeed = useRef(null)
+  const handled = useRef(new Set())
   useEffect(() => {
     if (!tower || seenSeed.current === seed) return
     seenSeed.current = seed
+    handled.current = new Set()
     clearTimeout(respawnTimer.current)
     const mine = normalizeSeat(game.updraft?.[me])
     if (mine.top) climber.setRun({ ...createRun(), best: mine.best, top: true, y: mine.y })
@@ -108,6 +131,29 @@ export default function UpdraftCoopGame({
       loseLife()
     },
   })
+
+  // BOOSTs from the partner: each pushed id arms one spring landing, once.
+  const boosts = normalizeHazards(u.haz?.[me]).filter(h => h.k === 'boost')
+  useEffect(() => {
+    if (!isRacing || isSpectator) return
+    for (const h of boosts) {
+      if (handled.current.has(h.id)) continue
+      handled.current.add(h.id)
+      const r = climber.runRef.current
+      if (r.top) continue
+      climber.setRun({ ...r, boost: (r.boost ?? 0) + 1 })
+      sounds.hit(3)
+      showNotice(`${playerName(game, op)} SENT A BOOST`)
+    }
+  })
+
+  // A gate of mine lifting (the partner's key landed): the portcullis rattles.
+  const openGates = tower && !isSpectator ? tower.gates.filter((_, i) => keys[op][i + 1]).length : 0
+  const lastOpen = useRef(0)
+  useEffect(() => {
+    if (openGates > lastOpen.current && isRacing) sounds.rattle()
+    lastOpen.current = openGates
+  }, [openGates, isRacing])
 
   // Publish every key I have earned (grabbed, or its gate climbed past).
   const earned = tower && !isSpectator ? keysEarned(tower, run) : []
@@ -143,12 +189,12 @@ export default function UpdraftCoopGame({
     }, 'RUN RESULT FAILED — CHECK CONNECTION')
   }, [outcome, isSpectator, game.status, gameId, seed])
 
-  if (!tower) return <p className="text-center font-pixel text-[9px] text-retro-dim">GET READY…</p>
+  if (!tower) return <p className="text-center font-pixel text-[10px] text-retro-dim">GET READY…</p>
 
   const heights = isSpectator ? { X: remote.X.best, O: remote.O.best } : { [me]: run.best, [op]: remote[op].best }
   const remaining = liveAt != null ? Math.max(0, Math.ceil((liveAt + COOP_LIMIT_MS - now) / 1000)) : null
-  const clock = remaining != null ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}` : '3:00'
-  const hearts = '♥'.repeat(Math.max(0, lives)) + '♡'.repeat(Math.max(0, COOP_LIVES - lives))
+  const clockSecs = remaining ?? COOP_LIMIT_MS / 1000
+  const clock = `${Math.floor(clockSecs / 60)}:${String(clockSecs % 60).padStart(2, '0')}`
   const cleared = Math.min(game.scores?.X || 0, game.scores?.O || 0)
   const partnerName = playerName(game, op)
 
@@ -158,10 +204,15 @@ export default function UpdraftCoopGame({
     ? { ...createRun(), x: Number(u[viewSide]?.x) || 0, y: remote[viewSide].y, best: remote[viewSide].best, camY: Math.max(-80, remote[viewSide].y - VIEW_H * 0.4) }
     : run
   const gateKeys = keys[otherSide]
+  // The partner climbs an identical tower, so their distance to key g is
+  // their synced height against that key's height here.
+  const keyGap = (i) => toMetres((tower.keys[i]?.y ?? 0) - remote[otherSide].y)
   const gates = tower.gates.map((gy, i) => ({
     y: gy,
     open: !!gateKeys[i + 1],
-    label: gateKeys[i + 1] ? `GATE ${i + 1} OPEN` : `GATE ${i + 1} · ${isSpectator ? playerName(game, otherSide) : partnerName} HAS THE KEY`,
+    label: gateKeys[i + 1]
+      ? `GATE ${i + 1} OPEN`
+      : `GATE ${i + 1} · ${playerName(game, otherSide)} ${keyGap(i) > 0 ? `${keyGap(i)}m FROM KEY` : 'AT THE KEY'}`,
   }))
   const liveMsg = `Team heights: X ${toMetres(heights.X)} metres, O ${toMetres(heights.O)} metres. ${lives} lives left.`
 
@@ -171,28 +222,43 @@ export default function UpdraftCoopGame({
       const secs = Math.max(1, Math.ceil((liveAt - now) / 1000))
       return (
         <>
-          <p className="font-pixel text-4xl text-retro-cta text-glow-cta tabular-nums" aria-live="assertive">{secs}</p>
-          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
-            BOTH REACH {toMetres(COOP_GOAL_Y)}m<br />YOUR ⚷ KEYS OPEN {partnerName}&apos;S GATES
+          <p className="font-pixel text-5xl text-retro-cta text-glow-cta tabular-nums" aria-live="assertive">{secs}</p>
+          <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
+            BOTH REACH {toMetres(COOP_GOAL_Y)}m<br />YOUR <UpdraftIcon name="key" className="text-retro-win" /> KEYS OPEN {partnerName}&apos;S GATES
           </p>
         </>
       )
     }
     if (startedAt == null) {
       return (
-        <p className="font-pixel text-[9px] text-retro-dim leading-relaxed">
+        <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
           {!bothSeated ? 'WAITING FOR A PARTNER' : !opponentOnline && !isSpectator ? 'WAITING FOR PARTNER TO RECONNECT' : 'GET READY…'}
         </p>
       )
     }
     if (!isSpectator && run.top && !remote[op].top) {
-      return <p className="font-pixel text-[9px] text-retro-win leading-relaxed">YOU MADE IT!<br />CHEER {partnerName} ON</p>
+      return <p className="font-pixel text-[10px] text-retro-win leading-relaxed">YOU MADE IT!<br />CHEER {partnerName} ON</p>
     }
-    if (!isSpectator && run.dead) return <p className="font-pixel text-[9px] text-retro-danger">FELL — BACK TO YOUR LAST GATE</p>
+    if (!isSpectator && run.dead) return <p className="font-pixel text-[10px] text-retro-danger">FELL — BACK TO YOUR LAST GATE</p>
     return null
   })()
 
-  const arena = (
+  const faceOf = (sym) => game.players?.[sym]?.avatar || (sym === me && !isSpectator ? myAvatar : null)
+  const avatars = { X: faceOf('X'), O: faceOf('O') }
+  const hud = (
+    <UpdraftHud tilt={controls.tilt} setTilt={controls.setTilt} onLeave={staged ? () => setStaged(false) : null}>
+      <HudPill className="flex gap-0.5 border-retro-cta text-[10px]" aria-label={`${lives} lives`}>
+        {Array.from({ length: COOP_LIVES }, (_, i) => (
+          <UpdraftIcon key={i} name="heart" className={i < lives ? 'text-retro-danger' : 'text-retro-border'} />
+        ))}
+      </HudPill>
+      <HudPill className="text-retro-text">{clock}</HudPill>
+      {isRacing && !opponentOnline && <HudPill className="text-retro-dim">PARTNER OFFLINE</HudPill>}
+    </UpdraftHud>
+  )
+
+  // The arena for a given stage box (null: inline in the room column).
+  const arenaFor = (size) => (
     <UpdraftArena
       ref={arenaRef}
       tower={tower}
@@ -200,19 +266,25 @@ export default function UpdraftCoopGame({
       mySide={viewSide}
       ghost={{ x: Number(u[otherSide]?.x) || 0, y: remote[otherSide].y, dead: remote[otherSide].dead }}
       ghostSide={otherSide}
+      ghostTag={playerName(game, otherSide)}
       goal={COOP_GOAL_Y}
       gates={gates}
       keysOn={!isSpectator}
+      pickups={isSpectator ? [] : COOP_PICKUPS}
+      notice={isSpectator ? null : notice}
+      avatars={avatars}
+      size={size}
       rail={[{ side: 'X', y: heights.X }, { side: 'O', y: heights.O }]}
-      hud={(
+      hud={isSpectator ? null : hud}
+      foot={isSpectator ? null : (
         <>
-          <span className="px-1.5 py-1 rounded border border-retro-cta text-retro-cta bg-retro-deep/70" aria-label={`${lives} lives`}>{hearts}</span>
-          <span className="px-1.5 py-1 rounded border border-retro-border text-retro-text bg-retro-deep/70 tabular-nums mr-5">{clock}</span>
+          <div className="px-6 pb-1"><TouchCoachmark gameKey="updraft" gesture="drag" text="DRAG ANYWHERE TO STEER" active={isCountdown} /></div>
+          <ThumbRail x={run.x} />
         </>
       )}
       label={`Updraft co-op. ${liveMsg}`}
       overlay={preRace && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-deep/80 text-center px-6">{preRace}</div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-deep/60 text-center px-6 pointer-events-none">{preRace}</div>
       )}
     />
   )
@@ -232,7 +304,7 @@ export default function UpdraftCoopGame({
     return (
       <div className="space-y-3 max-w-sm mx-auto">
         {teamBar}
-        <p className="text-center font-pixel text-[9px] text-retro-cta leading-relaxed">
+        <p className="text-center font-pixel text-[10px] text-retro-cta leading-relaxed">
           {u.result === 'cleared' ? 'BOTH OF YOU REACHED THE FLAG!' : lives <= 0 ? 'OUT OF LIVES' : 'TIME RAN OUT'}
           <br />X {toMetres(heights.X)}m · O {toMetres(heights.O)}m
         </p>
@@ -248,7 +320,7 @@ export default function UpdraftCoopGame({
     return (
       <div className="space-y-3 max-w-sm mx-auto">
         {teamBar}
-        {arena}
+        <div ref={touchRef} className="touch-none">{arenaFor(null)}</div>
         <p className="sr-only" aria-live="polite">{liveMsg}</p>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
@@ -257,15 +329,12 @@ export default function UpdraftCoopGame({
 
   return (
     <div className="space-y-2 max-w-sm mx-auto">
-      {teamBar}
-      <div ref={touchRef} className="space-y-2 touch-none">
-        {arena}
-        <TouchCoachmark gameKey="updraft" gesture="drag" text="DRAG LEFT/RIGHT TO STEER" active={isCountdown} />
-        <ThumbBand tilt={controls.tilt} setTilt={controls.setTilt} />
-      </div>
+      {!staged && teamBar}
+      <UpdraftStage staged={staged} touchRef={touchRef} label="UPDRAFT CO-OP">{arenaFor}</UpdraftStage>
+      {!staged && <EnterStageButton onClick={() => setStaged(true)} />}
       <p className="sr-only" aria-live="polite">{liveMsg}</p>
-      {isRacing && !opponentOnline && (
-        <p className="text-center font-pixel text-[8px] text-retro-dim">PARTNER OFFLINE — THEIR GATES WAIT FOR THEM</p>
+      {isRacing && !opponentOnline && !staged && (
+        <p className="text-center font-pixel text-[10px] text-retro-dim">PARTNER OFFLINE — THEIR GATES WAIT FOR THEM</p>
       )}
     </div>
   )

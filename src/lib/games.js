@@ -930,7 +930,7 @@ export const GAME_TYPES = [
     durationMin: 4, tags: ['quick', 'frantic', 'skill'], solo: true,
     classicLabel: 'VERSUS',
     classicBlurb: 'Race your rival up the same tower. First to 400 m wins; CHAOS pickups sabotage them.',
-    custom: true, realtime: true,
+    custom: true, realtime: true, ownStage: true,
     Page: lazyWithRetry(() => import('../pages/UpdraftGame')),
     matchTarget: UPDRAFT_MATCH_TARGET,
     hidePlayerCards: true,
@@ -945,7 +945,7 @@ export const GAME_TYPES = [
     variantBlurb: 'Twin towers: your keys open your partner\'s gates. Three shared lives, both reach 300 m to win.',
     // Co-op: both seats share the result (runs cleared credit both scores).
     durationMin: 4, tags: ['frantic', 'skill'], solo: false,
-    custom: true, realtime: true, coop: true, hidePlayerCards: true,
+    custom: true, realtime: true, ownStage: true, coop: true, hidePlayerCards: true,
     Page: lazyWithRetry(() => import('../pages/UpdraftCoopGame')),
   },
   {

@@ -1,5 +1,7 @@
 # PRD — Papi Jump (retro doodle-jump race)
 
+> **Superseded.** This game shipped as **UPDRAFT** (`updraft` / `updraftduo`; `src/lib/updraftLogic.js`, `src/pages/UpdraftGame.jsx`, `src/pages/UpdraftCoopGame.jsx`). The name, numbers and type below are the original pitch, not the game; the HOW TO PLAY sheet (`src/lib/rules.js`) is the source of truth.
+
 **One-liner:** both players climb the identical seeded tower simultaneously — highest altitude in 90 seconds (or first to 2,000 m) wins.
 
 | | |

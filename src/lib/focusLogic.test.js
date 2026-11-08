@@ -68,6 +68,10 @@ describe('canFocusPage', () => {
     expect(canFocusPage({ focusPage: true })).toBe(false)
     expect(canFocusPage(undefined)).toBe(false)
   })
+  it('leaves a page that runs its own stage alone (UPDRAFT)', () => {
+    expect(canFocusPage({ custom: true, realtime: true, ownStage: true })).toBe(false)
+    for (const t of ['updraft', 'updraftduo']) expect(canFocusPage(GAME_TYPES.find(g => g.type === t)), t).toBe(false)
+  })
   it('puts every new real-time and table game from this round in focus mode', () => {
     for (const t of ['bonkbuggies', 'fenderbender', 'puckrush', 'stickyfingers', 'airhockey', 'yacht', 'faceoff', 'chopchop', 'lazysusan', 'darts', 'bamboozle']) {
       expect(canFocusPage(GAME_TYPES.find(g => g.type === t)), t).toBe(true)

@@ -42,6 +42,14 @@ describe('UPDRAFT', () => {
     await assertFails(as('alice').ref('games/g1/updraft/haz/O/h1/k').set('fog'))
   })
 
+  it('sends a BOOST only in co-op, and only at the partner', async () => {
+    await put(room())
+    await assertFails(as('alice').ref('games/g1/updraft/haz/O/b1').set({ k: 'boost', at: 5 }))
+    await put(room({ seed: 7, startedAt: 1000, lives: 3 }, 'updraftduo'))
+    await assertSucceeds(as('alice').ref('games/g1/updraft/haz/O/b2').set({ k: 'boost', at: 5 }))
+    await assertFails(as('alice').ref('games/g1/updraft/haz/X/b3').set({ k: 'boost', at: 5 }))
+  })
+
   it('lets a co-op seat publish only its own keys', async () => {
     await put(room({ seed: 7, startedAt: 1000, lives: 3 }, 'updraftduo'))
     await assertSucceeds(as('bob').ref('games/g1/updraft/keys/O/2').set(true))

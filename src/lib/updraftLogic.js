@@ -18,7 +18,7 @@ export const HOPPER_W = 28
 export const HOPPER_H = 28
 export const PLAT_W = 64
 export const PLAT_H = 10
-export const UNITS_PER_M = 10
+export const UNITS_PER_M = 20
 
 export const GRAVITY = 1500
 export const JUMP_V = 760
@@ -28,8 +28,8 @@ export const MOVE_SPEED = 300
 export const STEP_DT = 1 / 120
 /** Highest a normal bounce can lift the hopper (v² / 2g ≈ 192 units). */
 export const MAX_JUMP_H = (JUMP_V * JUMP_V) / (2 * GRAVITY)
-/** Widest gap the guaranteed platform chain ever leaves. */
-export const MAX_CHAIN_GAP = 160
+/** Widest gap the guaranteed platform chain ever leaves (reached near the summit). */
+export const MAX_CHAIN_GAP = 182
 
 // Room-level config lives in updraftConfig.js (the registry and matchRules
 // import it without pulling the sim into the entry bundle).
@@ -40,24 +40,49 @@ export {
 // Versus (Ghost Race)
 export const SUMMIT_M = 400
 export const SUMMIT_Y = SUMMIT_M * UNITS_PER_M
-export const ROUND_LIMIT_MS = 120_000
+export const ROUND_LIMIT_MS = 75_000
 export const COUNTDOWN_MS = 3000
 
 // CHAOS-mode hazards: a grabbed pickup sends one to the rival.
 export const HAZARD_KINDS = /** @type {const} */ (['crumble', 'gust', 'fog'])
+/** Everything one seat can send the other through `updraft/haz`: the hazards, plus the co-op BOOST. */
+export const SEND_KINDS = /** @type {const} */ ([...HAZARD_KINDS, 'boost'])
 export const HAZARD_TELEGRAPH_MS = 1000
 export const GUST_MS = 2000
 export const FOG_MS = 3000
 export const CRUMBLE_COUNT = 3
+/** A cursed platform's bounce, as a share of a normal bounce's height. */
+export const CURSED_BOUNCE = 0.6
+export const CURSED_V = JUMP_V * Math.sqrt(CURSED_BOUNCE)
 export const GUST_DRIFT = 140
-export const PICKUP_EVERY = 600
+export const PICKUP_EVERY = 900
 export const PICKUP_SIZE = 20
+
+// FEATHER pickups (both versus modes): a rare self-boost, a FEATHER_MS float.
+export const FEATHER_EVERY = 2500
+export const FEATHER_MS = 2000
+const FEATHER_GRAVITY = 0.35
+const FEATHER_LIFT_V = 0.8 * JUMP_V
+
+// UPDRAFT vents: columns of rising air that lift whoever flies through them.
+export const VENT_W = 56
+export const VENT_H = 220
+export const VENT_START = 600
+const VENT_LIFT = 3600
+const VENT_MAX_V = 900
+
+// Camera: a critically damped follow that keeps the hopper at CAM_FRACTION of
+// the screen, looking further ahead (CAM_LOOKAHEAD) while a launch is rising.
+// It never scrolls down; falling below the screen ends the climb.
+export const CAM_FRACTION = 0.4
+export const CAM_LOOKAHEAD = 0.3
+const CAM_OMEGA = 10
 
 // Co-op (Twin Towers)
 export const COOP_GOAL_M = 300
 export const COOP_GOAL_Y = COOP_GOAL_M * UNITS_PER_M
-export const GATE_EVERY = 500
-export const COOP_LIMIT_MS = 180_000
+export const GATE_EVERY = 60 * UNITS_PER_M
+export const COOP_LIMIT_MS = 120_000
 
 // Input mapping
 const DRAG_GAIN = 36        // world units of finger offset for full speed
@@ -82,9 +107,11 @@ export function seededRng(seed) {
 /**
  * @typedef {{ id: number, x: number, y: number, kind: 'normal'|'moving'|'crumble'|'spring',
  *   chain: boolean, amp?: number, speed?: number, phase?: number }} Platform
- * @typedef {{ id: number, x: number, y: number }} Pickup
+ * @typedef {'gem'|'feather'|'boost'} PickupKind
+ * @typedef {{ id: number, x: number, y: number, kind: PickupKind }} Pickup
+ * @typedef {{ id: number, x: number, y: number }} Vent   x: left edge, y: bottom of the column
  * @typedef {{ gate: number, x: number, y: number }} GateKey
- * @typedef {{ seed: number, top: number, platforms: Platform[], pickups: Pickup[],
+ * @typedef {{ seed: number, top: number, platforms: Platform[], pickups: Pickup[], vents: Vent[],
  *   gates: number[], keys: GateKey[] }} Tower
  */
 
@@ -92,11 +119,13 @@ export function seededRng(seed) {
  * Deterministically build the tower for `seed`, up to `top` (plus a screen of
  * headroom). A chain of solid platforms (normal / moving / spring) never
  * leaves a gap wider than MAX_CHAIN_GAP, so every tower is climbable; crumble
- * platforms are decoys between chain steps and never the only way up. Gaps
- * widen and moving platforms get likelier with height.
+ * platforms are decoys between chain steps and never the only way up. With
+ * height the gaps widen toward MAX_CHAIN_GAP, moving platforms and decoys get
+ * likelier and springs rarer.
  * `coop: true` adds a gate every GATE_EVERY units below the goal, each with
- * its key just under it. Pickups come from a separate stream so they never
- * change the platform layout.
+ * its key just under it, and turns the gem pickups into BOOSTs. Pickups and
+ * vents come from separate streams so they never change the platform layout;
+ * vents only add lift, so they never make a tower harder.
  * @param {number} seed
  * @param {{ top?: number, coop?: boolean }} [opts]
  * @returns {Tower}
@@ -110,15 +139,16 @@ export function generateTower(seed, { top = SUMMIT_Y, coop = false } = {}) {
   const limit = top + VIEW_H
   while (y < limit) {
     const d = clamp(y / top, 0, 1)
-    const gap = Math.min(MAX_CHAIN_GAP, 60 + d * 70 + rand() * 30)
+    const gap = Math.min(MAX_CHAIN_GAP, 60 + d * 110 + rand() * 25)
     const prevY = y
     y += gap
     const roll = rand()
     const x = rand() * (WORLD_W - PLAT_W)
     /** @type {Platform} */
     const p = { id: id++, x, y: Math.round(y), kind: 'normal', chain: true }
-    if (roll < 0.07) p.kind = 'spring'
-    else if (roll < 0.07 + 0.1 + 0.25 * d) {
+    const spring = 0.05 - 0.035 * d
+    if (roll < spring) p.kind = 'spring'
+    else if (roll < spring + 0.12 + 0.4 * d) {
       p.kind = 'moving'
       p.amp = 30 + rand() * 50
       p.speed = 1 + rand() * 1.2 + d
@@ -126,7 +156,7 @@ export function generateTower(seed, { top = SUMMIT_Y, coop = false } = {}) {
       p.x = clamp(x, p.amp, WORLD_W - PLAT_W - p.amp)
     }
     platforms.push(p)
-    if (rand() < 0.3 + 0.3 * d) {
+    if (rand() < 0.3 + 0.35 * d) {
       platforms.push({ id: id++, x: rand() * (WORLD_W - PLAT_W), y: Math.round(prevY + gap * (0.35 + rand() * 0.3)), kind: 'crumble', chain: false })
     }
   }
@@ -136,11 +166,21 @@ export function generateTower(seed, { top = SUMMIT_Y, coop = false } = {}) {
   const prand = seededRng((seed ^ 0x9e3779b9) >>> 0)
   /** @type {Pickup[]} */
   const pickups = []
-  for (let h = PICKUP_EVERY, pid = 0; h < top; h += PICKUP_EVERY) {
+  let pid = 0
+  const place = (h, kind) => {
     const band = chain.filter(p => p.y >= h - 150 && p.y < h)
-    if (!band.length) continue
+    if (!band.length) return
     const host = band[Math.floor(prand() * band.length)]
-    pickups.push({ id: pid++, x: host.x + PLAT_W / 2, y: host.y + 44 })
+    pickups.push({ id: pid++, x: host.x + PLAT_W / 2, y: host.y + 44, kind })
+  }
+  for (let h = PICKUP_EVERY; h < top; h += PICKUP_EVERY) place(h, coop ? 'boost' : 'gem')
+  if (!coop) for (let h = FEATHER_EVERY; h < top; h += FEATHER_EVERY) place(h + 300, 'feather')
+
+  const vrand = seededRng((seed ^ 0x5bd1e995) >>> 0)
+  /** @type {Vent[]} */
+  const vents = []
+  for (let h = VENT_START + vrand() * 300, vid = 0; h < top - VENT_H; h += 700 + vrand() * 600) {
+    vents.push({ id: vid++, x: Math.round(vrand() * (WORLD_W - VENT_W)), y: Math.round(h) })
   }
 
   /** @type {number[]} */
@@ -156,7 +196,7 @@ export function generateTower(seed, { top = SUMMIT_Y, coop = false } = {}) {
       keys.push({ gate: g, x: (host?.x ?? 0) + PLAT_W / 2, y: Math.min((host?.y ?? 0) + 44, gy - 30) })
     }
   }
-  return { seed, top, platforms, pickups, gates, keys }
+  return { seed, top, platforms, pickups, vents, gates, keys }
 }
 
 /** A moving platform's left edge at sim time `t` (seconds since the round went live). */
@@ -178,32 +218,47 @@ function firstAtOrAbove(platforms, y) {
 }
 
 /**
+ * `camY` is the bottom of the screen in world units (the camera, and the
+ * fall line), `camV` its speed; `lockY` is where a hard-locked camera would
+ * be (reduced motion draws that, never below `camY`). `land` is the last bounce (sim time and kind) for the render-only
+ * squash; `floatUntil` the end of a FEATHER float; `boost` the BOOSTs a co-op
+ * partner sent (each turns the next landing into a spring); `springs` counts
+ * launches (springs, BOOSTs) for the round-end strip.
  * @typedef {{ x: number, y: number, vx: number, vy: number, t: number, best: number,
- *   camY: number, dead: boolean, top: boolean, broken: Record<number, true>,
+ *   camY: number, camV: number, lockY: number, dead: boolean, top: boolean, broken: Record<number, true>,
  *   cursed: Record<number, true>, taken: Record<number, true>, keys: Record<number, true>,
- *   floor: number }} Run
+ *   floor: number, land: { t: number, kind: string, id: number, x: number, y: number } | null,
+ *   floatUntil: number, vent: number | null,
+ *   boost: number, springs: number }} Run
  */
 
 /** A fresh hopper standing on the start platform, about to bounce. */
 /** @returns {Run} */
 export function createRun() {
   return {
-    x: (WORLD_W - HOPPER_W) / 2, y: 0, vx: 0, vy: JUMP_V, t: 0, best: 0, camY: -80,
+    x: (WORLD_W - HOPPER_W) / 2, y: 0, vx: 0, vy: JUMP_V, t: 0, best: 0, camY: -80, camV: 0, lockY: -80,
     dead: false, top: false, broken: {}, cursed: {}, taken: {}, keys: {}, floor: 0,
+    land: null, floatUntil: 0, vent: null, boost: 0, springs: 0,
   }
+}
+
+/** Where the camera floor wants to be for a hopper at `y` moving at `vy`. */
+export function cameraTarget(y, vy) {
+  return y - VIEW_H * (vy > JUMP_V ? CAM_LOOKAHEAD : CAM_FRACTION)
 }
 
 /**
  * Advance one hopper by `dt` seconds. Pure: returns `{ run, events }`.
  * `input` ∈ [-1, 1] steers; `env.drift` (a gust) pushes sideways;
  * `env.ceiling` is a closed co-op gate the hopper cannot rise through;
- * `env.goal` is the height that ends the climb (summit / co-op flag).
- * Events: `bounce` {kind}, `pickup` {id}, `key` {gate}, `fall`, `top`.
+ * `env.goal` is the height that ends the climb (summit / co-op flag);
+ * `env.pickups` lists the pickup kinds this climber collects.
+ * Events: `bounce` {kind}, `pickup` {id, kind}, `vent`, `key` {gate}, `fall`, `top`.
  * @param {Run} run
  * @param {Tower} tower
  * @param {number} input
  * @param {number} dt
- * @param {{ drift?: number, ceiling?: number|null, goal?: number, pickups?: boolean }} [env]
+ * @param {{ drift?: number, ceiling?: number|null, goal?: number, pickups?: readonly string[] }} [env]
  */
 export function stepRun(run, tower, input, dt, env = {}) {
   /** @type {Array<{ type: string, kind?: string, id?: number, gate?: number }>} */
@@ -217,7 +272,17 @@ export function stepRun(run, tower, input, dt, env = {}) {
   if (x < -HOPPER_W / 2) x += WORLD_W
   else if (x > WORLD_W - HOPPER_W / 2) x -= WORLD_W
   next.x = x
-  next.vy = run.vy - GRAVITY * dt
+  const floating = next.t < (run.floatUntil ?? 0)
+  next.vy = run.vy - GRAVITY * (floating ? FEATHER_GRAVITY : 1) * dt
+
+  // A vent lifts whoever is inside its column, up to VENT_MAX_V.
+  const cx = x + HOPPER_W / 2
+  const vent = (tower.vents ?? []).find(v => cx > v.x && cx < v.x + VENT_W && run.y + HOPPER_H > v.y && run.y < v.y + VENT_H)
+  next.vent = vent ? vent.id : null
+  if (vent) {
+    if (next.vy < VENT_MAX_V) next.vy = Math.min(VENT_MAX_V, next.vy + VENT_LIFT * dt)
+    if (run.vent !== vent.id) events.push({ type: 'vent', id: vent.id })
+  }
   let y = run.y + next.vy * dt
 
   const ceiling = env.ceiling ?? null
@@ -234,9 +299,20 @@ export function stepRun(run, tower, input, dt, env = {}) {
       const px = platformX(p, next.t)
       if (x + HOPPER_W > px + 2 && x < px + PLAT_W - 2) {
         y = p.y
-        next.vy = p.kind === 'spring' ? SPRING_V : JUMP_V
-        if (p.kind === 'crumble' || run.cursed[p.id]) next.broken = { ...run.broken, [p.id]: true }
-        events.push({ type: 'bounce', kind: run.cursed[p.id] ? 'crumble' : p.kind })
+        const cursed = !!run.cursed[p.id]
+        /** @type {string} */
+        let kind = cursed ? 'crumble' : p.kind
+        if (cursed) next.vy = CURSED_V
+        else if (p.kind === 'spring') next.vy = SPRING_V
+        else if (run.boost > 0 && p.kind !== 'crumble') {
+          next.vy = SPRING_V
+          next.boost = run.boost - 1
+          kind = 'boost'
+        } else next.vy = JUMP_V
+        if (next.vy === SPRING_V) next.springs = (run.springs ?? 0) + 1
+        if (p.kind === 'crumble' || cursed) next.broken = { ...run.broken, [p.id]: true }
+        next.land = { t: next.t, kind, id: p.id, x: x + HOPPER_W / 2, y: p.y }
+        events.push({ type: 'bounce', kind })
         break
       }
     }
@@ -245,12 +321,16 @@ export function stepRun(run, tower, input, dt, env = {}) {
 
   const hit = (ix, iy) => Math.abs(ix - (x + HOPPER_W / 2)) < (HOPPER_W + PICKUP_SIZE) / 2
     && iy + PICKUP_SIZE / 2 > y && iy - PICKUP_SIZE / 2 < y + HOPPER_H
-  if (env.pickups) {
+  if (env.pickups?.length) {
     for (const k of tower.pickups) {
-      if (next.taken[k.id] || k.y > y + 200 || k.y < y - 200) continue
+      if (next.taken[k.id] || k.y > y + 200 || k.y < y - 200 || !env.pickups.includes(k.kind)) continue
       if (hit(k.x, k.y)) {
         next.taken = { ...next.taken, [k.id]: true }
-        events.push({ type: 'pickup', id: k.id })
+        if (k.kind === 'feather') {
+          next.floatUntil = next.t + FEATHER_MS / 1000
+          next.vy = Math.max(next.vy, FEATHER_LIFT_V)
+        }
+        events.push({ type: 'pickup', id: k.id, kind: k.kind })
       }
     }
   }
@@ -263,7 +343,13 @@ export function stepRun(run, tower, input, dt, env = {}) {
   }
 
   next.best = Math.max(run.best, Math.min(y, goal))
-  next.camY = Math.max(run.camY, y - VIEW_H * 0.4)
+  // Critically damped follow (semi-implicit Euler), never scrolling down.
+  const target = cameraTarget(y, next.vy)
+  const camV = (run.camV ?? 0) + (CAM_OMEGA * CAM_OMEGA * (target - run.camY) - 2 * CAM_OMEGA * (run.camV ?? 0)) * dt
+  const camY = run.camY + camV * dt
+  next.camY = camY > run.camY ? camY : run.camY
+  next.camV = camY > run.camY ? camV : 0
+  next.lockY = Math.max(run.lockY ?? -Infinity, y - VIEW_H * CAM_FRACTION)
   if (y >= goal) {
     next.top = true
     events.push({ type: 'top' })
@@ -297,24 +383,57 @@ export function advanceRun(run, tower, readInput, acc, elapsed, envFor) {
   return { run: r, events, acc: a }
 }
 
+/** Pickups a versus climber collects: feathers always, sabotage gems only in CHAOS. */
+export const versusPickups = (chaos) => (chaos ? ['gem', 'feather'] : ['feather'])
+
+/**
+ * A climb's own numbers for the round-end strip: time to the summit (if
+ * reached), launches, and in CHAOS the hazards sent and taken.
+ * @param {Run} run
+ * @param {{ sent?: number, took?: number }} [tally]
+ */
+export function climbStats(run, { sent = 0, took = 0 } = {}) {
+  const springs = run.springs ?? 0
+  const parts = []
+  if (run.top) parts.push(`${run.t.toFixed(1)}s`)
+  parts.push(`${springs} SPRING${springs === 1 ? '' : 'S'}`)
+  if (sent || took) parts.push(`SENT ${sent} · TOOK ${took}`)
+  return parts.join(' · ')
+}
+
 /** Metres climbed, as shown and compared everywhere. */
 export const toMetres = (units) => Math.max(0, Math.floor((Number(units) || 0) / UNITS_PER_M))
 
 /**
- * Put a CHAOS crumble hazard on the next CRUMBLE_COUNT solid platforms above
- * the hopper: each breaks after one bounce.
+ * The CRUMBLE_COUNT solid platforms just above the hopper: the ones a CHAOS
+ * crumble hazard curses (outlined during its telegraph).
  * @param {Run} run
  * @param {Tower} tower
+ * @returns {number[]} platform ids
  */
-export function curseAhead(run, tower) {
-  const cursed = { ...run.cursed }
-  let n = 0
-  for (let i = firstAtOrAbove(tower.platforms, run.y + 1); i < tower.platforms.length && n < CRUMBLE_COUNT; i++) {
+export function curseTargets(run, tower) {
+  const ids = []
+  for (let i = firstAtOrAbove(tower.platforms, run.y + 1); i < tower.platforms.length && ids.length < CRUMBLE_COUNT; i++) {
     const p = tower.platforms[i]
     if (p.kind === 'crumble' || run.broken[p.id]) continue
-    cursed[p.id] = true
-    n++
+    ids.push(p.id)
   }
+  return ids
+}
+
+/**
+ * Curse platforms: each gives a CURSED_BOUNCE bounce, then breaks. `ids`
+ * (the telegraphed targets) are cursed if any is still above the hopper;
+ * otherwise, and by default, the next ones above it.
+ * @param {Run} run
+ * @param {Tower} tower
+ * @param {number[]} [ids]
+ */
+export function curseAhead(run, tower, ids) {
+  const byId = new Map(tower.platforms.map(p => [p.id, p]))
+  const still = (ids ?? []).filter(id => (byId.get(id)?.y ?? -Infinity) > run.y && !run.broken[id])
+  const cursed = { ...run.cursed }
+  for (const id of still.length ? still : curseTargets(run, tower)) cursed[id] = true
   return { ...run, cursed }
 }
 
@@ -334,7 +453,7 @@ export function respawnRun(run, tower, checkpoint) {
   }
   return {
     ...run, x: spot.x + (PLAT_W - HOPPER_W) / 2, y: spot.y, vx: 0, vy: JUMP_V,
-    camY: spot.y - VIEW_H * 0.4, dead: false, floor: checkpoint,
+    camY: spot.y - VIEW_H * CAM_FRACTION, camV: 0, lockY: spot.y - VIEW_H * CAM_FRACTION, dead: false, floor: checkpoint,
   }
 }
 
@@ -413,9 +532,10 @@ export function wrapDx(a, b) {
  * A simple climbing bot: steer toward the platform it can land on next —
  * the highest solid one under the current arc's apex while rising, the
  * nearest one below while falling. `skill` ∈ (0, 1] sets its pace: for a
- * (1 − skill) share of its seconds (deterministic per second) it drifts
- * through the rising half of the arc and only picks a landing on the way
- * down, so easier ghosts climb slower without ever getting stuck.
+ * (1 − skill) share of its seconds (deterministic per second) it spends
+ * the rising half of the arc heading back over the platform nearest below
+ * it instead of the highest one ahead, so easier ghosts climb slower rather
+ * than fall more.
  * @param {Run} run
  * @param {Tower} tower
  * @param {number} [skill]
@@ -431,13 +551,13 @@ export function botInput(run, tower, skill = 1) {
   const lo = firstAtOrAbove(tower.platforms, run.y - 220)
   for (let i = lo; i < tower.platforms.length && tower.platforms[i].y <= apex; i++) {
     const p = tower.platforms[i]
-    if (run.broken[p.id] || run.cursed[p.id] || p.kind === 'crumble') continue
+    if (run.broken[p.id] || run.cursed[p.id] || p.kind === 'crumble' || (lazy && p.y > run.y)) continue
     const dx = Math.abs(wrapDx(cx, platformX(p, run.t) + PLAT_W / 2))
     if (dx > reach) continue
-    const score = (run.vy > 0 ? p.y : -Math.abs(run.y - p.y)) - dx * 0.4
+    const score = (run.vy > 0 && !lazy ? p.y : -Math.abs(run.y - p.y)) - dx * 0.4
     if (score > bestScore) { bestScore = score; target = p }
   }
-  if (!target || lazy) return 0
+  if (!target) return 0
   const dx = wrapDx(cx, platformX(target, run.t) + PLAT_W / 2)
   if (Math.abs(dx) < 6) return 0
   return clamp(dx / 30, -1, 1)
@@ -462,7 +582,7 @@ export function normalizeSeat(raw) {
 export function normalizeHazards(raw) {
   if (!raw || typeof raw !== 'object') return []
   return Object.entries(raw)
-    .filter(([, h]) => h && HAZARD_KINDS.includes(h.k) && Number.isFinite(Number(h.at)))
+    .filter(([, h]) => h && SEND_KINDS.includes(h.k) && Number.isFinite(Number(h.at)))
     .map(([id, h]) => ({ id, k: h.k, at: Number(h.at) }))
     .sort((a, b) => a.at - b.at || a.id.localeCompare(b.id))
 }
