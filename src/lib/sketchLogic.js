@@ -21,6 +21,7 @@
 //     cycles:      1|2|3,                // match length, copied from sketchConfig at START; optional
 //     drawBase:    ms,                   // drawing time before the timer scale, from sketchConfig; optional
 //     hintCount:   0|1|2,                // letter hints this match, from sketchConfig; optional
+//     custom:      { by, mode, list },   // the host's custom words, from sketchWords (sketchWordsLogic); optional
 //     scored:      boolean,              // true once this round's deltas were applied
 //     likes:       { [uid]: boolean },   // hearts on this drawing (sketchFavesLogic); optional
 //     faves:       { [cycle:artist]: n } }  // the match's heart tally, carried round to round; optional
@@ -96,8 +97,21 @@ export function wordPattern(word) {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map(w => w.length)
+    .map(w => letterCells(w).length)
     .join(' ')
+}
+
+// ---- letterCells(str) -> string[] -------------------------------------------
+// One entry per blank: NFC first, then any combining mark left over joins the
+// letter before it, so an accented letter of a custom word (S3) is one cell
+// however it was typed. Plain deck words are unchanged (one char, one cell).
+export function letterCells(str) {
+  const out = []
+  for (const ch of Array.from(String(str ?? '').normalize('NFC'))) {
+    if (out.length && /\p{M}/u.test(ch)) out[out.length - 1] += ch
+    else out.push(ch)
+  }
+  return out
 }
 
 // ---- quantize(fraction) -> int 0-255, dequantize(int) -> fraction 0-1 ------
@@ -213,6 +227,7 @@ export function nextRoundState(round) {
       cycles: round.cycles ?? null,
       drawBase: round.drawBase ?? null,
       hintCount: round.hintCount ?? null,
+      custom: round.custom ?? null,        // the match's custom words (S3)
       options: null,
       commitment: null,
       accept: null,
@@ -409,7 +424,7 @@ const isLetter = ch => /\p{L}/u.test(ch)
 export function letterPositions(word) {
   const chars = String(word ?? '').trim().split(/\s+/).filter(Boolean).join('')
   const out = []
-  Array.from(chars).forEach((ch, i) => { if (isLetter(ch)) out.push(i) })
+  letterCells(chars).forEach((ch, i) => { if (isLetter(ch)) out.push(i) })
   return out
 }
 
@@ -423,7 +438,7 @@ export function hintBudget(word, max = MAX_HINTS) {
  * who reloads republishes the same letters. Each is { i, c } (c lowercase).
  */
 export function planHints(word, seed, count = MAX_HINTS) {
-  const chars = Array.from(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
+  const chars = letterCells(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
   const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word, count))
   return picks.map(i => ({ i, c: chars[i].toLowerCase() }))
 }

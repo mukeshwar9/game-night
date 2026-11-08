@@ -188,3 +188,49 @@ describe('SKETCH match setup', () => {
     await assertSucceeds(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
   })
 })
+
+// SKETCH custom words (S3): the room's `sketchWords` list (up to 100 short
+// words, written as its author), and the copy START puts in the round.
+describe('SKETCH custom words', () => {
+  const lobby = () => {
+    const node = gameNode({ x: 'alice', o: 'bob', status: 'waiting', extra: { gameType: 'sketch', board: null, currentTurn: null } })
+    node.players = players
+    return node
+  }
+  const words = (over = {}) => ({ v: 1, by: 'alice', mode: 'mix', list: { 0: 'grandma', 1: 'office party', 2: "writer's block", 3: 'crème brûlée', 4: 'jack-o-lantern' }, ...over })
+
+  it('lets a player save a list as themself, mixed in or alone', async () => {
+    await put(lobby())
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words()))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words({ mode: 'only' })))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set({ v: 1, by: 'alice', mode: 'only' }))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords/list/99').set('the boss'))
+  })
+
+  it('refuses another author, a bad mode, long or odd words and more than 100', async () => {
+    await put(lobby())
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ by: 'bob' })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ mode: 'all' })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: 'x' } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: 'y'.repeat(25) } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: '<script>' } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: 7 } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 100: 'kite' } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set({ ...words(), secret: 1 }))
+    await assertFails(as('mallory').ref('games/g1/sketchWords').set(words({ by: 'mallory' })))
+  })
+
+  it('lets a whole-room write by another player pass with the list unchanged', async () => {
+    await put({ ...room(round({ custom: { by: 'alice', mode: 'mix', list: ['grandma', 'office party'] } })), sketchWords: words() })
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, scores: { alice: 25, bob: 100 } }))
+  })
+
+  it('keeps the round copy in shape', async () => {
+    await put(room())
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix', list: ['ok', 'x'] }))
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'odd', list: ['ok'] }))
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix', list: ['ok'], extra: 1 }))
+    await assertSucceeds(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix', list: ['ok', 'fine'] }))
+  })
+})

@@ -47,7 +47,7 @@ function Choice({ label, sub, choices, value, format = String, onPick, saving, d
 
 /**
  * @param {{ gameId: string, config: any, playerCount: number, timerScale: any, canEdit: boolean,
- *   wordsLabel?: string | null, wordsRow?: (open: (view: string) => void) => any, wordsView?: (back: () => void) => any }} props
+ *   wordsLabel?: string | null, wordsRow?: (open: (view: string) => void, turns: number) => any, wordsView?: (back: () => void, close: () => void) => any }} props
  * `wordsLabel` adds the custom-words count to the summary; `wordsRow` and
  * `wordsView` add the CUSTOM WORDS row and its second view inside the sheet.
  */
@@ -90,7 +90,7 @@ export default function SketchSetup({ gameId, config, playerCount, timerScale, c
       </div>
       {open && (
         <BottomSheet onClose={close} ariaLabel="Match setup">
-          {view !== 'setup' && wordsView ? wordsView(() => setView('setup')) : (
+          {view !== 'setup' && wordsView ? wordsView(() => setView('setup'), close) : (
             <div className="space-y-4 p-4" data-testid="sketch-setup-sheet">
               <div className="text-center">
                 <p className="font-pixel text-[11px] tracking-widest text-retro-text">MATCH SETUP</p>
@@ -125,7 +125,7 @@ export default function SketchSetup({ gameId, config, playerCount, timerScale, c
               <p className="text-center font-pixel text-[8px] leading-relaxed text-retro-cta" data-testid="sketch-setup-estimate">
                 {setupFooter({ players: Math.max(playerCount, 2), draws, drawS: c.drawS, timerScale: scale })}
               </p>
-              {wordsRow && wordsRow(setView)}
+              {wordsRow && wordsRow(setView, Math.max(playerCount, 2) * draws)}
               <button
                 type="button"
                 onClick={close}
