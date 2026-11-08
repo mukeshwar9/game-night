@@ -2079,6 +2079,9 @@ export const GAME_TYPES = [
     addedAt: '2026-07-11',
     durationMin: 10, tags: ['thinky'],
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    // A visitor can JOIN a match in progress: they guess from the next round
+    // and draw from the next cycle (sketchJoinLogic.js).
+    midJoin: true,
     Page: lazyWithRetry(() => import('../pages/SketchGame')),
     // Room chat is off for the artist mid-round (the word could be typed out).
     chatLocked: (game, uid) => sketchChatLock(game?.round, uid),
@@ -2087,10 +2090,10 @@ export const GAME_TYPES = [
     // room's timer scale (null = timers off, the coordinator advances). The
     // host's match setup (`sketchConfig`) is copied into the round here, so a
     // change after START never alters the match in flight.
-    startRound: (players, game) => {
+    startRound: (players, game, ctx) => {
       const online = Object.fromEntries(Object.entries(players || {}).filter(([, p]) => p?.online !== false))
       const order = seatOrderSketch(Object.keys(online).length ? online : players)
-      const startedAt = Date.now()
+      const startedAt = ctx?.now ?? Date.now()
       const chooseMs = scaledMs(SKETCH_CHOOSE_MS, game?.timerScale)
       return {
         round: {
@@ -2100,6 +2103,10 @@ export const GAME_TYPES = [
           order,
           ...sketchSetupSnapshot(game?.[SKETCH_CONFIG_KEY], order.length),
           used: [],
+          // when this round (and the match) began — a mid-match joiner guesses
+          // from the first round that starts after their seat (sketchJoinLogic)
+          startedAt,
+          matchStartedAt: startedAt,
           matchSeed: `${startedAt}:${Math.random().toString(36).slice(2)}`,
           endsAt: chooseMs == null ? null : startedAt + chooseMs,
         },
