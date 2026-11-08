@@ -17,13 +17,23 @@
 // overlay drawn over the canvas (the guess bubbles), `side` caps the canvas
 // width so the whole stage fits one screen, and `onContent` hands the page the
 // current strokes and fills (it keeps them for the end-of-match gallery).
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { ref, onChildAdded, onChildRemoved, push, remove, set } from 'firebase/database'
+//
+// `replay` ({ startAt, onDone }) redraws the drawing as a time-lapse from
+// `startAt` (server ms; null = from this phone's first sight), the same frame
+// on every phone (src/lib/sketchReplayLogic.js). A tap skips to the finished
+// picture on this phone only; reduced motion fades the picture in instead; an
+// empty drawing says so. `onDone` fires once the picture is complete.
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ref, onChildAdded, onChildRemoved, onValue, push, remove, set } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { quantize } from '../lib/sketchLogic'
+import { replayPlan, replayTime } from '../lib/sketchReplayLogic'
+import { getServerNow } from '../hooks/useServerClock'
+import useMotionPref from '../hooks/useMotionPref'
+import { DUR } from '../lib/motion'
 import { cn } from '@/lib/utils'
 import { PALETTE, BRUSH_WIDTHS, GRID, SCALE } from '../lib/sketchPalette'
-import { DrawingLayers } from './SketchDrawing'
+import { DrawingLayers, ReplayLayers } from './SketchDrawing'
 
 const FLUSH_MS = 100
 
@@ -114,20 +124,34 @@ function floodFillCells(strokes, sx, sy) {
   return cells
 }
 
-// Mirrors a node's children into `setMap`, at most once per frame.
-function subscribeChildren(nodeRef, setMap) {
+// Mirrors a node's children into `setMap`, at most once per frame. `onLoaded`
+// fires once the node's existing children have all arrived (the value event
+// follows the child events of the same sync), so an empty map then means an
+// empty node rather than one still loading.
+function subscribeChildren(nodeRef, setMap, onLoaded) {
   const local = {}
   let frame = 0
-  const publish = () => { frame = 0; setMap({ ...local }) }
+  let loaded = false
+  let told = false
+  const publish = () => {
+    frame = 0
+    setMap({ ...local })
+    if (loaded && !told) { told = true; onLoaded?.() }
+  }
   const schedule = () => { if (!frame) frame = requestAnimationFrame(publish) }
   const unAdd = onChildAdded(nodeRef, snap => { local[snap.key] = snap.val(); schedule() })
   const unRem = onChildRemoved(nodeRef, snap => { delete local[snap.key]; schedule() })
-  return () => { unAdd(); unRem(); cancelAnimationFrame(frame) }
+  const unVal = onValue(nodeRef, () => { loaded = true; schedule() }, { onlyOnce: true })
+  return () => { unAdd(); unRem(); unVal(); cancelAnimationFrame(frame) }
 }
 
-export default function SketchCanvas({ gameId, isArtist, side = null, onContent = null, children = null }) {
+// The replay's clock: ms into the replay at `startAt` (server time).
+const replayElapsed = startAt => () => replayTime(getServerNow() - startAt)
+
+export default function SketchCanvas({ gameId, isArtist, side = null, onContent = null, replay = null, children = null }) {
   const [strokes, setStrokes] = useState({})
   const [fills, setFills] = useState({})
+  const [loadedNodes, setLoadedNodes] = useState(0) // bit 1: strokes, bit 2: fills
   const [color, setColor] = useState(0)
   const [brushSize, setBrushSize] = useState(2)
   const [tool, setTool] = useState('brush') // 'brush' | 'bucket'
@@ -142,8 +166,42 @@ export default function SketchCanvas({ gameId, isArtist, side = null, onContent 
   // state update per animation frame: joining mid-round fires one
   // onChildAdded per existing segment, and copying the map on each of those
   // was quadratic in the drawing's size.
-  useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/strokes`), setStrokes), [gameId])
-  useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/fills`), setFills), [gameId])
+  useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/strokes`), setStrokes, () => setLoadedNodes(n => n | 1)), [gameId])
+  useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/fills`), setFills, () => setLoadedNodes(n => n | 2)), [gameId])
+  const loaded = loadedNodes === 3
+
+  // ---- Replay (reveal) --------------------------------------------------------
+  const { reduced } = useMotionPref()
+  const [firstSight, setFirstSight] = useState(null) // replay start when the room gave none
+  const [skippedAt, setSkippedAt] = useState(null)
+  const [doneAt, setDoneAt] = useState(null)
+  const replaying = !!replay
+  const startAt = replay ? (replay.startAt ?? firstSight) : null
+  // An older coordinator stamps no start: replay from this phone's first sight
+  // (state adjusted while rendering, so the first reveal frame already has it).
+  const needFirstSight = replaying && replay.startAt == null
+  if (needFirstSight && firstSight == null) setFirstSight(getServerNow())
+  if (!needFirstSight && firstSight != null) setFirstSight(null)
+  const plan = useMemo(() => (replaying ? replayPlan(strokes, fills) : null), [replaying, strokes, fills])
+  const empty = replaying && loaded && plan.items.length === 0
+  const replayOverHere = replaying && startAt != null && (reduced || empty || skippedAt === startAt || doneAt === startAt)
+  const replayElapsedFn = useMemo(() => (startAt == null ? null : replayElapsed(startAt)), [startAt])
+  const onReplayDone = useCallback(() => setDoneAt(startAt), [startAt])
+
+  // Tell the page once the picture is complete (points fly then).
+  const onDoneRef = useRef(replay?.onDone)
+  useEffect(() => { onDoneRef.current = replay?.onDone })
+  useEffect(() => {
+    if (replayOverHere) onDoneRef.current?.()
+  }, [replayOverHere, startAt])
+
+  // Reduced motion: no time-lapse, the finished picture fades in.
+  const stillRef = useRef(null)
+  useLayoutEffect(() => {
+    if (!replaying || !reduced || startAt == null) return undefined
+    const anim = stillRef.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.fast, easing: 'linear' })
+    return () => anim?.cancel()
+  }, [replaying, reduced, startAt])
 
   // Let the page keep the latest drawing (read at reveal time for the gallery).
   const onContentRef = useRef(onContent)
@@ -283,9 +341,36 @@ export default function SketchCanvas({ gameId, isArtist, side = null, onContent 
           onPointerCancel={handlePointerEnd}
           onLostPointerCapture={handlePointerEnd}
         >
-          <DrawingLayers strokes={strokes} fills={fills} />
+          {!replaying || replayOverHere ? (
+            <g ref={stillRef}><DrawingLayers strokes={strokes} fills={fills} /></g>
+          ) : loaded && replayElapsedFn ? (
+            <ReplayLayers plan={plan} elapsed={replayElapsedFn} onDone={onReplayDone} />
+          ) : null}
         </svg>
+        {empty && (
+          <p
+            className="pointer-events-none absolute inset-0 flex items-center justify-center font-pixel text-[9px] tracking-wider"
+            // The canvas is white in every theme, so the label uses the drawing ink.
+            style={{ color: PALETTE[0], opacity: 0.45 }}
+            data-testid="sketch-nothing-drawn"
+          >
+            NOTHING WAS DRAWN
+          </p>
+        )}
         {children}
+        {replaying && !replayOverHere && (
+          <button
+            type="button"
+            onClick={() => setSkippedAt(startAt)}
+            aria-label="Replaying the drawing. Tap to skip"
+            className="absolute inset-0 rounded"
+            data-testid="sketch-replay"
+          >
+            <span className="pointer-events-none absolute left-1.5 top-1.5 whitespace-nowrap rounded border border-retro-border bg-retro-card/95 px-2 py-0.5 font-pixel text-[8px] tracking-wider text-retro-text">
+              ▶ REPLAY · TAP TO SKIP
+            </span>
+          </button>
+        )}
       </div>
 
       {isArtist && (
