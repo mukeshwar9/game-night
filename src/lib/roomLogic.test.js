@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  activePartySeats, applyPartyJoin, ghostsToSweep, inviteSeatsLine, inviteSummary, isMyTurn, openSeat, partyJoinPlan,
+  activePartySeats, applyPartyJoin, ghostsToSweep, inviteSeatsLine, inviteSummary, isMyTurn, midJoinOffer, midJoinSeatTime, openSeat, partyJoinPlan,
   pickRoomHost, roomAnnouncement, seatedIds, spectatorCount, waitingForLabel,
 } from './roomLogic'
 
@@ -45,11 +45,13 @@ describe('partyJoinPlan', () => {
     expect(partyJoinPlan({ players: { me: seat('me', 1) }, myId: 'me', status: 'playing' })).toEqual({ action: 'reclaim' })
   })
 
-  it('seats latecomers only in the lobby', () => {
+  it('seats latecomers only in the lobby, or mid-match where the game allows it', () => {
     const players = { a: seat('a', 1) }
     expect(partyJoinPlan({ players, myId: 'me', status: 'playing', maxPlayers: 8 })).toEqual({ action: 'spectate' })
     expect(partyJoinPlan({ players, myId: 'me', status: 'finished', maxPlayers: 8 })).toEqual({ action: 'spectate' })
     expect(partyJoinPlan({ players, myId: 'me', status: 'waiting', maxPlayers: 8 })).toEqual({ action: 'join' })
+    expect(partyJoinPlan({ players, myId: 'me', status: 'playing', maxPlayers: 8, midJoin: true })).toEqual({ action: 'join' })
+    expect(partyJoinPlan({ players, myId: 'me', status: 'finished', maxPlayers: 8, midJoin: true })).toEqual({ action: 'spectate' })
   })
 
   it('spectates a full room — ghosts included, until a member sweeps them', () => {
@@ -127,7 +129,45 @@ describe('inviteSummary', () => {
       players: { h: seat('h', 1, { avatar: 'fox' }), b: seat('b', 2), g: seat('g', 3, { online: false }) },
     }
     const s = inviteSummary(game, { nPlayer: true, maxPlayers: 8 })
-    expect(s).toMatchObject({ party: true, hostName: 'H', hostAvatar: 'fox', playerCount: 2, capacity: 8, seatsLeft: 6, joinsNextRound: true })
+    expect(s).toMatchObject({ party: true, hostName: 'H', hostAvatar: 'fox', playerCount: 2, capacity: 8, seatsLeft: 6, joinsNextRound: true, midJoin: false })
+  })
+
+  it('flags a match a visitor can join mid-way (registry midJoin) only while it is playing', () => {
+    const players = { h: seat('h', 1) }
+    expect(inviteSummary({ status: 'playing', players }, { nPlayer: true, midJoin: true }).midJoin).toBe(true)
+    expect(inviteSummary({ status: 'waiting', players }, { nPlayer: true, midJoin: true }).midJoin).toBe(false)
+    expect(inviteSummary({ status: 'finished', players }, { nPlayer: true, midJoin: true }).midJoin).toBe(false)
+  })
+})
+
+describe('midJoinOffer', () => {
+  const room = (over = {}) => ({ status: 'playing', players: { h: seat('h', 1), b: seat('b', 2) }, ...over })
+  it('offers JOIN to a watcher of a playing midJoin game', () => {
+    expect(midJoinOffer({ game: room(), myId: 'w', midJoin: true })).toBe('open')
+  })
+  it('does not apply outside a playing midJoin game or to a seated player', () => {
+    expect(midJoinOffer({ game: room(), myId: 'w', midJoin: false })).toBe(null)
+    expect(midJoinOffer({ game: room({ status: 'waiting' }), myId: 'w', midJoin: true })).toBe(null)
+    expect(midJoinOffer({ game: room({ status: 'finished' }), myId: 'w', midJoin: true })).toBe(null)
+    expect(midJoinOffer({ game: room(), myId: 'h', midJoin: true })).toBe(null)
+    expect(midJoinOffer({ game: null, myId: 'w', midJoin: true })).toBe(null)
+  })
+  it('says full at the cap and locked when the host locked the room', () => {
+    expect(midJoinOffer({ game: room(), myId: 'w', midJoin: true, maxPlayers: 2 })).toBe('full')
+    expect(midJoinOffer({ game: room({ locked: true }), myId: 'w', midJoin: true })).toBe('locked')
+  })
+  it('stays out of the way of a kicked or removed visitor (they get their own notice)', () => {
+    expect(midJoinOffer({ game: room({ kicked: { w: true } }), myId: 'w', midJoin: true })).toBe(null)
+    expect(midJoinOffer({ game: room({ removed: { w: true } }), myId: 'w', midJoin: true })).toBe(null)
+  })
+})
+
+describe('midJoinSeatTime', () => {
+  it('is the server time, but always after the round in flight started', () => {
+    expect(midJoinSeatTime(5000, { round: { startedAt: 1000 } })).toBe(5000)
+    expect(midJoinSeatTime(900, { round: { startedAt: 1000 } })).toBe(1001)
+    expect(midJoinSeatTime(900, { round: {} })).toBe(900)
+    expect(midJoinSeatTime(900, null)).toBe(900)
   })
 })
 
@@ -221,6 +261,12 @@ describe('inviteSeatsLine', () => {
     expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5 })).toBe('3/8 PLAYERS · 5 SEATS LEFT')
     expect(inviteSeatsLine({ party: true, playerCount: 8, capacity: 8, seatsLeft: 0 })).toBe("8/8 PLAYERS · FULL — YOU'LL WATCH")
     expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5, joinsNextRound: true })).toMatch(/JOIN NEXT ROUND/)
+  })
+  it('invites a guesser into a match in progress (registry midJoin)', () => {
+    expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5, joinsNextRound: true, midJoin: true }))
+      .toBe('3/8 PLAYERS · MATCH IN PROGRESS — JOIN AS A GUESSER NEXT ROUND')
+    expect(inviteSeatsLine({ party: true, playerCount: 8, capacity: 8, seatsLeft: 0, joinsNextRound: true, midJoin: true }))
+      .toBe("8/8 PLAYERS · FULL — YOU'LL WATCH")
   })
   it('is empty without a room summary', () => {
     expect(inviteSeatsLine(null)).toBe(null)
