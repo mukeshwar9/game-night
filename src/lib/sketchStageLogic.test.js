@@ -106,6 +106,18 @@ describe('faceTiles', () => {
     expect(faceTiles({ players, order: [], scores: {}, round }).map(t => t.id)).toEqual(['a', 'b', 'c'])
     expect(faceTiles({ players: null, order: null, scores: null, round: null })).toEqual([])
   })
+  it('adds players seated mid-match after the order, marked new', () => {
+    const seated = {
+      a: { name: 'Ana', playerId: 'a', joinedAt: 1 },
+      b: { name: 'Bo', playerId: 'b', joinedAt: 2 },
+      e: { name: 'Ed', playerId: 'e', joinedAt: 9 },
+      d: { name: 'Di', playerId: 'd', joinedAt: 8 },
+    }
+    const tiles = faceTiles({ players: seated, order: ['a', 'b'], scores: {}, round: { artist: 'a', correct: { d: { at: 1 } } } })
+    expect(tiles.map(t => [t.id, t.isNew, t.role])).toEqual([
+      ['a', false, 'artist'], ['b', false, 'guessing'], ['d', true, 'solved'], ['e', true, 'guessing'],
+    ])
+  })
 })
 
 describe('gotItLabel', () => {

@@ -168,6 +168,81 @@ describe('SKETCH round snapshot of the setup', () => {
   })
 })
 
+// SKETCH mid-match join (registry `midJoin`): a visitor may create their own
+// party seat while a Sketch match is playing — never someone else's, never in
+// another game, a locked room or after a kick or removal.
+describe('SKETCH mid-match join', () => {
+  const playing = (extra = {}) => partyNode({ uids: ['alice', 'bob'], gameType: 'sketch', status: 'playing', extra: { round: round({ order: ['alice', 'bob'], startedAt: 1000, matchStartedAt: 1000 }), ...extra } })
+  const seatOf = (uid, over = {}) => ({ name: uid, playerId: uid, joinedAt: 2000, online: true, ...over })
+
+  it('lets a visitor take their own seat while the match plays', async () => {
+    await put(playing())
+    await assertSucceeds(as('dan').ref('games/g1/players/dan').set(seatOf('dan')))
+  })
+
+  it('refuses a signed-out visitor', async () => {
+    await put(playing())
+    await assertFails(dbAs(T.env, null).ref('games/g1/players/dan').set(seatOf('dan')))
+  })
+
+  it("refuses a seat under someone else's uid, or naming someone else", async () => {
+    await put(playing())
+    await assertFails(as('dan').ref('games/g1/players/eve').set(seatOf('eve')))
+    await assertFails(as('dan').ref('games/g1/players/dan').set(seatOf('dan', { playerId: 'eve' })))
+  })
+
+  it('refuses a 2P seat (X or O) while playing', async () => {
+    await put(playing())
+    await assertFails(as('dan').ref('games/g1/players/X').set(seatOf('dan')))
+  })
+
+  it('refuses to overwrite a seat that exists', async () => {
+    await put(playing())
+    await assertFails(as('dan').ref('games/g1/players/alice').set(seatOf('alice')))
+  })
+
+  it('refuses mid-match in any other game', async () => {
+    await put(partyNode({ uids: ['alice', 'bob'], gameType: 'herd', status: 'playing' }))
+    await assertFails(as('dan').ref('games/g1/players/dan').set(seatOf('dan')))
+  })
+
+  it('refuses once the match is over (the lobby path seats them then)', async () => {
+    await put(partyNode({ uids: ['alice', 'bob'], gameType: 'sketch', status: 'finished' }))
+    await assertFails(as('dan').ref('games/g1/players/dan').set(seatOf('dan')))
+  })
+
+  it('refuses a locked room', async () => {
+    await put(playing({ locked: true }))
+    await assertFails(as('dan').ref('games/g1/players/dan').set(seatOf('dan')))
+  })
+
+  it('refuses a kicked player', async () => {
+    await put(playing({ kicked: { dan: true } }))
+    await assertFails(as('dan').ref('games/g1/players/dan').set(seatOf('dan')))
+  })
+
+  it('refuses a player removed from the party', async () => {
+    await put(playing({ removed: { dan: true } }))
+    await assertFails(as('dan').ref('games/g1/players/dan').set(seatOf('dan')))
+  })
+
+  it('a whole-room transaction with the newcomer seated and appended to the order passes', async () => {
+    await put(playing({ players: { ...partyNode({ uids: ['alice', 'bob'] }).players, dan: seatOf('dan') } }))
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    const next = { ...whole.round, phase: 'choosing', cycle: 2, artist: 'alice', order: ['alice', 'bob', 'dan'], startedAt: 9000 }
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, round: next }))
+    await assertSucceeds(as('dan').ref('games/g1/round/correct/dan').set({ at: 9500 }))
+  })
+
+  it('takes the round and match start as numbers only', async () => {
+    await put(playing())
+    await assertSucceeds(as('bob').ref('games/g1/round/matchStartedAt').set(5000))
+    await assertFails(as('bob').ref('games/g1/round/matchStartedAt').set('5000'))
+    await assertFails(as('bob').ref('games/g1/round/matchStartedAt').set(Date.now() + 7200000))
+    await assertSucceeds(as('bob').ref('games/g1/round/startedAt').set(6000))
+  })
+})
+
 // SKETCH custom words: the host's `sketchWords` (room-level, kept across
 // matches, signed by its last writer) and the round's snapshot of it
 // (`round/custom`), copied at START.

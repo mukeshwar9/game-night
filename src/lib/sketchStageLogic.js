@@ -4,6 +4,8 @@
 // the match ends on a gallery of every drawing it saw. No DOM, Firebase or
 // React; unit-tested.
 
+import { lateJoiners } from './sketchJoinLogic'
+
 // ---- Timer ring -------------------------------------------------------------
 export const RING_RADIUS = 15
 export const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
@@ -60,11 +62,16 @@ export function isKeyboardUp(layoutH, visualH) {
 
 // ---- Faces ------------------------------------------------------------------
 /**
- * One tile per seated player for the strip across the top, in drawing order.
- * `role` is 'artist' | 'solved' | 'guessing'; a face with `offline` is dimmed.
+ * One tile per seated player for the strip across the top, in drawing order,
+ * then anyone seated mid-match who is not in the order yet (`isNew`, the NEW
+ * badge; see sketchJoinLogic). `role` is 'artist' | 'solved' | 'guessing'; a
+ * face with `offline` is dimmed.
  */
 export function faceTiles({ players, order, scores, round }) {
-  const seats = (order && order.length ? order : Object.keys(players || {}))
+  const hasOrder = !!(order && order.length)
+  const late = hasOrder ? lateJoiners(players, order) : []
+  const seats = hasOrder ? [...order, ...late] : Object.keys(players || {})
+  const isLate = new Set(late)
   return seats.filter(id => players?.[id]).map(id => {
     const isArtist = round?.artist === id
     const solved = !isArtist && !!round?.correct?.[id]
@@ -75,6 +82,7 @@ export function faceTiles({ players, order, scores, round }) {
       score: scores?.[id] || 0,
       role: isArtist ? 'artist' : solved ? 'solved' : 'guessing',
       offline: players[id]?.online === false,
+      isNew: isLate.has(id),
     }
   })
 }
