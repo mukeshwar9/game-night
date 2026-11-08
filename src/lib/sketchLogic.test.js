@@ -40,6 +40,7 @@ import {
   roundCycles,
   roundDrawBase,
   roundHintCount,
+  cells,
 } from './sketchLogic'
 import { markSeen } from './seenHistory'
 import { SKETCH_WORDS } from './decks/sketch'
@@ -63,6 +64,12 @@ describe('normalize', () => {
   it('returns "" for null/undefined', () => {
     expect(normalize(null)).toBe('')
     expect(normalize(undefined)).toBe('')
+  })
+
+  it('keeps accents and vowel signs, however they were typed', () => {
+    expect(normalize('Cafe\u0301')).toBe('café')
+    expect(normalize('नमस्ते!')).toBe('नमस्ते')
+    expect(normalize('काल')).not.toBe(normalize('कल'))
   })
 })
 
@@ -761,5 +768,58 @@ describe('round match setup', () => {
     const round = { phase: 'drawing', drawStartedAt: 0, drawMs: 45000 }
     expect(hintDueAt(round, 0)).toBe(22500)
     expect(hintDueAt(round, 1)).toBe(33750)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Custom words (sketchWordsLogic): the round's `custom` snapshot rides along,
+// and words in other scripts or with accents still get sensible blanks,
+// hints and guess matching.
+// ---------------------------------------------------------------------------
+describe('custom words in the round', () => {
+  const custom = { by: 'a', mode: 'mix', list: ['grandma', 'tuk tuk'] }
+
+  it('carries the custom words into every next round', () => {
+    const next = nextRoundState({ order: ['a', 'b', 'c'], artist: 'a', cycle: 1, used: [], options: [1, 280, 3], matchSeed: 's', custom })
+    expect(next.round.custom).toEqual(custom)
+    expect(next.round.used).toEqual([1, 280, 3])
+    const plain = nextRoundState({ order: ['a', 'b', 'c'], artist: 'a', cycle: 1, used: [], options: [], matchSeed: 's' })
+    expect('custom' in plain.round).toBe(false)
+  })
+
+  it('counts a letter and its combining marks as one blank', () => {
+    expect(cells('cafe\u0301')).toEqual(['c', 'a', 'f', 'e\u0301'])
+    expect(wordPattern('cafe\u0301')).toBe('4')
+    expect(wordPattern('café')).toBe('4')
+    expect(wordPattern('नमस्ते')).toBe('4') // न, म, स्, ते — each consonant with its own marks
+    expect(wordPattern('crème brûlée')).toBe('5 6')
+    expect(wordPattern('hot dog')).toBe('3 3') // plain words count as before
+    for (const e of SKETCH_WORDS) expect(wordPattern(e.word)).toBe(e.word.trim().split(/\s+/).map(w => w.length).join(' '))
+  })
+
+  it('hints only single-character letters, at cell positions that match the blanks', () => {
+    expect(letterPositions('cafe\u0301')).toEqual([0, 1, 2]) // the accented cell is never a hint
+    expect(letterPositions('café')).toEqual([0, 1, 2, 3])
+    const word = 'crème brûlée'
+    const total = wordPattern(word).split(' ').reduce((n, t) => n + Number(t), 0)
+    for (let seed = 0; seed < 20; seed++) {
+      for (const h of planHints(word, seed)) {
+        expect(h.i).toBeLessThan(total)
+        expect(h.c.length).toBe(1)
+        const flat = blankCells(wordPattern(word), [h]).flat()
+        expect(flat[h.i]).toEqual({ ch: h.c, hint: true })
+      }
+    }
+  })
+
+  it('accepts folded forms of accented Latin words, exact matches for other scripts', async () => {
+    expect(acceptedKeys({ word: 'crème brûlée' })).toEqual(['cremebrulee'])
+    expect(isAcceptedGuess('creme brulee', { word: 'crème brûlée' })).toBe(true)
+    // matchKey cannot read Devanagari: no accept hashes, the commitment's exact match decides
+    expect(acceptedKeys({ word: 'नमस्ते' })).toEqual([])
+    expect(acceptedKeys({ word: 'naïve 日本' })).toEqual([])
+    expect(await acceptHashes({ word: 'नमस्ते' }, 'salt')).toEqual([])
+    const { hash, salt } = await commit(normalize('नमस्ते'))
+    expect(await deriveWord([{ word: 'नमस्ते', tier: 1 }], [0], { hash, salt })).toBe('नमस्ते')
   })
 })
