@@ -30,7 +30,9 @@ deck files, and `commit.js` for keeping the word secret.
      guessers as blanks (`_ _ _ _ _`, word length public). Correct guessers are locked in and
      see the word; wrong guesses appear in a public chat feed. Round ends early when every
      guesser is correct.
-  3. **Reveal (6 s):** word revealed, per-round score deltas shown, next artist announced.
+  3. **Reveal (8 s):** word revealed, then the drawing replays as a time-lapse on every screen
+     at once (3.5 s, synced to `round.revealAt`; tap to skip, reduced motion fades it in), then
+     the per-round score deltas fly. Timeline and pacing: `sketchReplayLogic.js`.
 - **Scoring (tunable constants in `sketchLogic.js`):** guessers earn by order of correct guess —
   1st: 100, 2nd: 90, 3rd: 80, … floor 50. Artist earns 25 per correct guesser (so a word everyone
   gets beats an impossible one). No points for the artist if nobody guesses.

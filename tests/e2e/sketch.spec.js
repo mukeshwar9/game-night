@@ -78,7 +78,19 @@ test('hints appear on the guesser\'s blanks at half time, from the artist only',
     await expect(menu).toBeHidden()
   })
 
-  await test.step('a right guess ends the round on the reveal', async () => {
+  await test.step('the artist draws a line and the guesser sees it', async () => {
+    const box = await host.page.getByTestId('sketch-canvas').boundingBox()
+    await host.page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.3)
+    await host.page.mouse.down()
+    for (let i = 1; i <= 8; i++) {
+      await host.page.mouse.move(box.x + box.width * (0.2 + i * 0.07), box.y + box.height * (0.3 + i * 0.04))
+      await host.page.waitForTimeout(30)
+    }
+    await host.page.mouse.up()
+    await expect(guest.page.getByTestId('sketch-canvas').locator('polyline').first()).toBeVisible()
+  })
+
+  await test.step('a right guess ends the round on the reveal, and the drawing replays on both screens', async () => {
     // Guesses are throttled to one per 500 ms, so a faster one is dropped silently.
     await guest.page.waitForTimeout(700)
     await guest.page.getByRole('textbox', { name: 'Your guess' }).fill(word)
@@ -86,6 +98,21 @@ test('hints appear on the guesser\'s blanks at half time, from the artist only',
     await expect(stage(guest.page, 'reveal')).toBeVisible()
     await expect(stage(host.page, 'reveal')).toBeVisible()
     await expect(guest.page.getByTestId('sketch-word')).toHaveText(word.toUpperCase())
+    // The coordinator stamped the replay's start on the round for every screen.
+    const res = await fetch(`${DB_ORIGIN}/games/${gameId}/round/revealAt.json?ns=demo-game-night-default-rtdb`, {
+      headers: { Authorization: 'Bearer owner' },
+    })
+    expect(typeof (await res.json())).toBe('number')
+    await expect(guest.page.getByTestId('sketch-replay')).toContainText('TAP TO SKIP')
+    await expect(host.page.getByTestId('sketch-replay')).toContainText('TAP TO SKIP')
+    // Tapping skips to the finished picture on that phone only.
+    await guest.page.getByTestId('sketch-replay').click()
+    await expect(guest.page.getByTestId('sketch-replay')).toHaveCount(0)
+    await expect(guest.page.getByTestId('sketch-canvas').locator('polyline').first()).toBeVisible()
+    // The other phone finishes on its own and the picture holds.
+    await expect(host.page.getByTestId('sketch-replay')).toHaveCount(0, { timeout: 6_000 })
+    await expect(host.page.getByTestId('sketch-canvas').locator('polyline').first()).toBeVisible()
+    await expect(host.page.getByTestId('sketch-nothing-drawn')).toHaveCount(0)
   })
 
   expectNoPageErrors(host, guest)

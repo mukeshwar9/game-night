@@ -41,6 +41,7 @@ import {
   galleryFor,
   podium,
 } from '../lib/sketchStageLogic'
+import { replayOver } from '../lib/sketchReplayLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
 import { scaledMs, timersOff } from '../lib/timerScale'
@@ -91,6 +92,8 @@ function normalizeRound(raw) {
     endsAt: raw.endsAt ?? null,
     drawStartedAt: raw.drawStartedAt ?? null,
     drawMs: raw.drawMs ?? null,
+    // server time of the flip to reveal: every screen's replay runs from it
+    revealAt: raw.revealAt ?? null,
     chat: raw.chat ?? {},
     correct: raw.correct ?? {},
     // letter hints the artist's phone published (see sketchLogic 'Letter hints')
@@ -184,8 +187,9 @@ export default function SketchGame({
   const now = getServerNow
   // Room timer scale (lobby option): choosing/drawing clocks stretch 2× when
   // relaxed and disappear at 0 (the coordinator then ends rounds by hand). The
-  // 6 s reveal is a display pause, not a deadline on anyone, so it stays fixed.
-  // The drawing clock's base is the round's own (the host's match setup).
+  // reveal (word, replay, points) is a display pause, not a deadline on anyone,
+  // so it stays fixed. The drawing clock's base is the round's own (the host's
+  // match setup).
   const chooseMs = scaledMs(CHOOSE_MS, game.timerScale)
   const noTimer = timersOff(game.timerScale)
   const deadlineAfter = (ms) => (ms == null ? null : now() + ms)
@@ -225,6 +229,7 @@ export default function SketchGame({
   const [menuOpen, setMenuOpen] = useState(false)
   const [hintFlash, setHintFlash] = useState(null)       // n of the newest hint, shown for a moment
   const [showAllGuesses, setShowAllGuesses] = useState(false)
+  const [replayDoneKey, setReplayDoneKey] = useState(null) // reveal (round + revealAt) whose replay finished here
   const [galleryStore, setGalleryStore] = useState(() => loadGallery(gameId))
   const drawingRef = useRef({ strokes: {}, fills: {} })   // the canvas's latest content (gallery source)
   const galleryAddedRef = useRef(null)                    // round id already saved to the gallery
@@ -399,7 +404,9 @@ export default function SketchGame({
   const advanceDrawingToReveal = useCallback(async () => {
     if (hostActionInFlightRef.current) return
     hostActionInFlightRef.current = true
-    const revealEndsAt = now() + REVEAL_MS
+    // The reveal's replay clock: every screen draws the same frame from it.
+    const revealAt = now()
+    const revealEndsAt = revealAt + REVEAL_MS
     try {
       // The word's tier sets the score multiplier. Every client can derive the
       // word from the public options + commitment (see deriveWord), so the
@@ -426,7 +433,7 @@ export default function SketchGame({
         return {
           ...current,
           scores: newScores,
-          round: { ...r, scored: true, phase: 'reveal', endsAt: revealEndsAt },
+          round: { ...r, scored: true, phase: 'reveal', revealAt, endsAt: revealEndsAt },
         }
       })
     } catch {
@@ -801,6 +808,12 @@ export default function SketchGame({
     })
     : null
 
+  // The points fly once the replay has finished on this phone (or was skipped);
+  // the room's clock is the backstop.
+  const revealKey = `${roundKey}:${round.revealAt ?? ''}`
+  const pointsReady = replayDoneKey === revealKey
+    || (round.revealAt != null && replayOver({ elapsed: nowMs - round.revealAt }))
+
   const tiles = faceTiles({ players, order: round.order, scores: game.scores, round })
   const correctCount = participantGuesserIds.filter(id => round.correct?.[id]).length
   const gotIt = gotItLabel(correctCount, participantGuesserIds.length)
@@ -813,7 +826,7 @@ export default function SketchGame({
       <FaceStrip
         tiles={tiles}
         mySeat={mySeat}
-        deltas={revealDeltas}
+        deltas={pointsReady ? revealDeltas : null}
         holdableId={canReportArtist ? round.artist : null}
         onHold={() => setMenuOpen(true)}
         onTap={() => toast('HOLD THE ARTIST’S FACE TO REPORT THE DRAWING', { id: 'sketch-hold-tip' })}
@@ -934,6 +947,7 @@ export default function SketchGame({
             isArtist={isArtist && round.phase === 'drawing'}
             side={stageSide}
             onContent={(strokes, fills) => { drawingRef.current = { strokes, fills } }}
+            replay={round.phase === 'reveal' ? { startAt: round.revealAt, onDone: () => setReplayDoneKey(revealKey) } : null}
           >
             <GuessBubbles entries={chatEntries} players={players} mySeat={mySeat} />
             {hintFlash != null && !isArtist && (
