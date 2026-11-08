@@ -5,6 +5,7 @@ import {
   REPLAY_LEAD_MS,
   REPLAY_MS,
   fillCount,
+  fillPace,
   frameAt,
   replayOver,
   replayPlan,
@@ -77,11 +78,20 @@ describe('replayPlan', () => {
     expect((s3.end - s3.start) / 10).toBeCloseTo((s1.end - s1.start) / 10)
   })
 
-  it('splits evenly when nothing has length (dots and fills only)', () => {
-    const plan = replayPlan({ a: { p: [1, 1] } }, { b: { p: [0, 0, 1, 0] } })
+  it('splits evenly when nothing has length (dots only)', () => {
+    const plan = replayPlan({ a: { p: [1, 1] }, b: { p: [9, 9] } }, {})
     expect(plan.items[0].end).toBeCloseTo(REPLAY_MS / 2)
-    expect(plan.items[1].kind).toBe('fill')
-    expect(plan.items[1].cells).toBe(2)
+  })
+
+  it('lets a big fill pour for longer than a small one', () => {
+    const big = Array.from({ length: 400 }, (_, i) => [i % 20, Math.floor(i / 20)]).flat()
+    const plan = replayPlan({}, { a: { c: 1, p: [0, 0, 1, 0] }, b: { c: 2, p: big } })
+    const [small, large] = plan.items
+    expect(small.cells).toBe(2)
+    expect(large.cells).toBe(400)
+    expect(large.end - large.start).toBeGreaterThan(small.end - small.start)
+    expect(fillPace(400)).toBe(160)
+    expect(fillPace(0)).toBe(0)
   })
 
   it('replays stored arrays as strokes, then fills', () => {

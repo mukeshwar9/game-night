@@ -12,7 +12,7 @@
 //   REVEAL_MS (sketchLogic)   the coordinator moves on
 //
 // Pace: every unit (one pen gesture, or one fill) gets an equal base slice of
-// the replay plus a share by its length, so one long outline cannot eat the
+// the replay plus a share by its length (a fill counts by fillPace), so one long outline cannot eat the
 // whole replay and a tiny dot does not flash by. Within a gesture the pen moves
 // at one speed across its segments.
 
@@ -21,6 +21,15 @@ export const REPLAY_MS = 3500
 export const REPLAY_END_MS = REPLAY_LEAD_MS + REPLAY_MS
 // Share of the replay split equally between units; the rest goes by length.
 export const BASE_SHARE = 0.4
+
+/**
+ * A fill's pace, as the length of line it counts for: about the outline of a
+ * square of its cells (each cell is 4 viewBox units), so a big fill pours
+ * visibly and a small one does not hold the replay up.
+ */
+export function fillPace(cells) {
+  return 8 * Math.sqrt(Math.max(0, cells))
+}
 
 /**
  * @typedef {{ c?: number, w?: number, p?: number[], g?: string }} Stroke
@@ -79,7 +88,7 @@ export function replayPlan(strokes, fills, ms = REPLAY_MS) {
       last.items.push(item)
       last.len += item.len
     } else {
-      units.push({ g, items: [item], len: item.kind === 'stroke' ? item.len : 0 })
+      units.push({ g, items: [item], len: item.kind === 'stroke' ? item.len : fillPace(item.cells) })
     }
   }
   if (units.length === 0) return { ms, items: [] }
@@ -95,7 +104,7 @@ export function replayPlan(strokes, fills, ms = REPLAY_MS) {
     const unitEnd = ui === units.length - 1 ? ms : t + base + (totalLen > 0 ? (pool * u.len) / totalLen : 0)
     const span = unitEnd - t
     u.items.forEach((item, ii) => {
-      const share = u.len > 0 ? item.len / u.len : 1 / u.items.length
+      const share = u.len > 0 && item.kind === 'stroke' ? item.len / u.len : 1 / u.items.length
       const end = ii === u.items.length - 1 ? unitEnd : t + span * share
       items.push({ ...item, start: t, end })
       t = end

@@ -222,7 +222,7 @@ export default function SketchGame({
   const [menuOpen, setMenuOpen] = useState(false)
   const [hintFlash, setHintFlash] = useState(null)       // n of the newest hint, shown for a moment
   const [showAllGuesses, setShowAllGuesses] = useState(false)
-  const [replayDoneKey, setReplayDoneKey] = useState(null) // round whose reveal replay finished here
+  const [replayDoneKey, setReplayDoneKey] = useState(null) // reveal (round + revealAt) whose replay finished here
   const [galleryStore, setGalleryStore] = useState(() => loadGallery(gameId))
   const drawingRef = useRef({ strokes: {}, fills: {} })   // the canvas's latest content (gallery source)
   const galleryAddedRef = useRef(null)                    // round id already saved to the gallery
@@ -782,7 +782,8 @@ export default function SketchGame({
 
   // The points fly once the replay has finished on this phone (or was skipped);
   // the room's clock is the backstop.
-  const pointsReady = replayDoneKey === roundKey
+  const revealKey = `${roundKey}:${round.revealAt ?? ''}`
+  const pointsReady = replayDoneKey === revealKey
     || (round.revealAt != null && replayOver({ elapsed: nowMs - round.revealAt }))
 
   const tiles = faceTiles({ players, order: round.order, scores: game.scores, round })
@@ -918,7 +919,7 @@ export default function SketchGame({
             isArtist={isArtist && round.phase === 'drawing'}
             side={stageSide}
             onContent={(strokes, fills) => { drawingRef.current = { strokes, fills } }}
-            replay={round.phase === 'reveal' ? { startAt: round.revealAt, onDone: () => setReplayDoneKey(roundKey) } : null}
+            replay={round.phase === 'reveal' ? { startAt: round.revealAt, onDone: () => setReplayDoneKey(revealKey) } : null}
           >
             <GuessBubbles entries={chatEntries} players={players} mySeat={mySeat} />
             {hintFlash != null && !isArtist && (
