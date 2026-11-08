@@ -8,13 +8,16 @@ import {
 import { TRIVIA_DECK } from '../lib/decks/trivia'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
+import { triviaBotAccuracy } from '../lib/soloBotLevels'
 
 // Solo TRIVIA BLITZ vs three bots — fully local, no Firebase. Runs the same
 // seeded draw + applyRoundScores pipeline as the multiplayer page.
 
 const GLYPHS = ['▲', '■', '●', '◆']
 const REVEAL_MS = 4000
-const BOT_ACCURACY = { 1: 0.75, 2: 0.55, 3: 0.4 }
 const BOTS = [
   { id: 'b1', name: 'RUSTY' },
   { id: 'b2', name: 'PIXEL' },
@@ -23,8 +26,8 @@ const BOTS = [
 const ALL_IDS = ['me', ...BOTS.map(b => b.id)]
 const FRESH_SCORES = () => ({ me: 0, b1: 0, b2: 0, b3: 0 })
 
-function botPick(q) {
-  const acc = BOT_ACCURACY[q.diff] ?? 0.5
+function botPick(q, level) {
+  const acc = triviaBotAccuracy(level, q.diff)
   if (Math.random() < acc) return q.answer
   const wrong = q.options.map((_, i) => i).filter(i => i !== q.answer)
   return wrong[Math.floor(Math.random() * wrong.length)]
@@ -49,6 +52,11 @@ export default function TriviaDemo() {
   const answersRef = useRef({})
   const streaksRef = useRef({})
   const settleRef = useRef(null)
+  const [level, setLevel] = useBotDifficulty('trivia', BOT_LEVEL_IDS)
+  // The bots read the level when they answer, so picking one during the first
+  // question (the only time the chips show) applies to the whole match.
+  const levelRef = useRef(level)
+  useEffect(() => { levelRef.current = level }, [level])
 
   const lockIn = (id, choice) => {
     if (answersRef.current[id] != null) return
@@ -101,7 +109,7 @@ export default function TriviaDemo() {
     const timers = [setTimeout(settle, QUESTION_MS + 50)]
     for (const bot of BOTS) {
       timers.push(setTimeout(() => {
-        if (!settled && answersRef.current[bot.id] == null) lockIn(bot.id, botPick(q))
+        if (!settled && answersRef.current[bot.id] == null) lockIn(bot.id, botPick(q, levelRef.current))
       }, 1500 + Math.random() * 6500))
     }
     return () => timers.forEach(clearTimeout)
@@ -173,6 +181,9 @@ export default function TriviaDemo() {
 
   return (
     <div className="space-y-3">
+      {((qNum === 0 && phase === 'question') || phase === 'end') && (
+        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      )}
       <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim">
         <span>Q{Math.min(qNum + 1, MATCH_QUESTIONS)}/{MATCH_QUESTIONS}</span>
         <span>{answeredCount}/4 IN</span>

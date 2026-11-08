@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
-  REACTION_BOT_MS, AIM_BOT_GAP_MS, TYPING_BOT_WPM, MATH_BOT,
-  rollBetween, reactionBotMs, aimBotGapMs, typingBotWpm, mathBot,
+  REACTION_BOT_MS, AIM_BOT_GAP_MS, TYPING_BOT_WPM, MATH_BOT, TRIVIA_BOT_ACCURACY,
+  rollBetween, reactionBotMs, aimBotGapMs, typingBotWpm, mathBot, triviaBotAccuracy,
 } from './soloBotLevels'
 
 const LEVELS = ['easy', 'normal', 'hard']
 
 describe('soloBotLevels', () => {
   it('has all three levels in every table, easiest first', () => {
-    for (const table of [REACTION_BOT_MS, AIM_BOT_GAP_MS, TYPING_BOT_WPM, MATH_BOT]) {
+    for (const table of [REACTION_BOT_MS, AIM_BOT_GAP_MS, TYPING_BOT_WPM, MATH_BOT, TRIVIA_BOT_ACCURACY]) {
       expect(Object.keys(table)).toEqual(LEVELS)
     }
   })
@@ -18,6 +18,7 @@ describe('soloBotLevels', () => {
     expect(AIM_BOT_GAP_MS.normal).toEqual([400, 750])
     expect(TYPING_BOT_WPM.normal).toBe(55)
     expect(MATH_BOT.normal).toEqual({ delayMs: [1000, 3000], accuracy: 0.7 })
+    expect(TRIVIA_BOT_ACCURACY.normal).toEqual({ 1: 0.75, 2: 0.55, 3: 0.4 })
   })
 
   it('is faster at every step up the levels', () => {
@@ -39,6 +40,18 @@ describe('soloBotLevels', () => {
     expect(AIM_BOT_GAP_MS.hard[0]).toBeGreaterThanOrEqual(200)
     expect(TYPING_BOT_WPM.hard).toBeLessThanOrEqual(100)
     expect(MATH_BOT.hard.accuracy).toBeLessThan(1)
+  })
+
+  it('answers trivia better at every difficulty as the level rises, and worse on harder questions', () => {
+    for (const diff of [1, 2, 3]) {
+      expect(triviaBotAccuracy('easy', diff)).toBeLessThan(triviaBotAccuracy('normal', diff))
+      expect(triviaBotAccuracy('normal', diff)).toBeLessThan(triviaBotAccuracy('hard', diff))
+      expect(triviaBotAccuracy('hard', diff)).toBeLessThan(1)
+    }
+    for (const level of LEVELS) {
+      expect(triviaBotAccuracy(level, 1)).toBeGreaterThan(triviaBotAccuracy(level, 3))
+    }
+    expect(triviaBotAccuracy('normal', 9)).toBe(0.5)
   })
 
   it('rolls inside the range, ends included', () => {
