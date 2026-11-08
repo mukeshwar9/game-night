@@ -13,6 +13,15 @@ export const CELL_COUNT = ROWS * COLS // 144
 export const MINES = 22
 export const SAFE_CELLS = CELL_COUNT - MINES // 122
 
+// Solo MINE RACE levels: the mine count on the same 12x12 field. NORMAL is the
+// MINES every room board uses; rooms never read this table.
+export const MINE_LEVELS = { easy: 14, normal: MINES, hard: 32 }
+
+/** Mines on a solo board at `level`; an unknown level plays NORMAL. */
+export function minesForLevel(level) {
+  return MINE_LEVELS[level] ?? MINES
+}
+
 export function indexOf(row, col) {
   return row * COLS + col
 }
@@ -118,8 +127,8 @@ export function countRevealed(revealed) {
 
 // Round won when every safe cell is revealed (by construction `revealed` never
 // holds a mine — see floodReveal).
-export function isComplete(revealed) {
-  return countRevealed(revealed) === SAFE_CELLS
+export function isComplete(revealed, mines = MINES) {
+  return countRevealed(revealed) === CELL_COUNT - mines
 }
 
 // Deterministic board per seed: place MINES, compute counts, then pre-flood an
@@ -127,14 +136,14 @@ export function isComplete(revealed) {
 // safety without per-player boards). If a placement leaves no zero-cell to
 // open from, regenerate deterministically (attempt counter mixes into the PRNG
 // seed) — with 22 mines on 144 cells this loop effectively always lands on
-// attempt 0; the cap is purely defensive so termination is provable.
-export function generateBoard(seed) {
+// attempt 0 (the solo HARD level's 32 mines needs a few more attempts at times); the cap is purely defensive so termination is provable.
+export function generateBoard(seed, mineCount = MINES) {
   const MAX_ATTEMPTS = 500
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const rand = mulberry32(mixSeed(seed, attempt))
     const mines = Array(CELL_COUNT).fill(false)
     let placed = 0
-    while (placed < MINES) {
+    while (placed < mineCount) {
       const idx = Math.floor(rand() * CELL_COUNT)
       if (!mines[idx]) {
         mines[idx] = true
