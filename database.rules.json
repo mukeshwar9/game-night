@@ -880,6 +880,16 @@
                 ".validate": "false"
               }
             }
+          },
+          "likes": {
+            "$uid": {
+              ".validate": "newData.val() === true && (newData.val() === data.val() || ($uid === auth.uid && newData.parent().parent().parent().child('gameType').val() === 'sketch' && newData.parent().parent().parent().child('status').val() === 'playing' && newData.parent().parent().parent().child('players').child($uid).exists() && newData.parent().parent().child('artist').val() !== $uid && (newData.parent().parent().child('strokes').exists() || newData.parent().parent().child('fills').exists()) && (newData.parent().parent().child('phase').val() === 'reveal' || (newData.parent().parent().child('phase').val() === 'drawing' && newData.parent().parent().child('correct').child($uid).exists()))))"
+            }
+          },
+          "faves": {
+            "$key": {
+              ".validate": "$key.matches(/^[1-9]:[A-Za-z0-9_-]{1,128}$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 8 && newData.val() % 1 === 0"
+            }
           }
         },
         "archeryFormat": {
