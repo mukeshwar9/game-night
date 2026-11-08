@@ -34,10 +34,22 @@
       // PAPERWHITE was retired; keep its players on the default.
       if (theme === 'paper') { theme = null; localStorage.removeItem('retro-theme') }
       document.documentElement.dataset.theme = theme || 'matcha'
-      document.documentElement.dataset.font = localStorage.getItem('retro-font') || 'press-start'
+      ;(function () {
+        var font = localStorage.getItem('retro-font') || 'press-start'
+        document.documentElement.dataset.font = font
+        // Preload only the face this player is about to use: a preload for a font
+        // they switched away from is fetched, never used, and Chrome warns about it.
+        if (font !== 'press-start') return
+        var preload = document.createElement('link')
+        preload.rel = 'preload'
+        preload.as = 'font'
+        preload.type = 'font/woff2'
+        preload.crossOrigin = 'anonymous'
+        preload.href = '/fonts/press-start-2p-latin.woff2'
+        document.head.appendChild(preload)
+      })()
     </script>
     <title>Game Night — quick games with friends, no account needed</title>
-    <link rel="preload" href="/fonts/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root">
