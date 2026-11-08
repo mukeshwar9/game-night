@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  createState, step, getWinner, computeAI,
+  createState, step, getWinner, computeAI, AI_LEVELS,
   SHIP_R, BULLET_SPEED, BULLET_LIFE, FIRE_COOLDOWN, ROUND_CAP_S,
   SHIP_MAX_HP, START_FIRE_DELAY,
 } from './spaceduelLogic'
@@ -247,6 +247,55 @@ describe('spaceduelLogic', () => {
     it('dead ship yields all-zero input', () => {
       const s = createState(); s.ships.O.alive = false
       expect(computeAI(s, 'O')).toEqual({ turn: 0, thrust: 0, fire: 0 })
+    })
+  })
+
+  describe('computeAI levels', () => {
+    // O faces X head-on across the arena with a ready gun.
+    const duel = (gap, angOff = 0) => {
+      const s = createState()
+      s.ships.X.x = 0.75 - gap; s.ships.X.y = 0.5
+      s.ships.X.vx = 0; s.ships.X.vy = 0
+      s.ships.O.x = 0.75; s.ships.O.y = 0.5
+      s.ships.O.vx = 0; s.ships.O.vy = 0
+      s.ships.O.ang = Math.PI + angOff
+      s.ships.O.cool = 0
+      return s
+    }
+
+    it('lists the levels, with NORMAL as the original bot', () => {
+      expect(Object.keys(AI_LEVELS)).toEqual(['easy', 'normal', 'hard'])
+      expect(AI_LEVELS.normal).toMatchObject({ lead: 0.25, deadzone: 0.08, facing: 0.6, range: 0.85, reactMs: 0 })
+      const s = duel(0.5, 0.3)
+      expect(computeAI(s, 'O')).toEqual(computeAI(s, 'O', 'normal'))
+      expect(computeAI(s, 'O', 'nonsense')).toEqual(computeAI(s, 'O', 'normal'))
+    })
+
+    it('EASY waits for a longer shot window than NORMAL and HARD', () => {
+      const s = duel(0.65)
+      expect(computeAI(s, 'O', 'easy').fire).toBe(0)
+      expect(computeAI(s, 'O', 'normal').fire).toBe(1)
+      expect(computeAI(s, 'O', 'hard').fire).toBe(1)
+    })
+
+    it('only HARD fires from the far side of the arena', () => {
+      const s = duel(0.9)
+      expect(computeAI(s, 'O', 'normal').fire).toBe(0)
+      expect(computeAI(s, 'O', 'hard').fire).toBe(1)
+    })
+
+    it('EASY leaves a small aiming error that NORMAL and HARD correct', () => {
+      const s = duel(0.5, 0.15)
+      expect(computeAI(s, 'O', 'easy').turn).toBe(0)
+      expect(computeAI(s, 'O', 'normal').turn).toBe(-1)
+      expect(computeAI(s, 'O', 'hard').turn).toBe(-1)
+    })
+
+    it('a dead ship stays all-zero at every level', () => {
+      const s = duel(0.5); s.ships.O.alive = false
+      for (const level of Object.keys(AI_LEVELS)) {
+        expect(computeAI(s, 'O', level)).toEqual({ turn: 0, thrust: 0, fire: 0 })
+      }
     })
   })
 })

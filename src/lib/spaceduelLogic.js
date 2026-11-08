@@ -191,20 +191,35 @@ export function getWinner(state) {
 }
 
 /**
+ * What each CPU level changes: how far ahead it leads a moving target (`lead`),
+ * how close to dead-on it must aim before it stops turning (`deadzone`), the
+ * aim cone it fires inside (`facing`) and its firing range (`range`), and how
+ * long it holds a decision before looking again (`reactMs`, applied by the
+ * caller). NORMAL is the original bot.
+ */
+export const AI_LEVELS = {
+  easy:   { lead: 0.1,  deadzone: 0.2,  facing: 0.45, range: 0.55, reactMs: 260 },
+  normal: { lead: 0.25, deadzone: 0.08, facing: 0.6,  range: 0.85, reactMs: 0 },
+  hard:   { lead: 0.4,  deadzone: 0.04, facing: 0.7,  range: 1.0,  reactMs: 0 },
+}
+
+/**
  * Heuristic, reaction-handicapped AI input for the demo mode. Deterministic
  * move-by-move: it turns toward the opponent's predicted position (leading it a
  * little), paces its thrust so it doesn't hug a wall, and fires when roughly
  * facing the opponent with a ready cooldown. Beatable by a human.
  * @param {object} state
  * @param {'X'|'O'} side
+ * @param {'easy'|'normal'|'hard'} [level]  AI_LEVELS entry
  * @returns {{turn:-1|0|1, thrust:0|1, fire:0|1}}
  */
-export function computeAI(state, side) {
+export function computeAI(state, side, level = 'normal') {
+  const tune = AI_LEVELS[level] ?? AI_LEVELS.normal
   const opp = side === 'X' ? 'O' : 'X'
   const me = state.ships[side], oppS = state.ships[opp]
   if (!me.alive) return { turn: 0, thrust: 0, fire: 0 }
 
-  const lead = 0.25
+  const lead = tune.lead
   const tx = oppS.x + oppS.vx * lead
   const ty = oppS.y + oppS.vy * lead
   let desired = Math.atan2(ty - me.y, tx - me.x)
@@ -212,15 +227,15 @@ export function computeAI(state, side) {
   // normalize to [-π, π]
   diff = ((diff + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI
 
-  const deadzone = 0.08
+  const deadzone = tune.deadzone
   const turn = Math.abs(diff) < deadzone ? 0 : diff > 0 ? 1 : -1
   const dist = Math.hypot(tx - me.x, ty - me.y)
-  const facing = Math.abs(diff) < 0.6
+  const facing = Math.abs(diff) < tune.facing
   const tooClose = dist < 0.12
   // Thrust paces itself deterministically (~half the time, half-second periods).
   const pace = Math.sin(Math.floor(state.t * 2))
   const thrust = facing && !tooClose && pace > -0.2 ? 1 : 0
   // Fire when roughly facing the opponent and within engagement range.
-  const fire = facing && me.cool <= 0 && dist < 0.85 ? 1 : 0
+  const fire = facing && me.cool <= 0 && dist < tune.range ? 1 : 0
   return { turn, thrust, fire }
 }

@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import SpaceduelArena from '../components/SpaceduelArena'
 import { useSpaceduelControls } from '../hooks/useSpaceduelControls'
 import {
-  createState, step, getWinner, computeAI, ROUND_CAP_S, SHIP_MAX_HP,
+  createState, step, getWinner, computeAI, AI_LEVELS, ROUND_CAP_S, SHIP_MAX_HP,
 } from '../lib/spaceduelLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 const DT = 1 / 120
 
@@ -25,19 +28,27 @@ export default function SpaceduelDemo() {
   const [view, setView] = useState(initialView)
   const [winner, setWinner] = useState(null)
   const [round, setRound] = useState(0)
+  const [level, setLevel] = useBotDifficulty('spaceduel', BOT_LEVEL_IDS)
+  // The loop reads the level through a ref so picking one mid-round does not restart it.
+  const levelRef = useRef(level)
+  useEffect(() => { levelRef.current = level }, [level])
   const { getInput, touch } = useSpaceduelControls(arenaRef, !winner)
 
   useEffect(() => {
     if (winner) return
-    let raf, last = performance.now(), acc = 0
+    let raf, last = performance.now(), acc = 0, ai = { turn: 0, thrust: 0, fire: 0 }, aiAt = -Infinity
     const loop = (now) => {
       raf = requestAnimationFrame(loop)
       let dt = (now - last) / 1000; last = now
       if (dt > 0.1) dt = 0.1
       acc += dt
-      // Read local input once per frame; the AI re-evaluates once per frame too.
+      // Read local input once per frame; the AI re-evaluates once per frame too
+      // (EASY holds each decision for a beat: AI_LEVELS.easy.reactMs).
       const inp = getInput()
-      const ai = computeAI(simRef.current, 'O')
+      if (now - aiAt >= AI_LEVELS[levelRef.current].reactMs) {
+        aiAt = now
+        ai = computeAI(simRef.current, 'O', levelRef.current)
+      }
       const inputs = { X: inp, O: ai }
       const events = []
       while (acc >= DT) {
@@ -86,7 +97,7 @@ export default function SpaceduelDemo() {
 
   return (
     <div className="space-y-3">
-
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <SpaceduelArena
         ref={arenaRef}
         ships={view.ships}
