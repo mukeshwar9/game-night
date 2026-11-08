@@ -36,14 +36,15 @@ export function activePartySeats(players, now = Date.now()) {
 }
 
 // Can `myId` take a party seat? Only while the room is in its lobby
-// (`waiting`) and below `maxPlayers`; a returning player always reclaims
-// their own seat. A joiner only ever writes their OWN seat
-// (`players/{myId}`), so a full room stays full until a member sweeps out
-// its ghosts (ghostsToSweep).
+// (`waiting`) — or, for a game that takes players mid-match (registry
+// `midJoin`), while it is `playing` — and below `maxPlayers`; a returning
+// player always reclaims their own seat. A joiner only ever writes their OWN
+// seat (`players/{myId}`), so a full room stays full until a member sweeps
+// out its ghosts (ghostsToSweep).
 //   → { action: 'reclaim' | 'join' | 'spectate' }
-export function partyJoinPlan({ players, myId, status, maxPlayers = PARTY_DEFAULT_MAX }) {
+export function partyJoinPlan({ players, myId, status, maxPlayers = PARTY_DEFAULT_MAX, midJoin = false }) {
   if (players?.[myId]) return { action: 'reclaim' }
-  if (status !== 'waiting') return { action: 'spectate' }
+  if (status !== 'waiting' && !(midJoin && status === 'playing')) return { action: 'spectate' }
   const seats = Object.values(players || {}).filter(p => p && typeof p === 'object' && p.playerId)
   return { action: seats.length < maxPlayers ? 'join' : 'spectate' }
 }
@@ -54,6 +55,25 @@ export function partyJoinPlan({ players, myId, status, maxPlayers = PARTY_DEFAUL
 export function applyPartyJoin(players, plan, mySeat) {
   if (plan?.action !== 'join') return null
   return { ...(players || {}), [mySeat.playerId]: mySeat }
+}
+
+// The JOIN offer for a watcher of a match in progress, in a game that takes
+// players mid-match (registry `midJoin`): null when it does not apply
+// (seated already, not playing, or kicked/removed, who see their own notice),
+// 'locked' when the host locked the room, 'full' at the cap, else 'open'.
+export function midJoinOffer({ game, myId, midJoin = false, maxPlayers = PARTY_DEFAULT_MAX }) {
+  if (!midJoin || !game || !myId || game.status !== 'playing' || game.players?.[myId]) return null
+  if (game.kicked?.[myId] || game.removed?.[myId]) return null
+  if (game.locked) return 'locked'
+  return partyJoinPlan({ players: game.players, myId, status: game.status, maxPlayers, midJoin }).action === 'join' ? 'open' : 'full'
+}
+
+// The `joinedAt` for a seat taken while a match is playing: server time, but
+// never at or before the current round's start, so the round in flight never
+// counts the newcomer (they take part from the next round).
+export function midJoinSeatTime(now, game) {
+  const started = game?.round?.startedAt
+  return typeof started === 'number' && Number.isFinite(started) ? Math.max(now, started + 1) : now
 }
 
 // Ghost sweep, run by a seated member (the room host) while the lobby is
@@ -77,7 +97,8 @@ export function ghostsToSweep({ players, status, maxPlayers = PARTY_DEFAULT_MAX,
 export function inviteSeatsLine(invite) {
   if (!invite) return null
   if (invite.party) {
-    if (invite.joinsNextRound) return `${invite.playerCount}/${invite.capacity} PLAYERS · ROUND IN PROGRESS — YOU'LL JOIN NEXT ROUND`
+    if (invite.midJoin && invite.seatsLeft > 0) return `${invite.playerCount}/${invite.capacity} PLAYERS · MATCH IN PROGRESS — JOIN AS A GUESSER NEXT ROUND`
+    if (invite.joinsNextRound && !invite.midJoin) return `${invite.playerCount}/${invite.capacity} PLAYERS · ROUND IN PROGRESS — YOU'LL JOIN NEXT ROUND`
     if (invite.seatsLeft <= 0) return `${invite.playerCount}/${invite.capacity} PLAYERS · FULL — YOU'LL WATCH`
     return `${invite.playerCount}/${invite.capacity} PLAYERS · ${invite.seatsLeft} ${invite.seatsLeft === 1 ? 'SEAT' : 'SEATS'} LEFT`
   }
@@ -102,8 +123,10 @@ export function inviteSummary(game, cfg) {
       playerCount: count,
       capacity,
       seatsLeft: Math.max(0, capacity - count),
-      // Party latecomers are seated at the next lobby, not mid-round.
+      // Party latecomers are seated at the next lobby, not mid-round —
+      // except in games that take a guesser mid-match (registry `midJoin`).
       joinsNextRound: game?.status !== 'waiting',
+      midJoin: !!cfg.midJoin && game?.status === 'playing',
     }
   }
   const host = players.X || players.O || null

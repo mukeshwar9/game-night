@@ -11,7 +11,7 @@ import { recordRoom } from '../../lib/profile'
 import { guestName, isGuestStyleName, saveDisplayName } from '../../lib/social'
 import { isListableRoom, listingHost, removePublicListing, republishPublicRoom } from '../../lib/matchmaking'
 import { isGhost, isSeatOnline, seatAway, seatLeft } from '../../lib/presenceLogic'
-import { ghostsToSweep, inviteSummary, openSeat, partyJoinPlan, pickRoomHost, seatedIds, spectatorCount } from '../../lib/roomLogic'
+import { ghostsToSweep, inviteSummary, midJoinOffer, midJoinSeatTime, openSeat, partyJoinPlan, pickRoomHost, seatedIds, spectatorCount } from '../../lib/roomLogic'
 import { canTakeSeat, normalizeQueue } from '../../lib/nightLogic'
 import { hostUidOf, joinQueue } from '../../lib/night'
 import useDbConnected from '../useDbConnected'
@@ -21,6 +21,7 @@ import { countdownEligible } from '../../lib/arrivalLogic'
 import { buildSwitchUpdates } from './roomUpdates'
 import { moderateRoomNames } from '../../lib/moderationLogic'
 import { trackRoomJoined } from '../../lib/track'
+import { getServerNow } from '../useServerClock'
 
 // error value for a room whose game this build doesn't know (Game.jsx shows
 // an update screen for it)
@@ -484,6 +485,30 @@ export default function useRoomSession(gameId) {
     return true
   }
 
+  // Mid-match JOIN (registry `midJoin`, e.g. Sketch): a watcher of a match in
+  // progress may take a seat with an explicit tap — never automatically, so a
+  // laptop on the TV is not seated by accident. The page shows the offer and
+  // calls `join`; null when it does not apply.
+  const midJoinState = party && cfg && !needName
+    ? midJoinOffer({ game, myId, midJoin: !!cfg.midJoin, maxPlayers: effectiveCap(game, cfg) })
+    : null
+  const joinMidMatch = async () => {
+    const room = latestGame.current
+    if (!room || !cfg || partyJoining.current) return false
+    partyJoining.current = true
+    try {
+      const joined = await joinPartySeat(gameId, room, cfg, { name: readName() || guestName(myId), avatar: readAvatar() })
+      if (joined) {
+        recordRoom({ id: gameId, gameType: room.gameType })
+        trackRoomJoined(room.gameType, 'link')
+      }
+      return joined
+    } finally {
+      partyJoining.current = false
+    }
+  }
+  const midJoin = midJoinState ? { state: midJoinState, join: joinMidMatch } : null
+
   const opSym = mySeat === 'X' ? 'O' : 'X'
   const opPresence = mySeat ? game?.presence?.[opSym] : null
   const opponentOnline = mySeat ? isSeatOnline(opPresence) : true
@@ -492,7 +517,7 @@ export default function useRoomSession(gameId) {
 
   return {
     game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft, opponentAway,
-    mySeat, mySymbol, connected, seatOffer, takeSeat,
+    mySeat, mySymbol, connected, seatOffer, takeSeat, midJoin,
   }
 }
 
@@ -500,14 +525,19 @@ export default function useRoomSession(gameId) {
 // latest read of games/{id}); the write touches only this player's own seat —
 // a create-once transaction on players/{myId}, which rules can hold to
 // `playerId === auth.uid` — never anyone else's. `joinedAt` is set here once;
-// a returning player's seat is reclaimed as is.
+// a returning player's seat is reclaimed as is. In the lobby, or mid-match in
+// a game that allows it (registry `midJoin`); a mid-match seat's `joinedAt`
+// is server time after the round in flight began, which is what keeps the
+// newcomer out of that round (see sketchJoinLogic).
 async function joinPartySeat(gameId, room, cfg, { name, avatar }) {
   const myId = getPlayerId()
-  if (!room || room.status !== 'waiting' || !canTakeSeat(room, myId)) return false
-  const plan = partyJoinPlan({ players: room.players, myId, status: room.status, maxPlayers: effectiveCap(room, cfg) })
+  const midJoin = !!cfg?.midJoin && room?.status === 'playing'
+  if (!room || (room.status !== 'waiting' && !midJoin) || !canTakeSeat(room, myId)) return false
+  const plan = partyJoinPlan({ players: room.players, myId, status: room.status, maxPlayers: effectiveCap(room, cfg), midJoin })
   if (plan.action === 'reclaim') return true
   if (plan.action !== 'join') return false
-  const seat = { name, joinedAt: Date.now(), playerId: myId, online: true, avatar }
+  const joinedAt = midJoin ? midJoinSeatTime(getServerNow(), room) : Date.now()
+  const seat = { name, joinedAt, playerId: myId, online: true, avatar }
   try {
     const { committed, snapshot } = await runTransaction(
       ref(db, `games/${gameId}/players/${myId}`),
