@@ -256,7 +256,7 @@ export function HeartButton({ view, count, mine, onToggle, busy = false, floats 
         <span
           key={f.id}
           aria-hidden="true"
-          className="sketch-heart-float pointer-events-none absolute bottom-full text-retro-p3"
+          className="sketch-pts-fly pointer-events-none absolute bottom-full text-retro-p3"
           style={{ right: `${8 + (i % 4) * 7}px` }}
         >
           <PixelHeart filled className="h-3 w-3.5" />

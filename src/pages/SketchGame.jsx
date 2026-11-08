@@ -615,7 +615,7 @@ export default function SketchGame({
     const t = setTimeout(() => {
       floatTimersRef.current.delete(t)
       setHeartFloats(list => list.filter(f => !ids.has(f.id)))
-    }, 1300)
+    }, 1500) // the float (sketch-pts-fly) runs 1.4 s
     floatTimersRef.current.add(t)
     return undefined
   }, [round?.likes, mySeat])
