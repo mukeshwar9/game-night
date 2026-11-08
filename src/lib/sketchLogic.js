@@ -5,6 +5,11 @@
 //     cycle:       number,               // 1-indexed; bumps when the seat order wraps
 //     artist:      uid,
 //     order:       [uid, ...],           // fixed snapshot from startRound, never mutated
+//     cycles:      1 | 2 | 3,            // match setup snapshot from START (sketchConfigLogic);
+//     drawBase:    ms,                   //   absent on rounds from before match setup, which
+//     hintCount:   0 | 1 | 2,            //   fall back to cyclesFor / DRAW_MS / MAX_HINTS
+//     custom:      { by, mode, list } | absent, // the host's custom words, snapshot from START
+//                                       //   (sketchWordsLogic); their indices follow the deck
 //     used:        [number, ...],        // deck indices already offered this match (any tier)
 //     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
@@ -69,29 +74,47 @@ export function tierMultiplier(tier) {
 }
 
 // ---- normalize(str) -> string -----------------------------------------------
-// lowercase, trim, collapse internal whitespace to single spaces, then STRIP
-// (delete, not replace-with-space) any character that isn't a Unicode letter,
-// digit, or space — so "Writer's Block" -> "writers block" (apostrophe just
-// disappears, doesn't fracture the word into extra tokens).
+// NFC, lowercase, trim, collapse internal whitespace to single spaces, then
+// STRIP (delete, not replace-with-space) any character that isn't a Unicode
+// letter, combining mark, digit, or space — so "Writer's Block" -> "writers
+// block" (apostrophe just disappears, doesn't fracture the word into extra
+// tokens). Marks stay: in many scripts a vowel sign tells two words apart.
 export function normalize(str) {
   return String(str ?? '')
+    .normalize('NFC')
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')
-    .replace(/[^\p{L}\p{N} ]/gu, '') // strip punctuation, KEEP spaces already there
+    .replace(/[^\p{L}\p{M}\p{N} ]/gu, '') // strip punctuation, KEEP spaces already there
+}
+
+// ---- cells(text) -> string[] -------------------------------------------------
+// One blank per character as a reader sees it: a letter and the combining
+// marks that follow it ("é" written as e + accent, a Devanagari consonant and
+// its vowel sign) share one cell. Plain code points otherwise, so ASCII words
+// count exactly as before.
+const isMark = ch => /\p{M}/u.test(ch)
+export function cells(text) {
+  const out = []
+  for (const ch of String(text ?? '')) {
+    if (out.length && isMark(ch)) out[out.length - 1] += ch
+    else out.push(ch)
+  }
+  return out
 }
 
 // ---- wordPattern(word) -> string --------------------------------------------
 // Space-separated token lengths of the RAW word (whitespace-split, no
-// punctuation stripping): "hot dog" -> "3 3", "sunglasses" -> "10",
-// "writer's block" -> "9 5" (apostrophe counts toward its token's length here
-// — this is the PUBLIC blank-pattern, deliberately unrelated to normalize()).
+// punctuation stripping), counted in cells(): "hot dog" -> "3 3",
+// "sunglasses" -> "10", "writer's block" -> "9 5" (apostrophe counts toward
+// its token's length here — this is the PUBLIC blank-pattern, deliberately
+// unrelated to normalize()).
 export function wordPattern(word) {
   return String(word ?? '')
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map(w => w.length)
+    .map(w => cells(w).length)
     .join(' ')
 }
 
@@ -168,13 +191,47 @@ export function cyclesFor(playerCount) {
   return playerCount === 2 ? 3 : 2
 }
 
-// ---- matchOver(order, artist, cycle) -> boolean -----------------------------
+// ---- Match setup carried by the round ----------------------------------------
+// START snapshots the host's setup into the round (see sketchConfigLogic) and
+// every next round carries it on. A missing or off-menu value means a round
+// from before match setup: today's rule applies.
+const isCount = (v, max) => Number.isInteger(v) && v >= 0 && v <= max
+
+/** How many times everyone draws this match: `round.cycles`, else cyclesFor(order). */
+export function roundCycles(round) {
+  const c = round?.cycles
+  return isCount(c, 3) && c >= 1 ? c : cyclesFor((round?.order || []).length)
+}
+
+/** The drawing clock before the room's timer scale: `round.drawBase`, else DRAW_MS. */
+export function roundDrawBase(round) {
+  const ms = round?.drawBase
+  return Number.isInteger(ms) && ms >= 45000 && ms <= 120000 ? ms : DRAW_MS
+}
+
+/** Letter hints this match shows (0-2): `round.hintCount`, else MAX_HINTS. */
+export function roundHintCount(round) {
+  const n = round?.hintCount
+  return isCount(n, MAX_HINTS) ? n : MAX_HINTS
+}
+
+/** The setup fields to carry from one round to the next (only those present). */
+function carrySetup(round) {
+  const out = {}
+  for (const key of ['cycles', 'drawBase', 'hintCount', 'custom']) {
+    if (round?.[key] != null) out[key] = round[key]
+  }
+  return out
+}
+
+// ---- matchOver(order, artist, cycle, cycles?) -> boolean ----------------------
 // True when the round that just finished (this artist, this cycle) was the
 // LAST round of the match: artist is the last seat in `order` AND
-// cycle >= cyclesFor(order.length).
-export function matchOver(order, artist, cycle) {
+// cycle >= cycles (the round's snapshot; today's cyclesFor(order.length)
+// when the caller has none).
+export function matchOver(order, artist, cycle, cycles = cyclesFor(order.length)) {
   const idx = order.indexOf(artist)
-  return idx === order.length - 1 && cycle >= cyclesFor(order.length)
+  return idx === order.length - 1 && cycle >= cycles
 }
 
 // ---- nextRoundState(round) -> { finished: true } | { finished: false, round } --
@@ -188,7 +245,7 @@ export function matchOver(order, artist, cycle) {
 export function nextRoundState(round) {
   const { order, artist, cycle, used, options, matchSeed, faves } = round
   const carryUsed = [...(used || []), ...(options || [])]
-  if (matchOver(order, artist, cycle)) return { finished: true }
+  if (matchOver(order, artist, cycle, roundCycles(round))) return { finished: true }
   const idx = order.indexOf(artist)
   const wraps = idx === order.length - 1
   return {
@@ -198,6 +255,7 @@ export function nextRoundState(round) {
       cycle: cycle + (wraps ? 1 : 0),
       artist: nextArtist(order, artist),
       order,
+      ...carrySetup(round),
       used: carryUsed,
       matchSeed,
       options: null,
@@ -323,9 +381,17 @@ export async function deriveWord(deckWords, options, commitment) {
 // else "cat".
 export const CLOSE_MIN_KEY_LENGTH = 4
 
+// matchKey reads Latin letters (accents folded) and digits only. A word with
+// letters it cannot read (a host's custom word in another script) publishes
+// no accept hashes, and guessers fall back to the exact normalize() match
+// against the commitment.
+const unreadableByMatchKey = form =>
+  /[^\p{ASCII}]/u.test(String(form ?? '').normalize('NFKD').replace(/\p{M}/gu, ''))
+
 /** Every word form a round accepts: the word plus its alts, as match keys. */
 export function acceptedKeys(entry) {
   const forms = [entry?.word, ...(Array.isArray(entry?.alts) ? entry.alts : [])]
+  if (forms.some(f => f != null && unreadableByMatchKey(f))) return []
   return [...new Set(forms.map(f => matchKey(f)).filter(Boolean))]
 }
 
@@ -385,33 +451,44 @@ export function entryForWord(deckWords, options, word) {
 // Published as `round/hints/{n}` = { i, c }: `i` is the letter's position in
 // the public blanks, counted across the words of the pattern with no gaps
 // ("hot dog" -> h0 o1 t2 d3 o4 g5), `c` the letter itself. Starting values,
-// not tuned numbers: the 50% / 75% moments and the one-third cap.
+// not tuned numbers: the 50% / 75% moments and the one-third cap. The host's
+// match setup can lower the count (`round.hintCount`: 1 = the half-time hint
+// only, 0 = none).
 export const HINT_AT = [0.5, 0.75]
 export const HINT_MAX_FRACTION = 1 / 3
 export const MAX_HINTS = HINT_AT.length
 
 const isLetter = ch => /\p{L}/u.test(ch)
 
-/** Flat positions (over the blanks, no gaps between words) that hold a letter. */
+// The word's blanks in order, no gaps between words (see cells()).
+const flatCells = word => cells(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
+
+/**
+ * Flat positions (over the blanks, no gaps between words) a hint may fill: a
+ * letter that is one character on its own (a letter carrying combining marks
+ * is never hinted — a hint is a single character).
+ */
 export function letterPositions(word) {
-  const chars = String(word ?? '').trim().split(/\s+/).filter(Boolean).join('')
   const out = []
-  Array.from(chars).forEach((ch, i) => { if (isLetter(ch)) out.push(i) })
+  flatCells(word).forEach((cell, i) => {
+    if (cell.length === 1 && isLetter(cell) && cell.toLowerCase().length === 1) out.push(i)
+  })
   return out
 }
 
-/** How many hints a word may ever show: at most a third of its letters, at most MAX_HINTS. */
-export function hintBudget(word) {
-  return Math.min(MAX_HINTS, Math.floor(letterPositions(word).length * HINT_MAX_FRACTION))
+/** How many hints a word may ever show: at most a third of its letters, at most `max` (MAX_HINTS). */
+export function hintBudget(word, max = MAX_HINTS) {
+  const cap = isCount(max, MAX_HINTS) ? max : MAX_HINTS
+  return Math.min(cap, Math.floor(letterPositions(word).length * HINT_MAX_FRACTION))
 }
 
 /**
  * The hints a word will show, in order, deterministic from `seed` so an artist
  * who reloads republishes the same letters. Each is { i, c } (c lowercase).
  */
-export function planHints(word, seed) {
-  const chars = Array.from(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
-  const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word))
+export function planHints(word, seed, max = MAX_HINTS) {
+  const chars = flatCells(word)
+  const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word, max))
   return picks.map(i => ({ i, c: chars[i].toLowerCase() }))
 }
 
@@ -444,7 +521,7 @@ export function normalizeHints(raw, pattern = null) {
  */
 export function nextHintToPublish({ word, seed, round, published, now }) {
   if (!word || !round || round.phase !== 'drawing') return null
-  const plan = planHints(word, seed)
+  const plan = planHints(word, seed, roundHintCount(round))
   const have = new Set((published || []).map(h => h.n))
   for (let n = 0; n < plan.length; n++) {
     if (have.has(n)) continue

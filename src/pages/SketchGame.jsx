@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ref, update, push, set, runTransaction, serverTimestamp } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
@@ -12,9 +12,9 @@ import {
   ARTIST_OFFLINE_DRAWING_MS,
   normalize,
   wordPattern,
-  pickRoundOptions,
   scoringWindow,
-  cyclesFor,
+  roundCycles,
+  roundDrawBase,
   nextRoundState,
   activeGuessers,
   participantGuessers,
@@ -60,6 +60,11 @@ import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
 import ReportButton from '../components/ReportButton'
 import BottomSheet from '../components/BottomSheet'
+import SketchSetup from '../components/SketchSetup'
+import { SKETCH_CONFIG_KEY, patchSketchConfig } from '../lib/sketchConfigLogic'
+import {
+  SKETCH_WORDS_KEY, normalizeSketchWords, patchSketchWords, buildDeck, pickSketchOptions, customRunningOut, sitOutFor,
+} from '../lib/sketchWordsLogic'
 import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, HeartButton, CrowdFavourite } from '../components/SketchStage'
 import SketchGalleryShare from '../components/SketchShare'
 import { shareFavourite, sharePodium } from '../lib/sketchShareLogic'
@@ -89,6 +94,12 @@ function normalizeRound(raw) {
     cycle: raw.cycle ?? 1,
     artist: raw.artist ?? null,
     order: normalizeList(raw.order),
+    // match setup copied in at START (absent on older rounds; see sketchLogic roundCycles & co.)
+    cycles: raw.cycles ?? null,
+    drawBase: raw.drawBase ?? null,
+    hintCount: raw.hintCount ?? null,
+    // the host's custom words, copied in at START (sketchWordsLogic); absent without any
+    custom: raw.custom ?? null,
     used: normalizeList(raw.used),
     matchSeed: raw.matchSeed ?? '',
     options: raw.options ? normalizeList(raw.options) : null,
@@ -122,6 +133,8 @@ function withLists(r) {
 }
 
 const TIER_LABELS = { 1: 'EASY', 2: 'MEDIUM', 3: 'HARD' }
+// Bundled deck size: custom word indices start here (see sketchWordsLogic).
+const DECK_SIZE = SKETCH_WORDS.length
 
 // "×1.5" for tiers that pay extra, '' for ×1.
 function multiplierLabel(tier) {
@@ -200,9 +213,9 @@ export default function SketchGame({
   // Room timer scale (lobby option): choosing/drawing clocks stretch 2× when
   // relaxed and disappear at 0 (the coordinator then ends rounds by hand). The
   // reveal (word, replay, points) is a display pause, not a deadline on anyone,
-  // so it stays fixed.
+  // so it stays fixed. The drawing clock's base is the round's own (the host's
+  // match setup).
   const chooseMs = scaledMs(CHOOSE_MS, game.timerScale)
-  const drawMs = scaledMs(DRAW_MS, game.timerScale)
   const noTimer = timersOff(game.timerScale)
   const deadlineAfter = (ms) => (ms == null ? null : now() + ms)
 
@@ -210,8 +223,6 @@ export default function SketchGame({
   const roundKey = round ? `${round.cycle}:${round.artist}` : null
   const isArtist = !!round && round.artist === mySeat
   const isPlayer = !!mySeat && !!players?.[mySeat]
-  const participantGuesserIds = round ? participantGuessers(round.order, round.artist) : []
-  const activeGuesserIds = round ? activeGuessers(players || {}, round.order, round.artist) : []
   const haveIGuessedCorrectly = !!round?.correct?.[mySeat]
   // Deterministic host-fallback: the coordinator is the first ONLINE seat in join order, not
   // the fixed `isHost` — so a host disconnect hands phase-advance duty off instead
@@ -222,6 +233,19 @@ export default function SketchGame({
 
   const [guessInput, setGuessInput] = useState('')
   const [derivedWord, setDerivedWord] = useState(null)
+  // One combined deck for this match: the bundled words, then the host's
+  // custom words (round.custom), whose indices follow the deck.
+  const customKey = round?.custom ? JSON.stringify(round.custom) : ''
+  const deck = useMemo(() => buildDeck(SKETCH_WORDS, round?.custom), [customKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The room's custom word list (lobby), read once per room update.
+  const roomWordsRaw = game[SKETCH_WORDS_KEY]
+  const roomWords = useMemo(() => normalizeSketchWords(roomWordsRaw), [roomWordsRaw])
+  const roundEntry = round ? entryForWord(deck, round.options, derivedWord) : null
+  // A custom word's author knows it: they sit the round out (no guess box, no score).
+  const sitOut = round ? sitOutFor(round.custom, roundEntry, round.artist) : null
+  const amSittingOut = !!sitOut && sitOut === mySeat
+  const participantGuesserIds = round ? participantGuessers(round.order, round.artist).filter(id => id !== sitOut) : []
+  const activeGuesserIds = round ? activeGuessers(players || {}, round.order.filter(id => id !== sitOut), round.artist) : []
   // Last-seen drawing-phase endsAt, captured via effect (see below) — `round.endsAt`
   // gets overwritten to the reveal deadline the instant the phase flips, but the
   // reveal screen still needs the ORIGINAL drawing deadline to recompute the same
@@ -236,7 +260,7 @@ export default function SketchGame({
   const [coarsePointer] = useState(isCoarsePointer)
   // Stage screen state: hints, the artist menu, the guess list, the gallery.
   const hints = round?.hints ?? []
-  const stageRole = isArtist ? 'artist' : isPlayer && !haveIGuessedCorrectly ? 'guesser' : 'watcher'
+  const stageRole = isArtist ? 'artist' : isPlayer && !haveIGuessedCorrectly && !amSittingOut ? 'guesser' : 'watcher'
   const [stageRef, stageSide] = useStageSide(stageRole)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hintFlash, setHintFlash] = useState(null)       // n of the newest hint, shown for a moment
@@ -259,6 +283,8 @@ export default function SketchGame({
   const [skippingDrawing, runSkipDrawing] = useBusy()     // drawing: SKIP ROUND (artist offline)
   const [endingRound, runEndRound] = useBusy()           // drawing, timers off: END ROUND
   const [hearting, runHeart] = useBusy()                 // drawing (solved) / reveal: the heart
+  const [savingSetup, runSaveSetup] = useBusy()          // lobby: MATCH SETUP taps
+  const [savingWords, runSaveWords] = useBusy()          // lobby: CUSTOM WORDS edits
 
   const pickedRef = useRef(false)                    // this client already picked/auto-picked this round
   const correctSentRef = useRef(false)                // this client already published its own correct guess
@@ -299,13 +325,17 @@ export default function SketchGame({
       if (cr.phase !== 'choosing' || cr.artist !== mySeat || cr.options) return // stale/already published
       // Options avoid this match's `used` AND the room's seen history (earlier
       // matches), computed from the live node so the pick and the history
-      // update land together. The offered words join the room history.
+      // update land together. The offered deck words join the room history;
+      // custom words (indices past the deck) never do.
       const roomSeen = normalizeSeen(current.seen?.[SKETCH_SEEN_KEY])
-      const picks = pickRoundOptions(SKETCH_WORDS, seed, normalizeRound(cr).used, roomSeen)
+      const live = normalizeRound(cr)
+      const picks = pickSketchOptions({
+        deck: SKETCH_WORDS, custom: cr.custom, seed, used: live.used, seen: roomSeen, order: live.order, artist: cr.artist,
+      })
       return {
         ...current,
         round: { ...cr, options: picks, endsAt: publishEndsAt },
-        seen: { ...(current.seen || {}), [SKETCH_SEEN_KEY]: markSeen(roomSeen, picks) },
+        seen: { ...(current.seen || {}), [SKETCH_SEEN_KEY]: markSeen(roomSeen, picks.filter(i => i < DECK_SIZE)) },
       }
     }).catch(() => { optionsPublishAttemptRef.current = null })
   }, [roundKey, mySeat, gameId, now, chooseMs]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -315,7 +345,7 @@ export default function SketchGame({
     const r = roundRef.current
     if (!r || r.phase !== 'choosing' || r.artist !== mySeat) return
     if (pickedRef.current) return
-    const entry = SKETCH_WORDS[deckIndex]
+    const entry = buildDeck(SKETCH_WORDS, r.custom)[deckIndex]
     if (!entry) return
     pickedRef.current = true
     try {
@@ -324,6 +354,8 @@ export default function SketchGame({
       // guessers can be matched leniently without the word in the clear.
       const accept = await acceptHashes(entry, salt)
       const pattern = wordPattern(entry.word)
+      const drawBase = roundDrawBase(r)
+      const drawMs = scaledMs(drawBase, game.timerScale)
       const drawStartedAt = now()
       const drawPhaseEndsAt = drawMs == null ? null : drawStartedAt + drawMs
       await runTransaction(ref(db, `games/${gameId}`), current => {
@@ -335,8 +367,8 @@ export default function SketchGame({
           round: {
             ...cr, commitment: { hash, salt }, accept, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt,
             // Speed-bonus window for scoring (see sketchLogic.scoringWindow):
-            // the scaled clock, or the base DRAW_MS when timers are off.
-            drawStartedAt, drawMs: drawMs ?? DRAW_MS,
+            // the scaled clock, or the round's base clock when timers are off.
+            drawStartedAt, drawMs: drawMs ?? drawBase,
           },
         }
       })
@@ -344,7 +376,7 @@ export default function SketchGame({
       pickedRef.current = false
       toast.error('PICK FAILED — CHECK CONNECTION')
     }
-  }, [mySeat, gameId, now, drawMs])
+  }, [mySeat, gameId, now, game.timerScale])
 
   // ---- Guesser: submit a guess — correct locks in via hash match -----------
   // Throttled client-side (min 500ms between guesses) so a fast-tapping/scripted
@@ -353,7 +385,7 @@ export default function SketchGame({
   const handleSubmitGuess = useCallback(async () => {
     const r = roundRef.current
     if (!r || r.phase !== 'drawing') return
-    if (r.artist === mySeat || r.correct?.[mySeat] || correctSentRef.current) return
+    if (r.artist === mySeat || r.correct?.[mySeat] || correctSentRef.current || amSittingOut) return
     const nowTs = Date.now()
     if (nowTs - lastGuessAtRef.current < MIN_GUESS_INTERVAL_MS) return
     const raw = guessInput.trim().slice(0, MAX_GUESS_LEN)
@@ -382,8 +414,9 @@ export default function SketchGame({
         clearDraft()
         return
       }
-      const word = derivedWord ?? (r.commitment ? await deriveWord(SKETCH_WORDS, r.options, r.commitment) : null)
-      const entry = entryForWord(SKETCH_WORDS, r.options, word)
+      const roundDeck = buildDeck(SKETCH_WORDS, r.custom)
+      const word = derivedWord ?? (r.commitment ? await deriveWord(roundDeck, r.options, r.commitment) : null)
+      const entry = entryForWord(roundDeck, r.options, word)
       if (entry && isNearMiss(raw, entry)) {
         say(`CLOSE! "${raw.toUpperCase()}" IS NEARLY IT — ONLY YOU SEE THIS`, 'info')
         clearDraft()
@@ -396,7 +429,7 @@ export default function SketchGame({
       correctSentRef.current = false
       toast.error('GUESS FAILED — CHECK CONNECTION')
     }
-  }, [mySeat, guessInput, gameId, roundKey, derivedWord])
+  }, [mySeat, guessInput, gameId, roundKey, derivedWord, amSittingOut])
 
   // ---- Host: void the round and rotate the artist (choosing stalled) ------
   const handleSkipChoosing = useCallback(async () => {
@@ -423,25 +456,31 @@ export default function SketchGame({
     const revealAt = now()
     const revealEndsAt = revealAt + REVEAL_MS
     try {
-      // The word's tier sets the score multiplier. Every client can derive the
-      // word from the public options + commitment (see deriveWord), so the
-      // coordinator does it here rather than publishing the tier.
+      // The word's tier sets the score multiplier, and a custom word sits its
+      // author out. Every client can derive the word from the public options +
+      // commitment (see deriveWord), so the coordinator does it here rather
+      // than publishing either.
       const snap = roundRef.current
       const commitHash = snap?.commitment?.hash ?? null
-      const word = commitHash ? await deriveWord(SKETCH_WORDS, snap.options, snap.commitment) : null
-      const multiplier = tierMultiplier(entryForWord(SKETCH_WORDS, snap?.options, word)?.tier)
+      const snapDeck = buildDeck(SKETCH_WORDS, snap?.custom)
+      const word = commitHash ? await deriveWord(snapDeck, snap.options, snap.commitment) : null
+      const entry = entryForWord(snapDeck, snap?.options, word)
+      const multiplier = tierMultiplier(entry?.tier)
+      const snapSitOut = sitOutFor(snap?.custom, entry, snap?.artist)
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'drawing') return // already advanced
+        // only trust the derived tier and sit-out for the word they were derived from
+        const sameWord = r.commitment?.hash === commitHash
         const liveGuesserIds = participantGuessers(normalizeRound(r).order, r.artist)
+          .filter(id => !(sameWord && id === snapSitOut))
         const deltas = roundDeltas({
           guesserIds: liveGuesserIds,
           correct: r.correct || {},
           artistId: r.artist,
           ...scoringWindow(r),
-          // only trust the derived tier for the word it was derived from
-          multiplier: r.commitment?.hash === commitHash ? multiplier : 1,
+          multiplier: sameWord ? multiplier : 1,
         })
         const newScores = { ...(current.scores || {}) }
         for (const [id, pts] of Object.entries(deltas)) newScores[id] = (newScores[id] || 0) + pts
@@ -533,11 +572,11 @@ export default function SketchGame({
   useEffect(() => {
     if (!round?.commitment?.hash || !round?.options) return
     let cancelled = false
-    deriveWord(SKETCH_WORDS, round.options, round.commitment).then(word => {
+    deriveWord(deck, round.options, round.commitment).then(word => {
       if (!cancelled) setDerivedWord(word)
     })
     return () => { cancelled = true }
-  }, [round?.commitment?.hash, optionsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [round?.commitment?.hash, optionsKey, deck]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Sound cues: phase transitions -----------------------------------
   useEffect(() => {
@@ -644,7 +683,7 @@ export default function SketchGame({
     const entry = galleryEntry({
       round,
       word: derivedWord,
-      tier: entryForWord(SKETCH_WORDS, round.options, derivedWord)?.tier,
+      tier: roundEntry?.tier,
       artistName: players?.[round.artist]?.name,
       strokes: drawingRef.current.strokes,
       fills: drawingRef.current.fills,
@@ -657,6 +696,13 @@ export default function SketchGame({
 
   // ---- Artist: publish options as soon as we enter choosing ----------------
   useEffect(() => { publishOptions() }, [publishOptions])
+
+  // ---- Artist, CUSTOM ONLY: say so when the deck starts filling in ----------
+  const runningShort = !!round && isArtist && round.phase === 'choosing' && !!round.options
+    && round.options.some(i => i < DECK_SIZE) && customRunningOut(DECK_SIZE, round.custom, round.used)
+  useEffect(() => {
+    if (runningShort) toast('CUSTOM WORDS USED UP — DECK WORDS FROM HERE', { id: `sketch-custom-out-${roundKey}` })
+  }, [runningShort, roundKey])
 
   // ---- Artist: auto-pick options[0] once the choosing clock hits 0 --------
   useEffect(() => {
@@ -731,6 +777,22 @@ export default function SketchGame({
     const galleryEntries = matchOver ? galleryFor(galleryStore, game.round?.matchSeed) : []
     const award = matchOver ? crowdFavourite(game.round?.faves, { order: normalizeList(game.round?.order) }) : null
     const podiumRows = matchOver ? podium(order, scores) : []
+    // MATCH SETUP: each tap merges into the room's sketchConfig at once. A
+    // transaction on the key alone, so two quick taps never undo each other;
+    // the rules refuse it once the match is playing.
+    const saveSetup = (patch) => runSaveSetup(
+      () => runTransaction(ref(db, `games/${gameId}/${SKETCH_CONFIG_KEY}`), cur => patchSketchConfig(cur, patch)),
+      () => toast.error("COULDN'T SAVE SETUP — TRY AGAIN"),
+    )
+    // CUSTOM WORDS: each editor action rewrites the list signed with this
+    // player's uid (the rules insist on it); resolves true once saved.
+    const saveWords = (change) => runSaveWords(
+      async () => {
+        await runTransaction(ref(db, `games/${gameId}/${SKETCH_WORDS_KEY}`), cur => patchSketchWords(cur, mySeat, change))
+        return true
+      },
+      () => toast.error("COULDN'T SAVE WORDS — TRY AGAIN"),
+    )
 
     return (
       <div className="space-y-5 text-center">
@@ -797,6 +859,20 @@ export default function SketchGame({
           </div>
         )}
 
+        {!matchOver && (
+          <SketchSetup
+            config={game[SKETCH_CONFIG_KEY]}
+            playerCount={playerCount}
+            timerScale={game.timerScale}
+            canEdit={amCoordinator && isPlayer}
+            saving={savingSetup}
+            onSave={saveSetup}
+            words={roomWords}
+            wordsSaving={savingWords}
+            onSaveWords={saveWords}
+          />
+        )}
+
         {!enough && !matchOver && (
           <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
             NEED {MIN_PLAYERS - playerCount} MORE PLAYER{MIN_PLAYERS - playerCount === 1 ? '' : 'S'}<br />TO START
@@ -851,7 +927,7 @@ export default function SketchGame({
   // Active round — the stage.
   // -------------------------------------------------------------------------
   const artistName = (players[round.artist]?.name || '???').toUpperCase()
-  const totalCycles = cyclesFor(round.order.length)
+  const totalCycles = roundCycles(round)
   // Timers off: no auto-pick will ever fire, so the coordinator may pass a
   // stalled artist on as soon as the options are up.
   const showChoosingSkip = amCoordinator && round.phase === 'choosing' && (
@@ -863,8 +939,7 @@ export default function SketchGame({
   const artistOfflineMs = artistOfflineSince != null ? nowMs - artistOfflineSince : 0
   const showArtistOfflineSkip = amCoordinator && round.phase === 'drawing' && artistOfflineMs >= ARTIST_OFFLINE_DRAWING_MS
 
-  const revealGuesserIds = participantGuessers(round.order, round.artist)
-  const roundEntry = entryForWord(SKETCH_WORDS, round.options, derivedWord)
+  const revealGuesserIds = participantGuesserIds
   const revealDeltas = round.phase === 'reveal'
     ? roundDeltas({
       guesserIds: revealGuesserIds,
@@ -920,7 +995,7 @@ export default function SketchGame({
           {isArtist ? (
             round.options ? (
               <div className="space-y-2">
-                {round.options.map(idx => (
+                {round.options.map(idx => { const option = deck[idx]; return (
                   <button
                     key={idx}
                     onClick={() => { setPickingIdx(idx); runPick(() => handlePickWord(idx)) }}
@@ -929,15 +1004,15 @@ export default function SketchGame({
                   >
                     {picking && pickingIdx === idx ? 'LOCKING IN…' : (
                       <span className="flex items-center justify-between gap-3">
-                        <span className="text-left">{(SKETCH_WORDS[idx]?.word || '').toUpperCase()}</span>
+                        <span className="text-left">{(option?.word || '').toUpperCase()}</span>
                         <span className="shrink-0 text-right font-pixel text-[8px] text-retro-dim">
-                          {TIER_LABELS[SKETCH_WORDS[idx]?.tier] || 'WORD'} · {wordPattern(SKETCH_WORDS[idx]?.word || '').split(' ').join(' + ')}
-                          {multiplierLabel(SKETCH_WORDS[idx]?.tier) && ` ${multiplierLabel(SKETCH_WORDS[idx]?.tier)}`}
+                          {option?.custom ? 'CUSTOM' : (TIER_LABELS[option?.tier] || 'WORD')} · {wordPattern(option?.word || '').split(' ').join(' + ')}
+                          {!option?.custom && multiplierLabel(option?.tier) && ` ${multiplierLabel(option?.tier)}`}
                         </span>
                       </span>
                     )}
                   </button>
-                ))}
+                ) })}
               </div>
             ) : (
               <p className="py-4 text-center font-pixel text-[9px] text-retro-dim arcade-blink">PICKING WORDS…</p>
@@ -996,7 +1071,10 @@ export default function SketchGame({
                   <p className="font-pixel text-base tracking-widest text-retro-win text-glow-win" data-testid="sketch-word">
                     {derivedWord ? derivedWord.toUpperCase() : '…'}
                   </p>
-                  {roundEntry && multiplierLabel(roundEntry.tier) && (
+                  {roundEntry?.custom && (
+                    <p className="font-pixel text-[8px] tracking-wider text-retro-dim">CUSTOM WORD</p>
+                  )}
+                  {roundEntry && !roundEntry.custom && multiplierLabel(roundEntry.tier) && (
                     <p className="font-pixel text-[8px] tracking-wider text-retro-dim">
                       {TIER_LABELS[roundEntry.tier]} WORD · POINTS {multiplierLabel(roundEntry.tier)}
                     </p>
@@ -1044,7 +1122,12 @@ export default function SketchGame({
       {/* ---- DRAWING: the guess box, kept just under the drawing ---- */}
       {round.phase === 'drawing' && (
         <div className="space-y-2">
-          {isPlayer && !isArtist && !haveIGuessedCorrectly && (
+          {amSittingOut && (
+            <p className="text-center font-pixel text-[9px] text-retro-cta leading-relaxed" data-testid="sketch-sit-out">
+              YOU ADDED THIS WORD — WATCH THIS ONE
+            </p>
+          )}
+          {isPlayer && !isArtist && !haveIGuessedCorrectly && !amSittingOut && (
             <div className="space-y-1">
               <div className="flex gap-1.5">
                 <input
