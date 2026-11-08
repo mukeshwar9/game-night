@@ -4,6 +4,9 @@ import { useSnakeControls } from '../../hooks/useSnakeControls'
 import { createState as createSnakeState, tick as snakeTick, computeAI as snakeAI, getWinner as snakeWinner, WIN_SCORE as SNAKE_WIN, TICK_MS as SNAKE_TICK } from '../../lib/snakeLogic'
 import { sounds } from '../../lib/sounds'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import useBotDifficulty from '../../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../../lib/botLevels'
 
 // ─── Snake demo (you vs a greedy AI, fully local) ──────────────────────────────
 
@@ -14,6 +17,7 @@ export default function SnakeDemo() {
   const [view, setView] = useState({ snakes: null, food: null, eatenX: 0, eatenO: 0 })
   const [winner, setWinner] = useState(null)
   const [round, setRound] = useState(0)
+  const [level, setLevel] = useBotDifficulty('snake', BOT_LEVEL_IDS)
   const [scoreX, setScoreX] = useState(0)
   const [scoreO, setScoreO] = useState(0)
   const { getDir } = useSnakeControls(arenaRef, !winner)
@@ -25,7 +29,7 @@ export default function SnakeDemo() {
       timer = setTimeout(loop, SNAKE_TICK)
       const s = simRef.current
       // AI re-evaluates every tick (cheap; the sim runs at ~8 Hz).
-      aiDir = snakeAI(s, 'O')
+      aiDir = snakeAI(s, 'O', level)
       const inputs = { X: getDir(s.snakes.X.dir), O: aiDir }
       const { state: next, events } = snakeTick(s, inputs)
       simRef.current = next
@@ -49,7 +53,7 @@ export default function SnakeDemo() {
     }
     timer = setTimeout(loop, SNAKE_TICK)
     return () => clearTimeout(timer)
-  }, [winner, round]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [winner, round, level]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = () => {
     simRef.current = createSnakeState()
@@ -62,6 +66,7 @@ export default function SnakeDemo() {
 
   return (
     <div className="space-y-3">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <div className="flex justify-center gap-6 font-pixel text-[10px]">
         <span className={cn('text-retro-p1', scoreX >= 3 && 'text-glow-p1')}>YOU {scoreX}</span>
         <span className="text-retro-dim">{SNAKE_WIN} WINS</span>

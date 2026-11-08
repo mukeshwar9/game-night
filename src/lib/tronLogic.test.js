@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createState, tick, getWinner, computeAI, GRID } from './tronLogic'
+import { createState, tick, getWinner, computeAI, AI_LEVELS, GRID } from './tronLogic'
 
 describe('tronLogic', () => {
   describe('createState', () => {
@@ -207,6 +207,55 @@ describe('tronLogic', () => {
       const dir = computeAI(s, 'O')
       // right is reversing→blocked; up/down/left all hit a trail → keep 'right'.
       expect(dir).toBe('right')
+    })
+  })
+
+  describe('computeAI levels', () => {
+    // O heads left from (5,5). The cell above is a one-cell pocket (X's trail on
+    // its other three sides) that also happens to be nearest X's head, so the
+    // plain chase walks into it and a space-aware bot does not.
+    const pocket = () => {
+      const s = createState()
+      s.cycles.O.body = [{ x: 5, y: 5 }]
+      s.cycles.O.dir = 'left'
+      s.cycles.X.body = [{ x: 5, y: 0 }, { x: 4, y: 4 }, { x: 6, y: 4 }, { x: 5, y: 3 }]
+      return s
+    }
+
+    it('defaults to NORMAL and lists every level', () => {
+      expect(Object.keys(AI_LEVELS)).toEqual(['easy', 'normal', 'hard'])
+      const s = pocket()
+      expect(computeAI(s, 'O')).toBe(computeAI(s, 'O', 'normal'))
+      expect(computeAI(s, 'O', 'nonsense')).toBe(computeAI(s, 'O', 'normal'))
+    })
+
+    it('NORMAL chases into the pocket; HARD keeps to open space', () => {
+      const s = pocket()
+      expect(computeAI(s, 'O', 'normal')).toBe('up')
+      expect(['down', 'left']).toContain(computeAI(s, 'O', 'hard'))
+    })
+
+    it('EASY turns at random on a slip and otherwise plays like NORMAL', () => {
+      const s = pocket()
+      expect(computeAI(s, 'O', 'easy', () => 0)).toBe('up')
+      expect(computeAI(s, 'O', 'easy', () => 0.999)).toBe(computeAI(s, 'O', 'normal'))
+    })
+
+    it('EASY slips never reverse and NORMAL / HARD never slip', () => {
+      const s = createState()
+      for (const r of [0, 0.3, 0.6, 0.99]) {
+        expect(computeAI(s, 'O', 'easy', () => r * 0.1)).not.toBe('right')
+      }
+      expect(computeAI(s, 'O', 'normal', () => 0)).toBe(computeAI(s, 'O', 'normal', () => 0.99))
+      expect(computeAI(s, 'O', 'hard', () => 0)).toBe(computeAI(s, 'O', 'hard', () => 0.99))
+    })
+
+    it('HARD still falls back to the current direction when boxed in', () => {
+      const s = createState()
+      s.cycles.O.body = [{ x: 5, y: 5 }]
+      s.cycles.O.dir = 'left'
+      s.cycles.X.body = [{ x: 5, y: 4 }, { x: 4, y: 5 }, { x: 5, y: 6 }]
+      expect(computeAI(s, 'O', 'hard')).toBe('left')
     })
   })
 })
