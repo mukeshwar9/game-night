@@ -249,6 +249,7 @@ describe('nextRoundState', () => {
     expect(result.round.wordPattern).toBe('')
     expect(result.round.scored).toBe(false)
     expect(result.round.hints).toBeNull()
+    expect(result.round.revealAt).toBeNull()
   })
 
   it('final round of the match returns { finished: true }', () => {
