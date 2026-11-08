@@ -45,6 +45,7 @@ import {
   heartView,
   likeCount,
   newHeartsFrom,
+  normalizeFaves,
   crowdFavourite,
 } from '../lib/sketchFavesLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
@@ -71,7 +72,9 @@ import { SKETCH_CONFIG_KEY, patchSketchConfig } from '../lib/sketchConfigLogic'
 import {
   SKETCH_WORDS_KEY, normalizeSketchWords, patchSketchWords, buildDeck, pickSketchOptions, customRunningOut, sitOutFor,
 } from '../lib/sketchWordsLogic'
-import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, Gallery, HeartButton, CrowdFavourite } from '../components/SketchStage'
+import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, HeartButton, CrowdFavourite } from '../components/SketchStage'
+import SketchGalleryShare from '../components/SketchShare'
+import { shareFavourite, sharePodium } from '../lib/sketchShareLogic'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
@@ -788,6 +791,9 @@ export default function SketchGame({
     const iWon = winners.includes(mySeat)
     const enough = playerCount >= MIN_PLAYERS
     const winnerNames = winners.map(id => (players[id]?.name || '???').toUpperCase())
+    const galleryEntries = matchOver ? galleryFor(galleryStore, game.round?.matchSeed) : []
+    const award = matchOver ? crowdFavourite(game.round?.faves, { order: normalizeList(game.round?.order) }) : null
+    const podiumRows = matchOver ? podium(order, scores) : []
     // MATCH SETUP: each tap merges into the room's sketchConfig at once. A
     // transaction on the key alone, so two quick taps never undo each other;
     // the rules refuse it once the match is playing.
@@ -841,18 +847,23 @@ export default function SketchGame({
         {matchOver ? (
           <>
             <CrowdFavourite
-              award={crowdFavourite(game.round?.faves, { order: normalizeList(game.round?.order) })}
-              entries={galleryFor(galleryStore, game.round?.matchSeed)}
+              award={award}
+              entries={galleryEntries}
               players={players}
               order={normalizeList(game.round?.order)}
             />
             <Podium
-              rows={podium(order, scores)}
+              rows={podiumRows}
               players={players}
               mySeat={mySeat}
               lateIds={order.filter(id => joinedLate(players[id], normalizeRound(game.round)))}
             />
-            <Gallery entries={galleryFor(galleryStore, game.round?.matchSeed)} />
+            <SketchGalleryShare
+              entries={galleryEntries}
+              hearts={normalizeFaves(game.round?.faves)}
+              podium={sharePodium(podiumRows, players)}
+              favourite={shareFavourite(award, galleryEntries, players)}
+            />
           </>
         ) : (
           <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">

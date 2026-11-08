@@ -149,6 +149,15 @@ export function galleryFor(stored, matchSeed) {
   return stored.entries.filter(e => e && Array.isArray(e.strokes) && Array.isArray(e.fills))
 }
 
+/**
+ * The line under the gallery: the drawings live in this tab only
+ * (sessionStorage), so it says so.
+ */
+export function galleryFooter(count) {
+  if (count <= 1) return 'IT STAYS ON THIS PHONE UNTIL YOU CLOSE THE TAB'
+  return `${count} DRAWINGS · SWIPE · THEY STAY ON THIS PHONE UNTIL YOU CLOSE THE TAB`
+}
+
 // ---- Podium -----------------------------------------------------------------
 /**
  * Everyone ranked by score, ties sharing a rank (1, 1, 3), as

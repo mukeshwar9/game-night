@@ -115,9 +115,45 @@ export function createShare({
     return 'unavailable'
   }
 
+  /**
+   * Opens the share sheet for several files at once: a set of images (WhatsApp
+   * shows them as an album) or a PDF. Same outcomes as shareImage:
+   * 'unavailable' means no sheet could take these files, and on the web the
+   * caller may download them instead.
+   * @param {{ files: { blob: Blob, filename: string }[], title?: string, text?: string }} data
+   * @returns {Promise<ShareOutcome>}
+   */
+  async function shareFiles({ files, title = 'Game Night', text }) {
+    if (!files?.length) return 'unavailable'
+    try {
+      if (native) {
+        const [{ Filesystem, Directory }, { Share }] = await Promise.all([loadFilesystem(), loadShare()])
+        const uris = []
+        // One at a time, so only one file's base64 copy is in memory at once.
+        for (const f of files) {
+          const data = await blobToBase64(f.blob)
+          const { uri } = await Filesystem.writeFile({ path: f.filename, data, directory: Directory.Cache })
+          uris.push(uri)
+        }
+        await Share.share({ title, text, files: uris, dialogTitle: title })
+        return 'shared'
+      }
+      const list = files.map(f => new File([f.blob], f.filename, { type: f.blob.type || 'application/octet-stream' }))
+      if (typeof nav?.share === 'function' && nav.canShare?.({ files: list })) {
+        await nav.share({ files: list, title, text })
+        return 'shared'
+      }
+    } catch (err) {
+      if (isShareCancel(err)) return 'cancelled'
+      console.warn('[share] files share failed:', err)
+    }
+    return 'unavailable'
+  }
+
   return {
     shareLink,
     shareImage,
+    shareFiles,
     // Load the plugin ahead of the first tap so the sheet opens without a gap.
     preload: () => { if (native) loadShare().catch(() => {}) },
   }
@@ -127,4 +163,5 @@ const instance = createShare()
 
 export const shareLink = instance.shareLink
 export const shareImage = instance.shareImage
+export const shareFiles = instance.shareFiles
 instance.preload()

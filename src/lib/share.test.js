@@ -82,3 +82,69 @@ describe('shareImage', () => {
     await expect(noFiles.shareImage({ blob, filename: 'card.png' })).resolves.toBe('unavailable')
   })
 })
+
+describe('shareFiles', () => {
+  const png = (s) => new Blob([s], { type: 'image/png' })
+  const files = [
+    { blob: png('one'), filename: 'sketch-collage-1.png' },
+    { blob: png('two'), filename: 'sketch-collage-2.png' },
+  ]
+
+  it('writes every file to the cache folder and shares all the uris in one sheet in the shell', async () => {
+    const writeFile = vi.fn(async ({ path }) => ({ uri: `file:///cache/${path}` }))
+    const share = vi.fn().mockResolvedValue({})
+    const s = createShare({
+      native: true,
+      loadFilesystem: async () => ({ Filesystem: { writeFile }, Directory: { Cache: 'CACHE' } }),
+      loadShare: async () => ({ Share: { share } }),
+    })
+    await expect(s.shareFiles({ files, text: 'ALL' })).resolves.toBe('shared')
+    expect(writeFile).toHaveBeenCalledTimes(2)
+    expect(writeFile.mock.calls.map(([a]) => [a.path, a.data, a.directory])).toEqual([
+      ['sketch-collage-1.png', btoa('one'), 'CACHE'],
+      ['sketch-collage-2.png', btoa('two'), 'CACHE'],
+    ])
+    expect(share).toHaveBeenCalledOnce()
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({
+      files: ['file:///cache/sketch-collage-1.png', 'file:///cache/sketch-collage-2.png'],
+      text: 'ALL',
+    }))
+  })
+
+  it('hands every file to navigator.share on the web, with each file\'s name and type', async () => {
+    const navShare = vi.fn().mockResolvedValue(undefined)
+    const canShare = vi.fn(() => true)
+    const s = createShare({ native: false, nav: { share: navShare, canShare } })
+    const pdf = { blob: new Blob(['%PDF'], { type: 'application/pdf' }), filename: 'sketch-drawings.pdf' }
+    await expect(s.shareFiles({ files: [...files, pdf], text: 'ALL' })).resolves.toBe('shared')
+    const shared = navShare.mock.calls[0][0]
+    expect(shared.text).toBe('ALL')
+    expect(shared.files.map(f => [f.name, f.type])).toEqual([
+      ['sketch-collage-1.png', 'image/png'],
+      ['sketch-collage-2.png', 'image/png'],
+      ['sketch-drawings.pdf', 'application/pdf'],
+    ])
+    // canShare is asked about the very same files.
+    expect(canShare.mock.calls[0][0].files).toBe(shared.files)
+  })
+
+  it('reports unavailable when the browser cannot share these files, or there are none', async () => {
+    const navShare = vi.fn()
+    const s = createShare({ native: false, nav: { share: navShare, canShare: () => false } })
+    await expect(s.shareFiles({ files })).resolves.toBe('unavailable')
+    await expect(createShare({ native: false, nav: {} }).shareFiles({ files })).resolves.toBe('unavailable')
+    await expect(s.shareFiles({ files: [] })).resolves.toBe('unavailable')
+    expect(navShare).not.toHaveBeenCalled()
+  })
+
+  it('reports a closed sheet as cancelled, and a failed file write in the shell as unavailable', async () => {
+    const cancel = createShare({ native: false, nav: { share: () => Promise.reject(Object.assign(new Error('x'), { name: 'AbortError' })), canShare: () => true } })
+    await expect(cancel.shareFiles({ files })).resolves.toBe('cancelled')
+    const broken = createShare({
+      native: true,
+      loadFilesystem: async () => ({ Filesystem: { writeFile: () => Promise.reject(new Error('disk full')) }, Directory: { Cache: 'CACHE' } }),
+      loadShare: async () => ({ Share: { share: vi.fn() } }),
+    })
+    await expect(broken.shareFiles({ files })).resolves.toBe('unavailable')
+  })
+})
