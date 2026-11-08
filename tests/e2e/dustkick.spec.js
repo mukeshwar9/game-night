@@ -18,7 +18,7 @@ const readRoom = (url) => api(url)
 const patch = (url, path, body) => api(url, path, { method: 'PATCH', body: JSON.stringify(body) })
 const uidOf = (room, name) => Object.values(room.players).find((p) => p.name === name).playerId
 
-test('Dust Kick solo: a cup on the Western trail starts, the pad speaks Western and a buck is a whiff', async ({ page }) => {
+test('Dust Kick solo: a cup on the Western trail starts, the pad speaks Western and a buck is a whiff, and the two-button setting brings BUCK L / BUCK R back', async ({ page }) => {
   const errors = []
   page.on('pageerror', (err) => errors.push(err.message))
   await page.goto('/solo/dustkick')
@@ -39,8 +39,9 @@ test('Dust Kick solo: a cup on the Western trail starts, the pad speaks Western 
     await expect(page.getByTestId('sidekick-count')).toBeVisible()
     await expect(page.getByText('RACE 1 OF 3 · RED CANYON')).toBeVisible()
     await expect(page.getByRole('button', { name: 'SPURS', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'BUCK L', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'BUCK R', exact: true })).toBeVisible()
+    // The cockpit has one self-aiming BUCK; the two-button pair is a setting.
+    await expect(page.getByRole('button', { name: 'BUCK', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'BUCK L', exact: true })).toHaveCount(0)
     await expect(page.getByTestId('sidekick-cam')).toHaveCount(0)
   })
 
@@ -54,6 +55,16 @@ test('Dust Kick solo: a cup on the Western trail starts, the pad speaks Western 
     // No coil in hand, so no lasso button, and the E key does nothing.
     await expect(page.getByTestId('dustkick-lasso')).toHaveCount(0)
     await page.keyboard.press('e')
+  })
+
+  await test.step('the two-button setting swaps the one BUCK for BUCK L and BUCK R', async () => {
+    await page.evaluate(() => localStorage.setItem('sidekick-prefs', JSON.stringify({ cam: 'chase', steer: 'touch', kick: 'two' })))
+    await page.reload()
+    await expect(page.getByTestId('sidekick-pref-kick-two')).toHaveAttribute('aria-pressed', 'true')
+    await page.getByTestId('sidekick-go').click()
+    await expect(page.getByRole('button', { name: 'BUCK L', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'BUCK R', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'BUCK', exact: true })).toHaveCount(0)
   })
 
   expect(errors).toEqual([])
@@ -91,7 +102,7 @@ test('Dust Kick online: a lasso written by one rider ropes the other, and the ro
   await test.step('the round is a Western one: canyon first, the pad is Western, bots report', async () => {
     expect(room.gameType).toBe('dustkick')
     expect(room.round.track).toBe('canyon')
-    await expect(bob.page.getByRole('button', { name: 'BUCK L', exact: true })).toBeVisible()
+    await expect(bob.page.getByRole('button', { name: 'BUCK', exact: true })).toBeVisible()
     await expect.poll(async () => Object.keys((await readRoom(alice.page.url())).round.stats?.[rid] ?? {}).sort(), { timeout: 20_000 })
       .toEqual([aliceUid, bobUid, 'bot1', 'bot2'].sort())
   })

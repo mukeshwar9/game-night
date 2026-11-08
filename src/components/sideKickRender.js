@@ -12,6 +12,7 @@
 import { mulberry32 as mulberry } from '../lib/detMath'
 import { buildPalette, readSideKickTokens, css, mx, BLACK, WHITE } from '../lib/sideKickPalette'
 import { SEG, MAXSPD, LANEX, DT, KICK_T, DOWN_T, BOOST_MIN, segAt as trackSegAt, roadY as trackRoadY, kickTarget, inWake } from '../lib/sideKickLogic'
+import { aimKick } from '../lib/sideKickCockpitLogic'
 import { renderPixels, resolveAvatar } from '../lib/avatarKit'
 import { canvasPixelRatio } from '../lib/platform'
 
@@ -616,7 +617,7 @@ export function createSideKickRenderer(canvas, { dust = false } = {}) {
 
     // ── Render one rider's seat ──────────────────────────────────────────────
     let frame = 0, skyOff = 0, camSm = 0, reducedNow = false
-    const parts = [], tags = []
+    const parts = [], tags = [], marks = []
     const peaks = (() => { const r = mulberry(7), a = []; for (let i = 0; i < 24; i++) a.push(16 + r() * 50); return a })()
     const stars = (() => { const r = mulberry(11), a = []; for (let i = 0; i < 46; i++) a.push([r() * W, r() * (HORIZ - 30), 0.6 + r() * 1.1, r() * 6]); return a })()
     function cloudSprite(v) {
@@ -696,8 +697,9 @@ export function createSideKickRenderer(canvas, { dust = false } = {}) {
       c.fillStyle = lg(c, 0, HORIZ - 14, 0, HORIZ + 3, 0, css(R.fog, 0), 1, css(R.fog, 0.55)); c.fillRect(0, HORIZ - 14, W, 17)
       c.fillStyle = P.grassA; c.fillRect(0, HORIZ, W, H - HORIZ)
     }
+    const me0Aim = () => aimKick({ riders }, riders[viewIdx])
     function render(c, view, time, main) {
-      frame++; tags.length = 0
+      frame++; tags.length = 0; marks.length = 0
       const first = main && camMode === 'first'
       const cam = riders[view], camZ = first ? cam.z - FP_BACK : cam.z - PLAYERZ, camX = (main ? camSm : cam.x) * ROAD, camY = (first ? FP_H : CAMH) + roadY(cam.z) + (main ? cam.susp * (first ? 9 : 5) : 0), sp = cam.speed / MAXSPD, R = P.raw
       backdrop(c, time)
@@ -801,7 +803,7 @@ export function createSideKickRenderer(canvas, { dust = false } = {}) {
             if (o.r.shield > 0 && Math.floor(time * 14) % 2 === 0) c.globalAlpha = 0.4
             if (dust) drawHorse(c, o.r, time); else drawBike(c, o.r, time)
             c.globalAlpha = 1
-            if (main) { o.r._sx = px; o.r._sy = sy; o.r._k = k }
+            if (main) { o.r._sx = px; o.r._sy = sy; o.r._k = k; o.r._sf = frame }
           } else if (o.car) {
             c.translate(0, Math.sin(time * 5 + o.car.z0) * 0.5); put(c, carSprite(o.car))
             if (P.dark) { c.globalCompositeOperation = 'lighter'; for (const s of [-1, 1]) circ(c, s * 44, -45, 20, rg(c, s * 44, -45, 2, 20, 0, css(P.t.danger, 0.55), 1, css(P.t.danger, 0))) }
@@ -826,57 +828,65 @@ export function createSideKickRenderer(canvas, { dust = false } = {}) {
         c.restore()
         if (o.r && o.r.i !== view && p.cz < 9000) tags.push({ x: px, y: sy - 136 * unit * UNITS.bike - 6, r: o.r })
       }
+      if (main) {
+        const aim = me0Aim()
+        if (aim.target && aim.target._sf === frame) marks.push({ x: aim.target._sx, y: aim.target._sy, k: aim.target._k, side: aim.side, zz: 1 })
+      }
       // Lens: a little light leak from the sun side, and a vignette that tightens with speed.
       if (!P.dark) { c.globalCompositeOperation = 'lighter'; c.fillStyle = lg(c, W, 0, W * 0.3, H * 0.6, 0, css(P.sunC, 0.16), 1, css(P.sunC, 0)); c.fillRect(0, 0, W, H); c.globalCompositeOperation = 'source-over' }
       const vc = P.dark ? BLACK : P.dkC, va = 0.2 + (main ? Math.max(0, sp - 0.8) * 1.2 : 0)
       c.fillStyle = rg(c, W / 2, HORIZ + 70, 150, 340, 0, css(vc, 0), 1, css(vc, va)); c.fillRect(0, 0, W, H)
     }
     function softShadow2(c, x, y, w, h) { const col = P.dark ? BLACK : P.dkC; c.save(); c.translate(x, y); c.scale(1, h / w); c.fillStyle = rg(c, 0, 0, w * 0.2, w, 0, css(col, 0.4), 1, css(col, 0)); c.beginPath(); c.arc(0, 0, w, 0, 7); c.fill(); c.restore() }
-    // Two small bar-end mirrors: a simplified view of the road behind, so an attacker or a
-    // slipstreamer is seen before they arrive. Cheap on purpose: no second render of the world.
-    const MIRROR_RANGE = 7000
-    function drawMirrors(c, time) {
-      const me = riders[viewIdx], R = P.raw, w = 82, h = 46, y0 = 80
-      const behind = riders.filter((o) => o !== me && me.z - o.z > 40 && me.z - o.z < MIRROR_RANGE).sort((a, b) => a.z - b.z)
-      const close = behind.length ? behind[behind.length - 1] : null
+    // Two small rear warnings, one on each edge: a rider closing from behind on that side lights it in their
+    // colour and it pulses faster the closer they are. Nothing is drawn while the road behind is empty.
+    const REAR_RANGE = 1400
+    function drawRearWarnings(c, time) {
+      const me = riders[viewIdx]
+      if (!me || me.state !== 'ride' || phase === 'count') return
       for (const side of [-1, 1]) {
-        const x0 = side < 0 ? 10 : W - 10 - w, hy = y0 + h * 0.4, bot = y0 + h, vx = x0 + w / 2 - side * w * 0.16
-        limb(c, [x0 + (side < 0 ? w * 0.7 : w * 0.3), bot + 2, x0 + (side < 0 ? w * 0.95 : w * 0.05), bot + 15], 4, css(mx(R.tire, R.metal, 0.3)))
-        rr(c, x0 - 3.5, y0 - 3.5, w + 7, h + 7, 13, lg(c, 0, y0 - 4, 0, bot + 4, 0, css(mx(R.tire, R.metal, 0.45)), 1, css(mx(R.tire, BLACK, 0.4))))
-        c.save(); c.beginPath(); c.roundRect(x0, y0, w, h, 10); c.clip()
-        c.fillStyle = lg(c, 0, y0, 0, hy, 0, P.sky0, 1, P.sky1); c.fillRect(x0, y0, w, hy - y0)
-        c.fillStyle = P.hillNear; c.beginPath(); c.moveTo(x0, hy); for (let i = 0; i <= 8; i++) c.lineTo(x0 + i * w / 8, hy - 3 - 3 * Math.sin(i * 1.7 + side)); c.lineTo(x0 + w, hy); c.fill()
-        c.fillStyle = lg(c, 0, hy, 0, bot, 0, css(mx(R.grassA, R.fog, 0.5)), 1, P.grassB); c.fillRect(x0, hy, w, bot - hy)
-        const half = (d) => w * 0.8 * d, cx = (d) => vx - me.x * half(d), yy = (d) => hy + (bot - hy) * d
-        poly(c, [cx(1) - half(1), bot, cx(1) + half(1), bot, cx(0.04) + half(0.04), yy(0.04), cx(0.04) - half(0.04), yy(0.04)], lg(c, 0, hy, 0, bot, 0, css(mx(R.roadA, R.fog, 0.55)), 1, P.roadB))
-        for (const e of [-1, 1]) poly(c, [cx(1) + e * half(1), bot, cx(1) + e * half(1) * 1.09, bot, cx(0.04) + e * half(0.04) * 1.09, yy(0.04), cx(0.04) + e * half(0.04), yy(0.04)], P.kerbB)
-        const flow = (me.z / 700) % 1
-        for (let k = 0; k < 5; k++) { const d1 = 1 / (1 + (k + flow) * 0.9), d2 = 1 / (1 + (k + flow + 0.4) * 0.9); poly(c, [cx(d1) - half(d1) * 0.02, yy(d1), cx(d1) + half(d1) * 0.02, yy(d1), cx(d2) + half(d2) * 0.02, yy(d2), cx(d2) - half(d2) * 0.02, yy(d2)], P.center) }
-        for (const o of behind) {
-          const dz = me.z - o.z, d = 1 / (1 + dz / 900), px = vx + (o.x - me.x) * half(d), py = yy(d), s = 0.16 + d * 0.62, C = P.rs[o.i]
-          if (px < x0 - 12 || px > x0 + w + 12) continue
-          c.save(); c.translate(px, py); c.scale(s, s)
-          c.beginPath(); c.ellipse(-2, 1, 16, 3.5, 0, 0, 7); c.fillStyle = css(P.dark ? BLACK : P.dkC, 0.4); c.fill()
-          if (o.state === 'down') { rr(c, -14, -8, 28, 8, 3, css(C)); circ(c, 12, -9, 6, css(R.helmet)) }
-          else {
-            c.rotate(-o.lean * 0.25)
-            rr(c, -4, -18, 8, 18, 3.5, css(R.tire)); rr(c, -9, -30, 18, 16, 5, sideLit(c, -9, 9, mx(C, P.dkC, 0.2), 0.35)); limb(c, [-15, -34, 15, -34], 2.5, css(R.tire))
-            c.globalCompositeOperation = 'lighter'; circ(c, 0, -26, 9, rg(c, 0, -26, 1, 9, 0, css(P.sunC, 0.9), 1, css(P.sunC, 0))); c.globalCompositeOperation = 'source-over'; circ(c, 0, -26, 3.2, WHITE_CSS)
-            if (hasAv(o.i)) { standee(c, o.i, 'idle', 0, -24, 44); rr(c, -8, -30, 16, 9, 4, sideLit(c, -8, 8, mx(C, P.dkC, 0.2), 0.35)); limb(c, [-15, -34, 15, -34], 2.5, css(R.tire)); circ(c, 0, -27, 3, WHITE_CSS) }
-            else {
-            rr(c, -10, -52, 20, 22, 7, sideLit(c, -10, 10, C, 0.35)); limb(c, [-9, -46, -14, -36], 5, da(C, 0.3)); limb(c, [9, -46, 14, -36], 5, li(C, 0.1))
-            circ(c, 0, -58, 8.5, rg(c, 3, -61, 1, 10, 0, li(R.helmet, 0.5), 1, da(R.helmet, 0.4))); rr(c, -6.5, -61, 13, 5.5, 2.5, css(mx(R.ink, R.sky0, 0.25))); rr(c, -5, -60, 5, 1.6, 0.8, 'rgba(255,255,255,.6)')
-            }
-            if (o.boosting) { c.globalCompositeOperation = 'lighter'; circ(c, 0, -14, 14, rg(c, 0, -14, 1, 14, 0, css(P.t.cta, 0.7), 1, css(P.t.cta, 0))) }
-          }
-          c.restore()
+        let near = null
+        for (const o of riders) {
+          if (o === me || o.state === 'down' || o.done) continue
+          const dz = me.z - o.z
+          if (dz < 40 || dz > REAR_RANGE || (o.x - me.x) * side < -0.12) continue
+          if (!near || dz < me.z - near.z) near = o
         }
-        c.fillStyle = css(P.dkC, P.dark ? 0.1 : 0.08); c.fillRect(x0, y0, w, h)
-        poly(c, [x0 + w * 0.08, y0, x0 + w * 0.34, y0, x0 + w * 0.12, bot, x0 - w * 0.14, bot], 'rgba(255,255,255,.14)'); poly(c, [x0 + w * 0.42, y0, x0 + w * 0.5, y0, x0 + w * 0.28, bot, x0 + w * 0.2, bot], 'rgba(255,255,255,.08)')
-        c.restore()
-        c.beginPath(); c.roundRect(x0, y0, w, h, 10); c.lineWidth = 1; c.strokeStyle = 'rgba(255,255,255,.35)'; c.stroke()
-        // A rider close behind on this mirror's side lights its rim in their colour.
-        if (close && me.z - close.z < 1100 && (close.x - me.x) * side > -0.12) { c.beginPath(); c.roundRect(x0 - 1.5, y0 - 1.5, w + 3, h + 3, 11); c.lineWidth = 3; c.strokeStyle = css(P.rs[close.i], 0.72 + 0.28 * Math.sin(time * 14)); c.stroke() }
+        if (!near) continue
+        const closeness = 1 - (me.z - near.z) / REAR_RANGE
+        const pulse = 0.7 + 0.3 * Math.sin(time * (8 + closeness * 10))
+        const w = 34, h = 26, x0 = side < 0 ? 6 : W - 6 - w, y0 = 96
+        const col = P.rs[near.i]
+        rr(c, x0, y0, w, h, 8, css(P.t.card, 0.82))
+        c.beginPath(); c.roundRect(x0, y0, w, h, 8); c.lineWidth = 2.5; c.strokeStyle = css(col, pulse); c.stroke()
+        const ax = x0 + w / 2, ay = y0 + h / 2
+        poly(c, [ax - 8, ay + 5, ax, ay - 7, ax + 8, ay + 5, ax, ay + 1], css(col, pulse))
+        c.font = '6px ' + fontFamily; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = css(P.t.dim, 1)
+        c.fillText('REAR', ax, y0 + h + 7)
+      }
+    }
+    // The rider a KICK would hit gets a bracket, an arrow above and a label, so the button has a visible target.
+    // Positions come from the main pass (`marks`) already placed in screen space.
+    function drawAimMarks(c, time) {
+      const me = riders[viewIdx]
+      if (!me || me.state !== 'ride' || phase === 'count') return
+      for (const m of marks) {
+        const calm = me.cd > 0 || me.stag > 0 ? 0.45 : 1
+        const pulse = (0.75 + 0.25 * Math.sin(time * 11)) * calm
+        const col = css(P.t.cta, pulse), k = m.k * m.zz
+        const hw = Math.max(20, 54 * k), top = m.y - Math.max(40, 112 * k), bot = m.y + Math.max(3, 5 * k), cl = Math.max(8, hw * 0.34)
+        c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = col
+        for (const sx of [-1, 1]) for (const [y, dy] of [[top, 1], [bot, -1]]) {
+          c.beginPath(); c.moveTo(m.x + sx * hw, y + dy * cl); c.lineTo(m.x + sx * hw, y); c.lineTo(m.x + sx * (hw - cl), y); c.stroke()
+        }
+        // The arrow above the bracket points at the rider, and the label says which way the swing goes.
+        const ay = top - 34
+        poly(c, [m.x - 7, ay - 9, m.x + 7, ay - 9, m.x, ay + 1], col)
+        const word = dust ? 'BUCK' : 'KICK', txt = m.side < 0 ? '◀ ' + word : word + ' ▶'
+        c.font = '8px ' + fontFamily; c.textAlign = 'center'; c.textBaseline = 'middle'
+        const tw = c.measureText(txt).width + 12
+        rr(c, m.x - tw / 2, ay - 25, tw, 15, 5, css(P.t.cta, 0.95 * calm))
+        c.fillStyle = css(P.t.bg, 1); c.fillText(txt, m.x, ay - 17)
       }
     }
     // ── First person: the bars, the hands and the boot, drawn in screen space ──
@@ -968,7 +978,8 @@ export function createSideKickRenderer(canvas, { dust = false } = {}) {
       if (view < 0) return
       const cam = riders[view], sp = cam.speed / MAXSPD
       if (camMode === 'first') { drawKickCues(c, clock); drawCockpit(c, cam, clock) }
-      drawMirrors(c, clock)
+      drawRearWarnings(c, clock)
+      if (camMode !== 'first') drawAimMarks(c, clock)
       const fast = sp > 0.86 ? (sp - 0.86) * 6 : 0, wind = cam.draft > 0.5 && phase !== 'count' ? 1 : 0
       if (Math.random() < fast + wind * 1.4) { const a = Math.random() * 6.28, d = 150 + Math.random() * 60; parts.push({ k: 'line', x: W / 2 + Math.cos(a) * d, y: HORIZ + 60 + Math.sin(a) * d * 0.9, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 0.22, max: 0.22, warm: wind, long: wind ? 2 : 1 }) }
       // Boost: streaks pour out of the middle of the screen for as long as it lasts.
@@ -1093,6 +1104,10 @@ export function createSideKickRenderer(canvas, { dust = false } = {}) {
     for (const g of tags) {
       const dx0 = g.x - W / 2, dy0 = g.y - H * 0.66, cs = Math.cos(roll), sn = Math.sin(roll)
       g.x = W / 2 + (dx0 * cs - dy0 * sn) * zz; g.y = H * 0.66 + jit + (dx0 * sn + dy0 * cs) * zz
+    }
+    for (const g of marks) {
+      const dx0 = g.x - W / 2, dy0 = g.y - H * 0.66, cs = Math.cos(roll), sn = Math.sin(roll)
+      g.x = W / 2 + (dx0 * cs - dy0 * sn) * zz; g.y = H * 0.66 + jit + (dx0 * sn + dy0 * cs) * zz; g.zz = zz
     }
     overlay(ctx, view)
     ctx.restore()

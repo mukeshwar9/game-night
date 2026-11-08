@@ -11,6 +11,7 @@ import { encodeAvatar, randomLook } from '../lib/avatarKit'
 const themes = parseThemes(readFileSync(new URL('../index.css', import.meta.url), 'utf8'))
 
 let calls = 0
+const texts = []
 const noop = () => { calls++ }
 const gradient = () => ({ addColorStop: noop })
 function makeCtx() {
@@ -20,6 +21,7 @@ function makeCtx() {
       if (k in t) return t[k]
       if (k === 'createLinearGradient' || k === 'createRadialGradient') return gradient
       if (k === 'measureText') return () => ({ width: 24 })
+      if (k === 'fillText') return (t) => { calls++; texts.push(String(t)) }
       if (k === 'createImageData') return (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) })
       return noop
     },
@@ -90,6 +92,47 @@ function staged(world) {
   d.t = d.tMax * 0.5
   world.events.length = 0
 }
+
+describe('the kick target and the rear warnings', () => {
+  const lab = () => {
+    const w = createWorld({ riders: riders(), phase: 'race', trackId: TRACK_ORDER[0] })
+    w.cars = []
+    for (const r of w.riders) { r.speed = MAXSPD * 0.8; r.z = 3000; r.x = 0.9 }
+    w.riders[0].x = 0
+    return w
+  }
+  const drawOnce = async (world, ui = { camera: 'chase' }) => {
+    const r = await rendererFor('glass')
+    texts.length = 0
+    r.draw(world, 0, DT, ui)
+    r.dispose()
+    return [...texts]
+  }
+  it('brackets the rider a kick would land on and says which way the swing goes', async () => {
+    const w = lab()
+    w.riders[1].x = 0.25; w.riders[1].z = 3000 + 150
+    expect(await drawOnce(w)).toContain('KICK ▶')
+    const v = lab()
+    v.riders[1].x = -0.25; v.riders[1].z = 3000 + 150
+    expect(await drawOnce(v)).toContain('◀ KICK')
+  })
+  it('draws no kick label when nobody is in reach, while the kick is cooling is dimmed but still shown, and not in first person', async () => {
+    const w = lab()
+    w.riders[1].x = 0.9; w.riders[1].z = 3000 + 150
+    expect((await drawOnce(w)).some((t) => t.includes('KICK'))).toBe(false)
+    const v = lab()
+    v.riders[1].x = 0.25; v.riders[1].z = 3000 + 150
+    v.riders[0].cd = 0.5
+    expect(await drawOnce(v)).toContain('KICK ▶')
+    expect((await drawOnce(v, { camera: 'first' })).includes('KICK ▶')).toBe(false)
+  })
+  it('lights a rear warning only while somebody closes in from behind', async () => {
+    const w = lab()
+    expect(await drawOnce(w)).not.toContain('REAR')
+    w.riders[1].x = 0.25; w.riders[1].z = 3000 - 600
+    expect(await drawOnce(w)).toContain('REAR')
+  })
+})
 
 describe('the road scene', () => {
   it.each(['glass', 'glass-night', 'synthwave', 'mono', 'phosphor', 'shoreline'])('%s: draws many frames of a staged race without throwing', async (id) => {

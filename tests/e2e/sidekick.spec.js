@@ -58,6 +58,58 @@ test('Side Kick solo: a cup starts, the countdown runs, the bike answers and foc
   expect(errors).toEqual([])
 })
 
+test.describe('Side Kick thumb cockpit on a phone', () => {
+  test.use({ viewport: { width: 375, height: 667 }, hasTouch: true })
+
+  test('START CUP is on screen without scrolling, one KICK aims itself, and the setting brings KICK L / KICK R back', async ({ page }) => {
+    const errors = []
+    page.on('pageerror', (err) => errors.push(err.message))
+    const prefs = () => page.evaluate(() => JSON.parse(localStorage.getItem('sidekick-prefs') || 'null'))
+    // A choice saved before the kick setting existed keeps working and reads as the one-button default.
+    await page.addInitScript(() => { if (!localStorage.getItem('sidekick-prefs')) localStorage.setItem('sidekick-prefs', JSON.stringify({ cam: 'chase', steer: 'touch' })) })
+    await page.goto('/solo/sidekick')
+    await expect(page.getByTestId('sidekick-start')).toBeVisible()
+
+    await test.step('START CUP is inside the viewport on a 375x667 phone', async () => {
+      await expect(page.getByTestId('sidekick-go')).toBeInViewport({ ratio: 1 })
+      await expect(page.getByTestId('sidekick-pref-kick-auto')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    await test.step('in play: one big KICK, BOOST and the steer halves, all above the 44 px touch minimum', async () => {
+      await page.getByTestId('sidekick-go').click()
+      await expect(page.getByTestId('sidekick-count')).toBeVisible()
+      const kick = page.getByRole('button', { name: 'KICK', exact: true })
+      await expect(kick).toBeVisible()
+      await expect(page.getByRole('button', { name: 'KICK L', exact: true })).toHaveCount(0)
+      for (const btn of [kick, page.getByTestId('sidekick-boost-btn'), page.getByRole('button', { name: 'STEER L', exact: true }), page.getByRole('button', { name: 'STEER R', exact: true })]) {
+        await expect(btn).toBeInViewport({ ratio: 1 })
+        const box = await btn.boundingBox()
+        expect(box.width).toBeGreaterThanOrEqual(44)
+        expect(box.height).toBeGreaterThanOrEqual(44)
+      }
+    })
+
+    await test.step('after GO a tap on KICK swings: a hit or a whiff, never nothing', async () => {
+      await expect(page.getByTestId('sidekick-time')).not.toHaveText('0:00.00', { timeout: 15_000 })
+      await page.getByRole('button', { name: 'KICK', exact: true }).click()
+      await expect(page.getByRole('status')).toContainText(/WHIFF|KICKED|UNSEATED|OFF THE BIKE/)
+    })
+
+    await test.step('KICK L / R is a setting: choose it on the setup sheet and the pair replaces the one button', async () => {
+      await page.reload()
+      await page.getByTestId('sidekick-pref-kick-two').click()
+      await expect(page.getByTestId('sidekick-pref-kick-two')).toHaveAttribute('aria-pressed', 'true')
+      expect((await prefs()).kick).toBe('two')
+      await page.getByTestId('sidekick-go').click()
+      await expect(page.getByRole('button', { name: 'KICK L', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'KICK R', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'KICK', exact: true })).toHaveCount(0)
+    })
+
+    expect(errors).toEqual([])
+  })
+})
+
 test('Side Kick camera: the HUD switch and the settings flip between chase and first person, and the choice is remembered', async ({ page }) => {
   const errors = []
   page.on('pageerror', (err) => errors.push(err.message))
