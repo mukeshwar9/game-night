@@ -82,6 +82,11 @@ function Face({ tile, mine, compact, delta, holdable, onHold, onTap }) {
           <Avatar id={tile.avatar} size={24} className={tile.offline ? 'opacity-40' : ''} />
         </span>
         <FaceBadge role={tile.role} />
+        {tile.isNew && (
+          <span aria-hidden="true" className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-sm bg-retro-p1 px-0.5 font-pixel text-[6px] leading-[8px] text-retro-bg" data-testid="sketch-new-badge">
+            NEW
+          </span>
+        )}
         {delta > 0 && (
           <span aria-hidden="true" className="sketch-pts-fly pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 whitespace-nowrap font-pixel text-[9px] text-retro-win text-glow-win">
             +{delta}
@@ -104,7 +109,7 @@ function Face({ tile, mine, compact, delta, holdable, onHold, onTap }) {
     compact && 'flex-col gap-0',
     mine && 'bg-retro-tint-cta',
   )
-  const label = `${tile.name}${mine ? ' (you)' : ''}, ${tile.score} points${tile.role === 'solved' ? ', got it' : tile.role === 'artist' ? ', drawing' : ''}${tile.offline ? ', offline' : ''}`
+  const label = `${tile.name}${mine ? ' (you)' : ''}${tile.isNew ? ', new' : ''}, ${tile.score} points${tile.role === 'solved' ? ', got it' : tile.role === 'artist' ? ', drawing' : ''}${tile.offline ? ', offline' : ''}`
 
   if (!holdable) {
     return <div className={cls} aria-label={label} role="group" data-face={tile.id} data-role={tile.role}>{body}</div>
@@ -221,7 +226,7 @@ export function GuessBubbles({ entries, players, mySeat }) {
 // ---------------------------------------------------------------------------
 const PODIUM_TONE = { 1: 'border-retro-win text-retro-win', 2: 'border-retro-cta text-retro-cta', 3: 'border-retro-p2 text-retro-p2' }
 
-export function Podium({ rows, players, mySeat }) {
+export function Podium({ rows, players, mySeat, lateIds = [] }) {
   return (
     <ol className="space-y-1.5" data-testid="sketch-podium">
       {rows.map(r => (
@@ -236,6 +241,7 @@ export function Podium({ rows, players, mySeat }) {
           <Avatar id={players?.[r.id]?.avatar} size={24} />
           <span className={cn('min-w-0 flex-1 truncate text-left font-pixel text-[10px]', r.id === mySeat && 'text-retro-cta')}>
             {(players?.[r.id]?.name || '???').toUpperCase()}{r.id === mySeat ? ' (YOU)' : ''}
+            {lateIds.includes(r.id) && <span className="block font-pixel text-[7px] tracking-wider text-retro-dim">JOINED LATE</span>}
           </span>
           <span className="font-pixel text-[11px] tabular-nums">{r.score}</span>
         </li>
