@@ -129,15 +129,26 @@ export function paintDrawing(ctx, { strokes, fills }, x, y, size, frame = null) 
   }
 }
 
+// The QR code image for a link, made once per link (a collage or a PDF draws
+// it on every page). qrcode (~23 KB) loads only when something is shared.
+const qrImages = new Map()
+function qrImage(url) {
+  if (!qrImages.has(url)) {
+    const made = import('qrcode')
+      .then(({ default: QRCode }) => QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: INK, light: PAPER } }))
+      .then(loadImage)
+    made.catch(() => qrImages.delete(url))
+    qrImages.set(url, made)
+  }
+  return qrImages.get(url)
+}
+
 // A QR code to SKETCH in the app on a white backing. Optional: without a url,
 // or if the QR library fails, the caller's text stands alone.
 async function drawQr(ctx, { url, x, y, size }) {
   if (!url) return false
   try {
-    // qrcode (~23 KB) loads only when something is actually shared.
-    const { default: QRCode } = await import('qrcode')
-    const data = await QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: INK, light: PAPER } })
-    const img = await loadImage(data)
+    const img = await qrImage(url)
     ctx.fillStyle = PAPER
     roundRect(ctx, x - 8, y - 8, size + 16, size + 16, 8)
     ctx.fill()
@@ -243,6 +254,7 @@ export async function drawSketchCollage(entries, page = 0, { showName = true, he
   ctx.font = font(22)
   ctx.fillText(`GAME NIGHT${pages.length > 1 ? ` · ${page + 1}/${pages.length}` : ''}`, 70, qrY + 62)
   if (await drawQr(ctx, { url, x: qrX, y: qrY, size: qrSize })) {
+    ctx.fillStyle = c.dim
     ctx.textAlign = 'right'
     ctx.font = font(18)
     ctx.fillText('SCAN TO PLAY', qrX - 24, qrY + 60)

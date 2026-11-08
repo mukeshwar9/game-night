@@ -392,7 +392,7 @@ export function Gallery({ entries, hearts = {}, onOpen, onShare, sharingId = nul
   return (
     <section className="space-y-1.5" aria-label="This match's drawings" data-testid="sketch-gallery">
       <div className="flex min-h-11 items-center justify-between gap-2">
-        <p className="font-pixel text-[9px] tracking-widest text-retro-dim">THIS MATCH&apos;S DRAWINGS</p>
+        <p className="text-left font-pixel text-[9px] leading-relaxed tracking-widest text-retro-dim">THIS MATCH&apos;S DRAWINGS</p>
         {onShareAll && canShareAll(n) && (
           <button
             type="button"
@@ -409,7 +409,7 @@ export function Gallery({ entries, hearts = {}, onOpen, onShare, sharingId = nul
           const label = `${e.word}, drawn by ${e.artistName}`
           const count = hearts[e.id] || 0
           return (
-            <li key={e.id} className="w-[72%] max-w-[260px] shrink-0 snap-center space-y-1 rounded border-2 border-retro-border bg-retro-card p-1.5" data-testid="sketch-gallery-card">
+            <li key={e.id} className="w-[72%] max-w-[260px] shrink-0 snap-center space-y-1 rounded border-2 border-retro-border bg-retro-card p-1.5 text-left" data-testid="sketch-gallery-card">
               {onOpen ? (
                 <button type="button" onClick={() => onOpen(e)} aria-label={`Open ${label}`} className="block w-full rounded-sm press-card">
                   <DrawingThumb strokes={e.strokes} fills={e.fills} className="block rounded-sm" label={label} />

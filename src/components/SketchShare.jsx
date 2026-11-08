@@ -183,7 +183,10 @@ export default function SketchGalleryShare({ entries, hearts = {}, podium = [], 
   // the SHARE NOW tap, keyed by what they were made from.
   const [ready, setReady] = useState(null)         // { key, files, text, what }
   const mounted = useRef(true)
-  useEffect(() => () => { mounted.current = false }, [])
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   // Warm the painter (and its QR library) so the first tap opens the sheet in time.
   useEffect(() => {
