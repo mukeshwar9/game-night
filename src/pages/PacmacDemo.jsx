@@ -7,8 +7,10 @@ import {
 } from '../lib/pacmacLogic'
 import { playPacmacSfx, isCoarsePointer, PACMAC_RULES_LINE } from '../lib/pacmacUi'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
-const BOT = AI_DIFFICULTIES.normal
 const COUNTDOWN_S = 3
 
 function viewOf(sim, countdown = 0) {
@@ -38,6 +40,8 @@ export default function PacmacDemo() {
   useFocusArena(rootRef, phase === 'countdown' || phase === 'playing')
   const { getDir, press } = usePacmacControls(zoneRef, phase === 'playing' || phase === 'countdown')
   const wantRef = useRef(null)
+  const [level, setLevel] = useBotDifficulty('pacmac', BOT_LEVEL_IDS)
+  const BOT = AI_DIFFICULTIES[level]
 
   useEffect(() => {
     if (phase !== 'countdown') return
@@ -93,7 +97,7 @@ export default function PacmacDemo() {
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [phase, getDir])
+  }, [phase, getDir, BOT])
 
   const start = (resetMatch = false) => {
     if (resetMatch) setWins({ X: 0, O: 0 })
@@ -146,6 +150,7 @@ export default function PacmacDemo() {
 
   return (
     <div ref={rootRef} className="scroll-mt-3 space-y-2" style={{ '--pacmac-reserve': coarse ? '292px' : '190px' }}>
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <div className="flex justify-center gap-6 font-pixel text-[10px]">
         <span className={cn('text-retro-p1', wins.X >= MATCH_TARGET && 'text-glow-p1')}>YOU {wins.X}</span>
         <span className="text-retro-dim">FIRST TO {MATCH_TARGET}</span>

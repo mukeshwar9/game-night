@@ -3,17 +3,16 @@ import PaintArena from '../components/PaintArena'
 import { usePaintControls } from '../hooks/usePaintControls'
 import { createState, step, computeAI, getWinner, AI_DIFFICULTIES, MATCH_SECONDS } from '../lib/paintLogic'
 import { sounds } from '../lib/sounds'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
-// Difficulty is fixed for the /demo loopback (no selector UI exists on any
-// other demo page either) — 'normal' gives a fair, beatable-but-not-trivial
-// bot. cfg.replanMs throttles how often the AI re-plans (its "reaction
-// handicap"); cfg.speedCap is baked permanently into the bot's own player
-// via createState({ speedCaps }).
-const DIFFICULTY = 'normal'
-const cfg = AI_DIFFICULTIES[DIFFICULTY]
-
-function freshSim() {
-  return createState({ speedCaps: { O: cfg.speedCap } })
+// The CPU level is picked above the arena and remembered (useBotDifficulty).
+// cfg.replanMs throttles how often the AI re-plans (its "reaction handicap");
+// cfg.speedCap is baked permanently into the bot's own player via
+// createState({ speedCaps }), so picking a level deals a fresh round.
+function freshSim(level) {
+  return createState({ speedCaps: { O: AI_DIFFICULTIES[level].speedCap } })
 }
 
 function viewOf(sim) {
@@ -23,7 +22,9 @@ function viewOf(sim) {
 export default function PaintDemo() {
   const arenaRef = useRef(null)
   const simRef = useRef(null)
-  if (simRef.current == null) simRef.current = freshSim()
+  const [level, setLevel] = useBotDifficulty('paint', BOT_LEVEL_IDS)
+  const cfg = AI_DIFFICULTIES[level]
+  if (simRef.current == null) simRef.current = freshSim(level)
   // Placeholder until the first rAF tick paints the real grid/positions —
   // mirrors TronDemo's/SumoDemo's initial-view-doesn't-read-the-ref pattern
   // (reading simRef.current inside useState's initializer would be a
@@ -42,7 +43,7 @@ export default function PaintDemo() {
       const s = simRef.current
       if (now - aiAt >= cfg.replanMs) {
         aiAt = now
-        aiDir = computeAI(s, 'O', DIFFICULTY)
+        aiDir = computeAI(s, 'O', level)
       }
       const inputs = { X: getDir(s.players.X.dir), O: aiDir }
       const { state: next, events } = step(s, inputs, dt)
@@ -64,18 +65,24 @@ export default function PaintDemo() {
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [winner]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [winner, level]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const reset = () => {
-    simRef.current = freshSim()
+  const reset = (lvl = level) => {
+    simRef.current = freshSim(lvl)
     setView(viewOf(simRef.current))
     setWinner(null)
+  }
+  const chooseLevel = (next) => {
+    if (next === level) return
+    setLevel(next)
+    reset(next)
   }
 
   const resultMsg = winner === 'X' ? 'YOU WIN!' : winner === 'O' ? 'BOT WINS' : 'DRAW'
 
   return (
     <div className="space-y-3">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={chooseLevel} />
       <PaintArena
         ref={arenaRef}
         grid={view.grid}
@@ -88,7 +95,7 @@ export default function PaintDemo() {
           <div className="text-center space-y-2">
             <p className="font-pixel text-base text-retro-win text-glow-win">{resultMsg}</p>
             <button
-              onClick={reset}
+              onClick={() => reset()}
               className="px-4 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press"
             >
               PLAY AGAIN
