@@ -128,6 +128,14 @@ describe('inviteSummary', () => {
     }
     const s = inviteSummary(game, { nPlayer: true, maxPlayers: 8 })
     expect(s).toMatchObject({ party: true, hostName: 'H', hostAvatar: 'fox', playerCount: 2, capacity: 8, seatsLeft: 6, joinsNextRound: true })
+    expect(s.joinsMidMatch).toBe(false)
+  })
+
+  it('offers a mid-match seat in a game that allows it (registry midJoin), while there is room', () => {
+    const game = { status: 'playing', players: { h: seat('h', 1), b: seat('b', 2) } }
+    expect(inviteSummary(game, { nPlayer: true, maxPlayers: 8, midJoin: true }).joinsMidMatch).toBe(true)
+    expect(inviteSummary(game, { nPlayer: true, maxPlayers: 2, midJoin: true }).joinsMidMatch).toBe(false)
+    expect(inviteSummary({ ...game, status: 'waiting' }, { nPlayer: true, maxPlayers: 8, midJoin: true }).joinsMidMatch).toBe(false)
   })
 })
 
@@ -221,6 +229,8 @@ describe('inviteSeatsLine', () => {
     expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5 })).toBe('3/8 PLAYERS · 5 SEATS LEFT')
     expect(inviteSeatsLine({ party: true, playerCount: 8, capacity: 8, seatsLeft: 0 })).toBe("8/8 PLAYERS · FULL — YOU'LL WATCH")
     expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5, joinsNextRound: true })).toMatch(/JOIN NEXT ROUND/)
+    expect(inviteSeatsLine({ party: true, playerCount: 3, capacity: 8, seatsLeft: 5, joinsNextRound: true, joinsMidMatch: true }))
+      .toBe('3/8 PLAYERS · MATCH IN PROGRESS — JOIN AS A GUESSER NEXT ROUND')
   })
   it('is empty without a room summary', () => {
     expect(inviteSeatsLine(null)).toBe(null)

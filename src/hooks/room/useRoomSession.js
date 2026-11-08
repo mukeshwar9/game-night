@@ -21,6 +21,7 @@ import { countdownEligible } from '../../lib/arrivalLogic'
 import { buildSwitchUpdates } from './roomUpdates'
 import { moderateRoomNames } from '../../lib/moderationLogic'
 import { trackRoomJoined } from '../../lib/track'
+import { getServerNow } from '../useServerClock'
 
 // error value for a room whose game this build doesn't know (Game.jsx shows
 // an update screen for it)
@@ -371,6 +372,24 @@ export default function useRoomSession(gameId) {
   // have been offline past the grace window (roomLogic.ghostsToSweep). Each
   // removal is a transaction on that one seat that re-checks it is still a
   // ghost on the server, so a player reconnecting at that moment keeps it.
+  // Join mid-match (registry `midJoin`, e.g. SKETCH): a visitor watching a
+  // match in play can take a seat with an explicit tap; the game decides when
+  // they start playing. 'open' | 'full' | 'locked' | null (not offered).
+  const midJoinState = party && cfg?.midJoin && game?.status === 'playing' && !partySeated && !needName
+    ? (!canTakeSeat(game, myId)
+      ? 'locked'
+      : partyJoinPlan({ players: playersNode, myId, status: 'waiting', maxPlayers: effectiveCap(game, cfg) }).action === 'join' ? 'open' : 'full')
+    : null
+  const joinMidMatch = async () => {
+    const room = latestGame.current
+    const joined = await joinPartySeat(gameId, room, cfg, { name: readName() || guestName(myId), avatar: readAvatar() }, { midMatch: true })
+    if (joined) {
+      recordRoom({ id: gameId, gameType: room?.gameType })
+      trackRoomJoined(room?.gameType, 'mid-match')
+    }
+    return joined
+  }
+
   const amSweeper = partySeated && game?.status === 'waiting' && pickRoomHost(playersNode, game?.hostUid) === myId
   const waitingCount = amSweeper ? spectatorCount(game?.spectators, seatedIds(playersNode)) : 0
   const [sweepTick, setSweepTick] = useState(0)
@@ -493,6 +512,7 @@ export default function useRoomSession(gameId) {
   return {
     game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft, opponentAway,
     mySeat, mySymbol, connected, seatOffer, takeSeat,
+    midJoinState, joinMidMatch: midJoinState === 'open' ? joinMidMatch : null,
   }
 }
 
@@ -500,14 +520,18 @@ export default function useRoomSession(gameId) {
 // latest read of games/{id}); the write touches only this player's own seat —
 // a create-once transaction on players/{myId}, which rules can hold to
 // `playerId === auth.uid` — never anyone else's. `joinedAt` is set here once;
-// a returning player's seat is reclaimed as is.
-async function joinPartySeat(gameId, room, cfg, { name, avatar }) {
+// a returning player's seat is reclaimed as is. `midMatch` (registry
+// `midJoin` games only) also seats a player while the match is playing, with
+// `joinedAt` on the server clock: the game compares it with its rounds'
+// start times to know when the newcomer starts playing.
+async function joinPartySeat(gameId, room, cfg, { name, avatar }, { midMatch = false } = {}) {
   const myId = getPlayerId()
-  if (!room || room.status !== 'waiting' || !canTakeSeat(room, myId)) return false
-  const plan = partyJoinPlan({ players: room.players, myId, status: room.status, maxPlayers: effectiveCap(room, cfg) })
+  const open = room?.status === 'waiting' || (midMatch && !!cfg?.midJoin && room?.status === 'playing')
+  if (!room || !open || !canTakeSeat(room, myId)) return false
+  const plan = partyJoinPlan({ players: room.players, myId, status: 'waiting', maxPlayers: effectiveCap(room, cfg) })
   if (plan.action === 'reclaim') return true
   if (plan.action !== 'join') return false
-  const seat = { name, joinedAt: Date.now(), playerId: myId, online: true, avatar }
+  const seat = { name, joinedAt: midMatch ? Math.round(getServerNow()) : Date.now(), playerId: myId, online: true, avatar }
   try {
     const { committed, snapshot } = await runTransaction(
       ref(db, `games/${gameId}/players/${myId}`),

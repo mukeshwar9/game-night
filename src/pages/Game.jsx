@@ -184,7 +184,7 @@ export default function Game() {
   const navigate = useNavigate()
   const {
     game, loading, error, errorGameType, needName, invite, joinWithName, opponentOnline, opponentLeft, opponentAway,
-    mySeat, mySymbol, connected, seatOffer, takeSeat,
+    mySeat, mySymbol, connected, seatOffer, takeSeat, midJoinState, joinMidMatch,
   } = useRoomSession(gameId)
   const [creatingRoom, setCreatingRoom] = useState(false)
   const [showWinEffect, setShowWinEffect] = useState(false)
@@ -887,6 +887,9 @@ export default function Game() {
       onNewMatch: applyNNewMatch,
       onInvite: amSeated ? () => setShowInvite(true) : null,
       proposal: null,
+      // registry `midJoin`: a watcher may take a seat while the match plays
+      midJoinState,
+      onJoinMatch: joinMidMatch,
     }
     const inLobby = game.gameType === PARTY_LOBBY.type
     const pageFocusable = !inLobby && canFocusPage(cfg)

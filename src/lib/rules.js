@@ -1005,10 +1005,14 @@ export const GAME_RULES = {
       'The artist draws it on the shared canvas — no letters or numbers in the drawing.',
       'Everyone else types guesses — the word length is shown as blanks. Plurals, spacing and hyphens don\'t matter, and some words also accept a short form ("bath" for "taking a bath").',
       'A near miss shows you a private CLOSE! hint and stays out of the chat.',
-      'Stuck? The artist\'s phone reveals one letter at half time and another at three quarters of the clock, never more than a third of the word.',
+      'Stuck? The artist\'s phone reveals one letter at half time and another at three quarters of the clock, never more than a third of the word. The host can turn this down to one letter or none.',
+      'Before the match the host\'s MATCH SETUP sets how many times everyone draws (1, 2 or 3), the draw time (45 to 120 seconds) and the letter hints (off, 1 or 2). Everyone sees the setup in the lobby; it locks when the match starts.',
+      'The host can also add up to 100 custom words there: mixed in as one of the choices each turn, or used alone until they run out. Custom words pay like EASY words, and when one comes up the host watches instead of guessing and sits out that round\'s points.',
+      'Arrived late? Open the link and tap JOIN: you start at 0 points, guess from the next round and draw from the next cycle (in the last cycle you only guess). Points follow each round\'s guessers, so a 2-player match that gains a third uses the 3+ scoring from then on.',
       'Guessing correctly locks you in early and reveals the word to you — keep it secret from the others still guessing.',
+      'At the reveal every screen replays the drawing as it was made. Tap ♥ on a drawing you love (once you have guessed it, or at the reveal): the most-hearted drawing of the match is the CROWD FAVOURITE. Hearts never change the points.',
     ],
-    win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. MEDIUM words pay ×1.2 and HARD words ×1.5. Everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
+    win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. MEDIUM words pay ×1.2 and HARD words ×1.5. By default everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
   },
 
   pairs: {

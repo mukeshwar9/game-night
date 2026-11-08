@@ -86,3 +86,197 @@ describe('SKETCH letter hints', () => {
     await assertSucceeds(as('bob').ref('games/g1/round/chat/c1').set({ uid: 'bob', text: 'cat' }))
   })
 })
+
+// SKETCH hearts (S5): `round/likes/{uid}` is a player's own heart on the
+// drawing, written only by them, never by the artist, at the reveal (or while
+// drawing once they have guessed it). `round/faves` is the match's tally.
+describe('SKETCH hearts', () => {
+  it('lets a seated guesser heart the drawing at the reveal, and take it back', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertSucceeds(as('bob').ref('games/g1/round/likes/bob').set(true))
+    await assertSucceeds(as('bob').ref('games/g1/round/likes/bob').set(false))
+    await assertSucceeds(as('cy').ref('games/g1/round/likes/cy').set(true))
+  })
+
+  it('opens the heart early only for a guesser who already got it', async () => {
+    await put(room(round({ correct: { bob: { at: 5000 } } })))
+    await assertSucceeds(as('bob').ref('games/g1/round/likes/bob').set(true))
+    await assertFails(as('cy').ref('games/g1/round/likes/cy').set(true))
+  })
+
+  it('refuses the artist, someone else\'s heart, spectators and other phases', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertFails(as('alice').ref('games/g1/round/likes/alice').set(true))
+    await assertFails(as('bob').ref('games/g1/round/likes/cy').set(true))
+    await assertFails(as('mallory').ref('games/g1/round/likes/mallory').set(true))
+    await put(room(round({ phase: 'choosing' })))
+    await assertFails(as('bob').ref('games/g1/round/likes/bob').set(true))
+  })
+
+  it('keeps a heart a boolean', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertFails(as('bob').ref('games/g1/round/likes/bob').set(1))
+    await assertFails(as('bob').ref('games/g1/round/likes/bob').set('love'))
+  })
+
+  it('lets a whole-room transaction pass with the hearts unchanged, and the next round clear them', async () => {
+    await put(room(round({ phase: 'reveal', likes: { bob: true, cy: true } })))
+    const whole = (await as('alice').ref('games/g1').get()).val()
+    // the coordinator (any seat) advances; the tally carries the folded count
+    const next = { ...whole.round, phase: 'choosing', artist: 'bob', faves: { '1:alice': 2 } }
+    delete next.likes
+    await assertSucceeds(as('alice').ref('games/g1').set({ ...whole, round: next }))
+    await put(room(round({ phase: 'reveal', likes: { bob: true, cy: true } })))
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, status: 'finished' }))
+  })
+
+  it('keeps the tally to small whole counts', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertSucceeds(as('bob').ref('games/g1/round/faves/1:alice').set(3))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set(0))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set(9))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set(2.5))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set('2'))
+  })
+})
+
+// SKETCH match setup (S2): the room's `sketchConfig` holds only the offered
+// choices; START copies them into the round, and a round with fewer letter
+// hints refuses the hints it doesn't have.
+describe('SKETCH match setup', () => {
+  const lobby = () => {
+    const node = gameNode({ x: 'alice', o: 'bob', status: 'waiting', extra: { gameType: 'sketch', board: null, currentTurn: null } })
+    node.players = players
+    return node
+  }
+
+  it('accepts every offered setup', async () => {
+    await put(lobby())
+    for (const draws of [1, 2, 3]) await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set({ v: 1, draws, drawS: 75, hints: 2 }))
+    for (const drawS of [45, 60, 75, 90, 120]) await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set({ v: 1, drawS, hints: 2 }))
+    for (const hints of [0, 1, 2]) await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set({ v: 1, drawS: 75, hints }))
+  })
+
+  it('refuses values outside the choices, missing fields and extra keys', async () => {
+    await put(lobby())
+    const ok = { v: 1, draws: 2, drawS: 75, hints: 2 }
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, draws: 4 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, drawS: 50 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, hints: 3 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, v: 2 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ v: 1, draws: 2 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, rounds: 9 }))
+    await assertFails(as('mallory').ref('games/g1/sketchConfig').set(ok))
+  })
+
+  it('lets a whole-room write pass with the setup unchanged, and keeps the round copy in range', async () => {
+    await put({ ...room(round({ cycles: 1, drawBase: 45000, hintCount: 1 })), sketchConfig: { v: 1, draws: 1, drawS: 45, hints: 1 } })
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, scores: { alice: 25, bob: 100 } }))
+    await assertFails(as('bob').ref('games/g1/round/cycles').set(4))
+    await assertFails(as('bob').ref('games/g1/round/drawBase').set(1000))
+    await assertFails(as('bob').ref('games/g1/round/hintCount').set(3))
+  })
+
+  it('refuses a hint the match does not have', async () => {
+    await put(room(round({ hintCount: 1 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/hints/0').set(hint()))
+    await assertFails(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
+    await put(room(round({ hintCount: 0 })))
+    await assertFails(as('alice').ref('games/g1/round/hints/0').set(hint()))
+    await put(room(round({ hintCount: 2 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
+  })
+})
+
+// SKETCH custom words (S3): the room's `sketchWords` list (up to 100 short
+// words, written as its author), and the copy START puts in the round.
+describe('SKETCH custom words', () => {
+  const lobby = () => {
+    const node = gameNode({ x: 'alice', o: 'bob', status: 'waiting', extra: { gameType: 'sketch', board: null, currentTurn: null } })
+    node.players = players
+    return node
+  }
+  const words = (over = {}) => ({ v: 1, by: 'alice', mode: 'mix', list: { 0: 'grandma', 1: 'office party', 2: "writer's block", 3: 'crème brûlée', 4: 'jack-o-lantern' }, ...over })
+
+  it('lets a player save a list as themself, mixed in or alone', async () => {
+    await put(lobby())
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words()))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words({ mode: 'only' })))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set({ v: 1, by: 'alice', mode: 'only' }))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords/list/99').set('the boss'))
+  })
+
+  it('refuses another author, a bad mode, long or odd words and more than 100', async () => {
+    await put(lobby())
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ by: 'bob' })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ mode: 'all' })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: 'x' } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: 'y'.repeat(25) } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: '<script>' } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 0: 7 } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: { 100: 'kite' } })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set({ ...words(), secret: 1 }))
+    await assertFails(as('mallory').ref('games/g1/sketchWords').set(words({ by: 'mallory' })))
+  })
+
+  it('lets a whole-room write by another player pass with the list unchanged', async () => {
+    await put({ ...room(round({ custom: { by: 'alice', mode: 'mix', list: ['grandma', 'office party'] } })), sketchWords: words() })
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, scores: { alice: 25, bob: 100 } }))
+  })
+
+  it('keeps the round copy in shape', async () => {
+    await put(room())
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix', list: ['ok', 'x'] }))
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'odd', list: ['ok'] }))
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix', list: ['ok'], extra: 1 }))
+    await assertSucceeds(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix', list: ['ok', 'fine'] }))
+  })
+})
+
+// SKETCH join mid-match (S10): while a Sketch match is playing a visitor may
+// create their own seat (and only theirs); a locked room, a kicked or removed
+// player, another game and a finished match still refuse.
+describe('SKETCH join mid-match', () => {
+  const visitor = (over = {}) => ({ name: 'Dee', playerId: 'dee', joinedAt: 5000, online: true, ...over })
+
+  it('lets a visitor take their own seat while the match plays', async () => {
+    await put(room())
+    await assertSucceeds(as('dee').ref('games/g1/players/dee').set(visitor()))
+    // …and, now a member, touch the room like any player
+    await assertSucceeds(as('dee').ref('games/g1/lastActivityAt').set(Date.now()))
+  })
+
+  it('refuses someone else\'s seat or a seat written as someone else', async () => {
+    await put(room())
+    await assertFails(as('dee').ref('games/g1/players/eve').set(visitor({ playerId: 'eve' })))
+    await assertFails(as('dee').ref('games/g1/players/eve').set(visitor()))
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor({ playerId: 'eve' })))
+  })
+
+  it('refuses a locked room, a kicked or removed player, and a finished match', async () => {
+    await put({ ...room(), locked: true })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+    await put({ ...room(), kicked: { dee: true } })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+    await put({ ...room(), removed: { dee: true } })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+    await put({ ...room(), status: 'finished' })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+  })
+
+  it('stays closed mid-match for every other game', async () => {
+    const other = room()
+    other.gameType = 'fibbage'
+    await put(other)
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+  })
+
+  it('lets the coordinator append the newcomer to the order at the wrap', async () => {
+    await put({ ...room(round({ phase: 'reveal', cycles: 2 })), players: { ...players, dee: visitor() } })
+    const whole = (await as('alice').ref('games/g1').get()).val()
+    const next = { ...whole.round, phase: 'choosing', cycle: 2, artist: 'alice', order: ['alice', 'bob', 'cy', 'dee'], startedAt: 9000 }
+    await assertSucceeds(as('alice').ref('games/g1').set({ ...whole, round: next }))
+  })
+})

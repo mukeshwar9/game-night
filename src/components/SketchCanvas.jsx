@@ -34,6 +34,7 @@ import { DUR } from '../lib/motion'
 import { cn } from '@/lib/utils'
 import { PALETTE, BRUSH_WIDTHS, GRID, SCALE } from '../lib/sketchPalette'
 import { DrawingLayers, ReplayLayers } from './SketchDrawing'
+import { PlayGlyph } from './SketchStage'
 
 const FLUSH_MS = 100
 
@@ -367,7 +368,7 @@ export default function SketchCanvas({ gameId, isArtist, side = null, onContent 
             data-testid="sketch-replay"
           >
             <span className="pointer-events-none absolute left-1.5 top-1.5 whitespace-nowrap rounded border border-retro-border bg-retro-card/95 px-2 py-0.5 font-pixel text-[8px] tracking-wider text-retro-text">
-              ▶ REPLAY · TAP TO SKIP
+              <PlayGlyph /> REPLAY · TAP TO SKIP
             </span>
           </button>
         )}

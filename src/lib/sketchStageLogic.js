@@ -61,7 +61,8 @@ export function isKeyboardUp(layoutH, visualH) {
 // ---- Faces ------------------------------------------------------------------
 /**
  * One tile per seated player for the strip across the top, in drawing order.
- * `role` is 'artist' | 'solved' | 'guessing'; a face with `offline` is dimmed.
+ * `role` is 'artist' | 'solved' | 'guessing'; a face with `offline` is dimmed;
+ * `isNew` marks a player outside the round's order (joined mid-match).
  */
 export function faceTiles({ players, order, scores, round }) {
   const seats = (order && order.length ? order : Object.keys(players || {}))
@@ -75,6 +76,8 @@ export function faceTiles({ players, order, scores, round }) {
       score: scores?.[id] || 0,
       role: isArtist ? 'artist' : solved ? 'solved' : 'guessing',
       offline: players[id]?.online === false,
+      // seated after the match's drawing order was set: joined mid-match (S10)
+      isNew: Array.isArray(round?.order) && round.order.length > 0 && !round.order.includes(id),
     }
   })
 }

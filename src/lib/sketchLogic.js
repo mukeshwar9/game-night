@@ -4,7 +4,8 @@
 //   { phase:       'choosing' | 'drawing' | 'reveal',
 //     cycle:       number,               // 1-indexed; bumps when the seat order wraps
 //     artist:      uid,
-//     order:       [uid, ...],           // fixed snapshot from startRound, never mutated
+//     order:       [uid, ...],           // snapshot from startRound; late joiners appended at a cycle wrap (S10)
+//     startedAt:   epoch-ms,             // server time this round was created (late-join eligibility); optional
 //     used:        [number, ...],        // deck indices already offered this match (any tier)
 //     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
@@ -18,7 +19,13 @@
 //     strokes:     { [pushId]: { c, w, p } },         // artist-only writes
 //     chat:        { [pushId]: { uid, text } },       // wrong guesses only
 //     correct:     { [uid]: { at } },                 // uid's own write, once
-//     scored:      boolean }             // true once this round's deltas were applied
+//     cycles:      1|2|3,                // match length, copied from sketchConfig at START; optional
+//     drawBase:    ms,                   // drawing time before the timer scale, from sketchConfig; optional
+//     hintCount:   0|1|2,                // letter hints this match, from sketchConfig; optional
+//     custom:      { by, mode, list },   // the host's custom words, from sketchWords (sketchWordsLogic); optional
+//     scored:      boolean,              // true once this round's deltas were applied
+//     likes:       { [uid]: boolean },   // hearts on this drawing (sketchFavesLogic); optional
+//     faves:       { [cycle:artist]: n } }  // the match's heart tally, carried round to round; optional
 //
 // TRUST MODEL: the artist's client computes commit(normalize(word)) and publishes both
 // `hash` AND `salt` immediately (not withheld until reveal). Combined with the public
@@ -36,6 +43,9 @@ import { avoidList } from './seenHistory'
 import { sha256hex } from './sha256'
 import { matchKey, normalizeText, editDistance, isCloseMatch } from './textMatchLogic'
 import { isBannedWord } from './wordDenylist'
+import { foldLikes } from './sketchFavesLogic'
+import { defaultDraws, roundCycles, roundHintCount } from './sketchConfigLogic'
+import { orderAtWrap } from './sketchLateJoinLogic'
 
 // ---- Tunable constants -----------------------------------------------------
 export const CHOOSE_MS = 15000
@@ -89,8 +99,21 @@ export function wordPattern(word) {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map(w => w.length)
+    .map(w => letterCells(w).length)
     .join(' ')
+}
+
+// ---- letterCells(str) -> string[] -------------------------------------------
+// One entry per blank: NFC first, then any combining mark left over joins the
+// letter before it, so an accented letter of a custom word (S3) is one cell
+// however it was typed. Plain deck words are unchanged (one char, one cell).
+export function letterCells(str) {
+  const out = []
+  for (const ch of Array.from(String(str ?? '').normalize('NFC'))) {
+    if (out.length && /\p{M}/u.test(ch)) out[out.length - 1] += ch
+    else out.push(ch)
+  }
+  return out
 }
 
 // ---- quantize(fraction) -> int 0-255, dequantize(int) -> fraction 0-1 ------
@@ -161,41 +184,57 @@ export function nextArtist(order, artist) {
 }
 
 // ---- cyclesFor(playerCount) -> number ---------------------------------------
-// 3 when playerCount === 2, else 2.
+// The default match length: 3 when playerCount === 2, else 2. The host can
+// pick 1-3 instead (sketchConfigLogic); a round carries the match's choice
+// in `cycles`.
 export function cyclesFor(playerCount) {
-  return playerCount === 2 ? 3 : 2
+  return defaultDraws(playerCount)
 }
 
-// ---- matchOver(order, artist, cycle) -> boolean -----------------------------
+// ---- matchOver(order, artist, cycle, cycles?) -> boolean ----------------------
 // True when the round that just finished (this artist, this cycle) was the
 // LAST round of the match: artist is the last seat in `order` AND
-// cycle >= cyclesFor(order.length).
-export function matchOver(order, artist, cycle) {
+// cycle >= the match's cycle count (default cyclesFor(order.length)).
+export function matchOver(order, artist, cycle, cycles = cyclesFor(order.length)) {
   const idx = order.indexOf(artist)
-  return idx === order.length - 1 && cycle >= cyclesFor(order.length)
+  return idx === order.length - 1 && cycle >= cycles
 }
 
-// ---- nextRoundState(round) -> { finished: true } | { finished: false, round } --
+// ---- nextRoundState(round) -> { finished: true, faves? } | { finished: false, round } --
 // Pure computation of the next round's seed object given the round that just
 // ended (used for BOTH a normal reveal-expiry advance AND a void/skip). Caller
 // adds `endsAt: now() + CHOOSE_MS` before writing `round` (this function does
 // not touch wall-clock time). `used` carries forward round.used + round.options
 // (the 3 offered candidates, whether or not the chosen one was ever confirmed).
-export function nextRoundState(round) {
+// The heart tally (`faves`) carries forward with this round's hearts folded in;
+// when the match ends it comes back as `faves` for the caller to keep.
+//
+// `players` (optional, the room's seats): at a cycle wrap, seated players who
+// joined mid-match are appended to the order (S10, sketchLateJoinLogic), so
+// they draw from the next cycle. Callers also stamp `startedAt` (server time).
+export function nextRoundState(round, players = null) {
   const { order, artist, cycle, used, options, matchSeed } = round
   const carryUsed = [...(used || []), ...(options || [])]
-  if (matchOver(order, artist, cycle)) return { finished: true }
+  const faves = foldLikes(round.faves, round)
+  const hasFaves = Object.keys(faves).length > 0
+  if (matchOver(order, artist, cycle, roundCycles(round))) return hasFaves ? { finished: true, faves } : { finished: true }
   const idx = order.indexOf(artist)
   const wraps = idx === order.length - 1
+  const nextOrder = wraps && players ? orderAtWrap(round, players) : order
   return {
     finished: false,
     round: {
       phase: 'choosing',
       cycle: cycle + (wraps ? 1 : 0),
-      artist: nextArtist(order, artist),
-      order,
+      artist: wraps ? (nextOrder[0] ?? null) : nextArtist(order, artist),
+      order: nextOrder,
       used: carryUsed,
       matchSeed,
+      // the match's setup, copied at START, rides along unchanged (S2)
+      cycles: round.cycles ?? null,
+      drawBase: round.drawBase ?? null,
+      hintCount: round.hintCount ?? null,
+      custom: round.custom ?? null,        // the match's custom words (S3)
       options: null,
       commitment: null,
       accept: null,
@@ -206,6 +245,8 @@ export function nextRoundState(round) {
       correct: null,
       hints: null,
       revealAt: null,
+      likes: null,
+      faves: hasFaves ? faves : null,
       scored: false,
       // caller adds: endsAt: now() + CHOOSE_MS
     },
@@ -390,22 +431,22 @@ const isLetter = ch => /\p{L}/u.test(ch)
 export function letterPositions(word) {
   const chars = String(word ?? '').trim().split(/\s+/).filter(Boolean).join('')
   const out = []
-  Array.from(chars).forEach((ch, i) => { if (isLetter(ch)) out.push(i) })
+  letterCells(chars).forEach((ch, i) => { if (isLetter(ch)) out.push(i) })
   return out
 }
 
-/** How many hints a word may ever show: at most a third of its letters, at most MAX_HINTS. */
-export function hintBudget(word) {
-  return Math.min(MAX_HINTS, Math.floor(letterPositions(word).length * HINT_MAX_FRACTION))
+/** How many hints a word may ever show: at most a third of its letters, at most `max` (the match's hint count). */
+export function hintBudget(word, max = MAX_HINTS) {
+  return Math.min(max, MAX_HINTS, Math.floor(letterPositions(word).length * HINT_MAX_FRACTION))
 }
 
 /**
  * The hints a word will show, in order, deterministic from `seed` so an artist
  * who reloads republishes the same letters. Each is { i, c } (c lowercase).
  */
-export function planHints(word, seed) {
-  const chars = Array.from(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
-  const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word))
+export function planHints(word, seed, count = MAX_HINTS) {
+  const chars = letterCells(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
+  const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word, count))
   return picks.map(i => ({ i, c: chars[i].toLowerCase() }))
 }
 
@@ -438,7 +479,8 @@ export function normalizeHints(raw, pattern = null) {
  */
 export function nextHintToPublish({ word, seed, round, published, now }) {
   if (!word || !round || round.phase !== 'drawing') return null
-  const plan = planHints(word, seed)
+  // The match's hint count (S2: the host may pick 0 or 1); rounds without one use 2.
+  const plan = planHints(word, seed, roundHintCount(round))
   const have = new Set((published || []).map(h => h.n))
   for (let n = 0; n < plan.length; n++) {
     if (have.has(n)) continue
