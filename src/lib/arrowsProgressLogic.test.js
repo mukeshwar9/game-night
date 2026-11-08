@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ARROWS_LEVEL_COUNT,
   blankProgress,
+  chapterCleared,
   chapterGoal,
   isLevelUnlocked,
   mergeProgress,
@@ -46,5 +47,19 @@ describe('arrowsProgressLogic', () => {
     let p = blankProgress()
     for (let n = 1; n <= 8; n += 1) p = recordLevelResult(p, n, 3)
     expect(chapterGoal(p, chapter)).toMatchObject({ got: 24, max: 30, gold: 24, isGold: true, toGold: 0 })
+  })
+})
+
+describe('chapterCleared', () => {
+  const ch = { from: 1, to: 10 }
+  it('counts boards cleared with any stars, so a 1-star clear counts', () => {
+    let p = blankProgress()
+    expect(chapterCleared(p, ch)).toBe(0)
+    p = recordLevelResult(p, 1, 3)
+    p = recordLevelResult(p, 2, 1)
+    expect(chapterCleared(p, ch)).toBe(2)
+    // Only this chapter's boards.
+    p = recordLevelResult(p, 11, 3)
+    expect(chapterCleared(p, ch)).toBe(2)
   })
 })

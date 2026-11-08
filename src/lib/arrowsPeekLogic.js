@@ -26,3 +26,26 @@ export function peekOutcome({ heldMs, movedPx, multi, pointerType }) {
 
 /** Does this pointer start a hold timer? Touch and pen do; a mouse hovers. */
 export const canHold = (pointerType) => pointerType !== 'mouse'
+
+/**
+ * The one line under the solo board (ROUTES mode and its first-bump prompt).
+ * The most useful thing wins: a previewed arrow's verdict, then the nudge after
+ * a session's first bump (ROUTES still off), then the board's twist tip, then
+ * the ROUTES-on reminder. Tone is a theme role, never a colour.
+ *  - routes: ROUTES mode is on
+ *  - pick:   null, or { free } for the arrow whose route is previewed
+ *  - nudge:  a blocked tap has just happened this session and ROUTES is off
+ *  - tip:    the level's twist tip, or ''
+ * @returns {{ tone: 'win' | 'danger' | 'cta' | 'dim', text: string } | null}
+ */
+export function routeCoach({ routes = false, pick = null, nudge = false, tip = '' } = {}) {
+  if (routes && pick) {
+    return pick.free
+      ? { tone: 'win', text: 'CLEAR · TAP AGAIN TO SEND' }
+      : { tone: 'danger', text: 'BLOCKED · SENDING IT COSTS A STAR' }
+  }
+  if (!routes && nudge) return { tone: 'cta', text: 'BUMPED? TURN ON ROUTES TO SEE WHERE AN ARROW GOES' }
+  if (!routes && tip) return { tone: 'cta', text: tip }
+  if (routes) return { tone: 'dim', text: 'ROUTES ON · TAP AN ARROW TO PREVIEW, TAP AGAIN TO SEND' }
+  return null
+}

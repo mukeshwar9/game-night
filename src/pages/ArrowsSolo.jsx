@@ -1,27 +1,29 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import ArrowsBoard from '../components/ArrowsBoard'
-import ArrowsChapterMap, { Stars } from '../components/ArrowsChapterMap'
+import ArrowsChapterMap from '../components/ArrowsChapterMap'
 import ArrowsRaceSetup from '../components/ArrowsRaceSetup'
 import ArrowsRewardMeter from '../components/ArrowsRewardMeter'
-import { Lives } from '../components/ArrowsHud'
+import ArrowsMiniBoard from '../components/ArrowsMiniBoard'
 import ArrowsLesson from '../components/ArrowsLesson'
 import ArrowTypes from '../components/ArrowTypes'
 import BottomSheet from '../components/BottomSheet'
 import RulesModal from '../components/LazyRulesModal'
 import { getLesson } from '../lib/arrowsLessonsLogic'
+import { routeCoach } from '../lib/arrowsPeekLogic'
 import { bestHintArrow } from '../lib/arrowsHintLogic'
 import {
   applyArrowTap,
   countGone,
+  exitCheck,
   randomArrowsSeed,
   ARROWS_ENDLESS_INFO,
-  ARROWS_LIVES,
 } from '../lib/arrowsLogic'
 import {
   ARROWS_CHAPTERS,
   ARROWS_LEVEL_COUNT,
   ARROWS_LEVEL_SPECS,
   ARROWS_TWIST_TIPS,
+  chapterCleared,
   endlessLevel,
   getArrowsLevel,
   learnedPieces,
@@ -41,7 +43,7 @@ import {
   saveArrowsProgress,
   syncArrowsProgress,
 } from '../lib/arrowsProgress'
-import { REWARD_SEEN_KEY, parseRewardSeen, resultRewardLine, stepsToAnnounce } from '../lib/arrowsRewardsLogic'
+import { REWARD_SEEN_KEY, parseRewardSeen, stepsToAnnounce } from '../lib/arrowsRewardsLogic'
 import { sounds } from '../lib/sounds'
 import { melodicNote } from '../lib/arrowsSoundLogic'
 import { track } from '../lib/track'
@@ -122,23 +124,43 @@ function Hub({ progress, onContinue, onView, onRules }) {
   const first = totalStars(progress) === 0 && !tutorialStarted()
   const cont = nextLevel(progress)
   const chapter = ARROWS_CHAPTERS.find((c) => cont >= c.from && cont <= c.to)
+  const contLevel = getArrowsLevel(cont)
   const got = levelStars(progress, cont)
+  const stars = totalStars(progress)
   return (
     <div className="space-y-3">
       {first ? (
         <HubCard cta top="NEW TO ARROWS?" main="START HERE · TUTORIAL" sub="a short guided tutorial, then level 1" onClick={() => onView('tutorial')} />
       ) : (
-        <HubCard
-          cta
-          top={`CONTINUE · CHAPTER ${chapter ? ARROWS_CHAPTERS.indexOf(chapter) + 1 : ''} ${chapter ? chapter.name : ''}`}
-          main={got ? `REPLAY LEVEL ${cont}` : `LEVEL ${cont}`}
-          sub={`${totalStars(progress)}/${ARROWS_LEVEL_COUNT * 3} ★ SO FAR${got ? ` · BEST ${'★'.repeat(got)}` : ''}`}
-          extra={<ArrowsRewardMeter stars={totalStars(progress)} />}
-          onClick={onContinue}
-        />
+        <div className="rounded border border-retro-cta bg-retro-tint-cta shadow-neon-cta p-3.5 space-y-3">
+          <div className="flex items-center justify-between gap-2 font-pixel text-[8px]">
+            <span className="text-retro-cta">CONTINUE</span>
+            {chapter && <span className="text-retro-dim">CHAPTER {ARROWS_CHAPTERS.indexOf(chapter) + 1} · {chapterCleared(progress, chapter)}/{chapter.to - chapter.from + 1}</span>}
+          </div>
+          <div className="flex items-start gap-3.5">
+            {contLevel && (
+              <div className="shrink-0 w-[104px] h-[132px] rounded border-2 border-retro-border bg-retro-card p-1.5">
+                <ArrowsMiniBoard level={contLevel} className="block w-full h-full" />
+              </div>
+            )}
+            <div className="min-w-0 space-y-1.5">
+              <p className="font-pixel text-lg text-retro-text">LEVEL {cont}</p>
+              <p className="font-pixel text-[10px] text-retro-dim">{chapter ? `${chapter.name} · ` : ''}{contLevel ? `${contLevel.cols}×${contLevel.rows}` : ''}</p>
+              <p className="font-pixel text-base leading-none"><span className={got ? 'text-retro-cta' : 'text-retro-structure opacity-40'}>★</span><span className={got > 1 ? 'text-retro-cta' : 'text-retro-structure opacity-40'}>★</span><span className={got > 2 ? 'text-retro-cta' : 'text-retro-structure opacity-40'}>★</span></p>
+              <p className="font-pixel text-[8px] text-retro-dim">{got ? `BEST ${'★'.repeat(got)} · REPLAY` : 'NOT CLEARED YET'}</p>
+            </div>
+          </div>
+          <button onClick={onContinue} className={cn(CTA, 'w-full min-h-12 text-xs')}>PLAY</button>
+        </div>
+      )}
+      {!first && (
+        <div className="rounded border border-retro-border bg-retro-card p-3">
+          <p className="font-pixel text-[8px] text-retro-dim">NEXT REWARD</p>
+          <ArrowsRewardMeter stars={stars} />
+        </div>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <HubCard top="1 PLAYER" main="SOLO" sub={`${ARROWS_LEVEL_COUNT} levels · endless`} onClick={() => onView('solo')} />
+        <HubCard top="1 PLAYER" main="CHAPTERS" sub={`${stars}/${ARROWS_LEVEL_COUNT * 3} ★ · endless`} onClick={() => onView('solo')} />
         <HubCard top="VS" main="2 PLAYERS" sub="friend · quick match · AI racers" onClick={() => onView('two')} />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -158,15 +180,71 @@ function SubHeader({ title, onBack }) {
   )
 }
 
-// One puzzle board: lives, live star rating, hint and restart. Calls
-// onCleared(stars) once when the board is empty.
+// Set after a session's first bump: the line under the board then points at
+// ROUTES (once per page load, until it is switched on).
+let routesNudged = false
+
+const eyeIcon = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+)
+const bulbIcon = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z" />
+  </svg>
+)
+const redoIcon = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />
+  </svg>
+)
+
+// The three stars at the top of the board: what the board is still worth. They
+// only ever drain (a bump or a hint), and the one just lost drops a size.
+function StarMeter({ n }) {
+  return (
+    <span className="flex gap-0.5 font-pixel text-lg leading-none" role="img" aria-label={`${n} of 3 stars`}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={`${i}-${n}`}
+          aria-hidden="true"
+          className={cn(i < n ? 'text-retro-cta' : 'text-retro-structure opacity-40', i === n && 'ar-star-lost')}
+        >★</span>
+      ))}
+    </span>
+  )
+}
+
+// A cleared board's stars stamp in one at a time.
+function StampStars({ n }) {
+  return (
+    <span className="flex gap-2.5 font-pixel text-4xl leading-none" role="img" aria-label={`${n} of 3 stars`}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          className={i < n ? 'ar-stamp text-retro-cta' : 'text-retro-structure opacity-40'}
+          style={{ '--i': i }}
+        >★</span>
+      ))}
+    </span>
+  )
+}
+
+const THUMB = 'min-h-12 flex-1 flex items-center justify-center gap-2 px-2 font-pixel text-[9px] rounded border transition press'
+
+// One puzzle board on its own full-height stage: a slim top bar (back, level,
+// the three stars), the board edge to edge, and a thumb bar with HINT, ROUTES
+// and RESTART. A blocked tap costs a star, never the board: a cleared board is
+// always worth at least one. Calls onCleared(stars) once when the board is empty.
 // `intro` (a twist key) keeps that twist's tip up on its teaching level even
 // on a replay. `tips` off silences the twist lesson/tip (endless boards teach
 // nothing — the "?" sheet is always there for a reminder).
-function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onCleared, onRestart, onBack, backLabel = 'BACK', next }) {
+function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onCleared, onRestart, onBack, backLabel = 'BACK', next, resultTag = null, nextProgress = null }) {
   const total = level.arrows.length
   const [gone, setGone] = useState(() => Array(total).fill(false))
-  const [lives, setLives] = useState(ARROWS_LIVES)
   const [mistakes, setMistakes] = useState(0)
   const [hints, setHints] = useState(0)
   const [feedback, setFeedback] = useState(null)
@@ -175,6 +253,10 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
   // { before, after } total stars around this clear (campaign only).
   const [reward, setReward] = useState(null)
   const [seen] = useState(readSeenTwists)
+  // ROUTES mode, the previewed arrow, and the nudge after this session's first bump.
+  const [routes, setRoutes] = useState(false)
+  const [routePick, setRoutePick] = useState(-1)
+  const [nudge, setNudge] = useState(false)
   // The first board with a kind the player has not been taught opens with
   // that kind's lesson; "?" reopens the arrow types (each with TRY IT).
   const [lesson, setLesson] = useState(() => {
@@ -198,18 +280,19 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
 
   const handleTap = (index) => {
     if (result) return
-    const applied = applyArrowTap(level, gone, lives, index)
+    // Solo has no lives: a blocked tap costs a star (mistakes), never the board.
+    const applied = applyArrowTap(level, gone, Infinity, index)
     if (!applied) return
     setHint(null)
+    setRoutePick(-1)
     if (applied.result === 'blocked') {
       streak.current = 0
-      setLives(applied.lives)
       setMistakes((m) => m + 1)
       setFeedback({ index, blocker: applied.blocker, gap: applied.gap, asleep: applied.asleep, crate: applied.crate, wall: applied.wall, key: Date.now() })
       sounds.buzz()
-      if (applied.lives <= 0) {
-        setResult({ stars: 0 })
-        sounds.lose()
+      if (!routesNudged) {
+        routesNudged = true
+        setNudge(true)
       }
       return
     }
@@ -219,6 +302,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
     if (countGone(applied.gone) >= total) {
       const stars = starsFor({ mistakes, hints })
       setResult({ stars })
+      setNudge(false)
       sounds.win()
       const r = onCleared(stars)
       if (r) setReward(r)
@@ -233,97 +317,131 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
     setHints((h) => h + 1)
   }
 
-  const potential = starsFor({ mistakes, hints })
+  const toggleRoutes = () => {
+    setRoutes((on) => !on)
+    setRoutePick(-1)
+    setNudge(false)
+  }
 
-  // The result panel lies over the board, inline or in full screen.
+  const potential = starsFor({ mistakes, hints })
+  const left = total - countGone(gone)
+  const pick = routes && routePick >= 0 && !gone[routePick] ? { free: exitCheck(level, gone, routePick).free } : null
+  const coach = result ? null : routeCoach({ routes, pick, nudge, tip: twist ? ARROWS_TWIST_TIPS[twist] : '' })
+
+  // The result lies over the board.
   const resultPanel = result && (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-retro-bg/85 rounded-lg px-4 text-center">
-      {result.stars > 0 ? (
-        <>
-          <p className="font-pixel text-sm text-retro-win text-glow-win">BOARD CLEAR!</p>
-          <Stars n={result.stars} size="lg" />
-          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
-            {mistakes === 0 ? 'NO MISTAKES' : `${mistakes} MISTAKE${mistakes > 1 ? 'S' : ''}`}
-            {hints > 0 ? ` · ${hints} HINT${hints > 1 ? 'S' : ''}` : ''}
-          </p>
-          {reward && <p className="font-pixel text-[8px] text-retro-cta leading-relaxed">{resultRewardLine(reward.before, reward.after)}</p>}
-        </>
-      ) : (
-        <p className="font-pixel text-sm text-retro-dim">OUT OF LIVES</p>
-      )}
-      <div className="flex flex-wrap justify-center gap-2">
-        {result.stars > 0 && next && <button onClick={next.onClick} className={CTA}>{next.label}</button>}
-        <button onClick={onRestart} className={result.stars > 0 && next ? SEC : CTA}>{result.stars > 0 ? 'REPLAY' : 'RETRY'}</button>
-        <button onClick={onBack} className={SEC}>{backLabel}</button>
+    <div className="absolute inset-0 flex items-center justify-center px-4 bg-retro-bg/70 rounded-lg">
+      <div className="w-full max-w-xs flex flex-col items-center gap-3 rounded-lg border-2 border-retro-border bg-retro-card px-4 py-5 text-center">
+        {resultTag && <p className="font-pixel text-[9px] text-retro-dim">{resultTag}</p>}
+        <p className="font-pixel text-base text-retro-win text-glow-win">BOARD CLEAR</p>
+        <StampStars n={result.stars} />
+        <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
+          {mistakes === 0 ? 'NO BUMPS' : `${mistakes} BUMP${mistakes > 1 ? 'S' : ''}`}
+          {' · '}
+          {hints > 0 ? `${hints} HINT${hints > 1 ? 'S' : ''}` : 'NO HINTS'}
+        </p>
+        {reward && (
+          <div className="w-full space-y-1">
+            <ArrowsRewardMeter stars={reward.after} />
+            {reward.after > reward.before && <p className="font-pixel text-[9px] text-retro-cta">+{reward.after - reward.before}★ ADDED</p>}
+          </div>
+        )}
+        {nextProgress && <p className="font-pixel text-[8px] text-retro-dim">{nextProgress}</p>}
+        <div className="w-full flex flex-col gap-2 ar-stamp" style={{ '--i': 3 }}>
+          {next && <button onClick={next.onClick} className={cn(CTA, 'w-full')}>{next.label}</button>}
+          <button onClick={onRestart} className={cn(next ? SEC : CTA, 'w-full')}>{result.stars < 3 ? 'RETRY FOR ★★★' : 'REPLAY'}</button>
+          <button onClick={onBack} className={cn(SEC, 'w-full')}>{backLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const topBar = (
+    <div className="flex items-center gap-1 min-w-0">
+      <button onClick={onBack} aria-label={backLabel === 'BACK' ? 'Back' : 'Back to the chapters'} className="min-h-11 min-w-11 -ml-1 flex items-center justify-center font-pixel text-xl text-retro-dim hover:text-retro-text">‹</button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-pixel text-[11px] text-retro-text tracking-wider">{title}</p>
+        <p className="truncate font-pixel text-[8px] text-retro-dim mt-0.5">{left} LEFT · {subtitle}</p>
+      </div>
+      <button
+        onClick={() => setShowTypes(true)}
+        aria-label="Arrow types"
+        title="Arrow types"
+        className="min-h-11 min-w-11 flex items-center justify-center text-retro-dim hover:text-retro-text"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </button>
+      <StarMeter n={potential} />
+    </div>
+  )
+
+  const thumbBar = (
+    <div className="space-y-1.5 pb-1">
+      <p
+        className={cn(
+          'h-14 overflow-hidden flex items-center justify-center px-2 text-center font-pixel text-[8px] leading-snug',
+          coach?.tone === 'win' && 'text-retro-win',
+          coach?.tone === 'danger' && 'text-retro-danger',
+          coach?.tone === 'cta' && 'text-retro-cta',
+          (!coach || coach.tone === 'dim') && 'text-retro-dim',
+        )}
+        role="note"
+      >
+        {coach?.text ?? ''}
+      </p>
+      <div className="flex gap-2">
+        <button onClick={showHint} disabled={!!result} className={cn(THUMB, 'border-retro-border text-retro-text hover:border-retro-cta/50')}>
+          {bulbIcon}HINT{hints > 0 ? ` ${hints}` : ''}
+        </button>
+        <button
+          onClick={toggleRoutes}
+          disabled={!!result}
+          aria-pressed={routes}
+          className={cn(
+            THUMB,
+            routes ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-text hover:border-retro-cta/50',
+            nudge && !routes && 'ar-nudge border-retro-cta text-retro-cta',
+          )}
+        >
+          {eyeIcon}ROUTES
+        </button>
+        <button onClick={onRestart} className={cn(THUMB, 'border-retro-border text-retro-text hover:border-retro-cta/50')}>
+          {redoIcon}RESTART
+        </button>
       </div>
     </div>
   )
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <button onClick={onBack} className="min-h-11 -ml-2 px-2 font-pixel text-[9px] text-retro-dim hover:text-retro-text">‹ BACK</button>
-        <div className="text-center min-w-0">
-          <p className="font-pixel text-[10px] text-retro-text tracking-wider">{title}</p>
-          <p className="font-pixel text-[8px] text-retro-dim mt-0.5">{subtitle}</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowTypes(true)}
-            aria-label="Arrow types"
-            title="Arrow types"
-            className="min-h-11 min-w-11 -my-1 flex items-center justify-center text-retro-dim hover:text-retro-text"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-          </button>
-          <Lives n={lives} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{countGone(gone)}/{total} CLEARED</span>
-        <Stars n={potential} />
-        <div className="flex gap-1.5">
-          <button onClick={showHint} disabled={!!result} className={cn(SEC, 'min-h-9 px-2.5 py-1.5 text-[8px]')}>HINT</button>
-          <button onClick={onRestart} className={cn(SEC, 'min-h-9 px-2.5 py-1.5 text-[8px]')}>RESTART</button>
-        </div>
-      </div>
-      {twist && (
-        <p className="font-pixel text-[8px] text-retro-cta leading-relaxed text-center" role="note">{ARROWS_TWIST_TIPS[twist]}</p>
-      )}
-      <div className="relative">
-        <ArrowsBoard
-          level={level}
-          gone={gone}
-          onTap={handleTap}
-          zoomable
-          peek
-          interactive={!result && !lesson}
-          feedback={feedback}
-          hint={hint}
-          label={`${title} board, ${total - countGone(gone)} arrows left`}
-          focusable
-          focusHud={(
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="min-w-0 truncate font-pixel text-[8px] text-retro-text">{title.split(' /')[0]}</span>
-              <span className="font-pixel text-[8px] text-retro-dim tabular-nums">{countGone(gone)}/{total}</span>
-              <Lives n={lives} size="sm" />
-              <button onClick={showHint} disabled={!!result} className={cn(SEC, 'ml-auto min-h-9 px-2 py-1 text-[8px]')}>HINT</button>
-            </div>
-          )}
-          focusOverlay={resultPanel || null}
-        />
-        {result && resultPanel}
-      </div>
+    <>
+      <ArrowsBoard
+        level={level}
+        gone={gone}
+        onTap={handleTap}
+        zoomable
+        peek
+        stage
+        routes={routes}
+        routePick={routePick}
+        onRoutePick={setRoutePick}
+        interactive={!result && !lesson}
+        feedback={feedback}
+        hint={hint}
+        label={`${title} board, ${left} arrows left`}
+        focusHud={topBar}
+        stageFooter={thumbBar}
+        focusOverlay={resultPanel || null}
+      />
       <p className="sr-only" aria-live="polite">
-        {result ? (result.stars > 0 ? `Board clear, ${result.stars} stars.` : 'Out of lives.') : `${countGone(gone)} of ${total} cleared, ${lives} lives.`}
+        {result ? `Board clear, ${result.stars} stars.` : `${countGone(gone)} of ${total} cleared, ${potential} of 3 stars left.`}
       </p>
       {lesson && (
         <BottomSheet onClose={closeLesson} ariaLabel={`${getLesson(lesson).name} lesson`}>
-          <ArrowsLesson kind={lesson} onDone={closeLesson} doneLabel={`PLAY ${title.split(' /')[0]}`} badge="NEW ARROW" />
+          <ArrowsLesson kind={lesson} onDone={closeLesson} doneLabel={`PLAY ${title.split(' ·')[0]}`} badge="NEW ARROW" />
         </BottomSheet>
       )}
       {showTypes && (
@@ -334,7 +452,7 @@ function PuzzlePlay({ level, title, subtitle, intro = null, tips = true, onClear
           </div>
         </BottomSheet>
       )}
-    </div>
+    </>
   )
 }
 
@@ -403,13 +521,17 @@ export default function ArrowsSolo() {
     if (play.kind === 'level') {
       const n = play.n
       const hasNext = n < ARROWS_LEVEL_COUNT
+      const chapter = ARROWS_CHAPTERS.find((c) => n >= c.from && n <= c.to)
+      const nextBoard = hasNext ? getArrowsLevel(n + 1) : null
       return (
         <>
         <PuzzlePlay
           key={`level-${n}-${attempt}`}
           level={level}
-          title={`LEVEL ${n} / ${ARROWS_LEVEL_COUNT}`}
-          subtitle={`${level.cols}×${level.rows} · ${level.arrows.length} ARROWS`}
+          title={`LEVEL ${n}`}
+          subtitle={chapter.name}
+          resultTag={`LEVEL ${n} · ${chapter.name}`}
+          nextProgress={`CHAPTER ${ARROWS_CHAPTERS.indexOf(chapter) + 1} · ${chapterCleared(progress, chapter)}/${chapter.to - chapter.from + 1}`}
           onCleared={(stars) => {
             if (stars > 0) track('arrows_level_cleared', { level: n, stars, kind: 'campaign' })
             const before = totalStars(progress)
@@ -423,7 +545,7 @@ export default function ArrowsSolo() {
           intro={ARROWS_LEVEL_SPECS[n - 1].intro ?? null}
           onBack={back}
           backLabel="CHAPTERS"
-          next={hasNext ? { label: `LEVEL ${n + 1} →`, onClick: () => start({ kind: 'level', n: n + 1 }) } : null}
+          next={hasNext ? { label: `NEXT · LEVEL ${n + 1} · ${nextBoard.cols}×${nextBoard.rows}`, onClick: () => start({ kind: 'level', n: n + 1 }) } : null}
         />
         {rewardSheet}
         </>
@@ -435,7 +557,7 @@ export default function ArrowsSolo() {
         key={`endless-${play.seed}-${attempt}`}
         level={level}
         title={`ENDLESS · ${ARROWS_ENDLESS_INFO[tier].label}`}
-        subtitle={`${level.shape ? `${level.shape.toUpperCase()} SHAPE · ` : ''}${level.arrows.length} ARROWS · ${progress.endless[tier]} CLEARED`}
+        subtitle={`${level.shape ? `${level.shape.toUpperCase()} SHAPE · ` : ''}${progress.endless[tier]} CLEARED`}
         tips={false}
         onCleared={() => {
           track('arrows_level_cleared', { level: progress.endless[tier] + 1, kind: `endless_${tier}` })

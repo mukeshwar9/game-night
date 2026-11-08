@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 
 // The guided TUTORIAL track: every Arrows lesson in campaign order, a done mark
 // per lesson kept on this device, NEXT LESSON after each one. Taps are practice
-// and never cost lives (ArrowsLesson). `startKind` opens straight into that
+// and never cost a star (ArrowsLesson). `startKind` opens straight into that
 // lesson; `onExit` fires on BACK from the list.
 
 const readDone = () => {
@@ -65,7 +65,7 @@ export default function ArrowsTutorial({ onExit, startKind = null }) {
       </div>
       <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">TUTORIAL</p>
       <p className="font-mono text-[11px] leading-relaxed text-retro-text">
-        EVERY ARROW TYPE, THREE TAPS EACH. NO LIVES LOST. THE LEVEL SHOWN IS WHERE THE CAMPAIGN MEETS IT.
+        EVERY ARROW TYPE, THREE TAPS EACH. NO STARS LOST. THE LEVEL SHOWN IS WHERE THE CAMPAIGN MEETS IT.
       </p>
       {left.length > 0 && (
         <button onClick={() => setOpen(left[0].kind)} className={cn(BTN, 'w-full bg-retro-cta text-retro-bg hover:shadow-neon-cta')}>

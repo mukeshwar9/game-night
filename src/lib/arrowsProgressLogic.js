@@ -115,6 +115,13 @@ export function chapterStars(progress, chapter) {
 export const ARROWS_CHAPTER_GOLD = 24
 const goldTarget = (max) => (max === 30 ? ARROWS_CHAPTER_GOLD : Math.round(0.8 * max))
 
+// Boards of one chapter that are cleared (any stars: a 1★ clear counts).
+export function chapterCleared(progress, chapter) {
+  let n = 0
+  for (let l = chapter.from; l <= chapter.to; l += 1) if (levelStars(progress, l) >= 1) n += 1
+  return n
+}
+
 export function chapterGoal(progress, chapter) {
   const got = chapterStars(progress, chapter)
   const max = (chapter.to - chapter.from + 1) * 3

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 
 // The short lesson for one arrow kind: an intro card, three guided taps on a
 // tiny board (tap it while blocked, clear what blocks it, send it) and a done
-// card. Practice only — taps never cost lives. Rendered inside a BottomSheet
+// card. Practice only — taps never cost a star. Rendered inside a BottomSheet
 // by the caller (before a level that introduces the kind, or from the arrow
 // types list). `onDone` fires on SKIP and on the final button.
 
@@ -124,7 +124,7 @@ export default function ArrowsLesson({ kind, onDone, doneLabel = 'PLAY', badge =
               <span key={i} className={cn('w-2 h-2 rounded-sm', i <= step ? 'bg-retro-cta' : 'bg-retro-border')} />
             ))}
           </div>
-          <p className="font-pixel text-[7px] text-retro-dim text-center">PRACTICE · NO LIVES LOST</p>
+          <p className="font-pixel text-[7px] text-retro-dim text-center">PRACTICE · NO STARS LOST</p>
         </>
       )}
       {screen === 'intro' && (
