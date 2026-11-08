@@ -14,7 +14,6 @@ import {
   wordPattern,
   pickRoundOptions,
   scoringWindow,
-  cyclesFor,
   nextRoundState,
   activeGuessers,
   participantGuessers,
@@ -42,6 +41,8 @@ import {
 } from '../lib/sketchStageLogic'
 import { replayOver } from '../lib/sketchReplayLogic'
 import { countLikes, crowdFavourite, heartMode, normalizeFaves } from '../lib/sketchFavesLogic'
+import { roundCycles, roundDrawBase } from '../lib/sketchConfigLogic'
+import SketchSetup from '../components/SketchSetup'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
 import { scaledMs, timersOff } from '../lib/timerScale'
@@ -89,6 +90,10 @@ function normalizeRound(raw) {
     drawMs: raw.drawMs ?? null,
     // server time of the flip to reveal: every screen's replay runs from it
     revealAt: raw.revealAt ?? null,
+    // the match setup copied at START (S2); absent in older rounds
+    cycles: raw.cycles ?? null,
+    drawBase: raw.drawBase ?? null,
+    hintCount: raw.hintCount ?? null,
     chat: raw.chat ?? {},
     correct: raw.correct ?? {},
     // letter hints the artist's phone published (see sketchLogic 'Letter hints')
@@ -203,7 +208,8 @@ export default function SketchGame({
   // reveal (word, replay, points) is a display pause, not a deadline on anyone,
   // so it stays fixed.
   const chooseMs = scaledMs(CHOOSE_MS, game.timerScale)
-  const drawMs = scaledMs(DRAW_MS, game.timerScale)
+  // The match's draw time (host setup, S2; 75 s for rounds without one).
+  const drawMs = scaledMs(roundDrawBase(game.round), game.timerScale)
   const noTimer = timersOff(game.timerScale)
   const deadlineAfter = (ms) => (ms == null ? null : now() + ms)
 
@@ -335,8 +341,8 @@ export default function SketchGame({
           round: {
             ...cr, commitment: { hash, salt }, accept, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt,
             // Speed-bonus window for scoring (see sketchLogic.scoringWindow):
-            // the scaled clock, or the base DRAW_MS when timers are off.
-            drawStartedAt, drawMs: drawMs ?? DRAW_MS,
+            // the scaled clock, or the match's base draw time when timers are off.
+            drawStartedAt, drawMs: drawMs ?? roundDrawBase(cr),
           },
         }
       })
@@ -766,6 +772,16 @@ export default function SketchGame({
           </div>
         )}
 
+        {!matchOver && (
+          <SketchSetup
+            gameId={gameId}
+            config={game.sketchConfig}
+            playerCount={playerCount}
+            timerScale={game.timerScale}
+            canEdit={amCoordinator && isPlayer}
+          />
+        )}
+
         {!enough && !matchOver && (
           <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
             NEED {MIN_PLAYERS - playerCount} MORE PLAYER{MIN_PLAYERS - playerCount === 1 ? '' : 'S'}<br />TO START
@@ -820,7 +836,7 @@ export default function SketchGame({
   // Active round — the stage.
   // -------------------------------------------------------------------------
   const artistName = (players[round.artist]?.name || '???').toUpperCase()
-  const totalCycles = cyclesFor(round.order.length)
+  const totalCycles = roundCycles(round)
   // Timers off: no auto-pick will ever fire, so the coordinator may pass a
   // stalled artist on as soon as the options are up.
   const showChoosingSkip = amCoordinator && round.phase === 'choosing' && (

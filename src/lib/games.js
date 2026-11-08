@@ -134,6 +134,7 @@ import {
   getPairsWinner,
 } from './pairsLogic'
 import { seatOrder as seatOrderSketch, CHOOSE_MS as SKETCH_CHOOSE_MS, sketchChatLock } from './sketchLogic'
+import { roundSetup as sketchRoundSetup } from './sketchConfigLogic'
 import { scaledMs } from './timerScale'
 import {
   INITIAL_PITS,
@@ -2083,7 +2084,9 @@ export const GAME_TYPES = [
     chatLocked: (game, uid) => sketchChatLock(game?.round, uid),
     // `game` (the room) is passed by Game.jsx's START: offline seats are left
     // out of the drawing order, and the first choose window follows the
-    // room's timer scale (null = timers off, the coordinator advances).
+    // room's timer scale (null = timers off, the coordinator advances). The
+    // host's MATCH SETUP (`sketchConfig`) is copied into the round here, so a
+    // later change can't alter the match in flight.
     startRound: (players, game) => {
       const online = Object.fromEntries(Object.entries(players || {}).filter(([, p]) => p?.online !== false))
       const order = seatOrderSketch(Object.keys(online).length ? online : players)
@@ -2098,6 +2101,7 @@ export const GAME_TYPES = [
           used: [],
           matchSeed: `${startedAt}:${Math.random().toString(36).slice(2)}`,
           endsAt: chooseMs == null ? null : startedAt + chooseMs,
+          ...sketchRoundSetup(game?.sketchConfig, order.length),
         },
       }
     },

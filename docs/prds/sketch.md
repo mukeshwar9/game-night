@@ -236,3 +236,12 @@ Acceptance: new players can explain how each role earns points, identify the dif
 ### Validation scope
 
 The focused logic test run reports 79 passing tests across three files. Live drawing and multiplayer behavior still require manual testing: failed writes, fast typing under delayed responses, disconnects after correct guesses, and undo across strokes and fills using distinct browser profiles or devices.
+
+## Added 2026-11 — reveal replay, hearts, sharing, match setup, custom words, late join
+
+Design: the `gn-sketch-designs` review board (captain's picks). Each item below is one commit.
+
+- **S1 Replay at reveal.** The coordinator stamps `round.revealAt`; every screen redraws the drawing in the order it was made (0.3–3.8 s, `sketchReplayLogic.js`), then the points fly. Reveal is 8 s. Tap to skip on one phone; reduced motion fades the picture in.
+- **S5 Hearts and CROWD FAVOURITE.** `round/likes/{uid}` (own heart, never the artist; at the reveal, or once you've guessed it). The coordinator folds each round's count into `round/faves` (carried by `nextRoundState`); the most-hearted drawing with ≥ 2 hearts wins the award at match end (ties share it, up to 3; no award with 2 players). Hearts never change points.
+- **S4 Share.** Gallery cards get SHARE (1080 × 1350 PNG) and a viewer sheet (REPLAY, SHARE, name toggle); SHARE ALL makes collage PNGs (≤ 3 × 3 each) or a PDF (`pdfLogic.js`). Files go to the system share sheet (`share.js` `shareFiles`); without file sharing they download and SEND ON WHATSAPP opens `wa.me`. Nothing is uploaded.
+- **S2 Match setup.** Room key `sketchConfig: { v: 1, draws?, drawS, hints }` (room-level, not in `FIELD_NULLS`), edited by the host from a lobby summary line + sheet; START copies it into the round as `cycles`, `drawBase`, `hintCount`. Rounds without them keep the old rules (twice / three times with 2 players, 75 s, two hints).

@@ -117,6 +117,7 @@ import { CHAMELEON_GRID, CHAMELEON_MATCH_POINTS, POINTS_ESCAPED, POINTS_STOLEN, 
 import { CW_COLS, CW_SIZE, CW_START_CARDS, CW_OTHER_CARDS } from './codeWordsLogic'
 import { JO_CARDS, applyOutcome as justOneOutcome } from './justOneLogic'
 import { TIER_MULTIPLIERS, cyclesFor } from './sketchLogic'
+import { DRAW_CHOICES as SK_DRAWS, DRAW_TIME_CHOICES as SK_DRAW_S, HINT_CHOICES as SK_HINTS } from './sketchConfigLogic'
 import { PAIRS_SIZE, PAIRS_TOTAL_PAIRS, PAIRS_QUICK_SIZE, PAIRS_QUICK_CELL_COUNT, PAIRS_CELL_COUNT, pairsClinch } from './pairsLogic'
 import { VB_LIVES } from './verbalMemoryLogic'
 import { NB_CELLS, NB_LIVES, NB_BLOCK, startNBack } from './nBackLogic'
@@ -538,6 +539,8 @@ const RULE_NUMBERS = {
   sketch: () => ({
     checks: [
       ...players('sketch', 2, 8), [3, 3], [1.2, TIER_MULTIPLIERS[2]], [1.5, TIER_MULTIPLIERS[3]], [2, cyclesFor(3)],
+      // MATCH SETUP: 1, 2 or 3 draws each; 45 to 120 seconds; hints off, 1 or 2
+      [1, SK_DRAWS[0]], [3, SK_DRAWS.at(-1)], [45, SK_DRAW_S[0]], [120, SK_DRAW_S.at(-1)], [1, SK_HINTS[1]], [2, SK_HINTS.at(-1)],
     ],
   }),
   pairs: () => ({

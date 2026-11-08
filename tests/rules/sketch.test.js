@@ -139,3 +139,52 @@ describe('SKETCH hearts', () => {
     await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set('2'))
   })
 })
+
+// SKETCH match setup (S2): the room's `sketchConfig` holds only the offered
+// choices; START copies them into the round, and a round with fewer letter
+// hints refuses the hints it doesn't have.
+describe('SKETCH match setup', () => {
+  const lobby = () => {
+    const node = gameNode({ x: 'alice', o: 'bob', status: 'waiting', extra: { gameType: 'sketch', board: null, currentTurn: null } })
+    node.players = players
+    return node
+  }
+
+  it('accepts every offered setup', async () => {
+    await put(lobby())
+    for (const draws of [1, 2, 3]) await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set({ v: 1, draws, drawS: 75, hints: 2 }))
+    for (const drawS of [45, 60, 75, 90, 120]) await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set({ v: 1, drawS, hints: 2 }))
+    for (const hints of [0, 1, 2]) await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set({ v: 1, drawS: 75, hints }))
+  })
+
+  it('refuses values outside the choices, missing fields and extra keys', async () => {
+    await put(lobby())
+    const ok = { v: 1, draws: 2, drawS: 75, hints: 2 }
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, draws: 4 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, drawS: 50 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, hints: 3 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, v: 2 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ v: 1, draws: 2 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ ...ok, rounds: 9 }))
+    await assertFails(as('mallory').ref('games/g1/sketchConfig').set(ok))
+  })
+
+  it('lets a whole-room write pass with the setup unchanged, and keeps the round copy in range', async () => {
+    await put({ ...room(round({ cycles: 1, drawBase: 45000, hintCount: 1 })), sketchConfig: { v: 1, draws: 1, drawS: 45, hints: 1 } })
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, scores: { alice: 25, bob: 100 } }))
+    await assertFails(as('bob').ref('games/g1/round/cycles').set(4))
+    await assertFails(as('bob').ref('games/g1/round/drawBase').set(1000))
+    await assertFails(as('bob').ref('games/g1/round/hintCount').set(3))
+  })
+
+  it('refuses a hint the match does not have', async () => {
+    await put(room(round({ hintCount: 1 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/hints/0').set(hint()))
+    await assertFails(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
+    await put(room(round({ hintCount: 0 })))
+    await assertFails(as('alice').ref('games/g1/round/hints/0').set(hint()))
+    await put(room(round({ hintCount: 2 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
+  })
+})
