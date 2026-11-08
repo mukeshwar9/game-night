@@ -12,28 +12,20 @@
 //   c: palette index, p: flat [gx0,gy0,gx1,gy1,...] grid cells on a 64×64 grid
 //   (each cell = 4×4 viewBox units). Rendered as <rect> behind strokes.
 //
-// Palette + white canvas background are the sanctioned hardcoded-hex exception
-// (docs/prds/README.md precedent: cursor sprites) — drawing content must look
-// identical across themes. Toolbar chrome (borders/labels) themes normally via
-// retro-*/--c-* tokens.
+// The palette and layers live in SketchDrawing.jsx (the sanctioned hardcoded-hex
+// exception). The artist's tools are one dock under the canvas; `children` is an
+// overlay drawn over the canvas (the guess bubbles), `side` caps the canvas
+// width so the whole stage fits one screen, and `onContent` hands the page the
+// current strokes and fills (it keeps them for the end-of-match gallery).
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ref, onChildAdded, onChildRemoved, push, remove, set } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { quantize } from '../lib/sketchLogic'
 import { cn } from '@/lib/utils'
+import { PALETTE, BRUSH_WIDTHS, GRID, SCALE } from '../lib/sketchPalette'
+import { DrawingLayers } from './SketchDrawing'
 
-const PALETTE = ['#1a1a1a', '#ffffff', '#e0393c', '#f2994a', '#f5d947', '#3fae6a', '#3a7bd5', '#7a4a2a']
-const BRUSH_WIDTHS = { 1: 3, 2: 7, 3: 13 }
 const FLUSH_MS = 100
-const GRID = 64
-const SCALE = 4 // 256 / GRID
-
-// Flat [x0,y0,x1,y1,...] ints -> SVG polyline `points` string.
-function toPolylinePoints(p) {
-  const out = []
-  for (let i = 0; i < p.length; i += 2) out.push(`${p[i]},${p[i + 1]}`)
-  return out.join(' ')
-}
 
 // Mark wall grid from strokes. grid[y*GRID+x] = 1 for wall.
 function buildWallGrid(strokes) {
@@ -133,7 +125,7 @@ function subscribeChildren(nodeRef, setMap) {
   return () => { unAdd(); unRem(); cancelAnimationFrame(frame) }
 }
 
-export default function SketchCanvas({ gameId, isArtist }) {
+export default function SketchCanvas({ gameId, isArtist, side = null, onContent = null, children = null }) {
   const [strokes, setStrokes] = useState({})
   const [fills, setFills] = useState({})
   const [color, setColor] = useState(0)
@@ -152,6 +144,11 @@ export default function SketchCanvas({ gameId, isArtist }) {
   // was quadratic in the drawing's size.
   useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/strokes`), setStrokes), [gameId])
   useEffect(() => subscribeChildren(ref(db, `games/${gameId}/round/fills`), setFills), [gameId])
+
+  // Let the page keep the latest drawing (read at reveal time for the gallery).
+  const onContentRef = useRef(onContent)
+  useEffect(() => { onContentRef.current = onContent })
+  useEffect(() => { onContentRef.current?.(strokes, fills) }, [strokes, fills])
 
   // Stop any in-flight flush interval on unmount.
   useEffect(() => () => {
@@ -265,87 +262,34 @@ export default function SketchCanvas({ gameId, isArtist }) {
     set(ref(db, `games/${gameId}/round/fills`), null)
   }, [gameId])
 
+  const toolBtn = (active) => cn(
+    'w-10 h-11 shrink-0 flex items-center justify-center rounded border-2 transition press',
+    active ? 'border-retro-cta bg-retro-cta text-retro-bg' : 'border-retro-border text-retro-dim',
+  )
+
   return (
-    <div className="space-y-2">
-      <svg
-        ref={svgRef}
-        viewBox="0 0 256 256"
-        shapeRendering="crispEdges"
-        style={{ touchAction: 'none', backgroundColor: '#ffffff', width: '100%', aspectRatio: '1 / 1' }}
-        className="rounded border-2 border-retro-border select-none touch-none [&_*]:touch-none"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-        onLostPointerCapture={handlePointerEnd}
-      >
-        {/* Fills behind strokes */}
-        {Object.entries(fills)
-          .sort(([a], [b]) => (a < b ? -1 : 1))
-          .map(([key, f]) => {
-            const pts = f.p || []
-            const fillColor = PALETTE[f.c] ?? PALETTE[0]
-            return (
-              <g key={key}>
-                {(() => {
-                  const rects = []
-                  for (let i = 0; i + 1 < pts.length; i += 2) {
-                    const gx = pts[i]
-                    const gy = pts[i + 1]
-                    rects.push(<rect key={i} x={gx * SCALE} y={gy * SCALE} width={SCALE} height={SCALE} fill={fillColor} />)
-                  }
-                  return rects
-                })()}
-              </g>
-            )
-          })}
-        {Object.entries(strokes)
-          .sort(([a], [b]) => (a < b ? -1 : 1))
-          .map(([key, s]) => (
-            <polyline
-              key={key}
-              points={toPolylinePoints(s.p || [])}
-              stroke={PALETTE[s.c] ?? PALETTE[0]}
-              strokeWidth={BRUSH_WIDTHS[s.w] ?? BRUSH_WIDTHS[2]}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ))}
-      </svg>
+    <div className="space-y-1.5">
+      <div className="relative mx-auto" style={{ width: side ? `${side}px` : '100%', maxWidth: '100%' }}>
+        <svg
+          ref={svgRef}
+          viewBox="0 0 256 256"
+          shapeRendering="crispEdges"
+          data-testid="sketch-canvas"
+          style={{ touchAction: 'none', backgroundColor: '#ffffff', width: '100%', aspectRatio: '1 / 1' }}
+          className="block rounded border-2 border-retro-border select-none touch-none [&_*]:touch-none"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+          onLostPointerCapture={handlePointerEnd}
+        >
+          <DrawingLayers strokes={strokes} fills={fills} />
+        </svg>
+        {children}
+      </div>
 
       {isArtist && (
-        <div className="space-y-2">
-          {/* Tool toggle */}
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setTool('brush')}
-              aria-label="Brush tool"
-              aria-pressed={tool === 'brush'}
-              className={cn(
-                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition press flex items-center gap-1',
-                tool === 'brush' ? 'border-retro-cta bg-retro-cta text-retro-bg shadow-neon-cta' : 'border-retro-border text-retro-dim',
-              )}
-            >
-              <span>🖌</span> BRUSH
-            </button>
-            <button
-              type="button"
-              onClick={() => setTool('bucket')}
-              aria-label="Fill bucket tool"
-              aria-pressed={tool === 'bucket'}
-              className={cn(
-                'min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 rounded transition press flex items-center gap-1',
-                tool === 'bucket' ? 'border-retro-cta bg-retro-cta text-retro-bg shadow-neon-cta' : 'border-retro-border text-retro-dim',
-              )}
-            >
-              <span>🪣</span> FILL
-            </button>
-            {tool === 'bucket' && (
-              <span className="font-pixel text-[8px] text-retro-dim ml-1">TAP TO FILL ENCLOSED AREA</span>
-            )}
-          </div>
+        <div className="space-y-1 rounded border border-retro-border bg-retro-card p-1" data-testid="sketch-dock">
           <div className="grid grid-cols-8 gap-1">
             {PALETTE.map((hex, i) => (
               <button
@@ -356,51 +300,50 @@ export default function SketchCanvas({ gameId, isArtist }) {
                 aria-pressed={color === i}
                 className={cn(
                   'w-full h-10 rounded border-2 transition-transform press',
-                  color === i ? 'border-retro-cta shadow-neon-cta scale-110' : 'border-retro-border',
+                  color === i ? 'border-retro-cta shadow-neon-cta scale-105' : 'border-retro-border',
                 )}
                 style={{ backgroundColor: hex }}
               />
             ))}
           </div>
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              {[1, 2, 3].map(size => (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => setBrushSize(size)}
-                  aria-label={`Brush size ${size}`}
-                  aria-pressed={brushSize === size}
-                  disabled={tool === 'bucket'}
-                  className={cn(
-                    'w-11 h-11 flex items-center justify-center rounded border-2 transition press',
-                    brushSize === size ? 'border-retro-cta shadow-neon-cta' : 'border-retro-border',
-                    tool === 'bucket' && 'opacity-40',
-                  )}
-                >
-                  <span
-                    className="rounded-full bg-retro-text"
-                    style={{ width: BRUSH_WIDTHS[size], height: BRUSH_WIDTHS[size] }}
-                  />
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setTool('brush')} aria-label="Brush tool" aria-pressed={tool === 'brush'} className={toolBtn(tool === 'brush')}>
+              <span aria-hidden="true">🖌</span>
+            </button>
+            <button type="button" onClick={() => setTool('bucket')} aria-label="Fill bucket tool" aria-pressed={tool === 'bucket'} className={toolBtn(tool === 'bucket')}>
+              <span aria-hidden="true">🪣</span>
+            </button>
+            {[1, 2, 3].map(size => (
               <button
+                key={size}
                 type="button"
-                onClick={handleUndo}
-                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition press"
+                onClick={() => setBrushSize(size)}
+                aria-label={`Brush size ${size}`}
+                aria-pressed={brushSize === size}
+                disabled={tool === 'bucket'}
+                className={cn(
+                  'w-10 h-11 shrink-0 flex items-center justify-center rounded border-2 transition press',
+                  brushSize === size ? 'border-retro-cta shadow-neon-cta' : 'border-retro-border',
+                  tool === 'bucket' && 'opacity-40',
+                )}
               >
-                UNDO
+                <span className="rounded-full bg-retro-text" style={{ width: BRUSH_WIDTHS[size], height: BRUSH_WIDTHS[size] }} />
               </button>
-              <button
-                type="button"
-                onClick={handleClear}
-                className="min-h-11 px-3 py-1.5 font-pixel text-[9px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition press"
-              >
-                CLEAR
-              </button>
-            </div>
+            ))}
+            <button
+              type="button"
+              onClick={handleUndo}
+              className="min-h-11 flex-1 min-w-0 px-1 font-pixel text-[8px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p1 hover:text-retro-p1 transition press"
+            >
+              UNDO
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="min-h-11 flex-1 min-w-0 px-1 font-pixel text-[8px] border-2 border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition press"
+            >
+              CLEAR
+            </button>
           </div>
         </div>
       )}

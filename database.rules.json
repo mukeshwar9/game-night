@@ -866,6 +866,20 @@
           },
           "botHost": {
             ".validate": "((newData.parent().parent().child('gameType').val() !== 'arrowsparty') || (newData.isString() && newData.val().length <= 128))"
+          },
+          "hints": {
+            "$n": {
+              ".validate": "$n.matches(/^[01]$/) && newData.hasChildren(['i','c'])",
+              "i": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 63 && (newData.val() === data.val() || (!data.exists() && newData.parent().parent().parent().child('artist').val() === auth.uid && newData.parent().parent().parent().child('phase').val() === 'drawing'))"
+              },
+              "c": {
+                ".validate": "newData.isString() && newData.val().length === 1 && (newData.val() === data.val() || (!data.exists() && newData.parent().parent().parent().child('artist').val() === auth.uid && newData.parent().parent().parent().child('phase').val() === 'drawing'))"
+              },
+              "$other": {
+                ".validate": "false"
+              }
+            }
           }
         },
         "archeryFormat": {

@@ -27,6 +27,15 @@ import {
   TIER_MULTIPLIERS,
   tierMultiplier,
   entryForWord,
+  HINT_AT,
+  HINT_MAX_FRACTION,
+  letterPositions,
+  hintBudget,
+  planHints,
+  hintDueAt,
+  normalizeHints,
+  nextHintToPublish,
+  blankCells,
 } from './sketchLogic'
 import { markSeen } from './seenHistory'
 import { SKETCH_WORDS } from './decks/sketch'
@@ -239,6 +248,7 @@ describe('nextRoundState', () => {
     expect(result.round.accept).toBeNull()
     expect(result.round.wordPattern).toBe('')
     expect(result.round.scored).toBe(false)
+    expect(result.round.hints).toBeNull()
   })
 
   it('final round of the match returns { finished: true }', () => {
@@ -566,5 +576,108 @@ describe('sketchChatLock', () => {
     expect(sketchChatLock({ artist: 'a', phase: 'reveal' }, 'a')).toBeNull()
     expect(sketchChatLock(null, 'a')).toBeNull()
     expect(sketchChatLock({ artist: 'a', phase: 'drawing' }, '')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Letter hints
+// ---------------------------------------------------------------------------
+describe('letter hints', () => {
+  const round = { phase: 'drawing', drawStartedAt: 1000, drawMs: 80000 }
+
+  it('lands at half time and three quarters, capped at a third of the letters', () => {
+    expect(HINT_AT).toEqual([0.5, 0.75])
+    expect(HINT_MAX_FRACTION).toBeCloseTo(1 / 3)
+    expect(hintDueAt(round, 0)).toBe(41000)
+    expect(hintDueAt(round, 1)).toBe(61000)
+    expect(hintDueAt(round, 2)).toBeNull()
+    expect(hintDueAt({ phase: 'drawing' }, 0)).toBeNull()
+    expect(hintDueAt({ drawStartedAt: 1, drawMs: 0 }, 0)).toBeNull()
+  })
+
+  it('counts letters only, across the words, with no gaps', () => {
+    expect(letterPositions('hot dog')).toEqual([0, 1, 2, 3, 4, 5])
+    expect(letterPositions("it's")).toEqual([0, 1, 3])
+    expect(letterPositions('')).toEqual([])
+    expect(letterPositions('R2D2')).toEqual([0, 2])
+  })
+
+  it('never reveals more than a third of the letters, and none of a tiny word', () => {
+    expect(hintBudget('at')).toBe(0)
+    expect(hintBudget('cat')).toBe(1)
+    expect(hintBudget('house')).toBe(1)
+    expect(hintBudget('rainbow')).toBe(2)
+    expect(hintBudget('fire escape')).toBe(2)
+    for (const e of SKETCH_WORDS) {
+      const letters = letterPositions(e.word).length
+      expect(planHints(e.word, 7).length).toBeLessThanOrEqual(Math.floor(letters / 3))
+      expect(planHints(e.word, 7).length).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('plans distinct real letters of the word, the same every time for one seed', () => {
+    const word = 'Fire Escape'
+    const plan = planHints(word, 12345)
+    expect(plan).toEqual(planHints(word, 12345))
+    expect(plan).toHaveLength(2)
+    expect(new Set(plan.map(h => h.i)).size).toBe(2)
+    const flat = 'FireEscape'
+    plan.forEach(h => expect(flat[h.i].toLowerCase()).toBe(h.c))
+    expect(planHints('at', 1)).toEqual([])
+  })
+
+  it('does not publish before the moment, then one hint at a time in order', () => {
+    const base = { word: 'rainbow', seed: 9, round, published: [] }
+    expect(nextHintToPublish({ ...base, now: 40999 })).toBeNull()
+    const first = nextHintToPublish({ ...base, now: 41000 })
+    expect(first).toMatchObject({ n: 0 })
+    expect(first.c).toBe(planHints('rainbow', 9)[0].c)
+    // still only the first one until its slot is filled
+    expect(nextHintToPublish({ ...base, now: 90000 })).toMatchObject({ n: 0 })
+    const published = [{ n: 0, i: first.i, c: first.c }]
+    expect(nextHintToPublish({ ...base, published, now: 60999 })).toBeNull()
+    expect(nextHintToPublish({ ...base, published, now: 61000 })).toMatchObject({ n: 1 })
+    const both = [...published, { n: 1, i: 0, c: 'x' }]
+    expect(nextHintToPublish({ ...base, published: both, now: 99999 })).toBeNull()
+  })
+
+  it('publishes nothing outside the drawing phase, without a word, or for a short word', () => {
+    const base = { word: 'rainbow', seed: 9, round, published: [], now: 99999 }
+    expect(nextHintToPublish({ ...base, round: { ...round, phase: 'reveal' } })).toBeNull()
+    expect(nextHintToPublish({ ...base, round: { ...round, phase: 'choosing' } })).toBeNull()
+    expect(nextHintToPublish({ ...base, word: null })).toBeNull()
+    expect(nextHintToPublish({ ...base, word: 'ox' })).toBeNull()
+  })
+
+  it('reads hints back by key, dropping anything malformed or out of range', () => {
+    const raw = { 1: { i: 4, c: 'b' }, 0: { i: 2, c: 'i' }, 2: { i: 0, c: 'z' }, x: { i: 0, c: 'a' } }
+    expect(normalizeHints(raw)).toEqual([{ n: 0, i: 2, c: 'i' }, { n: 1, i: 4, c: 'b' }])
+    expect(normalizeHints(raw, '7')).toHaveLength(2)
+    expect(normalizeHints({ 0: { i: 7, c: 'a' } }, '7')).toEqual([])
+    expect(normalizeHints({ 0: { i: 1, c: 'ab' } })).toEqual([])
+    expect(normalizeHints({ 0: { i: 1, c: '7' } })).toEqual([])
+    expect(normalizeHints({ 0: { i: 1.5, c: 'a' } })).toEqual([])
+    expect(normalizeHints(null)).toEqual([])
+    expect(normalizeHints(undefined)).toEqual([])
+    // Firebase may hand a sparse list back as an array with a hole
+    expect(normalizeHints([undefined, { i: 3, c: 'w' }])).toEqual([{ n: 1, i: 3, c: 'w' }])
+  })
+
+  it('draws the blanks per word and fills in a hint letter', () => {
+    expect(blankCells('3 3')).toEqual([
+      [{ ch: '', hint: false }, { ch: '', hint: false }, { ch: '', hint: false }],
+      [{ ch: '', hint: false }, { ch: '', hint: false }, { ch: '', hint: false }],
+    ])
+    const cells = blankCells('3 3', [{ n: 0, i: 4, c: 'o' }])
+    expect(cells[1][1]).toEqual({ ch: 'o', hint: true })
+    expect(cells.flat().filter(c => c.hint)).toHaveLength(1)
+    expect(blankCells('', [])).toEqual([])
+  })
+
+  it('every deck word still needs the hint to be a guess, never the whole word', () => {
+    for (const e of SKETCH_WORDS) {
+      const letters = letterPositions(e.word).length
+      expect(hintBudget(e.word)).toBeLessThan(Math.max(letters, 1))
+    }
   })
 })
