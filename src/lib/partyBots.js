@@ -71,7 +71,31 @@ const CREATURE_SHAPES = LEGACY_CREATURES
 // hashString/seededShuffle, never Math.random. `seed` may be any primitive — it's
 // stringified into hash keys. Omitting it falls back to Math.random() once, up
 // front, so unseeded callers still get a fresh roster each time.
-export function generateBotRoster(botCount, seed = Math.random()) {
+//
+// `level` narrows how sharp the table is: each bot's skill and acuity are drawn
+// from PARTY_BOT_LEVELS[level] (EASY: the lower half, HARD: the upper half,
+// NORMAL: the whole 0..1 range, as before). Names, faces and boldness do not
+// depend on the level, so the same seed seats the same bots.
+export const PARTY_BOT_LEVELS = {
+  easy:   { lo: 0,   hi: 0.5 },
+  normal: { lo: 0,   hi: 1 },
+  hard:   { lo: 0.5, hi: 1 },
+}
+
+// Re-rate a NORMAL roster (the one generateBotRoster returns with no level) for
+// `level`: skill and acuity are squeezed into the level's band, everything else
+// is kept. Apply it once, to a roster that has not been through it already.
+export function applyBotLevel(roster, level = 'normal') {
+  const { lo, hi } = PARTY_BOT_LEVELS[level] ?? PARTY_BOT_LEVELS.normal
+  if (lo === 0 && hi === 1) return roster
+  const within = (raw) => lo + raw * (hi - lo)
+  return roster.map(bot => ({
+    ...bot,
+    persona: { ...bot.persona, skill: within(bot.persona.skill), acuity: within(bot.persona.acuity) },
+  }))
+}
+
+export function generateBotRoster(botCount, seed = Math.random(), level = 'normal') {
   const n = Math.max(0, botCount | 0)
   const names = seededShuffle(BOT_NAMES, hashString(`${seed}-names`)).slice(0, n)
   const shapes = seededShuffle(CREATURE_SHAPES, hashString(`${seed}-shapes`)).slice(0, n)
@@ -89,7 +113,7 @@ export function generateBotRoster(botCount, seed = Math.random()) {
       },
     })
   }
-  return roster
+  return applyBotLevel(roster, level)
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import useBotDifficulty from '../../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../../lib/botLevels'
+import { reactionBotMs, rollBetween } from '../../lib/soloBotLevels'
 
 const DEMO_ROUNDS = 4
 
@@ -10,6 +14,7 @@ export default function ReactionDemo() {
   const [opTimes, setOpTimes] = useState(null)
   const roundStartRef = useRef(null)
   const timerRef = useRef(null)
+  const [level, setLevel] = useBotDifficulty('reaction', BOT_LEVEL_IDS)
 
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
@@ -35,7 +40,7 @@ export default function ReactionDemo() {
         const newTimes = [...times, rt]
         setTimes(newTimes)
         if (newTimes.length === DEMO_ROUNDS) {
-          const bot = Array.from({ length: DEMO_ROUNDS }, () => 180 + Math.round(Math.random() * 200))
+          const bot = Array.from({ length: DEMO_ROUNDS }, () => rollBetween(reactionBotMs(level)))
           setOpTimes(bot)
           setPhase('done')
         } else {
@@ -61,6 +66,7 @@ export default function ReactionDemo() {
     const winner = avgY < avgB ? 'YOU' : avgY > avgB ? 'BOT' : null
     return (
       <div className="space-y-3">
+        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'YOU', a: avgY, f: fastY, w: winner === 'YOU', col: 'retro-p1' },
@@ -108,6 +114,7 @@ export default function ReactionDemo() {
 
   return (
     <div className="space-y-3">
+      {phase === 'start' && <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />}
       <button
         onClick={handleClick}
         className={cn(

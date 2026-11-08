@@ -137,17 +137,35 @@ export function getWinner(state) {
 }
 
 /**
+ * What each CPU level changes. `slip` is the chance per tick that the bot turns
+ * a random way instead of thinking (a careless wobble that can box itself in);
+ * `space` makes it prefer the move with the most open cells behind it, so it
+ * stops cutting itself off. NORMAL is the original one-step chase.
+ */
+export const AI_LEVELS = {
+  easy:   { slip: 0.12, space: false },
+  normal: { slip: 0,    space: false },
+  hard:   { slip: 0,    space: true },
+}
+
+/**
  * Reaction-handicapped AI for the /demo route. One-step lookahead: among
  * non-reversing moves whose next toroidal cell is free of any trail of
  * EITHER cycle, pick the one minimizing toroidal Manhattan distance to
  * the opponent's head (cycle toward the opponent). If no safe move,
  * keep current direction (death is inevitable). Beatable.
  *
+ * `level` tunes it (AI_LEVELS): EASY sometimes turns at random; HARD first
+ * keeps to the move with the most open space, then chases.
+ *
  * @param {object} state
  * @param {'X'|'O'} side  which cycle the AI controls
+ * @param {'easy'|'normal'|'hard'} [level]
+ * @param {() => number} [rng]  0..1; injectable so tests are deterministic
  * @returns {'up'|'down'|'left'|'right'}  chosen direction
  */
-export function computeAI(state, side) {
+export function computeAI(state, side, level = 'normal', rng = Math.random) {
+  const tune = AI_LEVELS[level] ?? AI_LEVELS.normal
   const c = state.cycles[side]
   const cur = c.dir
   const other = state.cycles[side === 'X' ? 'O' : 'X']
@@ -166,16 +184,43 @@ export function computeAI(state, side) {
     return dx + dy
   }
 
-  const candidates = ['up', 'down', 'left', 'right'].filter(d => d !== OPPOSITE[cur])
+  /** @type {Array<'up'|'down'|'left'|'right'>} */
+  const candidates = /** @type {Array<'up'|'down'|'left'|'right'>} */ (['up', 'down', 'left', 'right']).filter(d => d !== OPPOSITE[cur])
+  if (tune.slip > 0 && rng() < tune.slip) {
+    return candidates[Math.floor(rng() * candidates.length) % candidates.length]
+  }
+
+  // Cells reachable from `start` without crossing a trail (flood fill on the torus).
+  const trail = new Set([...c.body, ...other.body].map(p => p.y * GRID + p.x))
+  const openArea = (start) => {
+    const seen = new Set([start.y * GRID + start.x])
+    const queue = [start]
+    while (queue.length) {
+      const p = /** @type {{x:number,y:number}} */ (queue.pop())
+      for (const d of Object.values(DIRS)) {
+        const n = { x: wrap(p.x + d.x), y: wrap(p.y + d.y) }
+        const k = n.y * GRID + n.x
+        if (seen.has(k) || trail.has(k)) continue
+        seen.add(k)
+        queue.push(n)
+      }
+    }
+    return seen.size
+  }
+
   let best = cur
   let bestDist = Infinity
+  let bestArea = -1
 
   for (const dir of candidates) {
     const d = DIRS[dir]
     const next = { x: wrap(head.x + d.x), y: wrap(head.y + d.y) }
     if (occupied(next)) continue
     const dist = torMan(next, oppHead)
-    if (dist < bestDist) { bestDist = dist; best = dir }
+    const area = tune.space ? openArea(next) : 0
+    if (area > bestArea || (area === bestArea && dist < bestDist)) {
+      bestArea = area; bestDist = dist; best = dir
+    }
   }
 
   return best

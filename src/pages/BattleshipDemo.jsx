@@ -16,8 +16,13 @@ import {
 } from '../lib/battleshipLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
-// Solo BATTLESHIP vs a HUNT/TARGET bot — fully local, no Firebase.
+// Solo BATTLESHIP vs a HUNT/TARGET bot — fully local, no Firebase. The CPU level
+// (BOT_SHOT_LEVELS) is picked above the board and remembered; it only changes
+// how the bot shoots, never what it can see.
 
 const BOT_DELAY_MS = 700
 
@@ -56,6 +61,7 @@ export default function BattleshipDemo() {
   const [turn, setTurn] = useState('me')
   const [banner, setBanner] = useState(null)
   const botTimerRef = useRef(null)
+  const [level, setLevel] = useBotDifficulty('battleship', BOT_LEVEL_IDS)
 
   const draftValid = validateFleet(draft) === null
   const done = phase === 'done'
@@ -93,7 +99,7 @@ export default function BattleshipDemo() {
     if (turn !== 'bot' || phase !== 'battle') return
     botTimerRef.current = setTimeout(() => {
       setBotShots(prev => {
-        const cell = pickShot(prev)
+        const cell = pickShot(prev, Math.random, level)
         if (cell == null) return prev
         const result = gradeShot(playerFleet, cell, prev)
         if (result === 'hit') sounds.hit(4)
@@ -108,7 +114,7 @@ export default function BattleshipDemo() {
       })
     }, BOT_DELAY_MS)
     return () => clearTimeout(botTimerRef.current)
-  }, [turn, phase, playerFleet, botShots])
+  }, [turn, phase, playerFleet, botShots, level])
 
   useEffect(() => () => clearTimeout(botTimerRef.current), [])
 
@@ -185,6 +191,7 @@ export default function BattleshipDemo() {
 
   return (
     <div className="space-y-4">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       {/* Status */}
       {phase === 'placing' && (
         <div className="text-center space-y-1">

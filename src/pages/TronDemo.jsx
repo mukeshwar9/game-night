@@ -4,6 +4,9 @@ import { useTronControls } from '../hooks/useTronControls'
 import { createState, tick, computeAI, getWinner, TICK_MS } from '../lib/tronLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 export default function TronDemo() {
   const arenaRef = useRef(null)
@@ -12,6 +15,7 @@ export default function TronDemo() {
   const [view, setView] = useState({ cycles: null })
   const [winner, setWinner] = useState(null)
   const [round, setRound] = useState(0)
+  const [level, setLevel] = useBotDifficulty('tron', BOT_LEVEL_IDS)
   const { getDir } = useTronControls(arenaRef, !winner)
 
   useEffect(() => {
@@ -20,7 +24,7 @@ export default function TronDemo() {
     const loop = () => {
       timer = setTimeout(loop, TICK_MS)
       const s = simRef.current
-      aiDir = computeAI(s, 'O')
+      aiDir = computeAI(s, 'O', level)
       const inputs = { X: getDir(s.cycles.X.dir), O: aiDir }
       const { state: next, events } = tick(s, inputs)
       simRef.current = next
@@ -36,7 +40,7 @@ export default function TronDemo() {
     }
     timer = setTimeout(loop, TICK_MS)
     return () => clearTimeout(timer)
-  }, [winner, round]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [winner, round, level]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = () => {
     simRef.current = createState()
@@ -51,6 +55,7 @@ export default function TronDemo() {
 
   return (
     <div className="space-y-3">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <TronArena
         ref={arenaRef}
         cycles={view.cycles}

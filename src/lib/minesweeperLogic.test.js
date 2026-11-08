@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  ROWS, COLS, CELL_COUNT, MINES, SAFE_CELLS,
+  ROWS, COLS, CELL_COUNT, MINES, SAFE_CELLS, MINE_LEVELS, minesForLevel,
   indexOf, rowColOf, neighborsOf,
   computeCounts, generateBoard,
   floodReveal, chordTargets,
@@ -361,5 +361,43 @@ describe('mine race hooks', () => {
     expect(minesRow({ revealed: 61 })).toMatchObject({ primary: `61/${SAFE_CELLS}`, status: 'racing' })
     expect(minesRow({ dead: true, revealed: 3 })).toMatchObject({ secondary: 'BOOM', status: 'out' })
     expect(minesRow({ done: true })).toMatchObject({ primary: `${SAFE_CELLS}/${SAFE_CELLS}`, status: 'done', progress: 1 })
+  })
+})
+
+describe('solo mine levels', () => {
+  it('lists the levels easiest first with NORMAL as the room board', () => {
+    expect(Object.keys(MINE_LEVELS)).toEqual(['easy', 'normal', 'hard'])
+    expect(MINE_LEVELS.normal).toBe(MINES)
+    expect(MINE_LEVELS.easy).toBeLessThan(MINES)
+    expect(MINE_LEVELS.hard).toBeGreaterThan(MINES)
+  })
+
+  it('reads an unknown level as NORMAL', () => {
+    expect(minesForLevel('hard')).toBe(MINE_LEVELS.hard)
+    expect(minesForLevel('nope')).toBe(MINES)
+    expect(minesForLevel(undefined)).toBe(MINES)
+  })
+
+  it('generateBoard defaults to the room count and places exactly the asked-for mines', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      expect(generateBoard(seed)).toEqual(generateBoard(seed, MINES))
+      for (const level of Object.keys(MINE_LEVELS)) {
+        const { mines, counts, opening } = generateBoard(seed, MINE_LEVELS[level])
+        expect(mines.filter(Boolean)).toHaveLength(MINE_LEVELS[level])
+        expect(opening.length).toBeGreaterThan(0)
+        for (const c of opening) expect(mines[c] === false && counts[c] === 0).toBe(true)
+      }
+    }
+  })
+
+  it('isComplete counts safe cells against the level\'s mines', () => {
+    for (const level of Object.keys(MINE_LEVELS)) {
+      const mines = MINE_LEVELS[level]
+      const safe = CELL_COUNT - mines
+      const cells = (n) => new Set(Array.from({ length: n }, (_, i) => i))
+      expect(isComplete(cells(safe - 1), mines)).toBe(false)
+      expect(isComplete(cells(safe), mines)).toBe(true)
+    }
+    expect(isComplete(new Set(Array.from({ length: SAFE_CELLS }, (_, i) => i)))).toBe(true)
   })
 })

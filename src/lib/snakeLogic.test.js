@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createState, tick, getWinner, spawnFood, computeAI, createRng, GRID, START_LEN } from './snakeLogic'
+import { createState, tick, getWinner, spawnFood, computeAI, AI_LEVELS, createRng, GRID, START_LEN } from './snakeLogic'
 
 describe('snakeLogic', () => {
   describe('createState', () => {
@@ -399,6 +399,49 @@ describe('snakeLogic', () => {
       const dir = computeAI(s, 'O')
       // Up (toward food) or left (continue) should be safe; down is also safe.
       expect(['up', 'down', 'left']).toContain(dir)
+    })
+  })
+
+  describe('computeAI levels', () => {
+    // O (length 3) heads left from (10,10). Food is straight up, past a
+    // one-cell pocket at (10,9) that X's body walls in on its other sides: the
+    // greedy chase takes it, a space-aware bot sees it cannot fit its body.
+    const pocket = () => {
+      const s = createState()
+      s.snakes.O.body = [{ x: 10, y: 10 }, { x: 11, y: 10 }, { x: 12, y: 10 }]
+      s.snakes.O.dir = 'left'
+      s.snakes.X.body = [{ x: 9, y: 9 }, { x: 11, y: 9 }, { x: 10, y: 8 }, { x: 0, y: 0 }]
+      s.snakes.X.dir = 'left'
+      s.food = { x: 10, y: 5 }
+      return s
+    }
+
+    it('defaults to NORMAL and lists every level', () => {
+      expect(Object.keys(AI_LEVELS)).toEqual(['easy', 'normal', 'hard'])
+      const s = pocket()
+      expect(computeAI(s, 'O')).toBe(computeAI(s, 'O', 'normal'))
+      expect(computeAI(s, 'O', 'nonsense')).toBe(computeAI(s, 'O', 'normal'))
+    })
+
+    it('NORMAL chases the food into the pocket; HARD does not', () => {
+      const s = pocket()
+      expect(computeAI(s, 'O', 'normal')).toBe('up')
+      expect(['down', 'left']).toContain(computeAI(s, 'O', 'hard'))
+    })
+
+    it('EASY turns at random on a slip and otherwise plays like NORMAL', () => {
+      const s = pocket()
+      expect(computeAI(s, 'O', 'easy', () => 0)).toBe('up')
+      expect(computeAI(s, 'O', 'easy', () => 0.999)).toBe(computeAI(s, 'O', 'normal'))
+    })
+
+    it('slips never reverse; NORMAL and HARD never slip', () => {
+      const s = createState()
+      for (const r of [0, 0.3, 0.6, 0.99]) {
+        expect(computeAI(s, 'O', 'easy', () => r * 0.1)).not.toBe('right')
+      }
+      expect(computeAI(s, 'O', 'normal', () => 0)).toBe(computeAI(s, 'O', 'normal', () => 0.99))
+      expect(computeAI(s, 'O', 'hard', () => 0)).toBe(computeAI(s, 'O', 'hard', () => 0.99))
     })
   })
 })

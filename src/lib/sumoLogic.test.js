@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   createState, step, computeAI, getWinner,
-  createBot, pollBot, stepFrame, edgeDanger, clashIntensity, outDirection, AI_REACTION_MS,
+  createBot, pollBot, stepFrame, edgeDanger, clashIntensity, outDirection, AI_REACTION_MS, AI_LEVELS,
   BLOB_R, FRICTION, MAX_SPEED, RESTITUTION, PUSH_IMPULSE,
   SHRINK_START, SHRINK_RATE, MIN_RADIUS, START_RADIUS,
 } from './sumoLogic'
@@ -480,5 +480,55 @@ describe('outDirection', () => {
 
   it('falls back to a unit vector at the exact centre', () => {
     expect(outDirection({ x: 0.5, y: 0.5 })).toEqual({ x: 1, y: 0 })
+  })
+})
+
+describe('CPU levels', () => {
+  const ramState = () => {
+    const s = createState()
+    s.blobs.O.x = 0.4
+    s.t = 0
+    return s
+  }
+  // Taps a bot lands in `seconds` of sim time, polled at 120 Hz.
+  const tapsIn = (level, seconds) => {
+    const s = ramState()
+    let bot = createBot()
+    let taps = 0
+    for (let ms = 0; ms < seconds * 1000; ms += 1000 / 120) {
+      s.t = ms / 1000
+      const r = pollBot(bot, s, 'O', ms, level)
+      bot = r.bot
+      taps += r.press
+    }
+    return taps
+  }
+
+  it('lists the levels, with NORMAL as the original 120 ms bot', () => {
+    expect(Object.keys(AI_LEVELS)).toEqual(['easy', 'normal', 'hard'])
+    expect(AI_LEVELS.normal.reactionMs).toBe(AI_REACTION_MS)
+    expect(AI_LEVELS.normal.window).toBe(0.6)
+  })
+
+  it('NORMAL is what an omitted or unknown level plays', () => {
+    const s = ramState()
+    expect(pollBot(createBot(), s, 'O', 0)).toEqual(pollBot(createBot(), s, 'O', 0, 'normal'))
+    expect(computeAI(s, 'O', 'nonsense')).toEqual(computeAI(s, 'O'))
+    expect(tapsIn(undefined, 5)).toBe(tapsIn('normal', 5))
+  })
+
+  it('taps slower on EASY and faster on HARD', () => {
+    const easy = tapsIn('easy', 10)
+    const normal = tapsIn('normal', 10)
+    const hard = tapsIn('hard', 10)
+    expect(easy).toBeLessThan(normal)
+    expect(normal).toBeLessThan(hard)
+  })
+
+  it('keeps a bot reaction window per level', () => {
+    const s = ramState()
+    const first = pollBot(createBot(), s, 'O', 0, 'easy')
+    expect(pollBot(first.bot, s, 'O', AI_LEVELS.easy.reactionMs - 1, 'easy').press).toBe(0)
+    expect(pollBot(first.bot, s, 'O', AI_LEVELS.easy.reactionMs, 'easy').bot.at).toBe(AI_LEVELS.easy.reactionMs)
   })
 })

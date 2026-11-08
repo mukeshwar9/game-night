@@ -5,8 +5,11 @@ import {
   createState as hockeyState, step as hockeyStep, computeAI as hockeyAI, MAX_MALLET_SPEED, COURT_W, COURT_H,
 } from './airhockeyLogic'
 import { AI_DIFFICULTIES as PAINT_LEVELS, createState as paintState } from './paintLogic'
-import { createState as sumoState, computeAI as sumoAI } from './sumoLogic'
-import { pickShot } from './battleshipLogic'
+import { createState as sumoState, computeAI as sumoAI, AI_LEVELS as SUMO_LEVELS } from './sumoLogic'
+import { AI_LEVELS as SNAKE_LEVELS } from './snakeLogic'
+import { AI_LEVELS as TRON_LEVELS } from './tronLogic'
+import { AI_LEVELS as SPACEDUEL_LEVELS } from './spaceduelLogic'
+import { pickShot, BOT_SHOT_LEVELS } from './battleshipLogic'
 
 // Players read a CPU that seems to cheat as a rigged game: the top complaint in
 // the competitor review (JindoBlu's Two Player Games) was a HARD bot that
@@ -70,10 +73,17 @@ describe('bots play by the same physics as the player', () => {
     expect(taps).toBeLessThanOrEqual(10)
   })
 
-  it('snake, tron, sumo and space duel bots take no difficulty that could change their physics', () => {
+  it('snake, tron, sumo and space duel levels tune the bot\'s decisions only, never the physics', () => {
+    // computeAI takes a level and returns an input; the sim (speed, size, cooldowns)
+    // never sees it, so a level cannot make the bot faster or tougher than a player.
     for (const file of ['snakeLogic.js', 'tronLogic.js', 'sumoLogic.js', 'spaceduelLogic.js']) {
       const src = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8')
-      expect(src, file).toMatch(/export function computeAI\(state, side\) \{/)
+      expect(src, file).toMatch(/export function computeAI\(state, side, level = 'normal'/)
+    }
+    for (const table of [SNAKE_LEVELS, TRON_LEVELS, SUMO_LEVELS, SPACEDUEL_LEVELS]) {
+      for (const level of Object.values(table)) {
+        expect(Object.keys(level).some(k => /speed|size|radius|cool|hp/i.test(k))).toBe(false)
+      }
     }
   })
 })
@@ -84,5 +94,7 @@ describe('bots get no hidden information', () => {
     expect(pickShot.length).toBeLessThanOrEqual(1)
     const rng = () => 0.42
     expect(pickShot([], rng)).toBe(pickShot([], rng))
+    // A level only changes how it shoots at that history, not what it can see.
+    for (const level of Object.keys(BOT_SHOT_LEVELS)) expect(pickShot([], rng, level)).toBe(pickShot([], rng, level))
   })
 })
