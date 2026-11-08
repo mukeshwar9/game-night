@@ -880,6 +880,16 @@
                 ".validate": "false"
               }
             }
+          },
+          "likes": {
+            "$uid": {
+              ".validate": "newData.isBoolean() && $uid.length <= 128 && (newData.val() === data.val() || ($uid === auth.uid && newData.parent().parent().parent().child('players').child($uid).child('playerId').val() === auth.uid && newData.parent().parent().child('artist').val() !== $uid && (newData.parent().parent().child('phase').val() === 'reveal' || (newData.parent().parent().child('phase').val() === 'drawing' && newData.parent().parent().child('correct').child($uid).exists()))))"
+            }
+          },
+          "faves": {
+            "$k": {
+              ".validate": "$k.length <= 140 && newData.isNumber() && newData.val() >= 1 && newData.val() <= 8 && newData.val() % 1 === 0"
+            }
           }
         },
         "archeryFormat": {

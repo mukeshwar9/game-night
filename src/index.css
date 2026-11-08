@@ -2631,6 +2631,12 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
 .sketch-bubble-in { animation: sketch-bubble-in var(--dur-base) var(--ease-enter) both; }
 .sketch-check-pop { animation: sketch-check-pop var(--dur-base) steps(4, end) both; }
 .sketch-hint-drop { animation: sketch-hint-drop var(--dur-page) steps(5, end) both; }
+@keyframes sketch-heart-float {
+  0%   { transform: translateY(0); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+.sketch-heart-float { animation: sketch-heart-float 1.2s steps(8, end) both; }
 @keyframes turn-dot-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50%      { transform: scale(1.5); opacity: .55; }

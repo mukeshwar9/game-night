@@ -18,7 +18,9 @@
 //     strokes:     { [pushId]: { c, w, p } },         // artist-only writes
 //     chat:        { [pushId]: { uid, text } },       // wrong guesses only
 //     correct:     { [uid]: { at } },                 // uid's own write, once
-//     scored:      boolean }             // true once this round's deltas were applied
+//     scored:      boolean,              // true once this round's deltas were applied
+//     likes:       { [uid]: boolean },   // hearts on this drawing (sketchFavesLogic); optional
+//     faves:       { [cycle:artist]: n } }  // the match's heart tally, carried round to round; optional
 //
 // TRUST MODEL: the artist's client computes commit(normalize(word)) and publishes both
 // `hash` AND `salt` immediately (not withheld until reveal). Combined with the public
@@ -36,6 +38,7 @@ import { avoidList } from './seenHistory'
 import { sha256hex } from './sha256'
 import { matchKey, normalizeText, editDistance, isCloseMatch } from './textMatchLogic'
 import { isBannedWord } from './wordDenylist'
+import { foldLikes } from './sketchFavesLogic'
 
 // ---- Tunable constants -----------------------------------------------------
 export const CHOOSE_MS = 15000
@@ -175,16 +178,20 @@ export function matchOver(order, artist, cycle) {
   return idx === order.length - 1 && cycle >= cyclesFor(order.length)
 }
 
-// ---- nextRoundState(round) -> { finished: true } | { finished: false, round } --
+// ---- nextRoundState(round) -> { finished: true, faves? } | { finished: false, round } --
 // Pure computation of the next round's seed object given the round that just
 // ended (used for BOTH a normal reveal-expiry advance AND a void/skip). Caller
 // adds `endsAt: now() + CHOOSE_MS` before writing `round` (this function does
 // not touch wall-clock time). `used` carries forward round.used + round.options
 // (the 3 offered candidates, whether or not the chosen one was ever confirmed).
+// The heart tally (`faves`) carries forward with this round's hearts folded in;
+// when the match ends it comes back as `faves` for the caller to keep.
 export function nextRoundState(round) {
   const { order, artist, cycle, used, options, matchSeed } = round
   const carryUsed = [...(used || []), ...(options || [])]
-  if (matchOver(order, artist, cycle)) return { finished: true }
+  const faves = foldLikes(round.faves, round)
+  const hasFaves = Object.keys(faves).length > 0
+  if (matchOver(order, artist, cycle)) return hasFaves ? { finished: true, faves } : { finished: true }
   const idx = order.indexOf(artist)
   const wraps = idx === order.length - 1
   return {
@@ -206,6 +213,8 @@ export function nextRoundState(round) {
       correct: null,
       hints: null,
       revealAt: null,
+      likes: null,
+      faves: hasFaves ? faves : null,
       scored: false,
       // caller adds: endsAt: now() + CHOOSE_MS
     },

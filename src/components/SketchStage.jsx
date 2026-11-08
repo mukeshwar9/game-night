@@ -2,11 +2,13 @@
 // blanks (with hint letters), guess bubbles over the drawing, and the
 // end-of-match podium and gallery. Rendering only; the rules are in
 // src/lib/sketchLogic.js and src/lib/sketchStageLogic.js.
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Avatar from './Avatar'
 import { DrawingThumb } from './SketchDrawing'
 import { blankCells, tierMultiplier } from '../lib/sketchLogic'
 import { RING_RADIUS, RING_CIRCUMFERENCE, ringState, recentBubbles } from '../lib/sketchStageLogic'
+import { MAX_HEART_FLOATS } from '../lib/sketchFavesLogic'
+import useMotionPref from '../hooks/useMotionPref'
 import { cn } from '@/lib/utils'
 
 const HOLD_MS = 500
@@ -195,11 +197,15 @@ export function Blanks({ pattern, hints, flashN = null, solvedWord = null }) {
 // ---------------------------------------------------------------------------
 const AGE_OPACITY = ['opacity-100', 'opacity-90', 'opacity-70', 'opacity-50']
 
-export function GuessBubbles({ entries, players, mySeat }) {
+export function GuessBubbles({ entries, players, mySeat, reserveRight = false }) {
   const bubbles = recentBubbles(entries)
   if (bubbles.length === 0) return null
   return (
-    <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex flex-col items-start gap-1" data-testid="sketch-bubbles" aria-hidden="true">
+    <div
+      className={cn('pointer-events-none absolute bottom-1.5 left-1.5 flex flex-col items-start gap-1', reserveRight ? 'right-14' : 'right-1.5')}
+      data-testid="sketch-bubbles"
+      aria-hidden="true"
+    >
       {bubbles.map(b => (
         <span
           key={b.key}
@@ -261,6 +267,136 @@ export function Gallery({ entries }) {
         ))}
       </ul>
       {entries.length > 1 && <p className="text-center font-pixel text-[8px] text-retro-dim">{entries.length} DRAWINGS · SWIPE</p>}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Hearts (S5): one heart per player per drawing, bottom-right of the canvas.
+// `mode` 'button' lets this player heart it; 'count' only shows the count.
+// Other players' hearts float up (pixel steps, at most a few at once; reduced
+// motion shows the count only). Hearts never touch points.
+// ---------------------------------------------------------------------------
+const HEART_FILLED = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
+const HEART_OUTLINE = ['.XX.XX.', 'X..X..X', 'X.....X', '.X...X.', '..X.X..', '...X...']
+
+export function PixelHeart({ filled = true, className }) {
+  const rows = filled ? HEART_FILLED : HEART_OUTLINE
+  const rects = []
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === 'X') rects.push(<rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" />)
+  }))
+  return (
+    <svg viewBox="0 0 7 6" shapeRendering="crispEdges" aria-hidden="true" className={cn('h-3 w-[14px] fill-current', className)}>
+      {rects}
+    </svg>
+  )
+}
+
+export function HeartSpot({ mode, count, mine, onToggle, busy = false, hint = false }) {
+  const { reduced } = useMotionPref()
+  const [floats, setFloats] = useState([])
+  const seenRef = useRef({ count, mine, id: 0 })
+  // Count went up by more than my own tap explains: float the others' hearts.
+  useEffect(() => {
+    const seen = seenRef.current
+    if (seen.count === count && seen.mine === mine) return
+    const others = (count - seen.count) - ((mine ? 1 : 0) - (seen.mine ? 1 : 0))
+    seenRef.current = { count, mine, id: seen.id + Math.max(0, others) }
+    if (others > 0 && !reduced) {
+      const fresh = Array.from({ length: others }, (_, i) => seen.id + i + 1)
+      setFloats(f => [...f, ...fresh].slice(-MAX_HEART_FLOATS))
+    }
+  }, [count, mine, reduced])
+  if (!mode) return null
+
+  const label = `${count} heart${count === 1 ? '' : 's'}`
+  const body = (
+    <>
+      <PixelHeart filled={mode === 'count' ? count > 0 : mine} />
+      <span className="font-pixel text-[9px] tabular-nums">{count}</span>
+    </>
+  )
+  return (
+    <div className="absolute bottom-1.5 right-1.5 z-10 flex flex-col items-end" data-testid="sketch-heart" data-count={count} data-mine={mine ? '1' : '0'}>
+      {floats.map((id, i) => (
+        <span
+          key={id}
+          aria-hidden="true"
+          className="sketch-heart-float pointer-events-none absolute bottom-full text-retro-p3"
+          style={{ right: `${8 + (i % 2) * 10}px` }}
+          onAnimationEnd={() => setFloats(f => f.filter(x => x !== id))}
+        >
+          <PixelHeart />
+        </span>
+      ))}
+      {hint && (
+        <span role="status" className="sketch-bubble-in pointer-events-none mb-1 whitespace-nowrap rounded border border-retro-p3 bg-retro-card px-2 py-0.5 font-pixel text-[8px] text-retro-p3">
+          TAP ♥ IF YOU LOVE IT
+        </span>
+      )}
+      {mode === 'button' ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={busy}
+          aria-pressed={mine}
+          aria-label={`Love this drawing, ${label}`}
+          className={cn(
+            'flex min-h-11 min-w-11 items-center justify-center gap-1 rounded border-2 px-2 transition press',
+            mine ? 'border-retro-p3 bg-retro-tint-p3 text-retro-p3' : 'border-retro-border bg-retro-card/95 text-retro-text',
+          )}
+        >
+          {body}
+        </button>
+      ) : (
+        <div role="img" aria-label={label} className="flex min-h-9 items-center gap-1 rounded border border-retro-border bg-retro-card/95 px-2 text-retro-p3">
+          {body}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// CROWD FAVOURITE (S5): the most-hearted drawing of the match, above the
+// podium. `award` is crowdFavourite(); `gallery` is this phone's drawings (a
+// drawing this phone never saw, e.g. after joining late, shows as text).
+// ---------------------------------------------------------------------------
+export function CrowdFavourite({ award, gallery, players, voters }) {
+  if (!award) return null
+  const byId = new Map((gallery || []).map(e => [e.id, e]))
+  const name = id => (players?.[id]?.name || '???').toUpperCase()
+  const tied = award.entries.length > 1
+  const of = voters > 0 ? ` OF ${Math.max(voters, award.count)}` : ''
+  return (
+    <section className="space-y-1.5 rounded border-2 border-retro-p3 bg-retro-card p-2 text-left" aria-label="Crowd favourite" data-testid="sketch-crowd-favourite">
+      <p className="flex items-center gap-1.5 font-pixel text-[9px] tracking-widest text-retro-p3">
+        <PixelHeart />
+        {tied ? `CROWD FAVOURITES · TIED AT ♥ ${award.count}` : 'CROWD FAVOURITE'}
+      </p>
+      <ul className={cn('gap-2', tied ? 'grid grid-cols-3' : 'flex')}>
+        {award.entries.map(e => {
+          const g = byId.get(e.key)
+          return (
+            <li key={e.key} className={cn('min-w-0', !tied && 'flex flex-1 items-center gap-2')}>
+              {g && (
+                <DrawingThumb
+                  strokes={g.strokes}
+                  fills={g.fills}
+                  className={cn('block rounded-sm border border-retro-border', tied ? 'w-full' : 'w-20 shrink-0')}
+                  label={`${g.word}, drawn by ${g.artistName}`}
+                />
+              )}
+              <span className="block min-w-0">
+                {g && <span className="block truncate font-pixel text-[10px] text-retro-text">{String(g.word).toUpperCase()}</span>}
+                <span className="block truncate font-pixel text-[8px] text-retro-dim">BY {name(e.artist)}</span>
+                {!tied && <span className="block font-pixel text-[8px] text-retro-p3">♥ {award.count}{of}</span>}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
     </section>
   )
 }

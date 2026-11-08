@@ -1007,6 +1007,7 @@ export const GAME_RULES = {
       'A near miss shows you a private CLOSE! hint and stays out of the chat.',
       'Stuck? The artist\'s phone reveals one letter at half time and another at three quarters of the clock, never more than a third of the word.',
       'Guessing correctly locks you in early and reveals the word to you — keep it secret from the others still guessing.',
+      'At the reveal every screen replays the drawing as it was made. Tap ♥ on a drawing you love (once you have guessed it, or at the reveal): the most-hearted drawing of the match is the CROWD FAVOURITE. Hearts never change the points.',
     ],
     win: 'Guessers score by how fast they guess correctly; the artist scores per correct guesser. MEDIUM words pay ×1.2 and HARD words ×1.5. Everyone draws twice (three times in a 2-player match) — most total points wins, ties share the win.',
   },

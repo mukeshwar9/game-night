@@ -86,3 +86,56 @@ describe('SKETCH letter hints', () => {
     await assertSucceeds(as('bob').ref('games/g1/round/chat/c1').set({ uid: 'bob', text: 'cat' }))
   })
 })
+
+// SKETCH hearts (S5): `round/likes/{uid}` is a player's own heart on the
+// drawing, written only by them, never by the artist, at the reveal (or while
+// drawing once they have guessed it). `round/faves` is the match's tally.
+describe('SKETCH hearts', () => {
+  it('lets a seated guesser heart the drawing at the reveal, and take it back', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertSucceeds(as('bob').ref('games/g1/round/likes/bob').set(true))
+    await assertSucceeds(as('bob').ref('games/g1/round/likes/bob').set(false))
+    await assertSucceeds(as('cy').ref('games/g1/round/likes/cy').set(true))
+  })
+
+  it('opens the heart early only for a guesser who already got it', async () => {
+    await put(room(round({ correct: { bob: { at: 5000 } } })))
+    await assertSucceeds(as('bob').ref('games/g1/round/likes/bob').set(true))
+    await assertFails(as('cy').ref('games/g1/round/likes/cy').set(true))
+  })
+
+  it('refuses the artist, someone else\'s heart, spectators and other phases', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertFails(as('alice').ref('games/g1/round/likes/alice').set(true))
+    await assertFails(as('bob').ref('games/g1/round/likes/cy').set(true))
+    await assertFails(as('mallory').ref('games/g1/round/likes/mallory').set(true))
+    await put(room(round({ phase: 'choosing' })))
+    await assertFails(as('bob').ref('games/g1/round/likes/bob').set(true))
+  })
+
+  it('keeps a heart a boolean', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertFails(as('bob').ref('games/g1/round/likes/bob').set(1))
+    await assertFails(as('bob').ref('games/g1/round/likes/bob').set('love'))
+  })
+
+  it('lets a whole-room transaction pass with the hearts unchanged, and the next round clear them', async () => {
+    await put(room(round({ phase: 'reveal', likes: { bob: true, cy: true } })))
+    const whole = (await as('alice').ref('games/g1').get()).val()
+    // the coordinator (any seat) advances; the tally carries the folded count
+    const next = { ...whole.round, phase: 'choosing', artist: 'bob', faves: { '1:alice': 2 } }
+    delete next.likes
+    await assertSucceeds(as('alice').ref('games/g1').set({ ...whole, round: next }))
+    await put(room(round({ phase: 'reveal', likes: { bob: true, cy: true } })))
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, status: 'finished' }))
+  })
+
+  it('keeps the tally to small whole counts', async () => {
+    await put(room(round({ phase: 'reveal' })))
+    await assertSucceeds(as('bob').ref('games/g1/round/faves/1:alice').set(3))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set(0))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set(9))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set(2.5))
+    await assertFails(as('bob').ref('games/g1/round/faves/1:alice').set('2'))
+  })
+})
