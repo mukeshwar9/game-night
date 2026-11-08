@@ -25,7 +25,7 @@
 // stays at three pairs or fewer: portals are told apart by colour alone and
 // only three hues pass the colour-blind check.
 
-import { ARROWS_ENDLESS_SPECS, ARROWS_LIVES, ARROWS_TWISTS, arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, portalUses, seededRng, solveArrows, tunnelUses } from './arrowsLogic.js'
+import { ARROWS_ENDLESS_SPECS, ARROWS_TWISTS, arrowRoute, generateArrowsLevel, isBent, isCurved, isDiagonal, isDouble, isSleeper, portalUses, seededRng, solveArrows, tunnelUses } from './arrowsLogic.js'
 import { ARROWS_BAKED_LEVELS as BAKED } from './arrowsLevelsBaked.js'
 import { ARROWS_LEVEL_COUNT, levelStars } from './arrowsProgressLogic.js'
 import { ARROWS_SHAPE_ORDER, maskCells, maskConnected, shapeFrame, shapeMask } from './arrowsShapes.js'
@@ -470,9 +470,9 @@ export function endlessLevel(seed, tier, learned) {
 // ── Scoring ───────────────────────────────────────────────────────────────
 
 // Stars for a cleared board: 3 for no blocked taps, one fewer per mistake;
-// taking a hint caps it at 2. 0 = not cleared (out of lives).
+// taking a hint caps it at 2. A board you finish is never worth less than 1:
+// a blocked tap costs a star, never the board (races and VS keep their lives).
 export function starsFor({ mistakes = 0, hints = 0 } = {}) {
-  if (mistakes >= ARROWS_LIVES) return 0
   return Math.max(1, Math.min(3 - mistakes, hints > 0 ? 2 : 3))
 }
 

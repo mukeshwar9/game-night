@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HOVER_DWELL_MS, PEEK_HOLD_MS, PEEK_LINGER_MS, PEEK_SLOP_PX, canHold, peekOutcome } from './arrowsPeekLogic'
+import { HOVER_DWELL_MS, PEEK_HOLD_MS, PEEK_LINGER_MS, PEEK_SLOP_PX, canHold, peekOutcome, routeCoach } from './arrowsPeekLogic'
 
 const base = { heldMs: 100, movedPx: 0, multi: false, pointerType: 'touch' }
 
@@ -40,5 +40,31 @@ describe('constants', () => {
     expect(canHold('touch')).toBe(true)
     expect(canHold('pen')).toBe(true)
     expect(canHold('mouse')).toBe(false)
+  })
+})
+
+describe('routeCoach (the line under the solo board)', () => {
+  it('says nothing on a plain board with no tip', () => {
+    expect(routeCoach()).toBeNull()
+    expect(routeCoach({ routes: false, pick: null, nudge: false, tip: '' })).toBeNull()
+  })
+  it('a previewed arrow gets a verdict: clear is a win tone, blocked warns the star it costs', () => {
+    expect(routeCoach({ routes: true, pick: { free: true } })).toEqual({ tone: 'win', text: 'CLEAR · TAP AGAIN TO SEND' })
+    const blocked = routeCoach({ routes: true, pick: { free: false } })
+    expect(blocked.tone).toBe('danger')
+    expect(blocked.text).toMatch(/COSTS A STAR/)
+  })
+  it('after a first bump with ROUTES off, points at ROUTES (and beats the twist tip)', () => {
+    expect(routeCoach({ nudge: true, tip: 'A TIP' })).toMatchObject({ tone: 'cta', text: expect.stringMatching(/ROUTES/) })
+  })
+  it('shows the twist tip when there is no nudge, and the ROUTES-on reminder otherwise', () => {
+    expect(routeCoach({ tip: 'A TIP' })).toEqual({ tone: 'cta', text: 'A TIP' })
+    expect(routeCoach({ routes: true, tip: 'A TIP' })).toMatchObject({ tone: 'dim', text: expect.stringMatching(/^ROUTES ON/) })
+  })
+  it('the nudge is for ROUTES-off only: turning ROUTES on drops it', () => {
+    expect(routeCoach({ routes: true, nudge: true })).toMatchObject({ tone: 'dim' })
+  })
+  it('a pick is ignored when ROUTES is off', () => {
+    expect(routeCoach({ routes: false, pick: { free: true } })).toBeNull()
   })
 })

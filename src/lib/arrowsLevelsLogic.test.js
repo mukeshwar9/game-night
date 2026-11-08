@@ -557,14 +557,37 @@ describe('shaped endless boards', { timeout: 60000 }, () => {
 })
 
 describe('stars', () => {
-  it('3 for a clean clear, one fewer per mistake, hints cap at 2, out of lives = 0', () => {
+  it('3 for a clean clear, one fewer per mistake, hints cap at 2', () => {
     expect(starsFor({ mistakes: 0 })).toBe(3)
     expect(starsFor({ mistakes: 1 })).toBe(2)
     expect(starsFor({ mistakes: 2 })).toBe(1)
-    expect(starsFor({ mistakes: 3 })).toBe(0)
     expect(starsFor({ mistakes: 0, hints: 1 })).toBe(2)
     expect(starsFor({ mistakes: 2, hints: 4 })).toBe(1)
     expect(starsFor()).toBe(3)
+  })
+
+  it('a cleared board is never a fail: the floor is 1 star however many bumps', () => {
+    for (const mistakes of [3, 4, 10, 99]) {
+      expect(starsFor({ mistakes })).toBe(1)
+      expect(starsFor({ mistakes, hints: 3 })).toBe(1)
+    }
+  })
+
+  it('stars only ever fall: more bumps or a hint never earn more', () => {
+    for (let m = 0; m < 8; m += 1) {
+      expect(starsFor({ mistakes: m + 1 })).toBeLessThanOrEqual(starsFor({ mistakes: m }))
+      expect(starsFor({ mistakes: m, hints: 1 })).toBeLessThanOrEqual(starsFor({ mistakes: m }))
+    }
+  })
+
+  it('a 1-star clear is saved and opens the next level', () => {
+    let p = recordLevelResult(blankProgress(), 1, starsFor({ mistakes: 7 }))
+    expect(levelStars(p, 1)).toBe(1)
+    expect(isLevelUnlocked(p, 2)).toBe(true)
+    // A later better run raises it; a worse one never lowers it.
+    p = recordLevelResult(p, 1, 3)
+    p = recordLevelResult(p, 1, starsFor({ mistakes: 7 }))
+    expect(levelStars(p, 1)).toBe(3)
   })
 })
 

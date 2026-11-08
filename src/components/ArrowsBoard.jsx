@@ -7,6 +7,7 @@ import {
   arrowRoute,
   cellCenter,
   crateCleared,
+  exitCheck,
   exitVector,
   isAwake,
   isBent,
@@ -316,6 +317,13 @@ function bumpTravel(elapsed, anim, arrow) {
 // full screen; leaving that (e.g. Android back) leaves the stage too. iPhone
 // gets the CSS stage alone, which is the whole layout either way.
 // Full screen carries over to the board that replaces this one (see below).
+// `stage` (solo play): the board is always on that stage, with no EXIT and no
+// Fullscreen API or history entry; `focusHud` is its top bar and `stageFooter`
+// the thumb bar under the board. The camera bar shows only on boards that
+// need a camera.
+// `routes` (solo ROUTES mode): a tap on an arrow previews its route (`routePick`,
+// controlled by the page through `onRoutePick`), a tap on the previewed arrow
+// sends it, a tap on empty paper clears the preview.
 let focusCarry = false
 let focusLive = 0
 
@@ -334,6 +342,11 @@ export default function ArrowsBoard({
   focusable = false,
   focusHud = null,
   focusOverlay = null,
+  stage = false,
+  stageFooter = null,
+  routes = false,
+  routePick = -1,
+  onRoutePick = null,
   label,
   rivals = null,
   zones = null,
@@ -357,7 +370,8 @@ export default function ArrowsBoard({
   const bounds = { minX: -CELL, minY: -CELL, maxX: width + CELL, maxY: height + CELL }
 
   // Full screen: the stage's size (px) shapes the fit so the board fills it.
-  const [focused, setFocused] = useState(() => focusable && focusCarry)
+  const [focusedState, setFocused] = useState(() => focusable && focusCarry)
+  const focused = stage || focusedState
   const [focusBox, setFocusBox] = useState(null)
   const boxRef = useRef(null)
 
@@ -452,6 +466,8 @@ export default function ArrowsBoard({
     // The page behind stops scrolling while the stage owns the viewport.
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    // A page-owned stage leaves through the page's own back button.
+    if (stage) return () => { document.body.style.overflow = prev }
     const onKey = (e) => { if (e.key === 'Escape') leaveFocus() }
     // Back (browser or phone) already popped our entry: just close.
     const onPop = () => {
@@ -489,7 +505,7 @@ export default function ArrowsBoard({
       window.removeEventListener('popstate', onPop)
       document.removeEventListener('fullscreenchange', onFull)
     }
-  }, [focused, leaveFocus])
+  }, [focused, stage, leaveFocus])
 
   // Bring a spot (a blocker, a hinted arrow) into view if it is off-screen.
   const reveal = (cells) => {
@@ -845,9 +861,16 @@ export default function ArrowsBoard({
     const hit = arrowAtClient(e.clientX, e.clientY)
     if (hit >= 0) {
       lastTap.current = null
+      if (routes && interactive && onTap) {
+        // ROUTES: the first tap shows the route, a tap on the same arrow sends it.
+        if (routePick === hit) onTap(hit)
+        else onRoutePick?.(hit)
+        return
+      }
       if (interactive && onTap) onTap(hit)
       return
     }
+    if (routes && routePick >= 0) onRoutePick?.(-1)
     if (!camOn) return
     // Empty space: two quick taps zoom in there, or back out to the whole board.
     const tap = { x: e.clientX, y: e.clientY, t: performance.now() }
@@ -1058,6 +1081,14 @@ export default function ArrowsBoard({
         {preview >= 0 && !gone[preview] && !hidden.has(preview) && (
           <path className="ar-route" d={routePreviewD(level, level.arrows[preview])} fill="none" aria-hidden="true" />
         )}
+        {routes && routePick >= 0 && !gone[routePick] && !hidden.has(routePick) && level.arrows[routePick] && (
+          <path
+            className={cn('ar-route is-pick', exitCheck(level, gone, routePick).free ? 'is-clear' : 'is-blocked')}
+            d={routePreviewD(level, level.arrows[routePick])}
+            fill="none"
+            aria-hidden="true"
+          />
+        )}
         {peek && preview < 0 && peeked && !gone[peeked.idx] && !hidden.has(peeked.idx) && level.arrows[peeked.idx] && (
           <path
             className={cn('ar-route is-peek', peeked.kind === 'hover' && 'is-hover')}
@@ -1179,7 +1210,7 @@ export default function ArrowsBoard({
           />
         </div>
       )}
-      {(camOn || (focusable && !focused)) && (
+      {(stage ? camOn && needsCamera(level) : (camOn || (focusable && !focused))) && (
         // Outside the board so the buttons never cover a ring or an arrow.
         <div className="flex items-center justify-between gap-2 px-2 py-1 border-t border-retro-border/60">
           {camOn ? (
@@ -1213,20 +1244,21 @@ export default function ArrowsBoard({
   // transformed ancestor can trap it), safe-area padded, 100dvh tall.
   return createPortal(
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Arrows, full screen"
+      role={stage ? 'region' : 'dialog'}
+      aria-modal={stage ? undefined : 'true'}
+      aria-label={stage ? 'Arrows board' : 'Arrows, full screen'}
       className="arrows-focus fixed inset-0 z-50 flex flex-col gap-2 bg-retro-bg px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]"
       style={{ height: '100dvh' }}
     >
       <div className="flex items-center gap-2 min-h-9">
         <div className="flex-1 min-w-0">{focusHud}</div>
-        <button type="button" className={zoomBtn} aria-label="Leave full screen" onClick={leaveFocus}>EXIT</button>
+        {!stage && <button type="button" className={zoomBtn} aria-label="Leave full screen" onClick={leaveFocus}>EXIT</button>}
       </div>
       <div className="relative flex-1 min-h-0">
         {board}
         {focusOverlay}
       </div>
+      {stageFooter}
     </div>,
     document.body,
   )

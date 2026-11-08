@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test'
 
 test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
 
-const status = (page) => page.locator('p.sr-only[aria-live="polite"]').filter({ hasText: /cleared, \d lives|Board clear|Out of lives/ })
+const status = (page) => page.locator('p.sr-only[aria-live="polite"]').filter({ hasText: /\d+ of \d+ cleared|Board clear/ })
 
 // Real touch input through the browser (CDP), so the board sees genuine
 // pointer events with pointerType 'touch'.
@@ -28,7 +28,7 @@ test('hold an arrow to see its route (no tap on release); a quick tap still send
   const tile = page.getByRole('button', { name: /^Level 1(,|$)/ })
   if (!(await tile.isVisible())) {
     const chapter = page.getByRole('region', { name: /^Chapter 1,/ })
-    if (!(await chapter.isVisible())) await page.getByRole('button', { name: /SOLO/ }).click()
+    if (!(await chapter.isVisible())) await page.getByRole('button', { name: /CHAPTERS/ }).click()
     const head = chapter.getByRole('button').first()
     if ((await head.getAttribute('aria-expanded')) === 'false') await head.click()
   }
