@@ -16,9 +16,6 @@ import {
   scoringWindow,
   roundCycles,
   roundDrawBase,
-  nextRoundState,
-  activeGuessers,
-  participantGuessers,
   roundDeltas,
   deriveWord,
   SKETCH_SEEN_KEY,
@@ -51,6 +48,16 @@ import SketchCanvas from '../components/SketchCanvas'
 import ReportButton from '../components/ReportButton'
 import BottomSheet from '../components/BottomSheet'
 import SketchSetup from '../components/SketchSetup'
+import SketchJoinBar from '../components/SketchJoinBar'
+import {
+  roundGuessers,
+  activeRoundGuessers,
+  guessesThisRound,
+  nextSketchRound,
+  joinedLate,
+  joinBarState,
+  waitingNote,
+} from '../lib/sketchJoinLogic'
 import { SKETCH_CONFIG_KEY, patchSketchConfig } from '../lib/sketchConfigLogic'
 import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, Gallery } from '../components/SketchStage'
 import Avatar from '../components/Avatar'
@@ -81,6 +88,10 @@ function normalizeRound(raw) {
     cycles: raw.cycles ?? null,
     drawBase: raw.drawBase ?? null,
     hintCount: raw.hintCount ?? null,
+    // round and match start (server time); a mid-match joiner guesses from the
+    // first round that starts after their seat (sketchJoinLogic)
+    startedAt: raw.startedAt ?? null,
+    matchStartedAt: raw.matchStartedAt ?? null,
     used: normalizeList(raw.used),
     matchSeed: raw.matchSeed ?? '',
     options: raw.options ? normalizeList(raw.options) : null,
@@ -176,7 +187,7 @@ function saveGallery(gameId, store) {
 
 export default function SketchGame({
   gameId, game, mySeat, players,
-  onStart, onSwitchGame, onNewMatch, proposal,
+  onStart, onSwitchGame, onNewMatch, proposal, midJoin = null,
 }) {
   // Server-corrected clock, ticking every 250ms so countdown UIs re-render;
   // `now()` is a fresh server-time reading for handlers and transactions.
@@ -194,8 +205,11 @@ export default function SketchGame({
   const roundKey = round ? `${round.cycle}:${round.artist}` : null
   const isArtist = !!round && round.artist === mySeat
   const isPlayer = !!mySeat && !!players?.[mySeat]
-  const participantGuesserIds = round ? participantGuessers(round.order, round.artist) : []
-  const activeGuesserIds = round ? activeGuessers(players || {}, round.order, round.artist) : []
+  // Guessers this round: the drawing order minus the artist, plus anyone
+  // seated mid-match before the round started (sketchJoinLogic).
+  const participantGuesserIds = round ? roundGuessers(round, players || {}) : []
+  const activeGuesserIds = round ? activeRoundGuessers(round, players || {}) : []
+  const iGuess = isPlayer && !!round && guessesThisRound(round, players || {}, mySeat)
   const haveIGuessedCorrectly = !!round?.correct?.[mySeat]
   // Deterministic host-fallback: the coordinator is the first ONLINE seat in join order, not
   // the fixed `isHost` — so a host disconnect hands phase-advance duty off instead
@@ -220,7 +234,7 @@ export default function SketchGame({
   const [coarsePointer] = useState(isCoarsePointer)
   // Stage screen state: hints, the artist menu, the guess list, the gallery.
   const hints = round?.hints ?? []
-  const stageRole = isArtist ? 'artist' : isPlayer && !haveIGuessedCorrectly ? 'guesser' : 'watcher'
+  const stageRole = isArtist ? 'artist' : iGuess && !haveIGuessedCorrectly ? 'guesser' : 'watcher'
   const [stageRef, stageSide] = useStageSide(stageRole)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hintFlash, setHintFlash] = useState(null)       // n of the newest hint, shown for a moment
@@ -381,12 +395,13 @@ export default function SketchGame({
   // ---- Host: void the round and rotate the artist (choosing stalled) ------
   const handleSkipChoosing = useCallback(async () => {
     const nextEndsAt = deadlineAfter(chooseMs)
+    const nextStartedAt = now()
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'choosing') return // already resolved
-        const result = nextRoundState(withLists(r))
+        const result = nextSketchRound(withLists(r), current.players || {}, nextStartedAt)
         if (result.finished) return { ...current, status: 'finished', proposal: null }
         return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt } }
       })
@@ -412,7 +427,7 @@ export default function SketchGame({
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'drawing') return // already advanced
-        const liveGuesserIds = participantGuessers(normalizeRound(r).order, r.artist)
+        const liveGuesserIds = roundGuessers(withLists(r), current.players || {})
         const deltas = roundDeltas({
           guesserIds: liveGuesserIds,
           correct: r.correct || {},
@@ -441,12 +456,13 @@ export default function SketchGame({
     if (hostActionInFlightRef.current) return
     hostActionInFlightRef.current = true
     const nextEndsAt = deadlineAfter(chooseMs)
+    const nextStartedAt = now()
     try {
       await runTransaction(ref(db, `games/${gameId}`), current => {
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'reveal' || r.endsAt !== expectedEndsAt) return // already advanced / stale
-        const result = nextRoundState(withLists(r))
+        const result = nextSketchRound(withLists(r), current.players || {}, nextStartedAt)
         if (result.finished) return { ...current, status: 'finished', proposal: null }
         return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt } }
       })
@@ -693,7 +709,12 @@ export default function SketchGame({
 
         {matchOver ? (
           <>
-            <Podium rows={podium(order, scores)} players={players} mySeat={mySeat} />
+            <Podium
+              rows={podium(order, scores)}
+              players={players}
+              mySeat={mySeat}
+              lateIds={order.filter(id => joinedLate(players[id], normalizeRound(game.round)))}
+            />
             <Gallery entries={galleryFor(galleryStore, game.round?.matchSeed)} />
           </>
         ) : (
@@ -789,7 +810,7 @@ export default function SketchGame({
   const artistOfflineMs = artistOfflineSince != null ? nowMs - artistOfflineSince : 0
   const showArtistOfflineSkip = amCoordinator && round.phase === 'drawing' && artistOfflineMs >= ARTIST_OFFLINE_DRAWING_MS
 
-  const revealGuesserIds = participantGuessers(round.order, round.artist)
+  const revealGuesserIds = participantGuesserIds
   const roundEntry = entryForWord(SKETCH_WORDS, round.options, derivedWord)
   const revealDeltas = round.phase === 'reveal'
     ? roundDeltas({
@@ -951,7 +972,7 @@ export default function SketchGame({
       {/* ---- DRAWING: the guess box, kept just under the drawing ---- */}
       {round.phase === 'drawing' && (
         <div className="space-y-2">
-          {isPlayer && !isArtist && !haveIGuessedCorrectly && (
+          {iGuess && !haveIGuessedCorrectly && (
             <div className="space-y-1">
               <div className="flex gap-1.5">
                 <input
@@ -1040,6 +1061,13 @@ export default function SketchGame({
         </div>
       )}
 
+      {/* Mid-match: a watcher's JOIN, or a new seat's wait for its first round. */}
+      <SketchJoinBar
+        state={joinBarState({ round, players, uid: mySeat, offer: midJoin?.state ?? null })}
+        onJoin={midJoin?.join}
+        note={waitingNote(round)}
+      />
+
       {/* The artist's face menu (hold the face): REPORT lives here, not in the stage. */}
       {menuOpen && (
         <BottomSheet centered onClose={() => setMenuOpen(false)} ariaLabel="Artist menu">
@@ -1065,7 +1093,7 @@ export default function SketchGame({
         </BottomSheet>
       )}
 
-      {!proposal && onSwitchGame && <GameSwitcher currentType="sketch" onSwitch={onSwitchGame} />}
+      {isPlayer && !proposal && onSwitchGame && <GameSwitcher currentType="sketch" onSwitch={onSwitchGame} />}
     </div>
   )
 }
