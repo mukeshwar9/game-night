@@ -19,6 +19,7 @@
 //     endsAt:      epoch-ms | null,      // current phase's deadline; null = timers off (timerScale 0)
 //     drawStartedAt: epoch-ms,           // server time the artist locked a word (scoring window)
 //     drawMs:      number,               // that drawing phase's length after the room's timer scale
+//     revealAt:    epoch-ms,             // server time the round flipped to reveal (replay clock)
 //     strokes:     { [pushId]: { c, w, p } },         // artist-only writes
 //     chat:        { [pushId]: { uid, text } },       // wrong guesses only
 //     correct:     { [uid]: { at } },                 // uid's own write, once
@@ -44,7 +45,9 @@ import { isBannedWord } from './wordDenylist'
 // ---- Tunable constants -----------------------------------------------------
 export const CHOOSE_MS = 15000
 export const DRAW_MS = 75000
-export const REVEAL_MS = 6000
+// Reveal: the word lands, the drawing replays on every screen, the points fly,
+// then a short hold (timeline in sketchReplayLogic.js).
+export const REVEAL_MS = 8000
 export const SKIP_CHOOSING_GRACE_MS = 5000
 export const ARTIST_OFFLINE_DRAWING_MS = 10000
 
@@ -260,6 +263,7 @@ export function nextRoundState(round) {
       chat: null,
       correct: null,
       hints: null,
+      revealAt: null,
       scored: false,
       // caller adds: endsAt: now() + CHOOSE_MS
     },
