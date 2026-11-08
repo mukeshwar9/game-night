@@ -90,11 +90,11 @@ function SetupSheet({ setup, playerCount, timerScale, saving, onSave, onDone, ch
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="space-y-1.5">
         <p className="font-pixel text-[10px] text-retro-cta text-glow-cta tracking-widest">MATCH SETUP</p>
-        <span className="font-pixel text-[7px] text-retro-dim" aria-live="polite">
+        <p className="font-pixel text-[7px] text-retro-dim" aria-live="polite">
           {saving ? 'SAVING…' : 'HOST ONLY · LOCKS AT START'}
-        </span>
+        </p>
       </div>
 
       {row('DRAWS EACH', DRAW_CHOICES, setup.draws, 'draws', (n) => n, DRAWS_BLURB[setup.draws])}
