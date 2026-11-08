@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   generateBotRoster,
+  PARTY_BOT_LEVELS,
+  applyBotLevel,
   pickBotClue,
   pickBotGuess,
   pickBotGuessFromClue,
@@ -66,6 +68,41 @@ describe('generateBotRoster', () => {
       expect(SHAPES).toContain(shape)
       expect(HUMANOIDS).not.toContain(shape)
     }
+  })
+
+  it('levels narrow skill and acuity: EASY the lower half, HARD the upper, NORMAL all', () => {
+    expect(Object.keys(PARTY_BOT_LEVELS)).toEqual(['easy', 'normal', 'hard'])
+    for (let n = 0; n < 40; n++) {
+      for (const bot of generateBotRoster(7, `lvl-${n}`, 'easy')) {
+        expect(bot.persona.skill).toBeLessThanOrEqual(0.5)
+        expect(bot.persona.acuity).toBeLessThanOrEqual(0.5)
+      }
+      for (const bot of generateBotRoster(7, `lvl-${n}`, 'hard')) {
+        expect(bot.persona.skill).toBeGreaterThanOrEqual(0.5)
+        expect(bot.persona.acuity).toBeGreaterThanOrEqual(0.5)
+      }
+    }
+  })
+
+  it('NORMAL (and an omitted or unknown level) is the roster as it was before levels', () => {
+    for (const seed of ['a', 'b', 'c']) {
+      const plain = generateBotRoster(5, seed)
+      expect(generateBotRoster(5, seed, 'normal')).toEqual(plain)
+      expect(generateBotRoster(5, seed, 'nonsense')).toEqual(plain)
+    }
+  })
+
+  it('applyBotLevel re-rates a NORMAL roster the same way generateBotRoster does', () => {
+    for (const level of ['easy', 'normal', 'hard']) {
+      expect(applyBotLevel(generateBotRoster(6, 'apply'), level)).toEqual(generateBotRoster(6, 'apply', level))
+    }
+  })
+
+  it('the level changes personas only: the same seed seats the same names and faces', () => {
+    const easy = generateBotRoster(6, 'same-seed', 'easy')
+    const hard = generateBotRoster(6, 'same-seed', 'hard')
+    expect(easy.map(b => [b.id, b.name, b.avatar])).toEqual(hard.map(b => [b.id, b.name, b.avatar]))
+    expect(easy.map(b => b.persona.boldness)).toEqual(hard.map(b => b.persona.boldness))
   })
 
   it('personas are within 0..1', () => {

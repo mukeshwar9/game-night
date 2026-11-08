@@ -21,6 +21,8 @@ import { sounds } from '../lib/sounds'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { cn } from '@/lib/utils'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 // Solo/bot WAVELENGTH — human + 2-7 bots, fully local (useReducer), no Firebase,
 // no commit-reveal (there's no other real player to cheat against, so the
@@ -286,7 +288,11 @@ function Scoreboard({ players, scores, mySeat, clueGiver, highlight }) {
 // -----------------------------------------------------------------------------
 export default function WavelengthDemo() {
   const [botCount, setBotCount] = useState(DEFAULT_BOTS)
-  const [roster, setRoster] = useState(() => generateBotRoster(DEFAULT_BOTS, Date.now()))
+  const [level, setLevel] = useBotDifficulty('wavelength', BOT_LEVEL_IDS)
+  // The roster follows the level (EASY/HARD narrow every bot's skill), so keep
+  // its seed and re-derive: picking a level re-rates the same faces.
+  const [rosterSeed, setRosterSeed] = useState(() => Date.now())
+  const roster = useMemo(() => generateBotRoster(botCount, rosterSeed, level), [botCount, rosterSeed, level])
   const rosterById = useMemo(() => Object.fromEntries(roster.map(b => [b.id, b])), [roster])
 
   const [gameState, dispatch] = useReducer(gameReducer, initialGameState)
@@ -301,7 +307,7 @@ export default function WavelengthDemo() {
   const handleBotCountChange = (n) => {
     const clamped = Math.max(MIN_BOTS, Math.min(MAX_BOTS, n))
     setBotCount(clamped)
-    setRoster(generateBotRoster(clamped, Date.now()))
+    setRosterSeed(Date.now())
   }
 
   // Fresh local input state at the top of every round (mirrors
@@ -396,7 +402,7 @@ export default function WavelengthDemo() {
   }
 
   const handlePlayAgain = () => {
-    setRoster(generateBotRoster(botCount, Date.now()))
+    setRosterSeed(Date.now())
     dispatch({ type: 'RESET_TO_SETUP' })
   }
 
@@ -411,6 +417,8 @@ export default function WavelengthDemo() {
         botCount={botCount}
         onBotCount={handleBotCountChange}
         roster={roster}
+        level={level}
+        onLevel={setLevel}
         onStart={handleStart}
         minBots={MIN_BOTS}
         maxBots={MAX_BOTS}

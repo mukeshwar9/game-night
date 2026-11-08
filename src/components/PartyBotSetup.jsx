@@ -1,6 +1,8 @@
 import Avatar from './Avatar'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
+import CpuDifficultyChips from './CpuDifficultyChips'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 // Reads the local player's display avatar the same way NavBar/Home do — the
 // localStorage mirror of `users/{uid}` set on boot (see CLAUDE.md "Player
@@ -17,8 +19,10 @@ function readOwnAvatar() {
 // Shared pre-game setup screen for solo/bot-count party demos (WAVELENGTH,
 // FIBBAGE, SPYFAIR): pick how many bots fill the table, preview the roster,
 // then START. Purely presentational/local — no Firebase, no useBusy (START
-// is a synchronous local action, not an async write).
-export default function PartyBotSetup({ title, blurb, botCount, onBotCount, roster, onStart, minBots = 2, maxBots = 7 }) {
+// is a synchronous local action, not an async write). Pass `level` +
+// `onLevel` to show the shared CPU difficulty chips (the page feeds the level to
+// generateBotRoster).
+export default function PartyBotSetup({ title, blurb, botCount, onBotCount, roster, onStart, minBots = 2, maxBots = 7, level, onLevel }) {
   const totalPlayers = botCount + 1
   const myAvatar = readOwnAvatar()
 
@@ -53,6 +57,10 @@ export default function PartyBotSetup({ title, blurb, botCount, onBotCount, rost
           +
         </button>
       </div>
+
+      {onLevel && (
+        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={onLevel} note="HOW SHARP THE BOTS PLAY" />
+      )}
 
       <div className="flex flex-wrap items-center justify-center gap-2">
         <div className="flex items-center gap-1.5 bg-retro-tint-p1 border border-retro-p1/50 rounded-full pl-1 pr-3 py-1">
