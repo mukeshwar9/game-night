@@ -44,7 +44,7 @@ test('two players race an UPDRAFT round to a result and rematch in the host\'s m
     // Hopping idle, either climber may also fall on their own; hiding both
     // tabs guarantees both falls either way.
     await hideTab(alice.page)
-    await expect(bob.page.getByText(/^ALICE\s*\d+m\s*FELL$/)).toBeVisible({ timeout: 10_000 })
+    await expect(bob.page.getByText(/^ALICE FELL AT \d+m$/)).toBeVisible({ timeout: 10_000 })
     await hideTab(bob.page)
     const result = /REACHED THE SUMMIT|CLIMBED HIGHER|SAME HEIGHT — DRAW/
     for (const { page } of [alice, bob]) {

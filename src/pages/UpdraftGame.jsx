@@ -5,10 +5,14 @@ import { db } from '../lib/firebase'
 import GameStatus from '../components/GameStatus'
 import GameSwitcher from '../components/GameSwitcher'
 import UpdraftArena from '../components/UpdraftArena'
-import { ThumbBand } from '../components/UpdraftControls'
+import UpdraftClimbChart from '../components/UpdraftClimbChart'
+import { HudPill, ThumbRail, UpdraftHud } from '../components/UpdraftControls'
 import { SeatStatus } from '../components/UpdraftIcons'
+import UpdraftStage, { EnterStageButton } from '../components/UpdraftStage'
 import TouchCoachmark from '../components/TouchCoachmark'
 import useBusy from '../hooks/useBusy'
+import useClimbTrace from '../hooks/useClimbTrace'
+import useOwnAvatar from '../hooks/useOwnAvatar'
 import useServerClock from '../hooks/useServerClock'
 import { useUpdraftControls } from '../hooks/useUpdraftControls'
 import { useUpdraftHazards } from '../hooks/useUpdraftHazards'
@@ -18,6 +22,7 @@ import {
   COUNTDOWN_MS, MATCH_TARGET, ROUND_LIMIT_MS, SUMMIT_Y, UPDRAFT_MODES, VIEW_H, climbStats, createRun, generateTower,
   getUpdraftMode, versusPickups, hazardForPickup, normalizeHazards, normalizeSeat, raceOutcome, toMetres,
 } from '../lib/updraftLogic'
+import { gapText, gapToRival, summitTime } from '../lib/updraftStageLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +35,12 @@ import { cn } from '@/lib/utils'
 // turns gem pickups into hazards pushed to `updraft/haz/{rival}`; feathers
 // (a self-boost) are in both modes. One guarded transaction settles the
 // round, so a photo finish goes to whoever lands it.
+//
+// From the countdown to the result the arena takes the whole screen
+// (UpdraftStage): faces on the hoppers and a 0–400 m side rail, the gap to
+// the rival in the top strip, a thin thumb rail instead of a steering band.
+// The result is a climb chart sampled on this phone (nothing extra is
+// written to the room).
 
 function playerName(game, sym) {
   return game.players?.[sym]?.name?.toUpperCase() ?? sym
@@ -62,6 +73,14 @@ export default function UpdraftGame({
 
   const [notice, showNotice] = useNotice()
   const [sent, setSent] = useState(0)
+  const [staged, setStaged] = useState(true)
+  const myAvatar = useOwnAvatar()
+  const climberRef = useRef(null)
+  const trace = useClimbTrace({
+    active: isRacing && !isSpectator && game.status === 'playing',
+    resetKey: seed,
+    heights: () => ({ me: climberRef.current?.runRef.current.best ?? 0, rival: remote[op].best }),
+  })
   const climber = useUpdraftRun({
     tower,
     active: isRacing && !isSpectator,
@@ -75,6 +94,7 @@ export default function UpdraftGame({
         const k = hazardForPickup(seed, e.id)
         showNotice(`SENT ${k.toUpperCase()} TO ${playerName(game, op)}`)
         setSent(n => n + 1)
+        trace.mark('sent')
         push(ref(db, `games/${gameId}/updraft/haz/${op}`), { k, at: Date.now() })
           .catch(() => toast.error('SYNC FAILED — CHECK CONNECTION'))
       }
@@ -82,6 +102,8 @@ export default function UpdraftGame({
   })
   const hazards = useUpdraftHazards({ tower, runRef: climber.runRef, setRun: climber.setRun })
   const run = climber.run
+  useEffect(() => { climberRef.current = climber })
+  useEffect(() => { if (run.dead && !run.top && isRacing) trace.mark('fall') }, [run.dead, run.top]) // eslint-disable-line react-hooks/exhaustive-deps -- once per fall
 
   // New round (new seed): a fresh climber. A reload mid-round cannot restore
   // the exact jump, so it resumes as a fall at the reported best height.
@@ -114,6 +136,7 @@ export default function UpdraftGame({
       if (!run.dead && !run.top) {
         sounds.buzz()
         hazards.receive(h)
+        trace.mark('took')
       }
     }
   })
@@ -153,9 +176,12 @@ export default function UpdraftGame({
   const matchOver = scoreX >= MATCH_TARGET || scoreO >= MATCH_TARGET
   const heights = isSpectator ? { X: remote.X.best, O: remote.O.best } : { [me]: run.best, [op]: remote[op].best }
   const remaining = liveAt != null ? Math.max(0, Math.ceil((liveAt + ROUND_LIMIT_MS - now) / 1000)) : null
+  // Each seat's face: what they saved when they sat down, else my own.
+  const faceOf = (sym) => game.players?.[sym]?.avatar || (sym === me && !isSpectator ? myAvatar : null)
+  const avatars = { X: faceOf('X'), O: faceOf('O') }
 
   const header = (
-    <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim tracking-wider">
+    <div className="flex items-center justify-between font-pixel text-[10px] text-retro-dim tracking-wider">
       <span className={chaos ? 'text-retro-p2' : undefined}>{UPDRAFT_MODES[mode].label}{remaining != null && isRacing ? ` · ${remaining}s` : ''}</span>
       <span className="tabular-nums">
         <span className="text-retro-p1">{scoreX}</span> – <span className="text-retro-p2">{scoreO}</span>
@@ -165,23 +191,8 @@ export default function UpdraftGame({
   )
 
   const status = (sym) => <SeatStatus seat={sym === me && !isSpectator ? normalizeSeat(run) : remote[sym]} />
-  const hud = (
-    <>
-      {['X', 'O'].map(sym => (
-        <span
-          key={sym}
-          className={cn(
-            'px-1.5 py-1 rounded border bg-retro-deep/70 truncate max-w-[45%]',
-            sym === 'X' ? 'border-retro-p1 text-retro-p1' : 'border-retro-p2 text-retro-p2 mr-5',
-          )}
-        >
-          {sym === mySymbol ? 'YOU' : playerName(game, sym)} {toMetres(heights[sym])}m {status(sym)}
-        </span>
-      ))}
-    </>
-  )
 
-  if (!tower) return <p className="text-center font-pixel text-[9px] text-retro-dim">GET READY…</p>
+  if (!tower) return <p className="text-center font-pixel text-[10px] text-retro-dim">GET READY…</p>
 
   const liveMsg = game.status === 'finished'
     ? `Round over. ${game.winner === 'draw' ? 'Draw.' : `${playerName(game, game.winner)} wins the round.`}`
@@ -198,20 +209,46 @@ export default function UpdraftGame({
   const ghostSide = isSpectator ? (view.lead === 'X' ? 'O' : 'X') : op
   const ghostSeat = remote[ghostSide]
 
+  // The top strip: my height, and how I stand against the rival.
+  const rivalName = playerName(game, op).slice(0, 8)
+  const gap = gapToRival(heights[me], heights[op])
+  const rivalSeat = remote[op]
+  const gapLabel = rivalSeat.top ? `${rivalName} SUMMITED` : rivalSeat.dead ? `${rivalName} FELL AT ${toMetres(rivalSeat.best)}m` : gapText(gap, rivalName)
+  const hud = (
+    <UpdraftHud tilt={controls.tilt} setTilt={controls.setTilt} onLeave={staged ? () => setStaged(false) : null}
+      sub={(
+        <>
+          <HudPill className={chaos ? 'text-retro-p2' : 'text-retro-dim'}>{UPDRAFT_MODES[mode].label}{remaining != null && isRacing ? ` · ${remaining}s` : ''}</HudPill>
+          {isRacing && !opponentOnline && <HudPill className="text-retro-dim">OPPONENT OFFLINE</HudPill>}
+        </>
+      )}
+    >
+      <HudPill className={me === 'X' ? 'text-retro-p1' : 'text-retro-p2'}><span className="text-2xl">{toMetres(heights[me])}</span> m</HudPill>
+      {isRacing && (
+        <HudPill className={cn(gap.ahead === 'them' ? (op === 'X' ? 'text-retro-p1' : 'text-retro-p2') : gap.ahead === 'me' ? 'text-retro-win' : 'text-retro-dim')}>
+          {gapLabel}
+        </HudPill>
+      )}
+    </UpdraftHud>
+  )
+
   const preRace = (() => {
     if (game.status !== 'playing') return null
     if (isCountdown) {
       const secs = Math.max(1, Math.ceil((liveAt - now) / 1000))
       return (
         <>
-          <p className="font-pixel text-4xl text-retro-cta text-glow-cta tabular-nums" aria-live="assertive">{secs}</p>
-          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">SAME TOWER FOR BOTH<br />FIRST TO {toMetres(SUMMIT_Y)}m WINS</p>
+          <p className="font-pixel text-5xl text-retro-cta text-glow-cta tabular-nums" aria-live="assertive">{secs}</p>
+          <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">SAME TOWER FOR BOTH<br />FIRST TO {toMetres(SUMMIT_Y)}m WINS</p>
+          <p className="font-pixel text-[10px] text-retro-dim tabular-nums">
+            <span className="text-retro-p1">{scoreX}</span> – <span className="text-retro-p2">{scoreO}</span> · FIRST TO {MATCH_TARGET}
+          </p>
         </>
       )
     }
     if (startedAt == null) {
       return (
-        <p className="font-pixel text-[9px] text-retro-dim leading-relaxed">
+        <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
           {!bothSeated ? 'WAITING FOR A RIVAL' : !opponentOnline && !isSpectator ? 'WAITING FOR OPPONENT TO RECONNECT' : 'GET READY…'}
         </p>
       )
@@ -220,7 +257,7 @@ export default function UpdraftGame({
       return (
         <>
           <p className="font-pixel text-sm text-retro-danger">YOU FELL AT {toMetres(run.best)}m</p>
-          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
+          <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
             {playerName(game, op)} MUST PASS {toMetres(run.best)}m TO WIN
           </p>
         </>
@@ -229,7 +266,8 @@ export default function UpdraftGame({
     return null
   })()
 
-  const arena = (
+  // The arena for a given stage box (null: inline in the room column).
+  const arenaFor = (size) => (
     <UpdraftArena
       ref={arenaRef}
       tower={tower}
@@ -237,7 +275,7 @@ export default function UpdraftGame({
       mySide={viewSide}
       ghost={{ x: Number(u[ghostSide]?.x) || 0, y: ghostSeat.y, dead: ghostSeat.dead }}
       ghostSide={ghostSide}
-      ghostTag={`${playerName(game, ghostSide)} ${toMetres(ghostSeat.y)}m`}
+      ghostTag={`${playerName(game, ghostSide)}`}
       goal={SUMMIT_Y}
       pickups={isSpectator ? [] : versusPickups(chaos)}
       fog={!isSpectator && hazards.fog}
@@ -245,12 +283,19 @@ export default function UpdraftGame({
       marked={isSpectator ? [] : hazards.marked}
       banner={isSpectator ? null : hazards.banner}
       notice={isSpectator ? null : notice}
-      rail={[{ side: 'X', y: heights.X }, { side: 'O', y: heights.O }]}
-      lead={isSpectator ? null : toMetres(heights[me]) - toMetres(heights[op])}
-      hud={hud}
+      avatars={avatars}
+      size={size}
+      rail={[{ side: 'X', y: heights.X, dead: remote.X.dead && !remote.X.top && (isSpectator || me !== 'X') }, { side: 'O', y: heights.O, dead: remote.O.dead && !remote.O.top && (isSpectator || me !== 'O') }]}
+      hud={isSpectator ? null : hud}
+      foot={isSpectator ? null : (
+        <>
+          <div className="px-6 pb-1"><TouchCoachmark gameKey="updraft" gesture="drag" text="DRAG ANYWHERE TO STEER" active={isCountdown} /></div>
+          <ThumbRail x={run.x} />
+        </>
+      )}
       label={`Updraft race. ${liveMsg}`}
       overlay={preRace && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-deep/80 text-center px-6">{preRace}</div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-deep/60 text-center px-6 pointer-events-none">{preRace}</div>
       )}
     />
   )
@@ -262,20 +307,34 @@ export default function UpdraftGame({
         ? `${w === mySymbol ? 'YOU' : playerName(game, w)} REACHED THE SUMMIT`
         : `${w === mySymbol ? 'YOU' : playerName(game, w)} CLIMBED HIGHER`)
       : 'SAME HEIGHT — DRAW'
+    const time = !isSpectator ? summitTime(run) : null
     return (
       <div className="space-y-3 max-w-sm mx-auto">
         {header}
-        <p className="text-center font-pixel text-[9px] text-retro-cta">{why}</p>
-        {!isSpectator && (
-          <p className="text-center font-pixel text-[8px] text-retro-dim tabular-nums">YOUR CLIMB · {climbStats(run, { sent, took: hazards.took })}</p>
-        )}
-        <div className="grid grid-cols-2 gap-2 font-pixel text-[9px] text-center">
+        <p className="text-center font-pixel text-[10px] text-retro-cta">{why}{time ? ` · ${time}` : ''}</p>
+        <div className="grid grid-cols-2 gap-2 font-pixel text-[10px] text-center">
           {['X', 'O'].map(sym => (
             <div key={sym} className={cn('rounded border-2 p-2 bg-retro-card', sym === 'X' ? 'border-retro-p1 text-retro-p1' : 'border-retro-p2 text-retro-p2')}>
               {sym === mySymbol ? 'YOU' : playerName(game, sym)}<br />{toMetres(heights[sym])}m {status(sym)}
             </div>
           ))}
         </div>
+        {!isSpectator && (
+          <>
+            <UpdraftClimbChart
+              samples={trace.samples}
+              marks={trace.marks}
+              goal={SUMMIT_Y}
+              meSide={me}
+              meLabel="YOU"
+              rivalLabel={rivalName}
+              run={run}
+              tally={{ sent, took: hazards.took }}
+              summit={run.top}
+            />
+            <p className="sr-only">YOUR CLIMB · {climbStats(run, { sent, took: hazards.took })}</p>
+          </>
+        )}
         {mySymbol === 'X' && !matchOver && (
           <div className="flex justify-center gap-2" role="group" aria-label="Next round mode">
             {Object.values(UPDRAFT_MODES).map(m => (
@@ -286,7 +345,7 @@ export default function UpdraftGame({
                 onClick={() => m.id !== mode && setMode(m.id)}
                 aria-pressed={mode === m.id}
                 className={cn(
-                  'min-h-11 px-3 rounded border-2 font-pixel text-[8px] disabled:opacity-50',
+                  'min-h-11 px-3 rounded border-2 font-pixel text-[10px] disabled:opacity-50',
                   mode === m.id ? 'border-retro-cta text-retro-cta bg-retro-tint-cta' : 'border-retro-border text-retro-dim',
                 )}
               >{modeBusy && mode !== m.id ? 'SETTING…' : `NEXT: ${m.label}`}</button>
@@ -314,8 +373,8 @@ export default function UpdraftGame({
     return (
       <div className="space-y-3 max-w-sm mx-auto">
         {header}
-        <p className="text-center font-pixel text-[8px] text-retro-dim">SPECTATING — FOLLOWING THE LEADER</p>
-        {arena}
+        <p className="text-center font-pixel text-[10px] text-retro-dim">SPECTATING — FOLLOWING THE LEADER</p>
+        <div ref={touchRef} className="touch-none">{arenaFor(null)}</div>
         <p className="sr-only" aria-live="polite">{liveMsg}</p>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
@@ -324,15 +383,12 @@ export default function UpdraftGame({
 
   return (
     <div className="space-y-2 max-w-sm mx-auto">
-      {header}
-      <div ref={touchRef} className="space-y-2 touch-none">
-        {arena}
-        <TouchCoachmark gameKey="updraft" gesture="drag" text="DRAG LEFT/RIGHT TO STEER" active={isCountdown} />
-        <ThumbBand tilt={controls.tilt} setTilt={controls.setTilt} />
-      </div>
+      {!staged && header}
+      <UpdraftStage staged={staged} touchRef={touchRef} label="UPDRAFT">{arenaFor}</UpdraftStage>
+      {!staged && <EnterStageButton onClick={() => setStaged(true)} />}
       <p className="sr-only" aria-live="polite">{liveMsg}</p>
-      {isRacing && !opponentOnline && (
-        <p className="text-center font-pixel text-[8px] text-retro-dim">OPPONENT OFFLINE — KEEP CLIMBING</p>
+      {isRacing && !opponentOnline && !staged && (
+        <p className="text-center font-pixel text-[10px] text-retro-dim">OPPONENT OFFLINE — KEEP CLIMBING</p>
       )}
     </div>
   )

@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { push, ref, runTransaction } from 'firebase/database'
 import { toast } from 'sonner'
 import { db } from '../lib/firebase'
 import { CoopEndActions, CoopTeamBar } from '../components/CoopShell'
 import GameSwitcher from '../components/GameSwitcher'
 import UpdraftArena from '../components/UpdraftArena'
-import { ThumbBand } from '../components/UpdraftControls'
+import { HudPill, ThumbRail, UpdraftHud } from '../components/UpdraftControls'
 import UpdraftIcon from '../components/UpdraftIcons'
+import UpdraftStage, { EnterStageButton } from '../components/UpdraftStage'
 import TouchCoachmark from '../components/TouchCoachmark'
+import useOwnAvatar from '../hooks/useOwnAvatar'
 import useServerClock from '../hooks/useServerClock'
 import { useUpdraftControls } from '../hooks/useUpdraftControls'
 import { settleRoom, useHiddenFall, useRoomWriter, useSeatSync, useUpdraftAutoStart } from '../hooks/useUpdraftRoom'
@@ -26,7 +28,8 @@ import { sounds } from '../lib/sounds'
 // `updraft/keys/{seat}`; lives and the run's end are whole-room transactions
 // (a clear credits both seats, the co-op scoring precedent). A grabbed BOOST
 // rides `updraft/haz/{partner}` and turns the partner's next landing into a
-// spring launch.
+// spring launch. Like the versus race, the climb takes the whole screen
+// (UpdraftStage), with both faces on the 0–300 m side rail.
 
 const COOP_PICKUPS = ['boost']
 
@@ -70,6 +73,8 @@ export default function UpdraftCoopGame({
 
   const respawnTimer = useRef(null)
   const [notice, showNotice] = useNotice()
+  const [staged, setStaged] = useState(true)
+  const myAvatar = useOwnAvatar()
   const climber = useUpdraftRun({
     tower,
     active: isRacing && !isSpectator,
@@ -184,7 +189,7 @@ export default function UpdraftCoopGame({
     }, 'RUN RESULT FAILED — CHECK CONNECTION')
   }, [outcome, isSpectator, game.status, gameId, seed])
 
-  if (!tower) return <p className="text-center font-pixel text-[9px] text-retro-dim">GET READY…</p>
+  if (!tower) return <p className="text-center font-pixel text-[10px] text-retro-dim">GET READY…</p>
 
   const heights = isSpectator ? { X: remote.X.best, O: remote.O.best } : { [me]: run.best, [op]: remote[op].best }
   const remaining = liveAt != null ? Math.max(0, Math.ceil((liveAt + COOP_LIMIT_MS - now) / 1000)) : null
@@ -217,8 +222,8 @@ export default function UpdraftCoopGame({
       const secs = Math.max(1, Math.ceil((liveAt - now) / 1000))
       return (
         <>
-          <p className="font-pixel text-4xl text-retro-cta text-glow-cta tabular-nums" aria-live="assertive">{secs}</p>
-          <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
+          <p className="font-pixel text-5xl text-retro-cta text-glow-cta tabular-nums" aria-live="assertive">{secs}</p>
+          <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
             BOTH REACH {toMetres(COOP_GOAL_Y)}m<br />YOUR <UpdraftIcon name="key" className="text-retro-win" /> KEYS OPEN {partnerName}&apos;S GATES
           </p>
         </>
@@ -226,19 +231,34 @@ export default function UpdraftCoopGame({
     }
     if (startedAt == null) {
       return (
-        <p className="font-pixel text-[9px] text-retro-dim leading-relaxed">
+        <p className="font-pixel text-[10px] text-retro-dim leading-relaxed">
           {!bothSeated ? 'WAITING FOR A PARTNER' : !opponentOnline && !isSpectator ? 'WAITING FOR PARTNER TO RECONNECT' : 'GET READY…'}
         </p>
       )
     }
     if (!isSpectator && run.top && !remote[op].top) {
-      return <p className="font-pixel text-[9px] text-retro-win leading-relaxed">YOU MADE IT!<br />CHEER {partnerName} ON</p>
+      return <p className="font-pixel text-[10px] text-retro-win leading-relaxed">YOU MADE IT!<br />CHEER {partnerName} ON</p>
     }
-    if (!isSpectator && run.dead) return <p className="font-pixel text-[9px] text-retro-danger">FELL — BACK TO YOUR LAST GATE</p>
+    if (!isSpectator && run.dead) return <p className="font-pixel text-[10px] text-retro-danger">FELL — BACK TO YOUR LAST GATE</p>
     return null
   })()
 
-  const arena = (
+  const faceOf = (sym) => game.players?.[sym]?.avatar || (sym === me && !isSpectator ? myAvatar : null)
+  const avatars = { X: faceOf('X'), O: faceOf('O') }
+  const hud = (
+    <UpdraftHud tilt={controls.tilt} setTilt={controls.setTilt} onLeave={staged ? () => setStaged(false) : null}>
+      <HudPill className="flex gap-0.5 border-retro-cta text-[10px]" aria-label={`${lives} lives`}>
+        {Array.from({ length: COOP_LIVES }, (_, i) => (
+          <UpdraftIcon key={i} name="heart" className={i < lives ? 'text-retro-danger' : 'text-retro-border'} />
+        ))}
+      </HudPill>
+      <HudPill className="text-retro-text">{clock}</HudPill>
+      {isRacing && !opponentOnline && <HudPill className="text-retro-dim">PARTNER OFFLINE</HudPill>}
+    </UpdraftHud>
+  )
+
+  // The arena for a given stage box (null: inline in the room column).
+  const arenaFor = (size) => (
     <UpdraftArena
       ref={arenaRef}
       tower={tower}
@@ -246,26 +266,25 @@ export default function UpdraftCoopGame({
       mySide={viewSide}
       ghost={{ x: Number(u[otherSide]?.x) || 0, y: remote[otherSide].y, dead: remote[otherSide].dead }}
       ghostSide={otherSide}
-      ghostTag={`${playerName(game, otherSide)} ${toMetres(remote[otherSide].y)}m`}
+      ghostTag={playerName(game, otherSide)}
       goal={COOP_GOAL_Y}
       gates={gates}
       keysOn={!isSpectator}
       pickups={isSpectator ? [] : COOP_PICKUPS}
       notice={isSpectator ? null : notice}
+      avatars={avatars}
+      size={size}
       rail={[{ side: 'X', y: heights.X }, { side: 'O', y: heights.O }]}
-      hud={(
+      hud={isSpectator ? null : hud}
+      foot={isSpectator ? null : (
         <>
-          <span className="flex gap-0.5 px-1.5 py-1 rounded border border-retro-cta bg-retro-deep/70 text-[10px]" aria-label={`${lives} lives`}>
-            {Array.from({ length: COOP_LIVES }, (_, i) => (
-              <UpdraftIcon key={i} name="heart" className={i < lives ? 'text-retro-danger' : 'text-retro-border'} />
-            ))}
-          </span>
-          <span className="px-1.5 py-1 rounded border border-retro-border text-retro-text bg-retro-deep/70 tabular-nums mr-5">{clock}</span>
+          <div className="px-6 pb-1"><TouchCoachmark gameKey="updraft" gesture="drag" text="DRAG ANYWHERE TO STEER" active={isCountdown} /></div>
+          <ThumbRail x={run.x} />
         </>
       )}
       label={`Updraft co-op. ${liveMsg}`}
       overlay={preRace && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-deep/80 text-center px-6">{preRace}</div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-retro-deep/60 text-center px-6 pointer-events-none">{preRace}</div>
       )}
     />
   )
@@ -285,7 +304,7 @@ export default function UpdraftCoopGame({
     return (
       <div className="space-y-3 max-w-sm mx-auto">
         {teamBar}
-        <p className="text-center font-pixel text-[9px] text-retro-cta leading-relaxed">
+        <p className="text-center font-pixel text-[10px] text-retro-cta leading-relaxed">
           {u.result === 'cleared' ? 'BOTH OF YOU REACHED THE FLAG!' : lives <= 0 ? 'OUT OF LIVES' : 'TIME RAN OUT'}
           <br />X {toMetres(heights.X)}m · O {toMetres(heights.O)}m
         </p>
@@ -301,7 +320,7 @@ export default function UpdraftCoopGame({
     return (
       <div className="space-y-3 max-w-sm mx-auto">
         {teamBar}
-        {arena}
+        <div ref={touchRef} className="touch-none">{arenaFor(null)}</div>
         <p className="sr-only" aria-live="polite">{liveMsg}</p>
         {!proposal && <GameSwitcher currentType={game.gameType} onSwitch={onSwitchGame} />}
       </div>
@@ -310,15 +329,12 @@ export default function UpdraftCoopGame({
 
   return (
     <div className="space-y-2 max-w-sm mx-auto">
-      {teamBar}
-      <div ref={touchRef} className="space-y-2 touch-none">
-        {arena}
-        <TouchCoachmark gameKey="updraft" gesture="drag" text="DRAG LEFT/RIGHT TO STEER" active={isCountdown} />
-        <ThumbBand tilt={controls.tilt} setTilt={controls.setTilt} />
-      </div>
+      {!staged && teamBar}
+      <UpdraftStage staged={staged} touchRef={touchRef} label="UPDRAFT CO-OP">{arenaFor}</UpdraftStage>
+      {!staged && <EnterStageButton onClick={() => setStaged(true)} />}
       <p className="sr-only" aria-live="polite">{liveMsg}</p>
-      {isRacing && !opponentOnline && (
-        <p className="text-center font-pixel text-[8px] text-retro-dim">PARTNER OFFLINE — THEIR GATES WAIT FOR THEM</p>
+      {isRacing && !opponentOnline && !staged && (
+        <p className="text-center font-pixel text-[10px] text-retro-dim">PARTNER OFFLINE — THEIR GATES WAIT FOR THEM</p>
       )}
     </div>
   )

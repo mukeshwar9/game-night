@@ -24,10 +24,13 @@ export function canFocus(cfg, { custom = false, status = 'playing' } = {}) {
  * Does this custom page offer focus mode? Real-time arenas and the visual
  * tables (`focusPage: true` in the registry) do; text and party-prompt games
  * have no stage worth a full screen.
- * @param {{ custom?: boolean, realtime?: boolean, focusPage?: boolean } | null | undefined} cfg
+ * A page that runs its own full-height stage (`ownStage: true`, UPDRAFT's
+ * UpdraftStage) opts out: a stage inside FocusFrame's scaled box would lose
+ * its viewport.
+ * @param {{ custom?: boolean, realtime?: boolean, focusPage?: boolean, ownStage?: boolean } | null | undefined} cfg
  */
 export function canFocusPage(cfg) {
-  return !!cfg?.custom && (!!cfg.realtime || !!cfg.focusPage)
+  return !!cfg?.custom && !cfg.ownStage && (!!cfg.realtime || !!cfg.focusPage)
 }
 
 /**
