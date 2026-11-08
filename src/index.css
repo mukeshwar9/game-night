@@ -2593,6 +2593,30 @@ html[data-portalletters="on"] .ar-portal-letter, .ar-portal-3 .ar-portal-letter 
   50%      { opacity: 0.6; }
 }
 .arcade-blink { animation: arcade-blink 1.6s ease-in-out infinite; }
+/* SKETCH stage: points flying to a face, a guess bubble rising over the
+   drawing, the check landing on a face, a hint letter dropping into its blank. */
+@keyframes sketch-pts-fly {
+  0%   { transform: translateY(8px); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(-18px); opacity: 0; }
+}
+@keyframes sketch-bubble-in {
+  0%   { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes sketch-check-pop {
+  0%   { transform: scale(0); }
+  70%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@keyframes sketch-hint-drop {
+  0%   { transform: translateY(-10px) scale(1.3); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.sketch-pts-fly   { animation: sketch-pts-fly 1.4s steps(10, end) both; }
+.sketch-bubble-in { animation: sketch-bubble-in var(--dur-base) var(--ease-enter) both; }
+.sketch-check-pop { animation: sketch-check-pop var(--dur-base) steps(4, end) both; }
+.sketch-hint-drop { animation: sketch-hint-drop var(--dur-page) steps(5, end) both; }
 @keyframes turn-dot-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50%      { transform: scale(1.5); opacity: .55; }

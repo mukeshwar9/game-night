@@ -6,7 +6,7 @@ import useBusy from '../hooks/useBusy'
 // REPORT for a player's profile (name, avatar) or drawing. It sends the same
 // feedback/ item as a chat report, so it lands in the admin /notes inbox with
 // the moderation commitment in the terms. `context` is 'profile' | 'drawing'.
-export default function ReportButton({ context, gameId, targetUid, targetName, text, label = 'REPORT', className = '' }) {
+export default function ReportButton({ context, gameId, targetUid, targetName, text, label = 'REPORT', className = '', onDone }) {
   const { profile } = useAuth()
   const [reporting, runReport] = useBusy()
 
@@ -18,6 +18,7 @@ export default function ReportButton({ context, gameId, targetUid, targetName, t
     }
     if (!res.ok) throw new Error('invalid')
     toast.success('REPORTED — THANKS. WE REVIEW REPORTS WITHIN 24 HOURS.')
+    onDone?.()
   }, () => toast.error("COULDN'T SEND THAT REPORT — TRY AGAIN."))
 
   return (

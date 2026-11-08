@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { ref, update, push, runTransaction, serverTimestamp } from 'firebase/database'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ref, update, push, set, runTransaction, serverTimestamp } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { commit, verifyReveal } from '../lib/commit'
 import {
@@ -27,7 +27,19 @@ import {
   isBannedGuess,
   tierMultiplier,
   entryForWord,
+  normalizeHints,
+  nextHintToPublish,
 } from '../lib/sketchLogic'
+import {
+  canvasSide,
+  isKeyboardUp,
+  faceTiles,
+  gotItLabel,
+  galleryEntry,
+  addToGallery,
+  galleryFor,
+  podium,
+} from '../lib/sketchStageLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
 import { scaledMs, timersOff } from '../lib/timerScale'
@@ -36,6 +48,8 @@ import useServerClock, { getServerNow } from '../hooks/useServerClock'
 import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
 import ReportButton from '../components/ReportButton'
+import BottomSheet from '../components/BottomSheet'
+import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, Gallery } from '../components/SketchStage'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
 import RoundEndPanel from '../components/RoundEndPanel'
@@ -72,6 +86,8 @@ function normalizeRound(raw) {
     drawMs: raw.drawMs ?? null,
     chat: raw.chat ?? {},
     correct: raw.correct ?? {},
+    // letter hints the artist's phone published (see sketchLogic 'Letter hints')
+    hints: normalizeHints(raw.hints, raw.wordPattern ?? ''),
     scored: !!raw.scored,
   }
 }
@@ -81,15 +97,6 @@ function normalizeRound(raw) {
 function withLists(r) {
   const n = normalizeRound(r)
   return { ...r, order: n.order, used: n.used, options: n.options }
-}
-
-// Public wordPattern string (e.g. "5" or "3 3") -> underscore blanks.
-function renderBlanks(pattern) {
-  return (pattern || '')
-    .split(' ')
-    .filter(Boolean)
-    .map(n => Array(Number(n)).fill('_').join(' '))
-    .join('   ')
 }
 
 const TIER_LABELS = { 1: 'EASY', 2: 'MEDIUM', 3: 'HARD' }
@@ -105,49 +112,59 @@ function isCoarsePointer() {
   try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
 }
 
-// ---------------------------------------------------------------------------
-// Scoreboard — every seated player, sorted by score desc.
-// ---------------------------------------------------------------------------
-function Scoreboard({ players, scores, mySeat, highlight }) {
-  const rows = seatOrder(players || {})
-    .map(id => ({ id, name: players?.[id]?.name || '???', score: scores?.[id] || 0 }))
-    .sort((a, b) => b.score - a.score)
-
-  return (
-    <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
-      <p className="font-pixel text-[8px] text-retro-dim tracking-widest text-center">SCORES</p>
-      {rows.map(p => (
-        <div key={p.id} className="flex items-center justify-between font-pixel text-[9px]">
-          <span className={cn('truncate', p.id === mySeat ? 'text-retro-cta' : 'text-retro-text')}>
-            {p.name.toUpperCase()}{p.id === mySeat ? ' (YOU)' : ''}
-          </span>
-          <span className={cn('tabular-nums', highlight?.[p.id] ? 'text-retro-win text-glow-win' : 'text-retro-dim')}>
-            {p.score}{highlight?.[p.id] ? ` +${highlight[p.id]}` : ''}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
+// The drawing column's size: as wide as the column, but short enough that the
+// faces, the word and the dock (or the guess box) stay on one screen, also with
+// the keyboard up. See canvasSide() in sketchStageLogic.js.
+function useStageSide(role) {
+  const stageRef = useRef(null)
+  const baselineRef = useRef(0)
+  const keyboardUpRef = useRef(false)
+  const [side, setSide] = useState(null)
+  useLayoutEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return undefined
+    const measure = () => {
+      const vv = window.visualViewport
+      const viewportH = vv?.height ?? window.innerHeight
+      const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '')
+      if (!typing || viewportH > baselineRef.current) baselineRef.current = viewportH
+      const keyboardUp = isKeyboardUp(baselineRef.current, viewportH)
+      // The moment the keyboard opens, bring the stage to the top of what is
+      // left, so faces, blanks, drawing and the guess box share one screen.
+      if (keyboardUp && !keyboardUpRef.current && typing) stage.scrollIntoView({ block: 'start' })
+      keyboardUpRef.current = keyboardUp
+      const next = canvasSide({
+        availW: stage.clientWidth,
+        viewportH,
+        stageTop: stage.getBoundingClientRect().top + window.scrollY,
+        keyboardUp,
+        role,
+      })
+      setSide(s => (s === next ? s : next))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    window.visualViewport?.addEventListener('resize', measure)
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    ro?.observe(stage)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.visualViewport?.removeEventListener('resize', measure)
+      ro?.disconnect()
+    }
+  }, [role])
+  return [stageRef, side]
 }
 
-// ---------------------------------------------------------------------------
-// CountdownBar — thin retro progress bar + seconds-remaining readout.
-// ---------------------------------------------------------------------------
-function CountdownBar({ endsAt, totalMs, now }) {
-  if (endsAt == null) {
-    return <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">NO TIMER</p>
-  }
-  const remaining = Math.max(0, endsAt - now)
-  const pct = totalMs > 0 ? Math.max(0, Math.min(100, (remaining / totalMs) * 100)) : 0
-  const seconds = Math.ceil(remaining / 1000)
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-retro-surface border border-retro-border rounded overflow-hidden">
-        <div className="h-full bg-retro-cta transition-[width] duration-200" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="font-pixel text-[9px] text-retro-cta w-5 text-right tabular-nums">{seconds}</span>
-    </div>
-  )
+const GALLERY_STORE_KEY = gameId => `sketch-gallery-${gameId}`
+
+// The gallery stays on this phone (sessionStorage, so a reload keeps it):
+// drawings are rebuilt from each round's strokes at its reveal, never sent.
+function loadGallery(gameId) {
+  try { return JSON.parse(sessionStorage.getItem(GALLERY_STORE_KEY(gameId)) || 'null') } catch { return null }
+}
+function saveGallery(gameId, store) {
+  try { sessionStorage.setItem(GALLERY_STORE_KEY(gameId), JSON.stringify(store)) } catch { /* quota or private mode: keep it in memory */ }
 }
 
 export default function SketchGame({
@@ -194,6 +211,18 @@ export default function SketchGame({
   // Private guess feedback ("CLOSE!"), keyed by round so a new round starts blank.
   const [guessFb, setGuessFb] = useState({ key: null, message: '', tone: 'info', id: 0 })
   const [coarsePointer] = useState(isCoarsePointer)
+  // Stage screen state: hints, the artist menu, the guess list, the gallery.
+  const hints = round?.hints ?? []
+  const stageRole = isArtist ? 'artist' : isPlayer && !haveIGuessedCorrectly ? 'guesser' : 'watcher'
+  const [stageRef, stageSide] = useStageSide(stageRole)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [hintFlash, setHintFlash] = useState(null)       // n of the newest hint, shown for a moment
+  const [showAllGuesses, setShowAllGuesses] = useState(false)
+  const [galleryStore, setGalleryStore] = useState(() => loadGallery(gameId))
+  const drawingRef = useRef({ strokes: {}, fills: {} })   // the canvas's latest content (gallery source)
+  const galleryAddedRef = useRef(null)                    // round id already saved to the gallery
+  const hintPublishRef = useRef(null)                     // `${roundKey}:${n}` this phone already sent
+  const prevHintCountRef = useRef(hints.length)
 
   // House convention: every button firing an async Firebase write / navigator.share
   // goes through useBusy — synchronous re-entry guard + disabled/gerund UI state.
@@ -429,6 +458,10 @@ export default function SketchGame({
       pickedRef.current = false
       prevCorrectKeysRef.current = new Set()
       artistOfflineSinceStoredRef.current = null
+      hintPublishRef.current = null
+      prevHintCountRef.current = 0
+      setHintFlash(null)
+      setShowAllGuesses(false)
       prevRoundKeyRef.current = roundKey
     }
   }, [roundKey])
@@ -480,6 +513,59 @@ export default function SketchGame({
       prevStatusRef.current = game.status
     }
   }, [game.status]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Artist: publish a letter hint when its moment comes -----------------
+  // Only this phone knows the word for certain (the room holds a commitment),
+  // so only it can write `round/hints/{n}`; the rules refuse anyone else. An
+  // offline artist publishes nothing and the round simply has no hint. The
+  // letters are deterministic from the commitment, so a reload republishes the
+  // same ones.
+  useEffect(() => {
+    if (!isArtist || !round || round.phase !== 'drawing' || !derivedWord || !round.commitment?.hash) return
+    const next = nextHintToPublish({
+      word: derivedWord, seed: hashString(round.commitment.hash), round, published: round.hints, now: nowMs,
+    })
+    if (!next) return
+    const tag = `${roundKey}:${next.n}`
+    if (hintPublishRef.current === tag) return
+    hintPublishRef.current = tag
+    set(ref(db, `games/${gameId}/round/hints/${next.n}`), { i: next.i, c: next.c })
+      .catch(() => { if (hintPublishRef.current === tag) hintPublishRef.current = null })
+  }, [isArtist, round?.phase, round?.hints, round?.commitment?.hash, derivedWord, nowMs, roundKey, gameId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- A new hint lands: a short cue for everyone who is guessing -----------
+  useEffect(() => {
+    if (hints.length > prevHintCountRef.current && round?.phase === 'drawing') {
+      setHintFlash(hints[hints.length - 1].n)
+      if (!isArtist) sounds.hint()
+    }
+    prevHintCountRef.current = hints.length
+  }, [hints.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (hintFlash == null) return undefined
+    const t = setTimeout(() => setHintFlash(null), 3000)
+    return () => clearTimeout(t)
+  }, [hintFlash])
+
+  // ---- Reveal: keep this round's drawing for the end-of-match gallery -------
+  // Built locally from the strokes this phone already holds; nothing is sent.
+  useEffect(() => {
+    if (!round || round.phase !== 'reveal' || !derivedWord) return
+    const id = `${roundKey}:${round.matchSeed}`
+    if (galleryAddedRef.current === id) return
+    const entry = galleryEntry({
+      round,
+      word: derivedWord,
+      tier: entryForWord(SKETCH_WORDS, round.options, derivedWord)?.tier,
+      artistName: players?.[round.artist]?.name,
+      strokes: drawingRef.current.strokes,
+      fills: drawingRef.current.fills,
+    })
+    if (!entry) return
+    galleryAddedRef.current = id
+    setGalleryStore(store => ({ seed: round.matchSeed, entries: addToGallery(galleryFor(store, round.matchSeed), entry) }))
+  }, [round?.phase, derivedWord, roundKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (galleryStore) saveGallery(gameId, galleryStore) }, [galleryStore, gameId])
 
   // ---- Artist: publish options as soon as we enter choosing ----------------
   useEffect(() => { publishOptions() }, [publishOptions])
@@ -566,37 +652,48 @@ export default function SketchGame({
           </div>
         )}
 
-        <div className="space-y-2">
-          <p className="font-pixel text-sm text-retro-p1 text-glow-p1">SKETCH</p>
-          <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
-            One player draws the secret word.<br />Everyone else races to guess it.
-          </p>
-        </div>
+        {!matchOver && (
+          <>
+          <div className="space-y-2">
+            <p className="font-pixel text-sm text-retro-p1 text-glow-p1">SKETCH</p>
+            <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
+              One player draws the secret word.<br />Everyone else races to guess it.
+            </p>
+          </div>
 
-        <div className="bg-retro-surface border border-retro-border rounded p-3 text-left space-y-1">
-          <p className="font-pixel text-[8px] text-retro-dim tracking-widest">HOW SCORING WORKS</p>
-          <p className="font-mono text-[10px] text-retro-text leading-relaxed">
-            2 players: guesser earns 50–100 by speed; artist earns half.<br />
-            3+ players: guessers earn 100, 90, 80… down to 50 by order; artist earns +25 per solve.<br />
-            Harder words pay more: MEDIUM ×{tierMultiplier(2)}, HARD ×{tierMultiplier(3)} for guessers and artist.<br />
-            Draw it, don&apos;t write it: no letters or numbers.
-          </p>
-        </div>
+          <div className="bg-retro-surface border border-retro-border rounded p-3 text-left space-y-1">
+            <p className="font-pixel text-[8px] text-retro-dim tracking-widest">HOW SCORING WORKS</p>
+            <p className="font-mono text-[10px] text-retro-text leading-relaxed">
+              2 players: guesser earns 50–100 by speed; artist earns half.<br />
+              3+ players: guessers earn 100, 90, 80… down to 50 by order; artist earns +25 per solve.<br />
+              Harder words pay more: MEDIUM ×{tierMultiplier(2)}, HARD ×{tierMultiplier(3)} for guessers and artist.<br />
+              Draw it, don&apos;t write it: no letters or numbers.<br />
+              Stuck? The artist&apos;s phone shows a letter at half time and another at three quarters.
+            </p>
+          </div>
+          </>
+        )}
 
-        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAYERS ({playerCount})</p>
-          {order.length === 0 && <p className="font-mono text-[11px] text-retro-dim arcade-blink">WAITING…</p>}
-          {order.map(id => (
-            <div key={id} className="flex items-center justify-between gap-2 font-mono text-[11px]">
-              <span className={cn('flex items-center gap-1.5 truncate', id === mySeat ? 'text-retro-p1' : 'text-retro-text')}>
-                <Avatar id={players[id]?.avatar} size={20} />
-                {(players[id]?.name || '???').toUpperCase()}{id === mySeat ? ' (YOU)' : ''}
-                {players[id]?.online === false && <span className="text-retro-p2 text-[9px]"> ·OFFLINE</span>}
-              </span>
-              {matchOver && <span className="text-retro-dim ml-2">{scores[id] || 0}</span>}
-            </div>
-          ))}
-        </div>
+        {matchOver ? (
+          <>
+            <Podium rows={podium(order, scores)} players={players} mySeat={mySeat} />
+            <Gallery entries={galleryFor(galleryStore, game.round?.matchSeed)} />
+          </>
+        ) : (
+          <div className="bg-retro-card border border-retro-border rounded p-3 space-y-1.5">
+            <p className="font-pixel text-[9px] text-retro-dim tracking-widest">PLAYERS ({playerCount})</p>
+            {order.length === 0 && <p className="font-mono text-[11px] text-retro-dim arcade-blink">WAITING…</p>}
+            {order.map(id => (
+              <div key={id} className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                <span className={cn('flex items-center gap-1.5 truncate', id === mySeat ? 'text-retro-p1' : 'text-retro-text')}>
+                  <Avatar id={players[id]?.avatar} size={24} />
+                  {(players[id]?.name || '???').toUpperCase()}{id === mySeat ? ' (YOU)' : ''}
+                  {players[id]?.online === false && <span className="text-retro-p2 text-[9px]"> ·OFFLINE</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {!enough && !matchOver && (
           <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
@@ -649,7 +746,7 @@ export default function SketchGame({
   }
 
   // -------------------------------------------------------------------------
-  // Active round.
+  // Active round — the stage.
   // -------------------------------------------------------------------------
   const artistName = (players[round.artist]?.name || '???').toUpperCase()
   const totalCycles = cyclesFor(round.order.length)
@@ -676,26 +773,39 @@ export default function SketchGame({
     })
     : null
 
-  return (
-    <div className="space-y-4">
-      <p className="font-pixel text-[8px] text-retro-dim tracking-widest text-center">
-        CYCLE {round.cycle}/{totalCycles} · ARTIST: {isArtist ? 'YOU' : artistName}
-      </p>
+  const tiles = faceTiles({ players, order: round.order, scores: game.scores, round })
+  const correctCount = participantGuesserIds.filter(id => round.correct?.[id]).length
+  const gotIt = gotItLabel(correctCount, participantGuesserIds.length)
+  const canReportArtist = !isArtist && (round.phase === 'drawing' || round.phase === 'reveal')
+  const inPlay = round.phase === 'drawing' || round.phase === 'reveal'
+  const newestHintN = hintFlash
 
-      <Scoreboard
-        players={players}
-        scores={game.scores}
+  return (
+    <div className="space-y-2" ref={stageRef} data-testid="sketch-stage" data-phase={round.phase} data-role={stageRole}>
+      <FaceStrip
+        tiles={tiles}
         mySeat={mySeat}
-        highlight={round.phase === 'reveal' ? revealDeltas : null}
+        deltas={revealDeltas}
+        holdableId={canReportArtist ? round.artist : null}
+        onHold={() => setMenuOpen(true)}
+        onTap={() => toast('HOLD THE ARTIST’S FACE TO REPORT THE DRAWING', { id: 'sketch-hold-tip' })}
       />
 
       {/* ---- CHOOSING PHASE ---- */}
       {round.phase === 'choosing' && (
-        <div className="bg-retro-card border border-retro-border rounded p-4 space-y-3 text-center">
-          <p className="font-pixel text-[9px] text-retro-dim tracking-widest">
-            {isArtist ? 'PICK A WORD' : `${artistName} IS CHOOSING A WORD…`}
-          </p>
-          <CountdownBar endsAt={round.endsAt} totalMs={chooseMs ?? CHOOSE_MS} now={nowMs} />
+        <div className="space-y-3 rounded border border-retro-border bg-retro-card p-3">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1 text-left">
+              <p className="font-pixel text-[9px] tracking-widest text-retro-dim">CYCLE {round.cycle}/{totalCycles}</p>
+              <p className="font-pixel text-[11px] text-retro-text">
+                {isArtist ? 'YOUR TURN TO DRAW' : `${artistName} IS CHOOSING…`}
+              </p>
+              {isArtist && (
+                <p className="mt-0.5 font-mono text-[10px] text-retro-dim">Pick a word. Harder words are worth more for everyone.</p>
+              )}
+            </div>
+            <TimerRing endsAt={round.endsAt} totalMs={chooseMs ?? CHOOSE_MS} now={nowMs} />
+          </div>
           {isArtist ? (
             round.options ? (
               <div className="space-y-2">
@@ -704,13 +814,13 @@ export default function SketchGame({
                     key={idx}
                     onClick={() => { setPickingIdx(idx); runPick(() => handlePickWord(idx)) }}
                     disabled={picking}
-                    className="w-full px-3 py-2.5 font-mono text-[13px] rounded border-2 border-retro-border text-retro-text hover:border-retro-p1 hover:shadow-neon-p1 transition press-card disabled:opacity-50"
+                    className="w-full min-h-11 rounded border-2 border-retro-border px-3 py-2 font-mono text-[13px] text-retro-text transition press-card hover:border-retro-p1 disabled:opacity-50"
                   >
                     {picking && pickingIdx === idx ? 'LOCKING IN…' : (
                       <span className="flex items-center justify-between gap-3">
-                        <span>{(SKETCH_WORDS[idx]?.word || '').toUpperCase()}</span>
-                        <span className="text-[8px] text-retro-dim">
-                          {TIER_LABELS[SKETCH_WORDS[idx]?.tier] || 'WORD'}
+                        <span className="text-left">{(SKETCH_WORDS[idx]?.word || '').toUpperCase()}</span>
+                        <span className="shrink-0 text-right font-pixel text-[8px] text-retro-dim">
+                          {TIER_LABELS[SKETCH_WORDS[idx]?.tier] || 'WORD'} · {wordPattern(SKETCH_WORDS[idx]?.word || '').split(' ').join(' + ')}
                           {multiplierLabel(SKETCH_WORDS[idx]?.tier) && ` ${multiplierLabel(SKETCH_WORDS[idx]?.tier)}`}
                         </span>
                       </span>
@@ -719,7 +829,7 @@ export default function SketchGame({
                 ))}
               </div>
             ) : (
-              <p className="font-pixel text-[9px] text-retro-dim arcade-blink py-4">PICKING WORDS…</p>
+              <p className="py-4 text-center font-pixel text-[9px] text-retro-dim arcade-blink">PICKING WORDS…</p>
             )
           ) : (
             <div className="flex justify-center py-4">
@@ -727,51 +837,92 @@ export default function SketchGame({
             </div>
           )}
           {showChoosingSkip && (
-            <button
-              onClick={() => runSkipChoosing(handleSkipChoosing)}
-              disabled={skippingChoosing}
-              className="px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
-            >
-              {skippingChoosing ? 'SKIPPING…' : 'SKIP ROUND'}
-            </button>
+            <div className="text-center">
+              <button
+                onClick={() => runSkipChoosing(handleSkipChoosing)}
+                disabled={skippingChoosing}
+                className="min-h-11 rounded border border-retro-p2 px-5 py-2 font-pixel text-[9px] text-retro-p2 transition press disabled:opacity-50"
+              >
+                {skippingChoosing ? 'SKIPPING…' : 'SKIP ROUND'}
+              </button>
+            </div>
           )}
         </div>
       )}
 
-      {/* ---- DRAWING PHASE ---- */}
-      {round.phase === 'drawing' && (
-        <div className="space-y-3">
-          <SketchCanvas gameId={gameId} isArtist={isArtist} />
-          {!isArtist && (
-            <div className="flex justify-end">
-              <ReportButton context="drawing" gameId={gameId} targetUid={round.artist} targetName={players[round.artist]?.name} label="REPORT DRAWING" />
+      {/* ---- DRAWING + REVEAL: the word above the drawing, one canvas for both ---- */}
+      {inPlay && (
+        <>
+          <div className="flex items-center gap-2" data-testid="sketch-head">
+            <div className="min-w-0 flex-1 space-y-1 text-left">
+              {round.phase === 'drawing' ? (
+                <>
+                  <p className="truncate font-pixel text-[8px] tracking-wider text-retro-dim">
+                    {haveIGuessedCorrectly
+                      ? `✓ YOU GOT IT · ${gotIt}`
+                      : isArtist
+                        ? `YOU DRAW · ${gotIt}`
+                        : `${artistName} IS DRAWING · CYCLE ${round.cycle}/${totalCycles}`}
+                  </p>
+                  {isArtist ? (
+                    <p className="font-pixel text-sm tracking-widest text-retro-cta text-glow-cta" data-testid="sketch-word">
+                      {derivedWord ? derivedWord.toUpperCase() : '…'}
+                    </p>
+                  ) : (
+                    <Blanks
+                      pattern={round.wordPattern}
+                      hints={hints}
+                      flashN={newestHintN}
+                      solvedWord={haveIGuessedCorrectly ? (derivedWord || '…') : null}
+                    />
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="truncate font-pixel text-[8px] tracking-wider text-retro-dim">
+                    {isArtist ? 'YOU DREW' : `${artistName} DREW`} · {gotIt}
+                  </p>
+                  <p className="font-pixel text-base tracking-widest text-retro-win text-glow-win" data-testid="sketch-word">
+                    {derivedWord ? derivedWord.toUpperCase() : '…'}
+                  </p>
+                  {roundEntry && multiplierLabel(roundEntry.tier) && (
+                    <p className="font-pixel text-[8px] tracking-wider text-retro-dim">
+                      {TIER_LABELS[roundEntry.tier]} WORD · POINTS {multiplierLabel(roundEntry.tier)}
+                    </p>
+                  )}
+                  {!round.scored && <p className="font-pixel text-[9px] text-retro-cta arcade-blink">TALLYING…</p>}
+                </>
+              )}
             </div>
-          )}
-
-          <div className="text-center space-y-1">
-            {haveIGuessedCorrectly ? (
-              <>
-                <p className="font-pixel text-base text-retro-win text-glow-win tracking-widest">
-                  {derivedWord ? derivedWord.toUpperCase() : '…'}
-                </p>
-                <p className="font-pixel text-[9px] text-retro-win arcade-blink">✓ YOU GOT IT — WAITING…</p>
-              </>
-            ) : isArtist ? (
-              <>
-                <p className="font-pixel text-base text-retro-cta text-glow-cta tracking-widest">
-                  {derivedWord ? derivedWord.toUpperCase() : '…'}
-                </p>
-                <p className="font-pixel text-[8px] text-retro-dim tracking-wider">
-                  DRAW IT, DON&apos;T WRITE IT — NO LETTERS OR NUMBERS
-                </p>
-              </>
-            ) : (
-              <p className="font-pixel text-base text-retro-text tracking-[0.3em]">{renderBlanks(round.wordPattern)}</p>
-            )}
+            <TimerRing
+              endsAt={round.endsAt}
+              totalMs={round.phase === 'reveal' ? REVEAL_MS : (round.drawMs ?? DRAW_MS)}
+              now={nowMs}
+            />
           </div>
 
-          <CountdownBar endsAt={round.endsAt} totalMs={round.drawMs ?? DRAW_MS} now={nowMs} />
+          <SketchCanvas
+            gameId={gameId}
+            isArtist={isArtist && round.phase === 'drawing'}
+            side={stageSide}
+            onContent={(strokes, fills) => { drawingRef.current = { strokes, fills } }}
+          >
+            <GuessBubbles entries={chatEntries} players={players} mySeat={mySeat} />
+            {hintFlash != null && !isArtist && (
+              <span
+                role="status"
+                className="sketch-bubble-in pointer-events-none absolute right-1.5 top-1.5 whitespace-nowrap rounded border border-retro-cta bg-retro-card px-2 py-0.5 font-pixel text-[9px] text-retro-cta"
+              >
+                HINT · NEW LETTER
+              </span>
+            )}
+          </SketchCanvas>
+        </>
+      )}
 
+      {/* ---- DRAWING: the guess box, kept just under the drawing ---- */}
+      {round.phase === 'drawing' && (
+        <div className="space-y-2">
           {isPlayer && !isArtist && !haveIGuessedCorrectly && (
             <div className="space-y-1">
               <div className="flex gap-1.5">
@@ -791,12 +942,12 @@ export default function SketchGame({
                   aria-label="Your guess"
                   maxLength={MAX_GUESS_LEN}
                   placeholder="TYPE YOUR GUESS…"
-                  className="flex-1 bg-retro-surface border-2 border-retro-border text-retro-text font-mono text-[12px] rounded px-3 py-2 focus:outline-none focus:border-retro-p1"
+                  className="min-h-11 min-w-0 flex-1 rounded border-2 border-retro-border bg-retro-surface px-3 py-2 font-mono text-[12px] text-retro-text focus:border-retro-p1 focus:outline-none"
                 />
                 <button
                   onClick={() => runGuess(handleSubmitGuess)}
                   disabled={guessing || !guessInput.trim()}
-                  className="px-4 py-2 min-w-[4.5rem] bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press disabled:opacity-40"
+                  className="min-h-11 min-w-[4.5rem] rounded bg-retro-cta px-4 py-2 font-pixel text-[10px] text-retro-bg transition press disabled:opacity-40"
                 >
                   {guessing ? 'GUESSING…' : 'GO'}
                 </button>
@@ -808,39 +959,38 @@ export default function SketchGame({
               />
             </div>
           )}
-
-          {isArtist && (
-            <p className="font-pixel text-[9px] text-retro-dim text-center">
-              {Object.keys(round.correct || {}).length}/{participantGuesserIds.length} GUESSED SO FAR
-            </p>
+          {haveIGuessedCorrectly && (
+            <p className="text-center font-pixel text-[9px] text-retro-win arcade-blink">SHH — OTHERS ARE STILL GUESSING</p>
           )}
 
-          {participantGuesserIds.length > 0 && (
-            <div className="bg-retro-surface border border-retro-border rounded p-2 space-y-1">
-              <p className="font-pixel text-[8px] text-retro-dim tracking-widest">SOLVED PLAYERS</p>
-              <p className="font-mono text-[10px] text-retro-win">
-                {participantGuesserIds.filter(id => round.correct?.[id]).map(id => (players[id]?.name || '???').toUpperCase()).join(' · ') || 'NOBODY YET'}
-              </p>
+          {allChatEntries.length > 0 && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => setShowAllGuesses(v => !v)}
+                aria-expanded={showAllGuesses}
+                className="min-h-11 w-full rounded border border-retro-border font-pixel text-[8px] tracking-widest text-retro-dim transition press"
+              >
+                {showAllGuesses ? 'HIDE' : 'ALL'} GUESSES ({allChatEntries.length})
+              </button>
+              {showAllGuesses && (
+                <div ref={chatRef} className="max-h-40 space-y-1 overflow-y-auto rounded border border-retro-border bg-retro-card p-2">
+                  {chatEntries.map(([key, c]) => (
+                    <p key={key} className="break-words font-mono text-[11px] text-retro-text">
+                      <span className="text-retro-dim">{(players[c.uid]?.name || '???').toUpperCase()}:</span> {c.text}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-
-          <div ref={chatRef} className="max-h-40 overflow-y-auto bg-retro-card border border-retro-border rounded p-2 space-y-1">
-            {chatEntries.length === 0 && (
-              <p className="font-mono text-[10px] text-retro-dim text-center">NO GUESSES YET</p>
-            )}
-            {chatEntries.map(([key, c]) => (
-              <p key={key} className="font-mono text-[11px] text-retro-text break-words">
-                <span className="text-retro-dim">{(players[c.uid]?.name || '???').toUpperCase()}:</span> {c.text}
-              </p>
-            ))}
-          </div>
 
           {showEndRound && (
             <div className="text-center">
               <button
                 onClick={() => runEndRound(() => advanceDrawingToReveal())}
                 disabled={endingRound}
-                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-border text-retro-dim rounded hover:border-retro-p2 hover:text-retro-p2 transition press disabled:opacity-50"
+                className="min-h-11 rounded border border-retro-border px-5 py-2 font-pixel text-[9px] text-retro-dim transition press hover:border-retro-p2 hover:text-retro-p2 disabled:opacity-50"
               >
                 {endingRound ? 'ENDING…' : 'END ROUND'}
               </button>
@@ -848,12 +998,12 @@ export default function SketchGame({
           )}
 
           {showArtistOfflineSkip && (
-            <div className="text-center space-y-2 border border-retro-p2/30 rounded p-3">
+            <div className="space-y-2 rounded border border-retro-p2/30 p-3 text-center">
               <p className="font-pixel text-[9px] text-retro-p2">ARTIST IS OFFLINE</p>
               <button
                 onClick={() => runSkipDrawing(() => advanceDrawingToReveal())}
                 disabled={skippingDrawing}
-                className="min-h-11 px-5 py-2 font-pixel text-[9px] border border-retro-p2 text-retro-p2 rounded hover:shadow-neon-p2 transition press disabled:opacity-50"
+                className="min-h-11 rounded border border-retro-p2 px-5 py-2 font-pixel text-[9px] text-retro-p2 transition press disabled:opacity-50"
               >
                 {skippingDrawing ? 'SKIPPING…' : 'SKIP ROUND'}
               </button>
@@ -862,28 +1012,29 @@ export default function SketchGame({
         </div>
       )}
 
-      {/* ---- REVEAL PHASE ---- */}
-      {round.phase === 'reveal' && (
-        <div className="space-y-3">
-          <SketchCanvas gameId={gameId} isArtist={false} />
-          {round.artist !== mySeat && (
-            <div className="flex justify-end">
-              <ReportButton context="drawing" gameId={gameId} targetUid={round.artist} targetName={players[round.artist]?.name} label="REPORT DRAWING" />
-            </div>
-          )}
-          <p className="font-pixel text-lg text-retro-win text-glow-win text-center tracking-widest">
-            {derivedWord ? derivedWord.toUpperCase() : '…'}
-          </p>
-          {roundEntry && multiplierLabel(roundEntry.tier) && (
-            <p className="font-pixel text-[8px] text-retro-dim text-center tracking-wider">
-              {TIER_LABELS[roundEntry.tier]} WORD · POINTS {multiplierLabel(roundEntry.tier)}
-            </p>
-          )}
-          {!round.scored ? (
-            <p className="font-pixel text-[10px] text-retro-cta text-glow-cta text-center arcade-blink py-2">TALLYING…</p>
-          ) : null}
-          <CountdownBar endsAt={round.endsAt} totalMs={REVEAL_MS} now={nowMs} />
-        </div>
+      {/* The artist's face menu (hold the face): REPORT lives here, not in the stage. */}
+      {menuOpen && (
+        <BottomSheet centered onClose={() => setMenuOpen(false)} ariaLabel="Artist menu">
+          <div className="space-y-3 p-4 text-center">
+            <p className="font-pixel text-[10px] tracking-widest text-retro-dim">{artistName}&apos;S DRAWING</p>
+            <ReportButton
+              context="drawing"
+              gameId={gameId}
+              targetUid={round.artist}
+              targetName={players[round.artist]?.name}
+              label="REPORT DRAWING"
+              className="w-full"
+              onDone={() => setMenuOpen(false)}
+            />
+            <button
+              type="button"
+              onClick={() => setMenuOpen(false)}
+              className="min-h-11 w-full rounded border border-retro-border font-pixel text-[9px] text-retro-dim transition press"
+            >
+              CLOSE
+            </button>
+          </div>
+        </BottomSheet>
       )}
 
       {!proposal && onSwitchGame && <GameSwitcher currentType="sketch" onSwitch={onSwitchGame} />}
