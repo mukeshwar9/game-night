@@ -120,6 +120,7 @@ import { TIER_MULTIPLIERS, cyclesFor } from './sketchLogic'
 import {
   DRAW_CHOICES as SK_DRAWS, DRAW_TIME_CHOICES as SK_DRAW_S, HINT_CHOICES as SK_HINTS, DEFAULT_DRAW_S as SK_DEFAULT_S,
 } from './sketchConfigLogic'
+import { MAX_CUSTOM_WORDS as SK_MAX_WORDS, CHOICES_PER_TURN as SK_CHOICES } from './sketchWordsLogic'
 import { PAIRS_SIZE, PAIRS_TOTAL_PAIRS, PAIRS_QUICK_SIZE, PAIRS_QUICK_CELL_COUNT, PAIRS_CELL_COUNT, pairsClinch } from './pairsLogic'
 import { VB_LIVES } from './verbalMemoryLogic'
 import { NB_CELLS, NB_LIVES, NB_BLOCK, startNBack } from './nBackLogic'
@@ -544,6 +545,8 @@ const RULE_NUMBERS = {
       // MATCH SETUP: draws each 1–3, draw time 45–120 s (75 default), letter hints 0–2
       [1, SK_DRAWS[0]], [3, SK_DRAWS.at(-1)], [45, SK_DRAW_S[0]], [120, SK_DRAW_S.at(-1)], [75, SK_DEFAULT_S],
       [0, SK_HINTS[0]], [2, SK_HINTS.at(-1)],
+      // CUSTOM WORDS: up to 100, one of the 3 options in MIX, ×1
+      [100, SK_MAX_WORDS], [3, SK_CHOICES], [1, TIER_MULTIPLIERS[1]],
     ],
   }),
   pairs: () => ({

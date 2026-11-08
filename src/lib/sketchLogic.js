@@ -8,6 +8,8 @@
 //     cycles:      1 | 2 | 3,            // match setup snapshot from START (sketchConfigLogic);
 //     drawBase:    ms,                   //   absent on rounds from before match setup, which
 //     hintCount:   0 | 1 | 2,            //   fall back to cyclesFor / DRAW_MS / MAX_HINTS
+//     custom:      { by, mode, list } | absent, // the host's custom words, snapshot from START
+//                                       //   (sketchWordsLogic); their indices follow the deck
 //     used:        [number, ...],        // deck indices already offered this match (any tier)
 //     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
@@ -70,29 +72,47 @@ export function tierMultiplier(tier) {
 }
 
 // ---- normalize(str) -> string -----------------------------------------------
-// lowercase, trim, collapse internal whitespace to single spaces, then STRIP
-// (delete, not replace-with-space) any character that isn't a Unicode letter,
-// digit, or space — so "Writer's Block" -> "writers block" (apostrophe just
-// disappears, doesn't fracture the word into extra tokens).
+// NFC, lowercase, trim, collapse internal whitespace to single spaces, then
+// STRIP (delete, not replace-with-space) any character that isn't a Unicode
+// letter, combining mark, digit, or space — so "Writer's Block" -> "writers
+// block" (apostrophe just disappears, doesn't fracture the word into extra
+// tokens). Marks stay: in many scripts a vowel sign tells two words apart.
 export function normalize(str) {
   return String(str ?? '')
+    .normalize('NFC')
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')
-    .replace(/[^\p{L}\p{N} ]/gu, '') // strip punctuation, KEEP spaces already there
+    .replace(/[^\p{L}\p{M}\p{N} ]/gu, '') // strip punctuation, KEEP spaces already there
+}
+
+// ---- cells(text) -> string[] -------------------------------------------------
+// One blank per character as a reader sees it: a letter and the combining
+// marks that follow it ("é" written as e + accent, a Devanagari consonant and
+// its vowel sign) share one cell. Plain code points otherwise, so ASCII words
+// count exactly as before.
+const isMark = ch => /\p{M}/u.test(ch)
+export function cells(text) {
+  const out = []
+  for (const ch of String(text ?? '')) {
+    if (out.length && isMark(ch)) out[out.length - 1] += ch
+    else out.push(ch)
+  }
+  return out
 }
 
 // ---- wordPattern(word) -> string --------------------------------------------
 // Space-separated token lengths of the RAW word (whitespace-split, no
-// punctuation stripping): "hot dog" -> "3 3", "sunglasses" -> "10",
-// "writer's block" -> "9 5" (apostrophe counts toward its token's length here
-// — this is the PUBLIC blank-pattern, deliberately unrelated to normalize()).
+// punctuation stripping), counted in cells(): "hot dog" -> "3 3",
+// "sunglasses" -> "10", "writer's block" -> "9 5" (apostrophe counts toward
+// its token's length here — this is the PUBLIC blank-pattern, deliberately
+// unrelated to normalize()).
 export function wordPattern(word) {
   return String(word ?? '')
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map(w => w.length)
+    .map(w => cells(w).length)
     .join(' ')
 }
 
@@ -196,7 +216,7 @@ export function roundHintCount(round) {
 /** The setup fields to carry from one round to the next (only those present). */
 function carrySetup(round) {
   const out = {}
-  for (const key of ['cycles', 'drawBase', 'hintCount']) {
+  for (const key of ['cycles', 'drawBase', 'hintCount', 'custom']) {
     if (round?.[key] != null) out[key] = round[key]
   }
   return out
@@ -355,9 +375,17 @@ export async function deriveWord(deckWords, options, commitment) {
 // else "cat".
 export const CLOSE_MIN_KEY_LENGTH = 4
 
+// matchKey reads Latin letters (accents folded) and digits only. A word with
+// letters it cannot read (a host's custom word in another script) publishes
+// no accept hashes, and guessers fall back to the exact normalize() match
+// against the commitment.
+const unreadableByMatchKey = form =>
+  /[^\p{ASCII}]/u.test(String(form ?? '').normalize('NFKD').replace(/\p{M}/gu, ''))
+
 /** Every word form a round accepts: the word plus its alts, as match keys. */
 export function acceptedKeys(entry) {
   const forms = [entry?.word, ...(Array.isArray(entry?.alts) ? entry.alts : [])]
+  if (forms.some(f => f != null && unreadableByMatchKey(f))) return []
   return [...new Set(forms.map(f => matchKey(f)).filter(Boolean))]
 }
 
@@ -426,11 +454,19 @@ export const MAX_HINTS = HINT_AT.length
 
 const isLetter = ch => /\p{L}/u.test(ch)
 
-/** Flat positions (over the blanks, no gaps between words) that hold a letter. */
+// The word's blanks in order, no gaps between words (see cells()).
+const flatCells = word => cells(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
+
+/**
+ * Flat positions (over the blanks, no gaps between words) a hint may fill: a
+ * letter that is one character on its own (a letter carrying combining marks
+ * is never hinted — a hint is a single character).
+ */
 export function letterPositions(word) {
-  const chars = String(word ?? '').trim().split(/\s+/).filter(Boolean).join('')
   const out = []
-  Array.from(chars).forEach((ch, i) => { if (isLetter(ch)) out.push(i) })
+  flatCells(word).forEach((cell, i) => {
+    if (cell.length === 1 && isLetter(cell) && cell.toLowerCase().length === 1) out.push(i)
+  })
   return out
 }
 
@@ -445,7 +481,7 @@ export function hintBudget(word, max = MAX_HINTS) {
  * who reloads republishes the same letters. Each is { i, c } (c lowercase).
  */
 export function planHints(word, seed, max = MAX_HINTS) {
-  const chars = Array.from(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
+  const chars = flatCells(word)
   const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word, max))
   return picks.map(i => ({ i, c: chars[i].toLowerCase() }))
 }

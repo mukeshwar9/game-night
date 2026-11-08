@@ -167,3 +167,98 @@ describe('SKETCH round snapshot of the setup', () => {
     await assertSucceeds(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
   })
 })
+
+// SKETCH custom words: the host's `sketchWords` (room-level, kept across
+// matches, signed by its last writer) and the round's snapshot of it
+// (`round/custom`), copied at START.
+describe('SKETCH custom words (sketchWords)', () => {
+  const party = (status = 'waiting', extra = {}) => partyNode({ uids: ['alice', 'bob', 'cy'], gameType: 'sketch', status, extra })
+  const words = (over = {}) => ({ v: 1, by: 'alice', mode: 'mix', list: ['grandma', 'tuk tuk', "rock 'n' roll"], ...over })
+
+  it('lets a seated player save a list signed with their own uid', async () => {
+    await put(party())
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words()))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words({ mode: 'only' })))
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set({ v: 1, by: 'alice', mode: 'only' })) // empty list, ONLY picked
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(null))
+  })
+
+  it('refuses a list signed with someone else\'s uid, and a visitor', async () => {
+    await put(party())
+    await assertFails(as('bob').ref('games/g1/sketchWords').set(words()))
+    await assertFails(as('mallory').ref('games/g1/sketchWords').set(words({ by: 'mallory' })))
+    await assertFails(dbAs(T.env, null).ref('games/g1/sketchWords').set(words()))
+  })
+
+  it('a second editor must sign the list as theirs', async () => {
+    await put(party('waiting', { sketchWords: words() }))
+    await assertFails(as('bob').ref('games/g1/sketchWords/list/3').set('karaoke'))
+    await assertFails(as('bob').ref('games/g1/sketchWords/mode').set('only'))
+    await assertFails(as('bob').ref('games/g1/sketchWords').set(words({ list: ['karaoke'] })))
+    await assertSucceeds(as('bob').ref('games/g1/sketchWords').set(words({ by: 'bob', list: ['karaoke'] })))
+  })
+
+  it('takes 2–24 characters of letters (any script), digits, spaces, apostrophes and hyphens', async () => {
+    await put(party())
+    for (const w of ['ox', 'r2d2', 'tuk-tuk', 'crème brûlée', 'नमस्ते', 'grandma’s sofa', 'a'.repeat(24)]) {
+      await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words({ list: [w] })))
+    }
+    for (const w of ['a', '', 'a'.repeat(25), ' cat', 'cat ', 'hot  dog', 'cat!', 'a.b', 'a/b', '#tag', 'x<y', 'a\nb', 'a\tb', 7, true]) {
+      await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: [w] })))
+    }
+  })
+
+  it('caps the list at 100 slots and keeps its shape', async () => {
+    await put(party())
+    await assertFails(as('alice').ref('games/g1/sketchWords/list/0').set('grandma')) // a key that is not there yet needs v, by and mode
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words({ list: Object.fromEntries(Array.from({ length: 100 }, (_, i) => [i, `word${i}`])) })))
+    await assertFails(as('alice').ref('games/g1/sketchWords/list/100').set('extra'))
+    await assertFails(as('alice').ref('games/g1/sketchWords/list/x').set('extra'))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ v: 2 })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ mode: 'all' })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ list: 'grandma' })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ extra: 1 })))
+    await assertFails(as('alice').ref('games/g1/sketchWords').set({ v: 1, mode: 'mix', list: ['grandma'] }))
+  })
+
+  it('whole-room writes by another player pass with the words unchanged', async () => {
+    await put(party('playing', { sketchWords: words(), round: round({ custom: { by: 'alice', mode: 'mix', list: ['grandma'] } }) }))
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, scores: { alice: 25, bob: 100 } }))
+  })
+
+  it('START: one write seeds a playing room with the round\'s custom words', async () => {
+    await put(party('waiting', { sketchWords: words() }))
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    const first = { phase: 'choosing', cycle: 1, artist: 'alice', order: ['alice', 'bob', 'cy'], matchSeed: 'm1', custom: { by: 'alice', mode: 'mix', list: ['grandma', 'tuk tuk'] } }
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, status: 'playing', round: first }))
+  })
+})
+
+describe('SKETCH round snapshot of the custom words', () => {
+  const custom = (over = {}) => ({ by: 'alice', mode: 'only', list: ['grandma', 'tuk tuk'], ...over })
+
+  it('accepts a well-formed snapshot', async () => {
+    await put(room())
+    await assertSucceeds(as('bob').ref('games/g1/round/custom').set(custom()))
+    await assertSucceeds(as('bob').ref('games/g1/round/custom').set(custom({ mode: 'mix' })))
+  })
+
+  it('refuses a malformed one', async () => {
+    await put(room())
+    await assertFails(as('bob').ref('games/g1/round/custom').set(custom({ mode: 'all' })))
+    await assertFails(as('bob').ref('games/g1/round/custom').set(custom({ list: ['a'] })))
+    await assertFails(as('bob').ref('games/g1/round/custom').set(custom({ list: ['cat!'] })))
+    await assertFails(as('bob').ref('games/g1/round/custom').set(custom({ list: 'grandma' })))
+    await assertFails(as('bob').ref('games/g1/round/custom').set(custom({ extra: true })))
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ mode: 'mix', list: ['grandma'] }))
+    await assertFails(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix' }))
+  })
+
+  it('lets the next round carry it on through a whole-room transaction', async () => {
+    await put(room(round({ phase: 'reveal', custom: custom() })))
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    const next = { ...whole.round, phase: 'choosing', artist: 'bob', used: [1, 280, 3] }
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, round: next }))
+  })
+})

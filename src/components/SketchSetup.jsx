@@ -4,21 +4,33 @@ import {
   DRAW_CHOICES, DRAW_TIME_CHOICES, HINT_CHOICES, DRAWS_BLURB, HINTS_BLURB,
   resolveSketchSetup, sketchSetupSummary, estimateLines,
 } from '../lib/sketchConfigLogic'
+import { wordsSummary, wordsRowLabel, onlyModeWarning } from '../lib/sketchWordsLogic'
 import { timersOff } from '../lib/timerScale'
+import SketchWordsEditor from './SketchWordsEditor'
 import { cn } from '@/lib/utils'
 
 // SKETCH's match setup in the lobby: one summary line everyone reads
-// ("2 DRAWS · 75 S · 2 HINTS", defaults included), with EDIT for the host,
-// which opens the MATCH SETUP sheet. Each tap saves at once (`onSave` is the
-// page's busy-wrapped write); START copies the values into the round.
+// ("2 DRAWS · 75 S · 2 HINTS · 12 WORDS", defaults included), with EDIT for
+// the host, which opens the MATCH SETUP sheet. Each tap saves at once
+// (`onSave` / `onSaveWords` are the page's busy-wrapped writes); START copies
+// the values and the custom words into the round.
 //
-// The sheet's rows end with the estimate; `children` renders after it and
-// before DONE, the place for further setup rows (custom words).
-export default function SketchSetup({ config, playerCount, timerScale, canEdit, saving = false, onSave, children }) {
+// The sheet has two views: the setup rows, ending with the CUSTOM WORDS row,
+// and the custom word editor that row opens (with a back link), so there is
+// never a second sheet on top of the first. `words` is the room's custom
+// words, normalized (sketchWordsLogic.normalizeSketchWords).
+export default function SketchSetup({
+  config, playerCount, timerScale, canEdit, saving = false, onSave,
+  words, wordsSaving = false, onSaveWords,
+}) {
   const [open, setOpen] = useState(false)
+  const [view, setView] = useState('setup')
   const setup = resolveSketchSetup(config, playerCount)
-  const summary = sketchSetupSummary(setup)
+  const wordCount = words?.list.length ?? 0
+  const summary = [sketchSetupSummary(setup), wordsSummary(wordCount, canEdit)].filter(Boolean).join(' · ')
   const sheetOpen = open && canEdit
+  const close = () => { setOpen(false); setView('setup') }
+  const turns = Math.max(1, playerCount) * setup.draws
 
   return (
     <>
@@ -33,7 +45,7 @@ export default function SketchSetup({ config, playerCount, timerScale, canEdit, 
         {canEdit && (
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => { setView('setup'); setOpen(true) }}
             className="shrink-0 min-h-11 px-3 rounded border-2 border-retro-cta text-retro-cta font-pixel text-[9px] transition press hover:shadow-neon-cta"
           >
             EDIT
@@ -42,17 +54,35 @@ export default function SketchSetup({ config, playerCount, timerScale, canEdit, 
       </div>
 
       {sheetOpen && (
-        <BottomSheet onClose={() => setOpen(false)} ariaLabel="Match setup">
-          <SetupSheet
-            setup={setup}
-            playerCount={playerCount}
-            timerScale={timerScale}
-            saving={saving}
-            onSave={onSave}
-            onDone={() => setOpen(false)}
-          >
-            {children}
-          </SetupSheet>
+        <BottomSheet onClose={close} ariaLabel={view === 'words' ? 'Custom words' : 'Match setup'}>
+          {view === 'words' && words ? (
+            <SketchWordsEditor
+              words={words}
+              turns={turns}
+              saving={wordsSaving}
+              onSave={onSaveWords}
+              onBack={() => setView('setup')}
+              onDone={close}
+            />
+          ) : (
+            <SetupSheet
+              setup={setup}
+              playerCount={playerCount}
+              timerScale={timerScale}
+              saving={saving}
+              onSave={onSave}
+              onDone={close}
+            >
+              {words && (
+                <WordsRow
+                  count={wordCount}
+                  mode={words.mode}
+                  warning={onlyModeWarning({ count: wordCount, mode: words.mode, turns })}
+                  onOpen={() => setView('words')}
+                />
+              )}
+            </SetupSheet>
+          )}
         </BottomSheet>
       )}
     </>
@@ -116,6 +146,27 @@ function SetupSheet({ setup, playerCount, timerScale, saving, onSave, onDone, ch
       >
         DONE
       </button>
+    </div>
+  )
+}
+
+// The setup view's CUSTOM WORDS row: "CUSTOM WORDS · 12 WORDS · MIXED IN ›".
+function WordsRow({ count, mode, warning, onOpen }) {
+  return (
+    <div className="space-y-1.5">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full min-h-11 rounded border-2 border-retro-border bg-retro-surface px-3 py-2 flex items-center justify-between gap-2 text-left transition press hover:border-retro-cta/40"
+        data-testid="sketch-words-row"
+      >
+        <span className="min-w-0">
+          <span className="block font-pixel text-[8px] text-retro-dim tracking-widest">CUSTOM WORDS</span>
+          <span className="mt-1 block font-pixel text-[9px] text-retro-text">{wordsRowLabel(count, mode)}</span>
+        </span>
+        <span aria-hidden="true" className="shrink-0 font-pixel text-[11px] text-retro-cta">›</span>
+      </button>
+      {warning && <p className="font-pixel text-[7px] text-retro-p2 leading-relaxed text-left">{warning}</p>}
     </div>
   )
 }
