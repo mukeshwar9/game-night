@@ -67,9 +67,11 @@ export function normalizeFaves(raw) {
 
 /**
  * The match tally with this round's hearts folded in: the drawing's entry is
- * set to the round's count (or removed at 0), never added to, so folding the
- * same round twice gives the same tally. Returns null for an empty tally
- * (Firebase deletes the key).
+ * set to the round's count, never added to, so folding the same round twice
+ * gives the same tally. A round with no hearts leaves the tally as it was —
+ * also a round whose hearts were already folded and cleared, which a second
+ * coordinator can still see after the match finished. Returns null for an
+ * empty tally (Firebase deletes the key).
  * @param {any} faves
  * @param {RoundLike} round
  * @returns {Record<string, number> | null}
@@ -79,7 +81,6 @@ export function foldLikes(faves, round) {
   const key = faveKey(round)
   const n = likeCount(round?.likes)
   if (n > 0) out[key] = n
-  else delete out[key]
   return Object.keys(out).length ? out : null
 }
 

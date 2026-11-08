@@ -67,8 +67,15 @@ describe('foldLikes', () => {
   it('a round with no hearts leaves the tally as it was, and an empty tally is null', () => {
     expect(foldLikes({ '1:ivy': 2 }, round({ artist: 'gus' }))).toEqual({ '1:ivy': 2 })
     expect(foldLikes(null, round())).toBeNull()
-    // every heart taken back before the fold: the entry goes
-    expect(foldLikes({ '1:ivy': 2 }, round({ likes: {} }))).toBeNull()
+    expect(foldLikes(null, round({ likes: {} }))).toBeNull()
+  })
+
+  it('refolding the last drawing after its hearts were cleared keeps its count', () => {
+    // The final fold writes the tally and clears round/likes; a second
+    // coordinator that still sees the reveal must not wipe the entry.
+    const last = round({ cycle: 2, likes: { gus: true, kai: true } })
+    const faves = foldLikes(null, last)
+    expect(foldLikes(faves, { ...last, likes: null })).toEqual({ '2:ivy': 2 })
   })
 
   it('does not change the tally it was given', () => {

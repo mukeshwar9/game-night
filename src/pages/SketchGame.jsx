@@ -448,8 +448,10 @@ export default function SketchGame({
           round: { ...r, scored: true, phase: 'reveal', revealAt, endsAt: revealEndsAt },
         }
       })
-    } catch {
-      toast.error('SKIP FAILED — CHECK CONNECTION')
+    } catch (err) {
+      // A heart or guess this phone wrote meanwhile aborts the transaction
+      // ('set'); the coordinator's effect simply runs it again.
+      if (err?.message !== 'set') toast.error('SKIP FAILED — CHECK CONNECTION')
     } finally {
       hostActionInFlightRef.current = false
     }
@@ -465,6 +467,9 @@ export default function SketchGame({
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'reveal' || r.endsAt !== expectedEndsAt) return // already advanced / stale
+        // The final reveal stays in the room after the match ends: a second
+        // coordinator (a presence hand-off) must not finish it again.
+        if (current.status !== 'playing') return
         // This drawing's hearts join the match tally in the same write, so a
         // coordinator hand-off cannot count them twice (foldLikes replaces).
         const faves = foldLikes(r.faves, r)
