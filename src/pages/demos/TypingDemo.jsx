@@ -2,13 +2,16 @@ import { useState, useRef, useEffect } from 'react'
 import TypingKeyboard from '../../components/TypingKeyboard'
 import { cn } from '@/lib/utils'
 import { PASSAGES, countCorrectChars, computeWpm, computeAccuracy, computeEffWpm } from '../../lib/typingLogic'
-
-const BOT_WPM = 55
+import { typingBotWpm } from '../../lib/soloBotLevels'
+import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import useBotDifficulty from '../../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../../lib/botLevels'
 
 // Scored like the room game: a random passage from its list, WPM and
 // accuracy from correctly typed characters (typingLogic), ranked by
 // accuracy-weighted effective WPM.
-// The bot types cleanly at BOT_WPM; finishing first doesn't end your race.
+// The bot types cleanly at the CPU level's WPM (soloBotLevels); finishing first
+// doesn't end your race. The level is read when the race starts.
 export default function TypingDemo() {
   const [phase, setPhase]             = useState('idle')
   const [passage, setPassage]         = useState(PASSAGES[0])
@@ -19,6 +22,9 @@ export default function TypingDemo() {
   const startTimeRef   = useRef(null)
   const finishedRef    = useRef(false)
   const botIntervalRef = useRef(null)
+  const [level, setLevel] = useBotDifficulty('typing', BOT_LEVEL_IDS)
+  const [raceLevel, setRaceLevel] = useState(level) // the level this race started at
+  const botWpm = typingBotWpm(raceLevel)
 
   // Countdown
   useEffect(() => {
@@ -32,10 +38,10 @@ export default function TypingDemo() {
     return () => clearInterval(id)
   }, [phase])
 
-  // Bot at BOT_WPM (5 chars per word), typing every character correctly
+  // Bot at botWpm (5 chars per word), typing every character correctly
   useEffect(() => {
     if (phase !== 'racing') return
-    const msPerChar = Math.round(60_000 / (BOT_WPM * 5))
+    const msPerChar = Math.round(60_000 / (botWpm * 5))
     let progress = 0
     botIntervalRef.current = setInterval(() => {
       progress = Math.min(progress + 1, passage.length)
@@ -43,9 +49,10 @@ export default function TypingDemo() {
       if (progress >= passage.length) clearInterval(botIntervalRef.current)
     }, msPerChar)
     return () => clearInterval(botIntervalRef.current)
-  }, [phase, passage])
+  }, [phase, passage, botWpm])
 
   const start = () => {
+    setRaceLevel(level)
     setPassage(PASSAGES[Math.floor(Math.random() * PASSAGES.length)])
     setPhase('countdown')
   }
@@ -85,14 +92,15 @@ export default function TypingDemo() {
   }
 
   if (phase === 'done') {
-    const botEff = computeEffWpm(BOT_WPM, 100)
+    const botEff = computeEffWpm(botWpm, 100)
     const outcome = player.eff > botEff ? 'win' : player.eff < botEff ? 'lose' : 'draw'
     return (
       <div className="space-y-3">
+        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'YOU', ...player, col: 'retro-p1', won: outcome === 'win' },
-            { label: 'BOT', wpm: BOT_WPM, acc: 100, eff: botEff, col: 'retro-p2', won: outcome === 'lose' },
+            { label: 'BOT', wpm: botWpm, acc: 100, eff: botEff, col: 'retro-p2', won: outcome === 'lose' },
           ].map(({ label, wpm, acc, eff, col, won }) => (
             <div key={label} className={`bg-retro-card border border-${col}/50 rounded p-3 text-center space-y-1`}>
               <p className={`font-pixel text-[8px] text-${col}`}>{label}</p>
@@ -121,6 +129,7 @@ export default function TypingDemo() {
   const botDone = botProgress >= passage.length
   return (
     <div className="space-y-3">
+      {phase === 'idle' && <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />}
       {phase !== 'idle' && (
         <div className="space-y-1">
           {[
@@ -141,7 +150,7 @@ export default function TypingDemo() {
           })}
           {isRacing && botDone && (
             <p className="font-pixel text-[8px] text-retro-p2 text-center" aria-live="polite">
-              BOT FINISHED AT {BOT_WPM} WPM — FINISH YOURS, ACCURACY COUNTS
+              BOT FINISHED AT {botWpm} WPM — FINISH YOURS, ACCURACY COUNTS
             </p>
           )}
         </div>

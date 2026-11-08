@@ -13,6 +13,8 @@ import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 // Solo FIBBAGE: human + 2-7 local bots, no Firebase, no commit-reveal — lies live as
 // plaintext in local reducer state and authorship simply isn't rendered until the
@@ -89,8 +91,8 @@ function reducer(state, action) {
       return { ...state, botCount: Math.min(MAX_BOTS, Math.max(MIN_BOTS, action.botCount)) }
 
     case 'START': {
-      const { botCount, seed, humanAvatar } = action
-      const roster = generateBotRoster(botCount, seed)
+      const { botCount, seed, humanAvatar, level } = action
+      const roster = generateBotRoster(botCount, seed, level)
       const players = { human: { playerId: 'human', joinedAt: 0, name: 'YOU', avatar: humanAvatar } }
       roster.forEach((bot, i) => {
         players[bot.id] = { playerId: bot.id, joinedAt: i + 1, name: bot.name, avatar: bot.avatar }
@@ -164,6 +166,7 @@ function reducer(state, action) {
 
 export default function FibbageDemo() {
   const [state, dispatch] = useReducer(reducer, initialState)
+  const [level, setLevel] = useBotDifficulty('fibbage', BOT_LEVEL_IDS)
   const [lieInput, setLieInput] = useState('')
   const [inputError, setInputError] = useState('')
   // Stable across the whole setup session so the bot-count stepper doesn't reroll
@@ -239,7 +242,7 @@ export default function FibbageDemo() {
   }, [state.phase, state.round])
 
   const handleStart = () => {
-    dispatch({ type: 'START', botCount: state.botCount, seed: Math.random(), humanAvatar: myAvatar })
+    dispatch({ type: 'START', botCount: state.botCount, seed: Math.random(), humanAvatar: myAvatar, level })
   }
 
   const handleSubmitLie = () => {
@@ -275,6 +278,8 @@ export default function FibbageDemo() {
         botCount={state.botCount}
         onBotCount={(n) => dispatch({ type: 'SET_BOT_COUNT', botCount: n })}
         roster={previewRoster}
+        level={level}
+        onLevel={setLevel}
         onStart={handleStart}
         minBots={MIN_BOTS}
         maxBots={MAX_BOTS}

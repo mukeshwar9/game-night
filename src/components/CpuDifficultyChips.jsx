@@ -1,12 +1,13 @@
 import { cn } from '@/lib/utils'
 
-// EASY / NORMAL / HARD chips for a solo CPU (word games). Same look as the
-// board-game demos' picker; `note` says when a change takes effect.
-export default function CpuDifficultyChips({ levels, value, onChange, note, className }) {
+// EASY / NORMAL / HARD chips for a solo CPU. Same look as the board-game demos'
+// picker; `note` says when a change takes effect. A solo run with no opponent
+// (Mine Race) passes its own `label` / `ariaLabel` instead of CPU.
+export default function CpuDifficultyChips({ levels, value, onChange, note, className, label = 'CPU', ariaLabel = 'CPU difficulty' }) {
   return (
     <div className={cn('space-y-1', className)}>
-      <div role="group" aria-label="CPU difficulty" className="flex items-center justify-center gap-1.5">
-        <span className="font-pixel text-[8px] text-retro-dim tracking-widest mr-1">CPU</span>
+      <div role="group" aria-label={ariaLabel} className="flex items-center justify-center gap-1.5">
+        <span className="font-pixel text-[8px] text-retro-dim tracking-widest mr-1">{label}</span>
         {levels.map(level => (
           <button
             key={level}

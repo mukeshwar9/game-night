@@ -8,6 +8,7 @@ import { SPYFAIR_LOCATIONS } from '../lib/decks/spyfair'
 import { SPY_REPLY_STYLES } from '../lib/decks/spyfairChat'
 import {
   generateBotRoster,
+  applyBotLevel,
   generateBotStatement,
   generateQuestionPrompt,
   pickBotSpyVote,
@@ -25,6 +26,8 @@ import {
 } from '../lib/spyfairLogic'
 import { markSeen } from '../lib/seenHistory'
 import { cn } from '@/lib/utils'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 // Solo SPYFAIR: 1 human + N bots, fully local — no Firebase, no commit-reveal (the
 // deck ships in the bundle either way, so there is no info-leak surface to defend
@@ -157,6 +160,8 @@ function reducer(state, action) {
     case 'START_MATCH':
       return {
         ...state,
+        // The setup roster is a NORMAL one; the CPU level re-rates it as the match starts.
+        roster: action.roster ?? state.roster,
         ...dealRoundFields(action),
         ...rotationAfterDeal(state, action),
         round: 1,
@@ -290,6 +295,7 @@ function reducer(state, action) {
 
 export default function SpyfairDemo() {
   const [state, dispatch] = useReducer(reducer, undefined, makeInitialState)
+  const [level, setLevel] = useBotDifficulty('spyfair', BOT_LEVEL_IDS)
   const [now, setNow] = useState(() => Date.now())
   const feedRef = useRef(null)
   const prevPhaseRef = useRef(state.phase)
@@ -414,7 +420,7 @@ export default function SpyfairDemo() {
   }
 
   const handleStart = () => {
-    dispatch({ type: 'START_MATCH', ...dealDemoRound(state) })
+    dispatch({ type: 'START_MATCH', ...dealDemoRound(state), roster: applyBotLevel(state.roster, level) })
   }
 
   const handlePeek = () => { dispatch({ type: 'PEEK_SECRET' }); sounds.hit() }
@@ -466,6 +472,8 @@ export default function SpyfairDemo() {
           botCount={state.botCount}
           onBotCount={handleBotCountChange}
           roster={state.roster}
+          level={level}
+          onLevel={setLevel}
           onStart={handleStart}
           minBots={2}
           maxBots={7}

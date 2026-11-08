@@ -167,6 +167,17 @@ export function getWinner(state) {
 }
 
 /**
+ * What each CPU level changes: how often the bot re-decides (`reactionMs`, the
+ * most it can tap) and how much of each 200 ms tap slot its press window stays
+ * open (`window`, 0..1). NORMAL is the original 120 ms / 0.6.
+ */
+export const AI_LEVELS = {
+  easy:   { reactionMs: 220, window: 0.4 },
+  normal: { reactionMs: 120, window: 0.6 },
+  hard:   { reactionMs: 90,  window: 0.75 },
+}
+
+/**
  * Reaction-handicapped AI input. Taps the push button on a fixed rhythm to
  * ram the opponent once within ENGAGE_DIST. Pressing ALWAYS pushes toward the opponent (see
  * applyInput) — there is no separate "retreat" impulse — so near the edge the
@@ -176,9 +187,11 @@ export function getWinner(state) {
  * Beatable by a human that taps faster and times their pushes.
  * @param {object} state
  * @param {'X'|'O'} side
+ * @param {'easy'|'normal'|'hard'} [level]  AI_LEVELS entry (window of each tap slot)
  * @returns {{ press: 0|1 }}
  */
-export function computeAI(state, side) {
+export function computeAI(state, side, level = 'normal') {
+  const tune = AI_LEVELS[level] ?? AI_LEVELS.normal
   const me = state.blobs[side]
   const opp = state.blobs[side === 'X' ? 'O' : 'X']
   if (!me.alive) return { press: 0 }
@@ -189,7 +202,7 @@ export function computeAI(state, side) {
   // slot (deterministic from sim time). pollBot re-decides every
   // AI_REACTION_MS, so the bot lands about one tap per slot — at most five a
   // second, which a player tapping faster can out-push.
-  const tapWindow = ((state.t * 5) % 1) < 0.6
+  const tapWindow = ((state.t * 5) % 1) < tune.window
   if (!tapWindow) return { press: 0 }
   if (distCenter > edgeThresh) {
     const toOppDist = distOpp || 1
@@ -208,7 +221,7 @@ export function computeAI(state, side) {
 // {press: 1} for this whole window and feed it to every 1/120 s substep,
 // which turned one bot "tap" into ~14 impulses while the player's tap stays a
 // single impulse. pollBot hands out one tap per decision instead.
-export const AI_REACTION_MS = 120
+export const AI_REACTION_MS = AI_LEVELS.normal.reactionMs
 
 /** @returns {{ at: number }} fresh bot timer for pollBot */
 export function createBot() {
@@ -223,11 +236,13 @@ export function createBot() {
  * @param {object} state
  * @param {'X'|'O'} side
  * @param {number} nowMs
+ * @param {'easy'|'normal'|'hard'} [level]  AI_LEVELS entry (how often it re-decides)
  * @returns {{ bot: { at: number }, press: 0|1 }}
  */
-export function pollBot(bot, state, side, nowMs) {
-  if (nowMs - bot.at < AI_REACTION_MS) return { bot, press: 0 }
-  return { bot: { at: nowMs }, press: computeAI(state, side).press ? 1 : 0 }
+export function pollBot(bot, state, side, nowMs, level = 'normal') {
+  const tune = AI_LEVELS[level] ?? AI_LEVELS.normal
+  if (nowMs - bot.at < tune.reactionMs) return { bot, press: 0 }
+  return { bot: { at: nowMs }, press: computeAI(state, side, level).press ? 1 : 0 }
 }
 
 /**

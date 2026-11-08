@@ -5,28 +5,17 @@ import {
   simulateShot,
   windForShot,
 } from '../lib/artilleryLogic'
+import { pickArtilleryShot } from '../lib/artilleryBot'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
-// Solo ARTILLERY vs an aim-converging bot — fully local, no Firebase.
-// Bot brackets toward the player each turn with seeded-feeling noise.
+// Solo ARTILLERY vs a bot — fully local, no Firebase. The CPU level
+// (artilleryBot.js) is picked above the arena and remembered.
 
 const FINE_STEP = 1
-
-function botAim(tankX, targetX, lastMiss, shotIndex) {
-  // Closed-form-ish guess refined by last miss distance.
-  const dx = targetX - tankX
-  const base = Math.round(45 + Math.abs(dx) * 40)
-  let power = Math.min(100, Math.max(20, Math.round(Math.abs(dx) * 130)))
-  if (lastMiss != null) {
-    power += Math.max(-12, Math.min(12, Math.round(lastMiss * 90)))
-  }
-  const noise = ((shotIndex * 37) % 7) - 3
-  return {
-    angleDeg: Math.max(5, Math.min(90, base + noise)),
-    power: Math.max(10, Math.min(100, power + noise)),
-  }
-}
 
 export default function ArtilleryDemo() {
   const seed = 20260822
@@ -37,6 +26,7 @@ export default function ArtilleryDemo() {
   const [turn, setTurn] = useState('me')
   const [shotCount, setShotCount] = useState(0)
   const botTimerRef = useRef(null)
+  const [level, setLevel] = useBotDifficulty('artillery', BOT_LEVEL_IDS)
 
   const done = state.winner != null
   const myTurn = turn === 'me' && !done
@@ -61,9 +51,8 @@ export default function ArtilleryDemo() {
     if (next.winner) return
     setTurn('bot')
     botTimerRef.current = setTimeout(() => {
-      const me2 = next.tanks.O.x
-      const aim = botAim(me2, next.tanks.X.x, null, shotCount + 1)
       const st2 = { ...next, seed, shotIndex: shotCount + 1 }
+      const aim = pickArtilleryShot(st2, 'O', level)
       const r2 = simulateShot(st2, { by: 'O', ...aim })
       setShotCount(c => c + 1)
       setAnimating(r2.record)
@@ -85,6 +74,7 @@ export default function ArtilleryDemo() {
 
   return (
     <div className="space-y-4">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <div className="flex items-center justify-between font-pixel text-[9px]">
         <span className={cn('text-retro-p1', myTurn && 'text-glow-p1')}>YOU {state.tanks.X.hp} HP</span>
         <span className="text-retro-dim">WIND {windNow >= 0 ? '→' : '←'} {Math.abs(windNow * 100).toFixed(0)}</span>

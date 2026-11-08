@@ -189,11 +189,24 @@ export function remainingShips(fleet, shots = []) {
 }
 
 // ---------------------------------------------------------------------------
+// What each CPU level changes: `followUp` is the share of shots that chase a
+// live hit (the rest ignore it), `parity` the share of hunting shots kept to
+// the checkerboard cells every ship must cross. NORMAL is the original bot.
+// ---------------------------------------------------------------------------
+export const BOT_SHOT_LEVELS = {
+  easy:   { followUp: 0.4, parity: 0 },
+  normal: { followUp: 1,   parity: 0.7 },
+  hard:   { followUp: 1,   parity: 1 },
+}
+
+// ---------------------------------------------------------------------------
 // pickShot — demo-bot targeting. HUNT/TARGET: extend any live hit cluster
 // (linear continuation preferred), else parity-weighted random hunt.
-// shots: array of { cell, result }. Pure given rng.
+// shots: array of { cell, result }. Pure given rng. `level` picks the row of
+// BOT_SHOT_LEVELS; it never sees the player's fleet, at any level.
 // ---------------------------------------------------------------------------
-export function pickShot(shots = [], rng = Math.random) {
+export function pickShot(shots = [], rng = Math.random, level = 'normal') {
+  const tune = BOT_SHOT_LEVELS[level] ?? BOT_SHOT_LEVELS.normal
   const shotCells = new Set(shots.map(s => s.cell))
   const open = []
   for (let c = 0; c < CELL_COUNT; c++) if (!shotCells.has(c)) open.push(c)
@@ -203,7 +216,7 @@ export function pickShot(shots = [], rng = Math.random) {
   // 'sunk:<ship>' result recorded after it on that ship — safe demo heuristic:
   // treat every hit as live unless ALL neighbors of the cluster are shot).
   const liveHits = shots.filter(s => s.result === 'hit').map(s => s.cell)
-  if (liveHits.length) {
+  if (liveHits.length && (tune.followUp >= 1 || rng() < tune.followUp)) {
     // Prefer extending a line: find an un-shot neighbor of any live hit that
     // continues a 2+ horizontal/vertical run first.
     const lineTargets = []
@@ -238,9 +251,10 @@ export function pickShot(shots = [], rng = Math.random) {
     if (adjacents.length) return adjacents[Math.floor(rng() * adjacents.length)]
   }
 
-  // Hunt: parity cells (checkerboard) 70% of the time.
+  // Hunt: parity cells (checkerboard) `tune.parity` of the time.
   const parity = open.filter(c => (rowOf(c) + colOf(c)) % 2 === 0)
-  const pool = parity.length && rng() < 0.7 ? parity : open
+  const useParity = parity.length > 0 && (tune.parity >= 1 || (tune.parity > 0 && rng() < tune.parity))
+  const pool = useParity ? parity : open
   return pool[Math.floor(rng() * pool.length)]
 }
 

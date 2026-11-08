@@ -5,6 +5,10 @@ import {
   scoreMathAnswer, timeoutMathQuestion, advanceMathQuestion, normalizeMathStats,
 } from '../../lib/mathLogic'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import useBotDifficulty from '../../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../../lib/botLevels'
+import { mathBot, rollBetween } from '../../lib/soloBotLevels'
 
 // ─── Math demo ────────────────────────────────────────────────────────────────
 
@@ -15,6 +19,7 @@ const DEMO_MATH_S = DEMO_CONFIG.durationSeconds
 
 export default function MathDemo() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9))
+  const [level, setLevel] = useBotDifficulty('math', BOT_LEVEL_IDS)
 
   const [phase, setPhase]           = useState('idle')
   const [cdSec, setCdSec]           = useState(3)
@@ -139,13 +144,14 @@ export default function MathDemo() {
     }, 100)
 
     // Bot answer
-    const botDelay = 1000 + Math.random() * 2000
+    const bot = mathBot(level)
+    const botDelay = rollBetween(bot.delayMs)
     botTimerRef.current = setTimeout(() => {
       if (botLockedRef.current || phase === 'done') return
       botLockedRef.current = true
       playerLockedRef.current = true
       const cq      = qRef.current
-      const correct = Math.random() < 0.70
+      const correct = Math.random() < bot.accuracy
       const bad     = cq.answer + 1 + Math.floor(Math.random() * 4)
       resolveQuestion('bot', correct ? cq.answer : bad)
     }, botDelay)
@@ -164,7 +170,7 @@ export default function MathDemo() {
       clearTimeout(qTimeoutRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveQuestion/scheduleNextQuestion are fresh closures each render (read latest state); adding them would re-arm the clock/bot timers every render
-  }, [phase, qIndex])
+  }, [phase, qIndex, level])
 
   const reset = () => {
     clearTimeout(botTimerRef.current)
@@ -185,6 +191,7 @@ export default function MathDemo() {
     const winner = youScore > botScore ? 'YOU' : youScore < botScore ? 'BOT' : null
     return (
       <div className="space-y-3">
+        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'YOU', score: youScore, won: winner === 'YOU', col: 'retro-p1' },
@@ -216,6 +223,7 @@ export default function MathDemo() {
   if (phase === 'idle') {
     return (
       <div className="space-y-4 text-center">
+        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left">
           <p>● FIRST CORRECT ANSWER WINS THE ROUND</p>
           <p>⚡ POWER QUESTIONS · 2× POINTS</p>

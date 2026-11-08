@@ -1,7 +1,7 @@
 # SIDE KICK
 
 A motorbike sprint for up to four riders on a pseudo-3D road. You steer (by tilting the phone, or with the buttons), the
-throttle is automatic, and you can kick the rider beside you. Three hits unseat a rider; too many kicks in a row tire you out and throw you
+throttle is automatic, and you can kick the rider beside you with one self-aiming button. Three hits unseat a rider; too many kicks in a row tire you out and throw you
 off your own bike. A match is a three-race cup: places score 3 / 2 / 1 / 0 points and the best total wins.
 
 The design board (study of the classic's mechanic, view comparison, the playable prototype and the rounds
@@ -17,7 +17,9 @@ DUST KICK, the Wild West version, runs on this same engine with a `dust` rules o
 | Pure rules: tracks, rider step, kicks, bots, ghosts and their wire format, cup points | `src/lib/sideKickLogic.js` (+ `.test.js`) |
 | Scene colours derived from the `--c-*` theme tokens (every theme is tested) | `src/lib/sideKickPalette.js` (+ `.test.js`) |
 | The road scene on a canvas: lit, shaded, animated; riders are the players' avatars from behind | `src/components/sideKickRender.js` |
-| Canvas + glass HUD + thumb pad | `src/components/SideKickBoard.jsx`, `sideKickSeats.js` |
+| Canvas, one glass HUD strip, the two thumb zones | `src/components/SideKickBoard.jsx`, `sideKickSeats.js` |
+| Thumb cockpit logic: which side the one KICK swings, what each zone holds, button sizes | `src/lib/sideKickCockpitLogic.js` (+ `.test.js`) |
+| Result: podium for the road, the cup as bars, PAYBACK badges (solo and online) | `src/components/SideKickStandings.jsx` |
 | The play surface; full screen is the shared `FocusFrame` (registry `focusPage: true`: room header button and the `/solo` corner button) | `src/components/SideKickPlay.jsx` |
 | Frame loop: fixed 60 Hz step, renderer, sounds, HUD snapshot | `src/hooks/useSideKickRun.js` |
 | Tilt, touch and keyboard controls | `src/hooks/useSideKickControls.js`; tilt maths `src/lib/tiltLogic.js`, sensor + iOS permission `src/lib/tiltSensor.js` |
@@ -89,14 +91,30 @@ the lobby, READY, the countdown and the results.
   ahead is learned during the 3.2 s countdown (neutral follows the phone, steer is zero) and is fixed at GO;
   tapping the TILT gauge re-centres. Dead zone 2.5 degrees, full lock at 18, smoothing 60 ms. A pressed steer
   button or key always overrides the tilt.
-- iOS gives readings only after a tap: the setup sheet (solo) and the lobby (online) show ENABLE TILT STEERING,
-  and the play surface shows the same button if tilt is still waiting for it. If the sensor is missing, no
-  reading arrives within 2.5 s, or the player says no, steering falls back to the buttons, with a note. The
-  STEERING setting (TILT / BUTTONS) is saved on the device.
+- iOS gives readings only after a tap: the TILT chip on the setup sheet (solo) and in the lobby (online) is that
+  ask (it reads TILT · TAP TO ALLOW), so tilt is asked once. The play surface shows a small ENABLE TILT STEERING
+  strip only if the ask was skipped. If the sensor is missing, no reading arrives within 2.5 s, or the player
+  says no, steering falls back to the buttons, with a note. The STEER setting (TILT / BUTTONS) is saved on the
+  device.
+- The thumb cockpit (phone play): the HUD is one strip over the top of the road (place, balance pips, clock, camera
+  switch, and the race rail with a dot per rider) and the controls are two thumb zones over its bottom. The left
+  thumb steers (two halves, or the tilt gauge). The right thumb has one big KICK (96 px) with BOOST (64 px) beside
+  it; in DUST KICK it is BUCK and SPURS, and LASSO appears above SPURS only while a rope coil is in hand. Every
+  button is above 44 px. The strain meter is a ring round KICK, the boost meter a ring round BOOST.
+- KICK aims itself (`aimKick`, `kickSideFor` in `sideKickCockpitLogic.js`). The rider a kick would land on (the
+  same `kickTarget` the sim judges with) gets a bracket, an arrow and a KICK ▶ / ◀ KICK label in the chase view,
+  and the button's own label points the same way. With two riders in reach the laterally closer one is the
+  target. With nobody in reach a tap swings toward the side you are steering (else toward the nearest rider close
+  along the road, else the middle of the road) and is a whiff as before. The side is chosen at the press, so the
+  rules, the cooldown buffer, the strain and the `k/{n}` wire are unchanged. The KICK setting (ONE BUTTON /
+  KICK L / R, saved with the camera and steering choice; a choice saved before it existed reads as ONE BUTTON)
+  brings the old pair back; the A / Z / D / X keys still kick a fixed side and K is the self-aiming key.
+- The two mirrors became two small REAR warnings, one on each edge, lit in the colour of a rider closing in from
+  behind on that side.
 - Two cameras: the chase view and a first-person view (camera at the rider's eyes; own bike hidden; handlebars,
   gloved hands and a gauge pod whose five lamps are the boost meter; the boot swings out on a kick). In first
   person an opponent in kick range lights that edge of the screen in their colour with a chevron (dimmed while
-  the kick is cooling down), and the mirrors stay. The switch is on the HUD, in the settings, and on the C key,
+  the kick is cooling down), and the rear warnings stay. The switch is on the HUD, in the settings, and on the C key,
   and is saved on the device.
 - Boost is felt: the field of view widens (about 20 %) and pulses at the tap, streaks pour out of the middle of
   the screen, the bike or bars shake, and a thump-and-sweep sound plays. Online, other phones see a rider's

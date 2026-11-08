@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import useBotDifficulty from '../../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../../lib/botLevels'
+import { aimBotGapMs, rollBetween } from '../../lib/soloBotLevels'
 
 const DEMO_R       = 20
 const DEMO_GAME_MS = 30_000
@@ -17,6 +21,7 @@ export default function AimTrainerDemo() {
   const containerRef = useRef(null)
   const endTimeRef   = useRef(null)
   const botTimerRef  = useRef(null)
+  const [level, setLevel] = useBotDifficulty('aim', BOT_LEVEL_IDS)
 
   const spawnLocal = () => {
     const el = containerRef.current
@@ -67,11 +72,11 @@ export default function AimTrainerDemo() {
         setScoreBot(s => s + 1)
         setTargetBot(spawnLocal())
         scheduleBot()
-      }, 400 + Math.floor(Math.random() * 350))
+      }, rollBetween(aimBotGapMs(level)))
     }
     scheduleBot()
     return () => clearTimeout(botTimerRef.current)
-  }, [phase])
+  }, [phase, level])
 
   const handleYouTargetClick = (e) => {
     e.stopPropagation()
@@ -101,6 +106,7 @@ export default function AimTrainerDemo() {
     const diff   = Math.abs(scoreYou - scoreBot)
     return (
       <div className="space-y-3">
+        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'YOU', score: scoreYou, hits: hitsYou, ff: ffYou, w: winner === 'YOU', col: 'retro-p1' },
@@ -136,6 +142,7 @@ export default function AimTrainerDemo() {
 
   return (
     <div className="space-y-3">
+      {phase === 'idle' && <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />}
       {phase !== 'idle' && (
         <div className="flex items-center justify-between px-1">
           <span className="font-pixel text-[9px] text-retro-p1">YOU {scoreYou}</span>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  COLS, CELL_COUNT, MINES, SAFE_CELLS,
+  COLS, CELL_COUNT, minesForLevel,
   generateBoard, floodReveal, chordTargets, isComplete, countRevealed,
 } from '../lib/minesweeperLogic'
 import { mineCellLabel } from '../lib/a11yLabels'
@@ -8,9 +8,13 @@ import { sounds } from '../lib/sounds'
 import { haptic } from '../lib/haptics'
 import { cn } from '@/lib/utils'
 import ZoomViewport from '../components/ZoomViewport'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
-// Solo minesweeper — the MINE RACE board with no opponent. Best time per
-// difficulty lives in localStorage. Same theme-token number palette as the
+// Solo minesweeper — the MINE RACE board with no opponent. The level picks the
+// mine count (minesweeperLogic MINE_LEVELS) and the best time is kept per level
+// in localStorage (NORMAL keeps the original key). Same theme-token number palette as the
 // multiplayer page.
 
 const NUM_COLORS = {
@@ -24,15 +28,18 @@ const NUM_COLORS = {
   8: 'text-retro-dim',
 }
 
-const BEST_KEY = 'minerace-demo-best'
+const bestKey = (level) => (level === 'normal' ? 'minerace-demo-best' : `minerace-demo-best-${level}`)
 
-function readBest() {
-  try { return Number(localStorage.getItem(BEST_KEY)) || null } catch { return null }
+function readBest(level) {
+  try { return Number(localStorage.getItem(bestKey(level))) || null } catch { return null }
 }
 
 export default function MineRaceDemo() {
+  const [level, setLevel] = useBotDifficulty('minesweeper', BOT_LEVEL_IDS)
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 2147483647))
-  const board = useMemo(() => generateBoard(seed), [seed])
+  const mineCount = minesForLevel(level)
+  const safeCells = CELL_COUNT - mineCount
+  const board = useMemo(() => generateBoard(seed, mineCount), [seed, mineCount])
 
   const [revealed, setRevealed] = useState(() => new Set(board.opening))
   const [flags, setFlags] = useState(() => new Set())
@@ -40,14 +47,17 @@ export default function MineRaceDemo() {
   const [fatalCell, setFatalCell] = useState(null)
   const [startedAt, setStartedAt] = useState(null)
   const [elapsed, setElapsed] = useState(0)
-  const [best, setBest] = useState(readBest)
+  const [best, setBest] = useState(() => readBest(level))
   const pressTimerRef = useRef(null)
   const longPressFiredRef = useRef(false)
 
-  // New board → fresh run (render-phase derive-from-prop-change pattern).
+  // New board (or a new level) → fresh run (render-phase derive-from-prop-change pattern).
   const [prevSeedState, setPrevSeedState] = useState(seed)
-  if (prevSeedState !== seed) {
+  const [prevLevel, setPrevLevel] = useState(level)
+  if (prevSeedState !== seed || prevLevel !== level) {
     setPrevSeedState(seed)
+    setPrevLevel(level)
+    setBest(readBest(level))
     setRevealed(new Set(board.opening))
     setFlags(new Set())
     setFatalCell(null)
@@ -56,7 +66,7 @@ export default function MineRaceDemo() {
   }
 
   const dead = fatalCell != null
-  const done = !dead && isComplete(revealed)
+  const done = !dead && isComplete(revealed, mineCount)
   const racing = startedAt != null && !dead && !done
 
   useEffect(() => {
@@ -84,13 +94,13 @@ export default function MineRaceDemo() {
     if (next.size === revealed.size) return
     setRevealed(next)
     sounds.hit(Math.min(next.size - revealed.size + 1, 10))
-    if (isComplete(next)) {
+    if (isComplete(next, mineCount)) {
       const t = startedAt != null ? Date.now() - startedAt : 0 // eslint-disable-line react-hooks/purity
       setElapsed(t)
       sounds.win()
       setBest(prev => {
         if (prev == null || t < prev) {
-          try { localStorage.setItem(BEST_KEY, String(t)) } catch { /* private mode */ }
+          try { localStorage.setItem(bestKey(level), String(t)) } catch { /* private mode */ }
           return t
         }
         return prev
@@ -141,10 +151,11 @@ export default function MineRaceDemo() {
 
   return (
     <div className="space-y-3">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} label="MINES" ariaLabel="Mine count" />
       <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim">
         <span>⏱ {secs(elapsed)}s</span>
-        <span>{countRevealed(revealed)}/{SAFE_CELLS} SAFE</span>
-        <span>💣 {MINES - flags.size}</span>
+        <span>{countRevealed(revealed)}/{safeCells} SAFE</span>
+        <span>💣 {mineCount - flags.size}</span>
       </div>
       {best != null && (
         <p className="font-pixel text-[8px] text-retro-dim text-center">BEST {secs(best)}s</p>

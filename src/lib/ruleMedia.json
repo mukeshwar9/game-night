@@ -1,8 +1,8 @@
 {
   "types": {
     "aim": {
-      "w": 326,
-      "h": 300,
+      "w": 364,
+      "h": 302,
       "steps": [
         {
           "cap": "objective",
@@ -12,8 +12,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 326,
-          "h": 300,
+          "w": 364,
+          "h": 302,
           "dark": {
             "box": {
               "x": 1,
@@ -21,69 +21,72 @@
               "w": 98,
               "h": 98
             },
-            "w": 326,
-            "h": 300
+            "w": 364,
+            "h": 302
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 33.15759202453988,
-            "y": 23.96875,
-            "w": 12.269938650306749,
-            "h": 13.333333333333334
+            "x": 59.49089972527472,
+            "y": 32.662953795379536,
+            "w": 10.989010989010989,
+            "h": 13.201320132013201
           },
-          "w": 326,
-          "h": 300,
+          "w": 364,
+          "h": 302,
           "dark": {
             "box": {
-              "x": 39.40759202453988,
-              "y": 34.135416666666664,
-              "w": 12.269938650306749,
-              "h": 13.333333333333334
+              "x": 78.26665521978022,
+              "y": 24.520420792079207,
+              "w": 10.989010989010989,
+              "h": 13.201320132013201
             },
-            "w": 326,
-            "h": 300
+            "w": 364,
+            "h": 302
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 13.30521472392638,
-            "y": 69.06770833333333,
-            "w": 12.269938650306749,
-            "h": 13.333333333333334
+            "x": 64.23849587912088,
+            "y": 72.58147689768977,
+            "w": 10.989010989010989,
+            "h": 13.201320132013201
           },
-          "w": 326,
-          "h": 300,
+          "w": 364,
+          "h": 302,
           "dark": {
             "box": {
-              "x": 45.671970858895705,
-              "y": 52,
-              "w": 12.269938650306749,
-              "h": 13.333333333333334
+              "x": 63.590315934065934,
+              "y": 47.963077557755774,
+              "w": 10.989010989010989,
+              "h": 13.201320132013201
             },
-            "w": 326,
-            "h": 300
+            "w": 364,
+            "h": 302
           }
         }
       ],
       "bytes": {
-        "light": 20986,
-        "dark": 26615
+        "light": 19532,
+        "dark": 31779
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
+        "src/lib/botLevels.js",
         "src/lib/rules.js",
+        "src/lib/soloBotLevels.js",
         "src/pages/demos/AimTrainerDemo.jsx"
       ],
-      "sourceHash": "b809e9797713",
-      "assetHash": "779dc087ad1c",
-      "dpr": 1
+      "sourceHash": "867bfdd34aae",
+      "assetHash": "2bc8d5feb4ad"
     },
     "airhockey": {
-      "w": 192,
-      "h": 340,
+      "w": 188,
+      "h": 338,
       "steps": [
         {
           "cap": "objective",
@@ -93,8 +96,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 192,
-          "h": 340,
+          "w": 188,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -102,8 +105,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 192,
-            "h": 340
+            "w": 188,
+            "h": 338
           }
         },
         {
@@ -114,8 +117,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 192,
-          "h": 340,
+          "w": 188,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -123,8 +126,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 192,
-            "h": 340
+            "w": 188,
+            "h": 338
           }
         },
         {
@@ -135,8 +138,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 192,
-          "h": 340,
+          "w": 188,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -144,28 +147,31 @@
               "w": 98,
               "h": 98
             },
-            "w": 192,
-            "h": 340
+            "w": 188,
+            "h": 338
           }
         }
       ],
       "bytes": {
-        "light": 21677,
-        "dark": 31257
+        "light": 39429,
+        "dark": 34595
       },
       "sources": [
         "src/components/AirHockeyTable.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/airhockeyLogic.js",
         "src/lib/audioContext.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/pages/AirHockeyDemo.jsx"
       ],
-      "sourceHash": "b1da3d76ba7a",
-      "assetHash": "f3d15eb4f562",
-      "dpr": 1
+      "sourceHash": "f09af6b959e9",
+      "assetHash": "d2e4d5581de8"
     },
     "animalstack": {
       "w": 196,
@@ -362,7 +368,7 @@
       "dpr": 1
     },
     "artillery": {
-      "w": 246,
+      "w": 232,
       "h": 340,
       "steps": [
         {
@@ -373,7 +379,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 246,
+          "w": 232,
           "h": 340,
           "dark": {
             "box": {
@@ -382,71 +388,76 @@
               "w": 98,
               "h": 98
             },
-            "w": 246,
+            "w": 232,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 1.2269938650306749,
-            "y": 78.48611111111111,
-            "w": 97.54601226993866,
-            "h": 9.777777777777779
+            "x": 1.098901098901099,
+            "y": 81.72490619136961,
+            "w": 97.8021978021978,
+            "h": 8.25515947467167
           },
-          "w": 246,
+          "w": 232,
           "h": 340,
           "dark": {
             "box": {
-              "x": 1.2269938650306749,
-              "y": 78.48611111111111,
-              "w": 97.54601226993866,
-              "h": 9.777777777777779
+              "x": 1.098901098901099,
+              "y": 81.72490619136961,
+              "w": 97.8021978021978,
+              "h": 8.25515947467167
             },
-            "w": 246,
+            "w": 232,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 1.2269938650306749,
-            "y": 78.48611111111111,
-            "w": 97.54601226993866,
-            "h": 9.777777777777779
+            "x": 1.098901098901099,
+            "y": 81.72490619136961,
+            "w": 97.8021978021978,
+            "h": 8.25515947467167
           },
-          "w": 246,
+          "w": 232,
           "h": 340,
           "dark": {
             "box": {
-              "x": 1.2269938650306749,
-              "y": 78.48611111111111,
-              "w": 97.54601226993866,
-              "h": 9.777777777777779
+              "x": 1.098901098901099,
+              "y": 81.72490619136961,
+              "w": 97.8021978021978,
+              "h": 8.25515947467167
             },
-            "w": 246,
+            "w": 232,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 32294,
-        "dark": 39494
+        "light": 67021,
+        "dark": 46343
       },
       "sources": [
         "src/components/ArtilleryArena.jsx",
+        "src/components/CpuDifficultyChips.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
+        "src/lib/artilleryBot.js",
         "src/lib/artilleryLogic.js",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
         "src/lib/detMath.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/pages/ArtilleryDemo.jsx"
       ],
-      "sourceHash": "d21c04dc5d49",
-      "assetHash": "7f75debcd5c3",
-      "dpr": 1
+      "sourceHash": "2833c391be96",
+      "assetHash": "110c7eb2ade7"
     },
     "ataxx": {
       "w": 206,
@@ -586,27 +597,27 @@
       "dpr": 1
     },
     "battleship": {
-      "w": 98,
+      "w": 150,
       "h": 340,
       "steps": [
         {
           "cap": "objective",
           "box": {
-            "x": 34.55713190184049,
-            "y": 92.17211280214862,
-            "w": 30.880943251533743,
-            "h": 2.820053715308863
+            "x": 34.43080357142857,
+            "y": 89.24665856622114,
+            "w": 31.138392857142858,
+            "h": 4.0097205346294045
           },
-          "w": 98,
+          "w": 150,
           "h": 340,
           "dark": {
             "box": {
-              "x": 34.55713190184049,
-              "y": 92.17211280214862,
-              "w": 30.880943251533743,
-              "h": 2.820053715308863
+              "x": 34.43080357142857,
+              "y": 89.24665856622114,
+              "w": 31.138392857142858,
+              "h": 4.0097205346294045
             },
-            "w": 98,
+            "w": 150,
             "h": 340
           }
         },
@@ -618,7 +629,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 134,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
@@ -627,52 +638,62 @@
               "w": 98,
               "h": 98
             },
-            "w": 134,
+            "w": 194,
             "h": 340
           }
         },
         {
           "cap": 2,
           "box": {
-            "x": 6.748466257668712,
-            "y": 8.11965811965812,
-            "w": 8.646472392638037,
-            "h": 3.441697191697192
+            "x": 6.043956043956044,
+            "y": 30.173775671406002,
+            "w": 8.791208791208792,
+            "h": 5.055292259083728
           },
-          "w": 134,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
-              "x": 6.748466257668712,
-              "y": 8.11965811965812,
-              "w": 8.646472392638037,
-              "h": 3.441697191697192
+              "x": 6.043956043956044,
+              "y": 30.173775671406002,
+              "w": 8.791208791208792,
+              "h": 5.055292259083728
             },
-            "w": 134,
+            "w": 194,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 25499,
-        "dark": 30787
+        "light": 61330,
+        "dark": 46779
       },
       "sources": [
         "src/components/BattleshipBoard.jsx",
+        "src/components/BattleshipTabs.jsx",
+        "src/components/CpuDifficultyChips.jsx",
+        "src/components/ZoomViewport.jsx",
+        "src/hooks/useBattleshipView.js",
+        "src/hooks/useBoardCamera.js",
+        "src/hooks/useBotDifficulty.js",
+        "src/hooks/useTapConfirm.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/audioContext.js",
         "src/lib/battleshipLogic.js",
+        "src/lib/boardCameraLogic.js",
+        "src/lib/botLevels.js",
         "src/lib/commit.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sha256.js",
         "src/lib/sounds.js",
         "src/pages/BattleshipDemo.jsx"
       ],
-      "sourceHash": "b07962fec7db",
-      "assetHash": "8912d3783e48",
-      "dpr": 1
+      "sourceHash": "0dc0e9e5d221",
+      "assetHash": "a2744377c020"
     },
     "blockade": {
       "w": 196,
@@ -1224,7 +1245,7 @@
       "dpr": 1
     },
     "checkers": {
-      "w": 260,
+      "w": 232,
       "h": 340,
       "steps": [
         {
@@ -1235,7 +1256,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 260,
+          "w": 232,
           "h": 340,
           "dark": {
             "box": {
@@ -1244,71 +1265,76 @@
               "w": 98,
               "h": 98
             },
-            "w": 260,
+            "w": 232,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 13.496932515337424,
-            "y": 50.588235294117645,
-            "w": 11.656441717791411,
-            "h": 8.941176470588236
+            "x": 13.907967032967033,
+            "y": 55.25328330206379,
+            "w": 11.572802197802197,
+            "h": 7.9033771106941835
           },
-          "w": 260,
+          "w": 232,
           "h": 340,
           "dark": {
             "box": {
-              "x": 13.496932515337424,
-              "y": 50.588235294117645,
-              "w": 11.656441717791411,
-              "h": 8.941176470588236
+              "x": 13.907967032967033,
+              "y": 55.25328330206379,
+              "w": 11.572802197802197,
+              "h": 7.9033771106941835
             },
-            "w": 260,
+            "w": 232,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 1.2269938650306749,
-            "y": 41.1764705882353,
-            "w": 11.656441717791411,
-            "h": 8.941176470588236
+            "x": 13.907967032967033,
+            "y": 55.25328330206379,
+            "w": 11.572802197802197,
+            "h": 7.9033771106941835
           },
-          "w": 260,
+          "w": 232,
           "h": 340,
           "dark": {
             "box": {
-              "x": 1.2269938650306749,
-              "y": 41.1764705882353,
-              "w": 11.656441717791411,
-              "h": 8.941176470588236
+              "x": 13.907967032967033,
+              "y": 55.25328330206379,
+              "w": 11.572802197802197,
+              "h": 7.9033771106941835
             },
-            "w": 260,
+            "w": 232,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 51103,
-        "dark": 65939
+        "light": 93880,
+        "dark": 71517
       },
       "sources": [
         "src/components/CheckersBoard.jsx",
+        "src/components/CpuDifficultyChips.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
+        "src/lib/checkersBot.js",
         "src/lib/checkersLogic.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/pages/CheckersDemo.jsx"
       ],
-      "sourceHash": "f135de5d967c",
-      "assetHash": "2cf14eaff166",
-      "dpr": 1
+      "sourceHash": "71dd959b115d",
+      "assetHash": "d72a0687426a"
     },
     "chimp": {
       "w": 250,
@@ -2400,8 +2426,8 @@
       "dpr": 1
     },
     "fibbage": {
-      "w": 326,
-      "h": 310,
+      "w": 364,
+      "h": 300,
       "steps": [
         {
           "cap": "objective",
@@ -2411,8 +2437,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 326,
-          "h": 310,
+          "w": 364,
+          "h": 300,
           "dark": {
             "box": {
               "x": 1,
@@ -2420,29 +2446,29 @@
               "w": 98,
               "h": 98
             },
-            "w": 326,
-            "h": 288
+            "w": 364,
+            "h": 300
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 1.2269938650306749,
-            "y": 53.346774193548384,
-            "w": 97.54601226993866,
-            "h": 15.483870967741936
+            "x": 1.098901098901099,
+            "y": 50.083333333333336,
+            "w": 97.8021978021978,
+            "h": 16
           },
-          "w": 326,
-          "h": 310,
+          "w": 364,
+          "h": 300,
           "dark": {
             "box": {
-              "x": 1.2269938650306749,
-              "y": 49.91349480968858,
-              "w": 97.54601226993866,
-              "h": 16.608996539792386
+              "x": 1.098901098901099,
+              "y": 50.083333333333336,
+              "w": 97.8021978021978,
+              "h": 16
             },
-            "w": 326,
-            "h": 288
+            "w": 364,
+            "h": 300
           }
         },
         {
@@ -2453,7 +2479,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 246,
+          "w": 284,
           "h": 340,
           "dark": {
             "box": {
@@ -2462,45 +2488,64 @@
               "w": 98,
               "h": 98
             },
-            "w": 260,
+            "w": 284,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 25142,
-        "dark": 33944
+        "light": 53102,
+        "dark": 34725
       },
       "sources": [
         "src/components/Avatar.jsx",
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/PartyBotSetup.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
+        "src/lib/botLevels.js",
         "src/lib/decks/fibbage.js",
         "src/lib/decks/spyfair.js",
         "src/lib/decks/spyfairChat.js",
         "src/lib/decks/wavelength.js",
         "src/lib/displayPrefs.js",
+        "src/lib/features.js",
         "src/lib/fibbageLogic.js",
         "src/lib/firebase.js",
+        "src/lib/games.js",
+        "src/lib/haptics.js",
+        "src/lib/monitoring.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/normalize.js",
         "src/lib/partyBots.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
         "src/lib/sounds.js",
         "src/lib/textMatchLogic.js",
         "src/lib/timerScale.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/wavelengthLogic.js",
         "src/lib/wordDenylist.js",
         "src/pages/FibbageDemo.jsx"
       ],
-      "sourceHash": "ce0ea8f34f26",
-      "assetHash": "6405c6e7b6cd",
-      "dpr": 1
+      "sourceHash": "7b9d3dd32678",
+      "assetHash": "da94206dd86d"
     },
     "gomoku": {
       "w": 314,
@@ -3672,7 +3717,7 @@
       "dpr": 1
     },
     "pacmac": {
-      "w": 184,
+      "w": 174,
       "h": 340,
       "steps": [
         {
@@ -3683,7 +3728,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 184,
+          "w": 174,
           "h": 340,
           "dark": {
             "box": {
@@ -3692,7 +3737,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 182,
+            "w": 174,
             "h": 340
           }
         },
@@ -3704,7 +3749,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 182,
+          "w": 176,
           "h": 340,
           "dark": {
             "box": {
@@ -3713,7 +3758,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 182,
+            "w": 174,
             "h": 340
           }
         },
@@ -3725,7 +3770,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 182,
+          "w": 174,
           "h": 340,
           "dark": {
             "box": {
@@ -3734,34 +3779,40 @@
               "w": 98,
               "h": 98
             },
-            "w": 184,
+            "w": 176,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 28709,
-        "dark": 40323
+        "light": 54537,
+        "dark": 45442
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/PacmacArena.jsx",
+        "src/hooks/useBotDifficulty.js",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useMotionPref.js",
         "src/hooks/usePacmacControls.js",
         "src/index.css",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
         "src/lib/pacmacLogic.js",
         "src/lib/pacmacUi.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/pages/PacmacDemo.jsx"
       ],
-      "sourceHash": "ec647790bc41",
-      "assetHash": "43b9478f3020",
-      "dpr": 1
+      "sourceHash": "d8b1f46f74b8",
+      "assetHash": "83eebee31dbb"
     },
     "paint": {
-      "w": 248,
-      "h": 340,
+      "w": 224,
+      "h": 338,
       "steps": [
         {
           "cap": "objective",
@@ -3771,8 +3822,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 248,
-          "h": 340,
+          "w": 224,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -3780,8 +3831,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 248,
-            "h": 340
+            "w": 224,
+            "h": 338
           }
         },
         {
@@ -3792,8 +3843,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 248,
-          "h": 340,
+          "w": 224,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -3801,8 +3852,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 248,
-            "h": 340
+            "w": 224,
+            "h": 338
           }
         },
         {
@@ -3813,8 +3864,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 248,
-          "h": 340,
+          "w": 224,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -3822,29 +3873,33 @@
               "w": 98,
               "h": 98
             },
-            "w": 248,
-            "h": 340
+            "w": 224,
+            "h": 338
           }
         }
       ],
       "bytes": {
-        "light": 23562,
-        "dark": 37101
+        "light": 49838,
+        "dark": 44444
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/PaintArena.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/hooks/usePaintControls.js",
         "src/index.css",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
         "src/lib/paintLogic.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/pages/PaintDemo.jsx"
       ],
-      "sourceHash": "77cc6fb78763",
-      "assetHash": "7e0a272a4b09",
-      "dpr": 1
+      "sourceHash": "9576e5e9f129",
+      "assetHash": "ebb408ec8700"
     },
     "pairs": {
       "w": 224,
@@ -4281,8 +4336,8 @@
       "dpr": 1
     },
     "reaction": {
-      "w": 326,
-      "h": 212,
+      "w": 364,
+      "h": 270,
       "steps": [
         {
           "cap": "objective",
@@ -4292,8 +4347,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 326,
-          "h": 212,
+          "w": 364,
+          "h": 270,
           "dark": {
             "box": {
               "x": 1,
@@ -4301,65 +4356,68 @@
               "w": 98,
               "h": 98
             },
-            "w": 326,
-            "h": 212
+            "w": 364,
+            "h": 270
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 1.2269938650306749,
-            "y": 1.8867924528301887,
-            "w": 97.54601226993866,
-            "h": 84.90566037735849
+            "x": 1.098901098901099,
+            "y": 1.8604651162790697,
+            "w": 97.8021978021978,
+            "h": 83.72093023255815
           },
-          "w": 326,
-          "h": 212,
+          "w": 364,
+          "h": 214,
           "dark": {
             "box": {
-              "x": 1.2269938650306749,
-              "y": 1.8867924528301887,
-              "w": 97.54601226993866,
-              "h": 84.90566037735849
+              "x": 1.098901098901099,
+              "y": 1.8604651162790697,
+              "w": 97.8021978021978,
+              "h": 83.72093023255815
             },
-            "w": 326,
-            "h": 212
+            "w": 364,
+            "h": 214
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 1.2269938650306749,
-            "y": 1.8867924528301887,
-            "w": 97.54601226993866,
-            "h": 84.90566037735849
+            "x": 1.098901098901099,
+            "y": 1.8604651162790697,
+            "w": 97.8021978021978,
+            "h": 83.72093023255815
           },
-          "w": 326,
-          "h": 212,
+          "w": 364,
+          "h": 214,
           "dark": {
             "box": {
-              "x": 1.2269938650306749,
-              "y": 1.8867924528301887,
-              "w": 97.54601226993866,
-              "h": 84.90566037735849
+              "x": 1.098901098901099,
+              "y": 1.8604651162790697,
+              "w": 97.8021978021978,
+              "h": 83.72093023255815
             },
-            "w": 326,
-            "h": 212
+            "w": 364,
+            "h": 214
           }
         }
       ],
       "bytes": {
-        "light": 13096,
-        "dark": 17766
+        "light": 21312,
+        "dark": 25737
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
+        "src/lib/botLevels.js",
         "src/lib/rules.js",
+        "src/lib/soloBotLevels.js",
         "src/pages/demos/ReactionDemo.jsx"
       ],
-      "sourceHash": "f5dbb4e3b868",
-      "assetHash": "c731b0fb3346",
-      "dpr": 1
+      "sourceHash": "c157e44c68eb",
+      "assetHash": "d42e10020f5f"
     },
     "reversi": {
       "w": 310,
@@ -4918,7 +4976,7 @@
       "dpr": 1
     },
     "spaceduel": {
-      "w": 222,
+      "w": 206,
       "h": 340,
       "steps": [
         {
@@ -4929,7 +4987,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 222,
+          "w": 206,
           "h": 340,
           "dark": {
             "box": {
@@ -4938,7 +4996,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 222,
+            "w": 206,
             "h": 340
           }
         },
@@ -4950,7 +5008,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 222,
+          "w": 206,
           "h": 340,
           "dark": {
             "box": {
@@ -4959,7 +5017,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 222,
+            "w": 206,
             "h": 340
           }
         },
@@ -4971,7 +5029,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 222,
+          "w": 206,
           "h": 340,
           "dark": {
             "box": {
@@ -4980,33 +5038,37 @@
               "w": 98,
               "h": 98
             },
-            "w": 222,
+            "w": 206,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 32893,
-        "dark": 41985
+        "light": 66561,
+        "dark": 47115
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/SpaceduelArena.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/hooks/useSpaceduelControls.js",
         "src/index.css",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/lib/spaceduelLogic.js",
         "src/pages/SpaceduelDemo.jsx"
       ],
-      "sourceHash": "905279fafd67",
-      "assetHash": "7024aeee5aea",
-      "dpr": 1
+      "sourceHash": "65ab91339504",
+      "assetHash": "9dbf9c5c04f6"
     },
     "spyfair": {
-      "w": 326,
-      "h": 226,
+      "w": 364,
+      "h": 230,
       "steps": [
         {
           "cap": "objective",
@@ -5016,8 +5078,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 326,
-          "h": 226,
+          "w": 364,
+          "h": 230,
           "dark": {
             "box": {
               "x": 1,
@@ -5025,8 +5087,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 326,
-            "h": 226
+            "w": 364,
+            "h": 230
           }
         },
         {
@@ -5037,8 +5099,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 326,
-          "h": 262,
+          "w": 364,
+          "h": 244,
           "dark": {
             "box": {
               "x": 1,
@@ -5046,8 +5108,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 326,
-            "h": 238
+            "w": 364,
+            "h": 244
           }
         },
         {
@@ -5058,7 +5120,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 254,
+          "w": 312,
           "h": 340,
           "dark": {
             "box": {
@@ -5067,31 +5129,49 @@
               "w": 98,
               "h": 98
             },
-            "w": 284,
+            "w": 312,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 21746,
-        "dark": 32765
+        "light": 30412,
+        "dark": 35948
       },
       "sources": [
         "src/components/Avatar.jsx",
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/PartyBotSetup.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
+        "src/lib/botLevels.js",
         "src/lib/decks/spyfair.js",
         "src/lib/decks/spyfairChat.js",
         "src/lib/decks/wavelength.js",
         "src/lib/displayPrefs.js",
+        "src/lib/features.js",
         "src/lib/fibbageLogic.js",
         "src/lib/firebase.js",
+        "src/lib/games.js",
+        "src/lib/haptics.js",
+        "src/lib/monitoring.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/normalize.js",
         "src/lib/partyBots.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
@@ -5099,16 +5179,17 @@
         "src/lib/spyfairLogic.js",
         "src/lib/textMatchLogic.js",
         "src/lib/timerScale.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/wavelengthLogic.js",
         "src/lib/wordDenylist.js",
         "src/pages/SpyfairDemo.jsx"
       ],
-      "sourceHash": "c20bddd4baf1",
-      "assetHash": "f62dd6c8243a",
-      "dpr": 1
+      "sourceHash": "8e1f711667a7",
+      "assetHash": "c8e43764d1cd"
     },
     "sumo": {
-      "w": 238,
+      "w": 214,
       "h": 340,
       "steps": [
         {
@@ -5119,7 +5200,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 238,
+          "w": 214,
           "h": 340,
           "dark": {
             "box": {
@@ -5128,7 +5209,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 238,
+            "w": 214,
             "h": 340
           }
         },
@@ -5140,7 +5221,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 238,
+          "w": 214,
           "h": 340,
           "dark": {
             "box": {
@@ -5149,7 +5230,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 238,
+            "w": 214,
             "h": 340
           }
         },
@@ -5161,7 +5242,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 250,
+          "w": 224,
           "h": 340,
           "dark": {
             "box": {
@@ -5170,21 +5251,24 @@
               "w": 98,
               "h": 98
             },
-            "w": 250,
+            "w": 224,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 95845,
-        "dark": 70337
+        "light": 89395,
+        "dark": 66878
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/SumoArena.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/hooks/useSumoControls.js",
         "src/hooks/useSumoFx.js",
         "src/index.css",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/platform.js",
@@ -5193,8 +5277,8 @@
         "src/lib/sumoLogic.js",
         "src/pages/SumoDemo.jsx"
       ],
-      "sourceHash": "a7267d502974",
-      "assetHash": "ae34ce695448"
+      "sourceHash": "e2e4cd32a3db",
+      "assetHash": "6d6396b63d6c"
     },
     "tictactoe": {
       "w": 316,
@@ -5275,8 +5359,8 @@
       "assetHash": "daec1215bfc4"
     },
     "trivia": {
-      "w": 326,
-      "h": 282,
+      "w": 314,
+      "h": 340,
       "steps": [
         {
           "cap": "objective",
@@ -5286,8 +5370,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 326,
-          "h": 282,
+          "w": 314,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -5295,66 +5379,72 @@
               "w": 98,
               "h": 98
             },
-            "w": 326,
-            "h": 300
+            "w": 314,
+            "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 5.214723926380368,
-            "y": 41.12190812720848,
-            "w": 43.558282208588956,
-            "h": 19.78798586572438
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
           },
-          "w": 326,
-          "h": 282,
+          "w": 314,
+          "h": 340,
           "dark": {
             "box": {
-              "x": 5.214723926380368,
-              "y": 44.60132890365448,
-              "w": 43.558282208588956,
-              "h": 18.6046511627907
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
             },
-            "w": 326,
-            "h": 300
+            "w": 314,
+            "h": 340
           }
         },
         {
           "cap": 2,
           "box": {
-            "x": 5.214723926380368,
-            "y": 41.12190812720848,
-            "w": 43.558282208588956,
-            "h": 19.78798586572438
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
           },
-          "w": 326,
-          "h": 282,
+          "w": 364,
+          "h": 288,
           "dark": {
             "box": {
-              "x": 5.214723926380368,
-              "y": 44.60132890365448,
-              "w": 43.558282208588956,
-              "h": 18.6046511627907
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
             },
-            "w": 326,
-            "h": 300
+            "w": 364,
+            "h": 306
           }
         }
       ],
       "bytes": {
-        "light": 27846,
-        "dark": 40286
+        "light": 82771,
+        "dark": 45580
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
         "src/lib/decks/trivia.js",
         "src/lib/displayPrefs.js",
         "src/lib/fibbageLogic.js",
+        "src/lib/haptics.js",
         "src/lib/normalize.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
+        "src/lib/soloBotLevels.js",
         "src/lib/sounds.js",
         "src/lib/textMatchLogic.js",
         "src/lib/timerScale.js",
@@ -5362,12 +5452,11 @@
         "src/lib/wordDenylist.js",
         "src/pages/TriviaDemo.jsx"
       ],
-      "sourceHash": "d5bdf9c0d80f",
-      "assetHash": "eb80bc038266",
-      "dpr": 1
+      "sourceHash": "16a11f593720",
+      "assetHash": "9140a6947b9d"
     },
     "tron": {
-      "w": 264,
+      "w": 238,
       "h": 340,
       "steps": [
         {
@@ -5378,7 +5467,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 264,
+          "w": 238,
           "h": 340,
           "dark": {
             "box": {
@@ -5387,7 +5476,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 264,
+            "w": 238,
             "h": 340
           }
         },
@@ -5399,7 +5488,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 264,
+          "w": 238,
           "h": 340,
           "dark": {
             "box": {
@@ -5408,7 +5497,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 264,
+            "w": 238,
             "h": 340
           }
         },
@@ -5420,7 +5509,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 264,
+          "w": 238,
           "h": 340,
           "dark": {
             "box": {
@@ -5429,32 +5518,36 @@
               "w": 98,
               "h": 98
             },
-            "w": 264,
+            "w": 238,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 25323,
-        "dark": 32601
+        "light": 44667,
+        "dark": 37437
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/TronArena.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/hooks/useTronControls.js",
         "src/index.css",
         "src/lib/audioContext.js",
+        "src/lib/botLevels.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/sounds.js",
         "src/lib/tronLogic.js",
         "src/pages/TronDemo.jsx"
       ],
-      "sourceHash": "2396b12bf548",
-      "assetHash": "95e8ed2cabc7",
-      "dpr": 1
+      "sourceHash": "9163c9beef6c",
+      "assetHash": "fcd5d70f9edc"
     },
     "typing": {
-      "w": 280,
+      "w": 328,
       "h": 340,
       "steps": [
         {
@@ -5465,7 +5558,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 280,
+          "w": 328,
           "h": 340,
           "dark": {
             "box": {
@@ -5474,7 +5567,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 298,
+            "w": 328,
             "h": 340
           }
         },
@@ -5486,7 +5579,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 280,
+          "w": 328,
           "h": 340,
           "dark": {
             "box": {
@@ -5495,7 +5588,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 298,
+            "w": 328,
             "h": 340
           }
         },
@@ -5507,7 +5600,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 280,
+          "w": 328,
           "h": 340,
           "dark": {
             "box": {
@@ -5516,27 +5609,30 @@
               "w": 98,
               "h": 98
             },
-            "w": 298,
+            "w": 328,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 48656,
-        "dark": 65331
+        "light": 129662,
+        "dark": 73347
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/TypingKeyboard.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
+        "src/lib/botLevels.js",
         "src/lib/keyGuard.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
+        "src/lib/soloBotLevels.js",
         "src/lib/typingLogic.js",
         "src/pages/demos/TypingDemo.jsx"
       ],
-      "sourceHash": "5f0df2d2a44d",
-      "assetHash": "462aa17f5107",
-      "dpr": 1
+      "sourceHash": "a1137b7eec6b",
+      "assetHash": "81af4a4298ba"
     },
     "ultimatettt": {
       "w": 214,
@@ -5675,7 +5771,7 @@
       "dpr": 1
     },
     "wavelength": {
-      "w": 208,
+      "w": 204,
       "h": 340,
       "steps": [
         {
@@ -5686,7 +5782,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 208,
+          "w": 204,
           "h": 340,
           "dark": {
             "box": {
@@ -5695,29 +5791,29 @@
               "w": 98,
               "h": 98
             },
-            "w": 194,
-            "h": 340
+            "w": 192,
+            "h": 338
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 6.441717791411043,
-            "y": 81.13207547169812,
-            "w": 87.11656441717791,
-            "h": 6.7924528301886795
+            "x": 5.769230769230769,
+            "y": 83.36092715231788,
+            "w": 88.46153846153847,
+            "h": 5.960264900662252
           },
-          "w": 208,
+          "w": 204,
           "h": 340,
           "dark": {
             "box": {
-              "x": 6.441717791411043,
-              "y": 82.3943661971831,
-              "w": 87.11656441717791,
-              "h": 6.338028169014085
+              "x": 5.769230769230769,
+              "y": 84.34579439252336,
+              "w": 88.46153846153847,
+              "h": 5.607476635514018
             },
-            "w": 194,
-            "h": 340
+            "w": 192,
+            "h": 338
           }
         },
         {
@@ -5728,7 +5824,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 294,
+          "w": 296,
           "h": 340,
           "dark": {
             "box": {
@@ -5737,45 +5833,64 @@
               "w": 98,
               "h": 98
             },
-            "w": 282,
+            "w": 296,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 43875,
-        "dark": 51907
+        "light": 74985,
+        "dark": 57367
       },
       "sources": [
         "src/components/Avatar.jsx",
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/PartyBotSetup.jsx",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
+        "src/lib/botLevels.js",
         "src/lib/decks/spyfair.js",
         "src/lib/decks/spyfairChat.js",
         "src/lib/decks/wavelength.js",
         "src/lib/displayPrefs.js",
+        "src/lib/features.js",
         "src/lib/fibbageLogic.js",
         "src/lib/firebase.js",
+        "src/lib/games.js",
+        "src/lib/haptics.js",
+        "src/lib/monitoring.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/normalize.js",
         "src/lib/partyBots.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
         "src/lib/sounds.js",
         "src/lib/textMatchLogic.js",
         "src/lib/timerScale.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/wavelengthLogic.js",
         "src/lib/wordDenylist.js",
         "src/pages/WavelengthDemo.jsx"
       ],
-      "sourceHash": "67b211f114dd",
-      "assetHash": "21f3e7169522",
-      "dpr": 1
+      "sourceHash": "b61860664e64",
+      "assetHash": "54407b8c89ce"
     },
     "yavalath": {
       "w": 228,
@@ -5914,7 +6029,7 @@
       "dpr": 1
     }
   },
-  "commit": "3f0f6df",
+  "commit": "d47e9be",
   "skipped": {
     "mancala": "No enabled control for cell: [data-testid^=\"pit \"]",
     "snake": "error: \"Error: Cannot read properties of null (reading 'children')\"\ncode: UNKNOWN",
@@ -5970,6 +6085,7 @@
     "bonkbuggies": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
     "sidekick": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
     "dustkick": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
-    "arrowsparty": "Not captured yet (game landed after the stills); falls back to the looping rule clip"
+    "arrowsparty": "Not captured yet (game landed after the stills); falls back to the looping rule clip",
+    "party": "No playable solo demo is registered in Demo.jsx."
   }
 }

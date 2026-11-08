@@ -5,7 +5,7 @@ import { db } from '../lib/firebase'
 import RaceShell from '../components/RaceShell'
 import SideKickPlay from '../components/SideKickPlay'
 import SideKickPrefs from '../components/SideKickPrefs'
-import Avatar from '../components/Avatar'
+import SideKickStandings from '../components/SideKickStandings'
 import useSideKickRun, { ordinal } from '../hooks/useSideKickRun'
 import { useSideKickControls } from '../hooks/useSideKickControls'
 import { useSideKickPrefs } from '../hooks/useSideKickPrefs'
@@ -19,7 +19,6 @@ import {
   trackForRace, dustTrackForRace, trackLength, formatRaceTime,
 } from '../lib/sideKickLogic'
 import { lassoKey } from '../lib/dustKickLogic'
-import { cn } from '@/lib/utils'
 
 // SIDE KICK online: a 2–4 rider road race with bots in the empty seats, run as a
 // three-race cup inside RaceShell (lobby, READY, results, NEW MATCH). Each phone
@@ -46,12 +45,12 @@ const makeRace = (dust) => ({
   sameWhat: dust ? 'TRAIL' : 'ROAD',
   maxRacers: 4,
   rules: dust ? [
-    'TILT OR HOLD STEER · TAP BUCK L / R TO HIT A RIDER BESIDE YOU',
+    'TILT OR HOLD STEER · TAP BUCK TO HIT THE RIDER BESIDE YOU (IT AIMS ITSELF)',
     'THREE KICKS UNSEAT A RIDER · A KICK SLOWS AND SPOOKS THEM',
     'HAY, KICKS AND DUST FILL SPURS · ONE TAP SPENDS IT · A ROPE COIL GIVES ONE LASSO',
     `${CUP_RACES} RACES · CANYON, PRAIRIE, TOWN · 3 / 2 / 1 / 0 POINTS · BEST CUP WINS`,
   ] : [
-    'TILT OR HOLD STEER · TAP KICK L / R TO HIT A RIDER BESIDE YOU',
+    'TILT OR HOLD STEER · TAP KICK TO HIT THE RIDER BESIDE YOU (IT AIMS ITSELF)',
     'THREE HITS UNSEAT A RIDER · TOO MANY KICKS TIRE YOU OUT',
     'BOTS FILL EMPTY SEATS · NEAR MISSES AND SLIPSTREAM FILL BOOST · ONE TAP SPENDS IT',
     `${CUP_RACES} RACES · 3 / 2 / 1 / 0 POINTS A RACE · BEST CUP WINS`,
@@ -242,26 +241,19 @@ function SideKickFinal({ game, round, result, mySeat, players, dust }) {
   const order = Array.isArray(result.grid) ? result.grid.filter((id) => ids.includes(id)) : ids
   const nameOf = (id) => (isBotId(id) ? botNames[Number(id.slice(3)) - 1] ?? 'BOT' : (players?.[id]?.name || 'RIDER')).toUpperCase()
   const avatarOf = (id) => (isBotId(id) ? defaultAvatarForId(`${dust ? 'dustkick' : 'sidekick'}-${id}`) : players?.[id]?.avatar)
+  const rows = order.map((id, i) => {
+    const s = decodeRider(round.stats?.[id])
+    return {
+      i: ids.indexOf(id), name: nameOf(id), avatar: avatarOf(id), place: i + 1,
+      time: s?.fin ? formatRaceTime(s.fin / 1000) : s ? 'RIDING' : 'DNF',
+      hits: s?.hk ?? 0, offs: s?.dn ?? 0, gain: result.points?.[id] ?? 0,
+      cup: isBotId(id) ? null : Number(game.scores?.[id]) || 0, paybacks: 0, me: id === mySeat,
+    }
+  })
   return (
     <div className="space-y-2 rounded border border-retro-border bg-retro-card p-3" data-testid="sidekick-final">
       <p className="text-center font-pixel text-[9px] tracking-widest text-retro-dim">{dust ? 'THE TRAIL' : 'THE ROAD'} · BOTS INCLUDED</p>
-      <ol className="space-y-1.5" aria-label="Road result">
-        {order.map((id, i) => {
-          const s = decodeRider(round.stats?.[id])
-          const pts = result.points?.[id]
-          return (
-            <li key={id} className={cn('grid grid-cols-[auto_auto_1fr_auto] items-center gap-x-2 rounded border px-2 py-1.5 font-pixel text-[9px]', id === mySeat ? 'border-retro-p1/60 bg-retro-tint-p1' : 'border-retro-border bg-retro-surface')}>
-              <b className="w-8 text-retro-dim">{ordinal(i + 1)}</b>
-              <Avatar id={avatarOf(id)} size={20} />
-              <span className="truncate">{nameOf(id)}{id === mySeat ? ' (YOU)' : ''}</span>
-              <em className="not-italic tabular-nums">{s?.fin ? formatRaceTime(s.fin / 1000) : s ? 'STILL RIDING' : 'DNF'}</em>
-              <u className="col-span-4 mt-0.5 text-[7px] text-retro-dim no-underline">
-                {s ? `${s.hk} KICKS · ${s.dn} FALLS` : ''}{pts != null ? ` · +${pts} PTS` : ''}{!isBotId(id) ? ` · CUP ${Number(game.scores?.[id]) || 0}` : ''}
-              </u>
-            </li>
-          )
-        })}
-      </ol>
+      <SideKickStandings rows={rows} dust={dust} cupLabel="CUP SO FAR" />
     </div>
   )
 }

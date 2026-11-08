@@ -227,6 +227,19 @@ export function getWinner(state) {
 const OPP_DIRS = { up: 'down', down: 'up', left: 'right', right: 'left' }
 
 /**
+ * What each CPU level changes. `slip` is the chance per tick that the bot turns
+ * a random way instead of thinking (a careless wobble that can run it into a
+ * wall of its own body); `space` makes it refuse a move that leaves it fewer
+ * open cells than its own length, so it stops walling itself in. NORMAL is the
+ * original greedy food chase.
+ */
+export const AI_LEVELS = {
+  easy:   { slip: 0.15, space: false },
+  normal: { slip: 0,    space: false },
+  hard:   { slip: 0,    space: true },
+}
+
+/**
  * Heuristic AI for the /demo route. Greedy + safety-seeking:
  *   1. Try each non-reversing direction.
  *   2. Simulate the head one step (walls wrap); discard moves that hit
@@ -234,11 +247,17 @@ const OPP_DIRS = { up: 'down', down: 'up', left: 'right', right: 'left' }
  *   3. Among safe moves, prefer the one minimizing toroidal distance to food.
  *   4. If no safe move, fall back to current direction (death is inevitable).
  *
+ * `level` tunes it (AI_LEVELS): EASY sometimes turns at random; HARD also
+ * ranks moves that keep room for its whole body above the food chase.
+ *
  * @param {object} state
  * @param {'X'|'O'} side  which snake the AI controls
+ * @param {'easy'|'normal'|'hard'} [level]
+ * @param {() => number} [rng]  0..1; injectable so tests are deterministic
  * @returns {'up'|'down'|'left'|'right'}  chosen direction
  */
-export function computeAI(state, side) {
+export function computeAI(state, side, level = 'normal', rng = Math.random) {
+  const tune = AI_LEVELS[level] ?? AI_LEVELS.normal
   const snake = state.snakes[side]
   const cur = snake.dir
   const other = state.snakes[side === 'X' ? 'O' : 'X']
@@ -253,7 +272,34 @@ export function computeAI(state, side) {
     return false
   }
 
-  const candidates = ['up', 'down', 'left', 'right'].filter(d => d !== OPP_DIRS[cur])
+  /** @type {Array<'up'|'down'|'left'|'right'>} */
+  const candidates = /** @type {Array<'up'|'down'|'left'|'right'>} */ (['up', 'down', 'left', 'right']).filter(d => d !== OPP_DIRS[cur])
+  if (tune.slip > 0 && rng() < tune.slip) {
+    return candidates[Math.floor(rng() * candidates.length) % candidates.length]
+  }
+
+  // Cells reachable from `start` without crossing either body (both tails
+  // vacate on a normal move), counted up to `cap` — all HARD needs to know is
+  // whether its whole body still fits.
+  const blocked = new Set(
+    [...snake.body.slice(0, -1), ...other.body.slice(0, -1)].map(p => p.y * GRID + p.x),
+  )
+  const openArea = (start, cap) => {
+    const seen = new Set([start.y * GRID + start.x])
+    const queue = [start]
+    while (queue.length && seen.size < cap) {
+      const p = /** @type {{x:number,y:number}} */ (queue.pop())
+      for (const d of Object.values(DIRS)) {
+        const n = { x: wrap(p.x + d.x), y: wrap(p.y + d.y) }
+        const k = n.y * GRID + n.x
+        if (seen.has(k) || blocked.has(k)) continue
+        seen.add(k)
+        queue.push(n)
+      }
+    }
+    return seen.size
+  }
+
   let best = cur
   let bestScore = -Infinity
 
@@ -277,6 +323,8 @@ export function computeAI(state, side) {
       const dy = Math.min(Math.abs(next.y - food.y), GRID - Math.abs(next.y - food.y))
       score = -(dx + dy)
     }
+    // HARD: a move into a pocket smaller than the snake is a slow death.
+    if (tune.space && openArea(next, snake.body.length + 1) <= snake.body.length) score -= 1000
     if (score > bestScore) { bestScore = score; best = dir }
   }
 

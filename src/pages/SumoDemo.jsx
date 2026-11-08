@@ -6,6 +6,9 @@ import {
   createState, stepFrame, createBot, pollBot, getWinner, RINGOUT_HOLD_MS,
 } from '../lib/sumoLogic'
 import { sounds } from '../lib/sounds'
+import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import useBotDifficulty from '../hooks/useBotDifficulty'
+import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 const DT = 1 / 120
 
@@ -21,6 +24,11 @@ export default function SumoDemo() {
   const [over, setOver] = useState(null)
   const [winner, setWinner] = useState(null)
   const [round, setRound] = useState(0)
+  const [level, setLevel] = useBotDifficulty('sumo', BOT_LEVEL_IDS)
+  // The loop below reads the level through a ref so picking one mid-round
+  // does not restart it (and replay the opening gong).
+  const levelRef = useRef(level)
+  useEffect(() => { levelRef.current = level }, [level])
   // The round waits for the player's first PUSH — the gesture that unlocks
   // audio, so the opening gong is heard.
   const [started, setStarted] = useState(false)
@@ -52,7 +60,7 @@ export default function SumoDemo() {
       acc += dt
       const tap = getTap()
       if (tap) { tapX += tap; onTap() }
-      const b = pollBot(bot, simRef.current, 'O', now)
+      const b = pollBot(bot, simRef.current, 'O', now, levelRef.current)
       bot = b.bot
       tapO += b.press
       const r = stepFrame(simRef.current, { X: { press: tapX }, O: { press: tapO } }, acc, DT)
@@ -103,6 +111,7 @@ export default function SumoDemo() {
 
   return (
     <div className="space-y-3">
+      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <SumoArena
         ref={arenaRef}
         blobs={view.blobs}
