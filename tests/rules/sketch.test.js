@@ -210,7 +210,8 @@ describe('SKETCH custom words (sketchWords)', () => {
 
   it('caps the list at 100 slots and keeps its shape', async () => {
     await put(party())
-    await assertSucceeds(as('alice').ref('games/g1/sketchWords/list').set(Object.fromEntries(Array.from({ length: 100 }, (_, i) => [i, `word${i}`]))))
+    await assertFails(as('alice').ref('games/g1/sketchWords/list/0').set('grandma')) // a key that is not there yet needs v, by and mode
+    await assertSucceeds(as('alice').ref('games/g1/sketchWords').set(words({ list: Object.fromEntries(Array.from({ length: 100 }, (_, i) => [i, `word${i}`])) })))
     await assertFails(as('alice').ref('games/g1/sketchWords/list/100').set('extra'))
     await assertFails(as('alice').ref('games/g1/sketchWords/list/x').set('extra'))
     await assertFails(as('alice').ref('games/g1/sketchWords').set(words({ v: 2 })))
