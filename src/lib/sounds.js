@@ -139,6 +139,8 @@ const SIMON_FREQS = [440, 330, 524, 392]
 export const sounds = {
   simPad: (i) => { seq([[SIMON_FREQS[i] ?? 440, 0, 0.25, 'sine', 0.18]]); vibrate(6) },
   go:    ()    => { seq([[880, 0, 0.06, 'sine', 0.15]]); vibrate(22) },
+  // SKETCH: a hint letter lands in the blanks — two soft rising notes.
+  hint:  ()    => { seq([[660, 0, 0.07, 'triangle', 0.13], [990, 0.09, 0.12, 'triangle', 0.11]]); vibrate(12) },
   miss:  ()    => { seq([[180, 0, 0.08, 'sawtooth', 0.12], [130, 0.09, 0.18, 'sawtooth', 0.09], [90, 0.25, 0.22, 'sawtooth', 0.07]]); vibrate(120) },
   // Flat held buzzer for a per-question timeout — distinct from miss()'s descending tone
   buzz:  ()    => { seq([[140, 0, 0.28, 'sawtooth', 0.13]]); notice('WARNING') },

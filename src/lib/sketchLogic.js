@@ -201,6 +201,7 @@ export function nextRoundState(round) {
       fills: null,
       chat: null,
       correct: null,
+      hints: null,
       scored: false,
       // caller adds: endsAt: now() + CHOOSE_MS
     },
@@ -360,6 +361,104 @@ export function entryForWord(deckWords, options, word) {
   if (word == null) return null
   const idx = (options || []).find(i => deckWords[i]?.word === word)
   return idx == null ? null : deckWords[idx]
+}
+
+// ---- Letter hints -----------------------------------------------------------
+// A round nobody can read is a long wait, so the artist's phone reveals a
+// letter at half time and another at three quarters of the drawing clock,
+// never more than a third of the word's letters. Only the artist's phone can
+// publish one: the word is commit-hidden (see TRUST MODEL above), so a
+// guesser's client has nothing to publish and the rules (`round/hints`) let
+// nobody else write a hint. If the artist is offline no hint appears; the
+// round still ends on time.
+//
+// Published as `round/hints/{n}` = { i, c }: `i` is the letter's position in
+// the public blanks, counted across the words of the pattern with no gaps
+// ("hot dog" -> h0 o1 t2 d3 o4 g5), `c` the letter itself. Starting values,
+// not tuned numbers: the 50% / 75% moments and the one-third cap.
+export const HINT_AT = [0.5, 0.75]
+export const HINT_MAX_FRACTION = 1 / 3
+export const MAX_HINTS = HINT_AT.length
+
+const isLetter = ch => /\p{L}/u.test(ch)
+
+/** Flat positions (over the blanks, no gaps between words) that hold a letter. */
+export function letterPositions(word) {
+  const chars = String(word ?? '').trim().split(/\s+/).filter(Boolean).join('')
+  const out = []
+  Array.from(chars).forEach((ch, i) => { if (isLetter(ch)) out.push(i) })
+  return out
+}
+
+/** How many hints a word may ever show: at most a third of its letters, at most MAX_HINTS. */
+export function hintBudget(word) {
+  return Math.min(MAX_HINTS, Math.floor(letterPositions(word).length * HINT_MAX_FRACTION))
+}
+
+/**
+ * The hints a word will show, in order, deterministic from `seed` so an artist
+ * who reloads republishes the same letters. Each is { i, c } (c lowercase).
+ */
+export function planHints(word, seed) {
+  const chars = Array.from(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
+  const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word))
+  return picks.map(i => ({ i, c: chars[i].toLowerCase() }))
+}
+
+/** Server time hint `n` becomes due, or null when the round has no clock window yet. */
+export function hintDueAt(round, n) {
+  const { drawStartedAt, drawMs } = round || {}
+  if (!Number.isFinite(drawStartedAt) || !(drawMs > 0) || !(n in HINT_AT)) return null
+  return drawStartedAt + drawMs * HINT_AT[n]
+}
+
+/** Read `round/hints` back: [{ n, i, c }] sorted by n, malformed entries dropped. */
+export function normalizeHints(raw, pattern = null) {
+  if (!raw || typeof raw !== 'object') return []
+  const total = pattern == null ? Infinity
+    : String(pattern).split(' ').filter(Boolean).reduce((sum, t) => sum + Number(t), 0)
+  const out = []
+  for (const [k, v] of Object.entries(raw)) {
+    const n = Number(k)
+    if (!Number.isInteger(n) || n < 0 || n >= MAX_HINTS) continue
+    if (!v || !Number.isInteger(v.i) || v.i < 0 || v.i >= total) continue
+    if (typeof v.c !== 'string' || Array.from(v.c).length !== 1 || !isLetter(v.c)) continue
+    out.push({ n, i: v.i, c: v.c })
+  }
+  return out.sort((a, b) => a.n - b.n)
+}
+
+/**
+ * The next hint the artist's phone should publish: the first planned hint that
+ * is due and not yet in the room, or null. `published` is normalizeHints().
+ */
+export function nextHintToPublish({ word, seed, round, published, now }) {
+  if (!word || !round || round.phase !== 'drawing') return null
+  const plan = planHints(word, seed)
+  const have = new Set((published || []).map(h => h.n))
+  for (let n = 0; n < plan.length; n++) {
+    if (have.has(n)) continue
+    const due = hintDueAt(round, n)
+    if (due == null || now < due) return null
+    return { n, ...plan[n] }
+  }
+  return null
+}
+
+/**
+ * The blanks as cells per word: [{ ch: '' | letter, hint: boolean }]. Hint
+ * letters fill their blank; everything else stays empty.
+ */
+export function blankCells(pattern, hints = []) {
+  const byIndex = new Map(hints.map(h => [h.i, h.c]))
+  let flat = 0
+  return String(pattern || '').split(' ').filter(Boolean).map(len => {
+    const cells = []
+    for (let k = 0; k < Number(len); k++, flat++) {
+      cells.push(byIndex.has(flat) ? { ch: byIndex.get(flat), hint: true } : { ch: '', hint: false })
+    }
+    return cells
+  })
 }
 
 /** Room chat lock for Sketch (registry `chatLocked`): the artist cannot type
