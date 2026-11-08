@@ -324,6 +324,15 @@ export function Gallery({ entries, hearts = {}, onOpen, onShare, sharingId = nul
 const HEART_FILLED = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
 const HEART_OUTLINE = ['.XX.XX.', 'X..X..X', 'X.....X', '.X...X.', '..X.X..', '...X...']
 
+// A small play triangle (the pixel font has no ▶ glyph).
+export function PlayGlyph({ className }) {
+  return (
+    <svg viewBox="0 0 5 6" shapeRendering="crispEdges" aria-hidden="true" className={cn('inline-block h-[0.9em] w-[0.75em] fill-current align-[-0.1em]', className)}>
+      <path d="M0 0h1v6H0zM1 1h1v4H1zM2 2h1v2H2z" />
+    </svg>
+  )
+}
+
 export function PixelHeart({ filled = true, className }) {
   const rows = filled ? HEART_FILLED : HEART_OUTLINE
   const rects = []
@@ -425,14 +434,16 @@ export function CrowdFavourite({ award, gallery, players, voters }) {
           return (
             <li key={e.key} className={cn('min-w-0', !tied && 'flex flex-1 items-center gap-2')}>
               {g && (
-                <DrawingThumb
-                  strokes={g.strokes}
-                  fills={g.fills}
-                  className={cn('block rounded-sm border border-retro-border', tied ? 'w-full' : 'w-20 shrink-0')}
-                  label={`${g.word}, drawn by ${g.artistName}`}
-                />
+                <span className={cn('block', tied ? 'w-full' : 'w-24 shrink-0')}>
+                  <DrawingThumb
+                    strokes={g.strokes}
+                    fills={g.fills}
+                    className="block rounded-sm border border-retro-border"
+                    label={`${g.word}, drawn by ${g.artistName}`}
+                  />
+                </span>
               )}
-              <span className="block min-w-0">
+              <span className="block min-w-0 flex-1">
                 {g && <span className="block truncate font-pixel text-[10px] text-retro-text">{String(g.word).toUpperCase()}</span>}
                 <span className="block truncate font-pixel text-[8px] text-retro-dim">BY {name(e.artist)}</span>
                 {!tied && <span className="block font-pixel text-[8px] text-retro-p3">♥ {award.count}{of}</span>}

@@ -82,7 +82,7 @@ test('a finished match\'s drawings can be shared one at a time or all together',
   await test.step('the viewer can leave the name off and replay the drawing', async () => {
     const viewer = ivy.page.getByTestId('sketch-viewer')
     await viewer.getByRole('checkbox', { name: /PUT IVY'S NAME ON THE IMAGE/ }).uncheck()
-    await viewer.getByRole('button', { name: '▶ REPLAY' }).click()
+    await viewer.getByRole('button', { name: 'REPLAY' }).click()
     await expect(viewer.locator('polyline').first()).toBeVisible({ timeout: 6_000 })
     const download = ivy.page.waitForEvent('download')
     await viewer.getByRole('button', { name: 'SHARE', exact: true }).click()

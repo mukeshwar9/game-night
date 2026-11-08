@@ -11,7 +11,7 @@ import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import BottomSheet from './BottomSheet'
 import { ReplayLayers, DrawingLayers } from './SketchDrawing'
-import { Gallery } from './SketchStage'
+import { Gallery, PlayGlyph } from './SketchStage'
 import useBusy from '@/hooks/useBusy'
 import useMotionPref from '../hooks/useMotionPref'
 import { shareUrl, isNative } from '../lib/platform'
@@ -89,7 +89,7 @@ function Viewer({ entry, hearts, showName, setShowName, onShare, sharing, saved,
               onClick={() => setReplayAt(performance.now())}
               className="min-h-11 rounded border border-retro-border font-pixel text-[9px] text-retro-text transition press"
             >
-              ▶ REPLAY
+              <PlayGlyph /> REPLAY
             </button>
           )}
           <button

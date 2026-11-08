@@ -1086,11 +1086,6 @@ export default function SketchGame({
               YOU ADDED THIS WORD — WATCH THIS ONE
             </p>
           )}
-          {isPlayer && !isArtist && !inThisRound && (
-            <p className="text-center font-pixel text-[9px] leading-relaxed text-retro-win" data-testid="sketch-late-notice">
-              {lateJoinNotice({ cycle: round.cycle, cycles: totalCycles, canGrow: round.cycles != null })}
-            </p>
-          )}
           {isPlayer && !isArtist && inThisRound && !haveIGuessedCorrectly && !iSitOut && (
             <div className="space-y-1">
               <div className="flex gap-1.5">
@@ -1203,6 +1198,13 @@ export default function SketchGame({
             </button>
           </div>
         </BottomSheet>
+      )}
+
+      {/* ---- Joined after this round began: they watch it (S10) ---- */}
+      {isPlayer && !isArtist && !inThisRound && (
+        <p className="text-center font-pixel text-[9px] leading-relaxed text-retro-win" data-testid="sketch-late-notice">
+          {lateJoinNotice({ cycle: round.cycle, cycles: totalCycles, canGrow: round.cycles != null })}
+        </p>
       )}
 
       {/* ---- A watcher may join the match in play (S10) ---- */}
