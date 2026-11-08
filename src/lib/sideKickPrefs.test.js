@@ -7,20 +7,25 @@ const memory = () => {
 }
 
 describe('SIDE KICK prefs', () => {
-  it('defaults to the chase camera and tilt steering', () => {
-    expect(DEFAULT_PREFS).toEqual({ cam: 'chase', steer: 'tilt' })
+  it('defaults to the chase camera, tilt steering and one self-aiming KICK button', () => {
+    expect(DEFAULT_PREFS).toEqual({ cam: 'chase', steer: 'tilt', kick: 'auto' })
     expect(normalizePrefs(undefined)).toEqual(DEFAULT_PREFS)
     expect(normalizePrefs('x')).toEqual(DEFAULT_PREFS)
   })
   it('keeps what is valid and drops what is not', () => {
-    expect(normalizePrefs({ cam: 'first', steer: 'touch' })).toEqual({ cam: 'first', steer: 'touch' })
-    expect(normalizePrefs({ cam: 'drone', steer: 5 })).toEqual(DEFAULT_PREFS)
-    expect(normalizePrefs({ cam: 'first' })).toEqual({ cam: 'first', steer: 'tilt' })
+    expect(normalizePrefs({ cam: 'first', steer: 'touch', kick: 'two' })).toEqual({ cam: 'first', steer: 'touch', kick: 'two' })
+    expect(normalizePrefs({ cam: 'drone', steer: 5, kick: 'three' })).toEqual(DEFAULT_PREFS)
+    expect(normalizePrefs({ cam: 'first' })).toEqual({ cam: 'first', steer: 'tilt', kick: 'auto' })
+  })
+  it('reads a choice saved before the kick setting existed, keeping it and defaulting the kick', () => {
+    const s = memory()
+    s.setItem(PREFS_KEY, JSON.stringify({ cam: 'first', steer: 'touch' }))
+    expect(readPrefs(s)).toEqual({ cam: 'first', steer: 'touch', kick: 'auto' })
   })
   it('round-trips through storage and survives garbage or a missing store', () => {
     const s = memory()
-    writePrefs({ cam: 'first', steer: 'touch' }, s)
-    expect(readPrefs(s)).toEqual({ cam: 'first', steer: 'touch' })
+    writePrefs({ cam: 'first', steer: 'touch', kick: 'two' }, s)
+    expect(readPrefs(s)).toEqual({ cam: 'first', steer: 'touch', kick: 'two' })
     s.setItem(PREFS_KEY, '{nope')
     expect(readPrefs(s)).toEqual(DEFAULT_PREFS)
     expect(readPrefs(null)).toEqual(DEFAULT_PREFS)
@@ -39,12 +44,20 @@ describe('SIDE KICK prefs', () => {
       setPrefs({ cam: 'first' })
       expect(seen).toHaveBeenCalledTimes(1)
       expect(getPrefs().cam).toBe('first')
-      expect(JSON.parse(localStorage.getItem(PREFS_KEY))).toEqual({ cam: 'first', steer: 'tilt' })
+      expect(JSON.parse(localStorage.getItem(PREFS_KEY))).toEqual({ cam: 'first', steer: 'tilt', kick: 'auto' })
       off()
       setPrefs({ steer: 'touch' })
       expect(seen).toHaveBeenCalledTimes(1)
       resetPrefsCache()
-      expect(getPrefs()).toEqual({ cam: 'first', steer: 'touch' })
+      expect(getPrefs()).toEqual({ cam: 'first', steer: 'touch', kick: 'auto' })
+    })
+    it('tells listeners when only the kick mode changes', () => {
+      const seen = vi.fn()
+      subscribePrefs(seen)
+      setPrefs({ kick: 'two' })
+      setPrefs({ kick: 'two' })
+      expect(seen).toHaveBeenCalledTimes(1)
+      expect(getPrefs().kick).toBe('two')
     })
   })
 })

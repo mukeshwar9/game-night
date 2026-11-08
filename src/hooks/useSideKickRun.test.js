@@ -39,3 +39,39 @@ describe('the HUD snapshot of the boost meter', () => {
     expect(h).toMatchObject({ oil: true, lean: 0.5, chip: 'OIL · SLOWED' })
   })
 })
+
+describe('the HUD snapshot of the kick aim', () => {
+  const lab = () => {
+    const w = createWorld({ riders: [{ id: 'a', name: 'AAA' }, { id: 'b', name: 'BBB', bot: true }, { id: 'c', name: 'CCC', bot: true }], phase: 'race' })
+    w.cars = []
+    return w
+  }
+  it('is empty with nobody beside you', () => {
+    const w = lab()
+    w.riders[0].x = 0; w.riders[0].z = 1000
+    w.riders[1].x = 0.9; w.riders[1].z = 4000
+    w.riders[2].x = -0.9; w.riders[2].z = 4000
+    expect(hudOf(w, 0).aim).toBeNull()
+  })
+  it('names the rider a KICK would land on and which side they are on', () => {
+    const w = lab()
+    w.riders[0].x = 0; w.riders[0].z = 1000
+    w.riders[1].x = -0.25; w.riders[1].z = 1050
+    w.riders[2].x = 0.9; w.riders[2].z = 4000
+    expect(hudOf(w, 0).aim).toEqual({ i: 1, side: -1, name: 'BBB' })
+  })
+  it('clears while you are down, finished or on the grid countdown', () => {
+    const w = lab()
+    w.riders[0].x = 0; w.riders[0].z = 1000
+    w.riders[1].x = 0.25; w.riders[1].z = 1000
+    expect(hudOf(w, 0).aim).not.toBeNull()
+    w.phase = 'count'
+    expect(hudOf(w, 0).aim).toBeNull()
+    w.phase = 'race'
+    w.riders[0].state = 'down'
+    expect(hudOf(w, 0).aim).toBeNull()
+    w.riders[0].state = 'ride'
+    w.riders[0].done = true
+    expect(hudOf(w, 0).aim).toBeNull()
+  })
+})

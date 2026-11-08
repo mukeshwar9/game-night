@@ -4,25 +4,27 @@ import { DT } from '../lib/sideKickLogic'
 import { tiltRecenter, tiltUpdate } from '../lib/tiltLogic'
 import { tiltState } from '../lib/tiltSensor'
 import { getPrefs } from '../lib/sideKickPrefs'
+import { kickSideFor } from '../lib/sideKickCockpitLogic'
 import { useSideKickPrefs, useTilt } from './useSideKickPrefs'
 
 // Controls for SIDE KICK. Steering is the phone's tilt where the phone has a
 // working sensor (the default there), else two STEER buttons (hold). Right
-// thumb: KICK L and KICK R (tap), and BOOST (tap: one tap spends the whole
-// meter). Throttle is automatic. Buttons are plain pointer targets, so steer
+// thumb: one self-aiming KICK (tap: swings at the rider in reach, else the way
+// you steer; the `kick: 'two'` setting gives KICK L and KICK R instead), and
+// BOOST (tap: one tap spends the whole meter). Throttle is automatic. Buttons are plain pointer targets, so steer
 // and kick work together under multi-touch. Keyboard: arrows steer, A / Z kick
 // left, D / X kick right, Space / ArrowUp / W boost, E / L lasso (DUST KICK), C switches camera. A pressed steer button or
 // key always wins over the tilt.
 //
-//   bind.steer(-1|1), bind.boost, bind.kick(-1|1) → handlers to spread on a button
-//   getInput(world) → { steer, kick, boost } from tilt + buttons + keys: the live object
+//   bind.steer(-1|1), bind.boost, bind.kick(-1|1), bind.kickAuto → handlers to spread on a button
+//   getInput(world, view) → { steer, kick, boost } from tilt + buttons + keys: the live object
 //              the sim reads each step (the sim clears `kick` and `boost` once it has
 //              taken them). The countdown is when straight ahead is learned for tilt.
 //   tilt → { on, status, recenter } for the pad and the permission button
 const KEYS = {
   left: ['ArrowLeft'], right: ['ArrowRight'],
   boost: [' ', 'ArrowUp', 'w'],
-  kickL: ['a', 'z'], kickR: ['d', 'x'],
+  kickL: ['a', 'z'], kickR: ['d', 'x'], kickAuto: ['k'],
   lasso: ['e', 'l'],
   cam: ['c'],
 }
@@ -30,6 +32,7 @@ const norm = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key)
 
 export function useSideKickControls({ enabled = true } = {}) {
   const input = useRef({ steer: 0, kick: 0, boost: false, lasso: false })
+  const autoKick = useRef(false)
   const held = useRef({ l: false, r: false })
   const keys = useRef(new Set())
   const enabledRef = useRef(enabled)
@@ -43,6 +46,7 @@ export function useSideKickControls({ enabled = true } = {}) {
     held.current = { l: false, r: false }
     keys.current.clear()
     input.current.steer = 0; input.current.kick = 0; input.current.boost = false; input.current.lasso = false
+    autoKick.current = false
   }, [])
 
   useEffect(() => {
@@ -59,6 +63,7 @@ export function useSideKickControls({ enabled = true } = {}) {
       keys.current.add(k)
       if (KEYS.kickL.includes(k)) input.current.kick = -1
       else if (KEYS.kickR.includes(k)) input.current.kick = 1
+      else if (KEYS.kickAuto.includes(k)) autoKick.current = true
       else if (KEYS.boost.includes(k)) input.current.boost = true
       else if (KEYS.lasso.includes(k)) input.current.lasso = true
       else if (KEYS.cam.includes(k)) setPrefs({ cam: getPrefs().cam === 'first' ? 'chase' : 'first' })
@@ -111,6 +116,18 @@ export function useSideKickControls({ enabled = true } = {}) {
       },
       onContextMenu: (e) => e.preventDefault(),
     },
+    // One self-aiming KICK: the press is only noted here; getInput picks the side from the world it steps.
+    kickAuto: {
+      onPointerDown: (e) => {
+        if (!enabledRef.current) return
+        e.preventDefault()
+        autoKick.current = true
+        const el = e.currentTarget
+        el.dataset.down = '1'
+        setTimeout(() => { delete el.dataset.down }, 120)
+      },
+      onContextMenu: (e) => e.preventDefault(),
+    },
     kick: (side) => ({
       onPointerDown: (e) => {
         if (!enabledRef.current) return
@@ -124,7 +141,7 @@ export function useSideKickControls({ enabled = true } = {}) {
     }),
   }), [holdHandlers])
 
-  const getInput = useCallback((world) => {
+  const getInput = useCallback((world, view = 0) => {
     const has = (list) => list.some((k) => keys.current.has(k))
     const i = input.current
     const on = enabledRef.current
@@ -138,7 +155,12 @@ export function useSideKickControls({ enabled = true } = {}) {
       if (!pressed) steer = lean
     }
     i.steer = on ? steer : 0
-    if (!on) { i.boost = false; i.lasso = false }
+    if (autoKick.current) {
+      autoKick.current = false
+      const me = world?.riders?.[view]
+      if (on && me) i.kick = kickSideFor(world, me, steer)
+    }
+    if (!on) { i.boost = false; i.lasso = false; i.kick = 0 }
     return i
   }, [])
 

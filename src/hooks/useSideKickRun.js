@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { DT, MAXSPD, PIPS, BOOST_MIN, BOOST_TOP, CATCHUP_TOP, SLIPSTREAM_TOP, SLIPSTREAM_AFTER, NEAR_MISS_FILL, standings, step, formatRaceTime } from '../lib/sideKickLogic'
 import { HAY_FILL, ROPED_TOP, SPOOK_TOP } from '../lib/dustKickLogic'
+import { aimKick } from '../lib/sideKickCockpitLogic'
 import { playSideKickEvent, createEngineHum } from '../lib/sideKickSound'
 import { isReducedMotion } from './useMotionPref'
 
@@ -11,7 +12,7 @@ import { isReducedMotion } from './useMotionPref'
 //
 //   worldRef      → { current: world | null }; nothing runs until it is set
 //   view          → the rider index this phone follows
-//   getInput      → (world) => { steer, kick, boost } (useSideKickControls)
+//   getInput      → (world, view) => { steer, kick, boost } (useSideKickControls)
 //   getClockT     → optional () => seconds since the shared go signal (online)
 //   beforeFrame   → (world, dt) once per frame, before the steps
 //   afterFrame    → (world, events) once per frame with the events of its steps
@@ -30,6 +31,7 @@ export function hudOf(world, view) {
   const st = standings(world)
   const down = me.state === 'down'
   const cu = me.cu > 0 && !down
+  const aim = down || me.done || world.phase === 'count' ? null : aimKick(world, me)
   return {
     phase: world.phase,
     place: st.indexOf(me) + 1,
@@ -41,6 +43,8 @@ export function hudOf(world, view) {
     down,
     done: me.done,
     cool: me.cd > 0,
+    // The rider a KICK would land on right now: their seat and which side of you they are.
+    aim: aim?.target ? { i: aim.target.i, side: aim.side, name: aim.target.name } : null,
     strain: Math.round(Math.min(1, me.strain) * 100) / 100,
     boost: Math.round(me.boost * 100) / 100,
     boosting: me.boosting,
@@ -143,7 +147,7 @@ export default function useSideKickRun({
         if (!renderer.tickHitStop(dt)) acc += dt
         let n = 0
         while (acc >= DT && n++ < MAX_STEPS) {
-          const input = c.getInput?.(world)
+          const input = c.getInput?.(world, c.view)
           const clockT = c.getClockT?.()
           step(world, input ? { [c.view]: input } : {}, DT, clockT ?? null)
           if (world.events.length) events.push(...world.events.splice(0))
