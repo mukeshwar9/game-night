@@ -5,6 +5,9 @@
 //     cycle:       number,               // 1-indexed; bumps when the seat order wraps
 //     artist:      uid,
 //     order:       [uid, ...],           // fixed snapshot from startRound, never mutated
+//     cycles:      1 | 2 | 3,            // match setup snapshot from START (sketchConfigLogic);
+//     drawBase:    ms,                   //   absent on rounds from before match setup, which
+//     hintCount:   0 | 1 | 2,            //   fall back to cyclesFor / DRAW_MS / MAX_HINTS
 //     used:        [number, ...],        // deck indices already offered this match (any tier)
 //     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
@@ -168,13 +171,47 @@ export function cyclesFor(playerCount) {
   return playerCount === 2 ? 3 : 2
 }
 
-// ---- matchOver(order, artist, cycle) -> boolean -----------------------------
+// ---- Match setup carried by the round ----------------------------------------
+// START snapshots the host's setup into the round (see sketchConfigLogic) and
+// every next round carries it on. A missing or off-menu value means a round
+// from before match setup: today's rule applies.
+const isCount = (v, max) => Number.isInteger(v) && v >= 0 && v <= max
+
+/** How many times everyone draws this match: `round.cycles`, else cyclesFor(order). */
+export function roundCycles(round) {
+  const c = round?.cycles
+  return isCount(c, 3) && c >= 1 ? c : cyclesFor((round?.order || []).length)
+}
+
+/** The drawing clock before the room's timer scale: `round.drawBase`, else DRAW_MS. */
+export function roundDrawBase(round) {
+  const ms = round?.drawBase
+  return Number.isInteger(ms) && ms >= 45000 && ms <= 120000 ? ms : DRAW_MS
+}
+
+/** Letter hints this match shows (0-2): `round.hintCount`, else MAX_HINTS. */
+export function roundHintCount(round) {
+  const n = round?.hintCount
+  return isCount(n, MAX_HINTS) ? n : MAX_HINTS
+}
+
+/** The setup fields to carry from one round to the next (only those present). */
+function carrySetup(round) {
+  const out = {}
+  for (const key of ['cycles', 'drawBase', 'hintCount']) {
+    if (round?.[key] != null) out[key] = round[key]
+  }
+  return out
+}
+
+// ---- matchOver(order, artist, cycle, cycles?) -> boolean ----------------------
 // True when the round that just finished (this artist, this cycle) was the
 // LAST round of the match: artist is the last seat in `order` AND
-// cycle >= cyclesFor(order.length).
-export function matchOver(order, artist, cycle) {
+// cycle >= cycles (the round's snapshot; today's cyclesFor(order.length)
+// when the caller has none).
+export function matchOver(order, artist, cycle, cycles = cyclesFor(order.length)) {
   const idx = order.indexOf(artist)
-  return idx === order.length - 1 && cycle >= cyclesFor(order.length)
+  return idx === order.length - 1 && cycle >= cycles
 }
 
 // ---- nextRoundState(round) -> { finished: true } | { finished: false, round } --
@@ -188,7 +225,7 @@ export function matchOver(order, artist, cycle) {
 export function nextRoundState(round) {
   const { order, artist, cycle, used, options, matchSeed, faves } = round
   const carryUsed = [...(used || []), ...(options || [])]
-  if (matchOver(order, artist, cycle)) return { finished: true }
+  if (matchOver(order, artist, cycle, roundCycles(round))) return { finished: true }
   const idx = order.indexOf(artist)
   const wraps = idx === order.length - 1
   return {
@@ -198,6 +235,7 @@ export function nextRoundState(round) {
       cycle: cycle + (wraps ? 1 : 0),
       artist: nextArtist(order, artist),
       order,
+      ...carrySetup(round),
       used: carryUsed,
       matchSeed,
       options: null,
@@ -385,7 +423,9 @@ export function entryForWord(deckWords, options, word) {
 // Published as `round/hints/{n}` = { i, c }: `i` is the letter's position in
 // the public blanks, counted across the words of the pattern with no gaps
 // ("hot dog" -> h0 o1 t2 d3 o4 g5), `c` the letter itself. Starting values,
-// not tuned numbers: the 50% / 75% moments and the one-third cap.
+// not tuned numbers: the 50% / 75% moments and the one-third cap. The host's
+// match setup can lower the count (`round.hintCount`: 1 = the half-time hint
+// only, 0 = none).
 export const HINT_AT = [0.5, 0.75]
 export const HINT_MAX_FRACTION = 1 / 3
 export const MAX_HINTS = HINT_AT.length
@@ -400,18 +440,19 @@ export function letterPositions(word) {
   return out
 }
 
-/** How many hints a word may ever show: at most a third of its letters, at most MAX_HINTS. */
-export function hintBudget(word) {
-  return Math.min(MAX_HINTS, Math.floor(letterPositions(word).length * HINT_MAX_FRACTION))
+/** How many hints a word may ever show: at most a third of its letters, at most `max` (MAX_HINTS). */
+export function hintBudget(word, max = MAX_HINTS) {
+  const cap = isCount(max, MAX_HINTS) ? max : MAX_HINTS
+  return Math.min(cap, Math.floor(letterPositions(word).length * HINT_MAX_FRACTION))
 }
 
 /**
  * The hints a word will show, in order, deterministic from `seed` so an artist
  * who reloads republishes the same letters. Each is { i, c } (c lowercase).
  */
-export function planHints(word, seed) {
+export function planHints(word, seed, max = MAX_HINTS) {
   const chars = Array.from(String(word ?? '').trim().split(/\s+/).filter(Boolean).join(''))
-  const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word))
+  const picks = seededShuffle(letterPositions(word), seed >>> 0).slice(0, hintBudget(word, max))
   return picks.map(i => ({ i, c: chars[i].toLowerCase() }))
 }
 
@@ -444,7 +485,7 @@ export function normalizeHints(raw, pattern = null) {
  */
 export function nextHintToPublish({ word, seed, round, published, now }) {
   if (!word || !round || round.phase !== 'drawing') return null
-  const plan = planHints(word, seed)
+  const plan = planHints(word, seed, roundHintCount(round))
   const have = new Set((published || []).map(h => h.n))
   for (let n = 0; n < plan.length; n++) {
     if (have.has(n)) continue

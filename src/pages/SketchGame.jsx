@@ -14,7 +14,8 @@ import {
   wordPattern,
   pickRoundOptions,
   scoringWindow,
-  cyclesFor,
+  roundCycles,
+  roundDrawBase,
   nextRoundState,
   activeGuessers,
   participantGuessers,
@@ -59,6 +60,8 @@ import { SKETCH_WORDS } from '../lib/decks/sketch'
 import SketchCanvas from '../components/SketchCanvas'
 import ReportButton from '../components/ReportButton'
 import BottomSheet from '../components/BottomSheet'
+import SketchSetup from '../components/SketchSetup'
+import { SKETCH_CONFIG_KEY, patchSketchConfig } from '../lib/sketchConfigLogic'
 import { TimerRing, FaceStrip, Blanks, GuessBubbles, Podium, Gallery, HeartButton, CrowdFavourite } from '../components/SketchStage'
 import Avatar from '../components/Avatar'
 import GameSwitcher from '../components/GameSwitcher'
@@ -86,6 +89,10 @@ function normalizeRound(raw) {
     cycle: raw.cycle ?? 1,
     artist: raw.artist ?? null,
     order: normalizeList(raw.order),
+    // match setup copied in at START (absent on older rounds; see sketchLogic roundCycles & co.)
+    cycles: raw.cycles ?? null,
+    drawBase: raw.drawBase ?? null,
+    hintCount: raw.hintCount ?? null,
     used: normalizeList(raw.used),
     matchSeed: raw.matchSeed ?? '',
     options: raw.options ? normalizeList(raw.options) : null,
@@ -197,9 +204,9 @@ export default function SketchGame({
   // Room timer scale (lobby option): choosing/drawing clocks stretch 2× when
   // relaxed and disappear at 0 (the coordinator then ends rounds by hand). The
   // reveal (word, replay, points) is a display pause, not a deadline on anyone,
-  // so it stays fixed.
+  // so it stays fixed. The drawing clock's base is the round's own (the host's
+  // match setup).
   const chooseMs = scaledMs(CHOOSE_MS, game.timerScale)
-  const drawMs = scaledMs(DRAW_MS, game.timerScale)
   const noTimer = timersOff(game.timerScale)
   const deadlineAfter = (ms) => (ms == null ? null : now() + ms)
 
@@ -256,6 +263,7 @@ export default function SketchGame({
   const [skippingDrawing, runSkipDrawing] = useBusy()     // drawing: SKIP ROUND (artist offline)
   const [endingRound, runEndRound] = useBusy()           // drawing, timers off: END ROUND
   const [hearting, runHeart] = useBusy()                 // drawing (solved) / reveal: the heart
+  const [savingSetup, runSaveSetup] = useBusy()          // lobby: MATCH SETUP taps
 
   const pickedRef = useRef(false)                    // this client already picked/auto-picked this round
   const correctSentRef = useRef(false)                // this client already published its own correct guess
@@ -321,6 +329,8 @@ export default function SketchGame({
       // guessers can be matched leniently without the word in the clear.
       const accept = await acceptHashes(entry, salt)
       const pattern = wordPattern(entry.word)
+      const drawBase = roundDrawBase(r)
+      const drawMs = scaledMs(drawBase, game.timerScale)
       const drawStartedAt = now()
       const drawPhaseEndsAt = drawMs == null ? null : drawStartedAt + drawMs
       await runTransaction(ref(db, `games/${gameId}`), current => {
@@ -332,8 +342,8 @@ export default function SketchGame({
           round: {
             ...cr, commitment: { hash, salt }, accept, wordPattern: pattern, phase: 'drawing', endsAt: drawPhaseEndsAt,
             // Speed-bonus window for scoring (see sketchLogic.scoringWindow):
-            // the scaled clock, or the base DRAW_MS when timers are off.
-            drawStartedAt, drawMs: drawMs ?? DRAW_MS,
+            // the scaled clock, or the round's base clock when timers are off.
+            drawStartedAt, drawMs: drawMs ?? drawBase,
           },
         }
       })
@@ -341,7 +351,7 @@ export default function SketchGame({
       pickedRef.current = false
       toast.error('PICK FAILED — CHECK CONNECTION')
     }
-  }, [mySeat, gameId, now, drawMs])
+  }, [mySeat, gameId, now, game.timerScale])
 
   // ---- Guesser: submit a guess — correct locks in via hash match -----------
   // Throttled client-side (min 500ms between guesses) so a fast-tapping/scripted
@@ -725,6 +735,13 @@ export default function SketchGame({
     const iWon = winners.includes(mySeat)
     const enough = playerCount >= MIN_PLAYERS
     const winnerNames = winners.map(id => (players[id]?.name || '???').toUpperCase())
+    // MATCH SETUP: each tap merges into the room's sketchConfig at once. A
+    // transaction on the key alone, so two quick taps never undo each other;
+    // the rules refuse it once the match is playing.
+    const saveSetup = (patch) => runSaveSetup(
+      () => runTransaction(ref(db, `games/${gameId}/${SKETCH_CONFIG_KEY}`), cur => patchSketchConfig(cur, patch)),
+      () => toast.error("COULDN'T SAVE SETUP — TRY AGAIN"),
+    )
 
     return (
       <div className="space-y-5 text-center">
@@ -786,6 +803,17 @@ export default function SketchGame({
           </div>
         )}
 
+        {!matchOver && (
+          <SketchSetup
+            config={game[SKETCH_CONFIG_KEY]}
+            playerCount={playerCount}
+            timerScale={game.timerScale}
+            canEdit={amCoordinator && isPlayer}
+            saving={savingSetup}
+            onSave={saveSetup}
+          />
+        )}
+
         {!enough && !matchOver && (
           <p className="font-pixel text-[10px] text-retro-p2 arcade-blink leading-relaxed">
             NEED {MIN_PLAYERS - playerCount} MORE PLAYER{MIN_PLAYERS - playerCount === 1 ? '' : 'S'}<br />TO START
@@ -840,7 +868,7 @@ export default function SketchGame({
   // Active round — the stage.
   // -------------------------------------------------------------------------
   const artistName = (players[round.artist]?.name || '???').toUpperCase()
-  const totalCycles = cyclesFor(round.order.length)
+  const totalCycles = roundCycles(round)
   // Timers off: no auto-pick will ever fire, so the coordinator may pass a
   // stalled artist on as soon as the options are up.
   const showChoosingSkip = amCoordinator && round.phase === 'choosing' && (

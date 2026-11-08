@@ -3,7 +3,7 @@
 // (a guesser's correct mark, the coordinator's reveal) still passes with the
 // hints unchanged.
 import { afterAll, afterEach, beforeAll, describe, it } from 'vitest'
-import { assertFails, assertSucceeds, dbAs, gameNode, seed, rulesEnvFor } from './helpers.js'
+import { assertFails, assertSucceeds, dbAs, gameNode, partyNode, seed, rulesEnvFor } from './helpers.js'
 
 const T = rulesEnvFor({ beforeAll, afterEach, afterAll })
 const as = (uid) => dbAs(T.env, uid)
@@ -84,5 +84,86 @@ describe('SKETCH letter hints', () => {
   it('accepts a room with no hints at all (rooms from before hints)', async () => {
     await put(room())
     await assertSucceeds(as('bob').ref('games/g1/round/chat/c1').set({ uid: 'bob', text: 'cat' }))
+  })
+})
+
+// SKETCH match setup: the host's `sketchConfig` (room-level, kept across
+// matches) and the round's snapshot of it (`round/cycles`, `drawBase`,
+// `hintCount`), copied at START.
+describe('SKETCH match setup (sketchConfig)', () => {
+  const party = (status = 'waiting', extra = {}) => partyNode({ uids: ['alice', 'bob', 'cy'], gameType: 'sketch', status, extra })
+  const config = (over = {}) => ({ v: 1, draws: 2, drawS: 75, hints: 2, ...over })
+
+  it('lets a seated player save a setup in the lobby, field by field or whole', async () => {
+    await put(party())
+    await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set(config()))
+    await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set({ v: 1, drawS: 45 })) // unpicked fields absent
+    await assertSucceeds(as('alice').ref('games/g1/sketchConfig/hints').set(0))
+    await assertSucceeds(as('alice').ref('games/g1/sketchConfig/draws').set(3))
+    await assertSucceeds(as('alice').ref('games/g1/sketchConfig/drawS').set(120))
+  })
+
+  it('refuses a visitor who is not in the room', async () => {
+    await put(party())
+    await assertFails(as('mallory').ref('games/g1/sketchConfig').set(config()))
+    await assertFails(dbAs(T.env, null).ref('games/g1/sketchConfig').set(config()))
+  })
+
+  it('accepts only values on the menu, with a version and nothing extra', async () => {
+    await put(party())
+    for (const draws of [0, 4, '2', 1.5]) await assertFails(as('alice').ref('games/g1/sketchConfig').set(config({ draws })))
+    for (const drawS of [30, 50, 150, '75']) await assertFails(as('alice').ref('games/g1/sketchConfig').set(config({ drawS })))
+    for (const hints of [-1, 3, true]) await assertFails(as('alice').ref('games/g1/sketchConfig').set(config({ hints })))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set(config({ v: 2 })))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set({ draws: 2 }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set(config({ words: 12 })))
+    for (const drawS of [45, 60, 75, 90, 120]) await assertSucceeds(as('alice').ref('games/g1/sketchConfig').set(config({ drawS })))
+  })
+
+  it('locks while a Sketch match is playing, but whole-room writes with it unchanged still pass', async () => {
+    await put(party('playing', { sketchConfig: config(), round: round({ cycles: 2, drawBase: 75000, hintCount: 2 }) }))
+    await assertFails(as('alice').ref('games/g1/sketchConfig/draws').set(3))
+    await assertFails(as('alice').ref('games/g1/sketchConfig').set(config({ hints: 0 })))
+    const whole = (await as('bob').ref('games/g1').get()).val()
+    await assertSucceeds(as('bob').ref('games/g1').set({ ...whole, scores: { alice: 25, bob: 100 } }))
+  })
+
+  it('can be changed again once the match is over', async () => {
+    await put(party('finished', { sketchConfig: config() }))
+    await assertSucceeds(as('bob').ref('games/g1/sketchConfig/draws').set(1))
+  })
+
+  it('START: one write seeds a playing room with the round snapshot', async () => {
+    await put(party('waiting', { sketchConfig: config({ draws: 1, drawS: 45, hints: 1 }) }))
+    const whole = (await as('alice').ref('games/g1').get()).val()
+    const first = { phase: 'choosing', cycle: 1, artist: 'alice', order: ['alice', 'bob', 'cy'], matchSeed: 'm1', cycles: 1, drawBase: 45000, hintCount: 1 }
+    await assertSucceeds(as('alice').ref('games/g1').set({ ...whole, status: 'playing', round: first }))
+  })
+})
+
+describe('SKETCH round snapshot of the setup', () => {
+  it('accepts every menu value in the round', async () => {
+    await put(room())
+    for (const cycles of [1, 2, 3]) await assertSucceeds(as('bob').ref('games/g1/round/cycles').set(cycles))
+    for (const ms of [45000, 60000, 75000, 90000, 120000]) await assertSucceeds(as('bob').ref('games/g1/round/drawBase').set(ms))
+    for (const n of [0, 1, 2]) await assertSucceeds(as('bob').ref('games/g1/round/hintCount').set(n))
+  })
+
+  it('refuses values off the menu', async () => {
+    await put(room())
+    for (const cycles of [0, 4, '2', 2.5]) await assertFails(as('bob').ref('games/g1/round/cycles').set(cycles))
+    for (const ms of [0, 50000, 75001, 600000, '75000']) await assertFails(as('bob').ref('games/g1/round/drawBase').set(ms))
+    for (const n of [-1, 3, '1']) await assertFails(as('bob').ref('games/g1/round/hintCount').set(n))
+  })
+
+  it('a round set to one hint takes only the half-time hint; none takes no hint', async () => {
+    await put(room(round({ hintCount: 1 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/hints/0').set(hint()))
+    await assertFails(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
+    await put(room(round({ hintCount: 0 })))
+    await assertFails(as('alice').ref('games/g1/round/hints/0').set(hint()))
+    await put(room(round({ hintCount: 2 })))
+    await assertSucceeds(as('alice').ref('games/g1/round/hints/0').set(hint()))
+    await assertSucceeds(as('alice').ref('games/g1/round/hints/1').set(hint({ i: 5, c: 'o' })))
   })
 })

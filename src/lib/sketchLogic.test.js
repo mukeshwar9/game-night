@@ -36,6 +36,10 @@ import {
   normalizeHints,
   nextHintToPublish,
   blankCells,
+  MAX_HINTS,
+  roundCycles,
+  roundDrawBase,
+  roundHintCount,
 } from './sketchLogic'
 import { markSeen } from './seenHistory'
 import { SKETCH_WORDS } from './decks/sketch'
@@ -692,5 +696,83 @@ describe('letter hints', () => {
       const letters = letterPositions(e.word).length
       expect(hintBudget(e.word)).toBeLessThan(Math.max(letters, 1))
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Match setup carried by the round (round.cycles / drawBase / hintCount)
+// ---------------------------------------------------------------------------
+describe('round match setup', () => {
+  it('reads the snapshot, falling back to today\'s rule for older rounds or bad values', () => {
+    expect(roundCycles({ order: ['a', 'b', 'c'], cycles: 1 })).toBe(1)
+    expect(roundCycles({ order: ['a', 'b'], cycles: 2 })).toBe(2)
+    expect(roundCycles({ order: ['a', 'b'] })).toBe(cyclesFor(2))
+    expect(roundCycles({ order: ['a', 'b', 'c'] })).toBe(cyclesFor(3))
+    for (const bad of [0, 4, 1.5, '2', null]) expect(roundCycles({ order: ['a', 'b', 'c'], cycles: bad })).toBe(2)
+    expect(roundCycles(null)).toBe(cyclesFor(0))
+
+    expect(roundDrawBase({ drawBase: 45000 })).toBe(45000)
+    expect(roundDrawBase({ drawBase: 120000 })).toBe(120000)
+    for (const bad of [undefined, 0, 44999, 120001, '60000', 60000.5]) expect(roundDrawBase({ drawBase: bad })).toBe(DRAW_MS)
+
+    expect(roundHintCount({ hintCount: 0 })).toBe(0)
+    expect(roundHintCount({ hintCount: 1 })).toBe(1)
+    for (const bad of [undefined, null, 3, -1, '1']) expect(roundHintCount({ hintCount: bad })).toBe(MAX_HINTS)
+  })
+
+  it('matchOver takes the stored cycle count, today\'s cyclesFor when absent', () => {
+    expect(matchOver(['a', 'b', 'c'], 'c', 1, 1)).toBe(true)
+    expect(matchOver(['a', 'b', 'c'], 'c', 1)).toBe(false)
+    expect(matchOver(['a', 'b'], 'b', 2, 2)).toBe(true)
+    expect(matchOver(['a', 'b'], 'b', 2)).toBe(false)
+    expect(matchOver(['a', 'b', 'c'], 'b', 3, 3)).toBe(false) // not the last seat
+  })
+
+  it('plays exactly order × cycles rounds and carries the setup into every round', () => {
+    for (const [order, cycles] of [[['a', 'b', 'c'], 1], [['a', 'b', 'c', 'd'], 3], [['a', 'b'], 1], [['a', 'b'], 2]]) {
+      let round = { order, artist: order[0], cycle: 1, used: [], matchSeed: 's', options: [1, 2, 3], cycles, drawBase: 45000, hintCount: 1 }
+      let rounds = 1
+      for (;;) {
+        const next = nextRoundState(round)
+        if (next.finished) break
+        rounds++
+        expect(next.round).toMatchObject({ cycles, drawBase: 45000, hintCount: 1 })
+        round = { ...next.round, options: [rounds * 3, rounds * 3 + 1, rounds * 3 + 2] }
+        expect(rounds).toBeLessThanOrEqual(order.length * cycles)
+      }
+      expect(rounds).toBe(order.length * cycles)
+    }
+  })
+
+  it('an older round with no snapshot keeps today\'s length and gains no setup keys', () => {
+    const next = nextRoundState({ order: ['a', 'b'], artist: 'b', cycle: 2, used: [], options: [], matchSeed: 's' })
+    expect(next.finished).toBe(false)
+    expect(next.round.cycle).toBe(3)
+    expect('cycles' in next.round).toBe(false)
+    expect('drawBase' in next.round).toBe(false)
+    expect('hintCount' in next.round).toBe(false)
+    expect(Object.values(next.round).includes(undefined)).toBe(false)
+  })
+
+  it('hint count 1 publishes only the half-time hint, 0 publishes none', () => {
+    const round = { phase: 'drawing', drawStartedAt: 1000, drawMs: 80000 }
+    const word = 'rainbow'
+    expect(hintBudget(word, 1)).toBe(1)
+    expect(hintBudget(word, 0)).toBe(0)
+    expect(hintBudget(word, 9)).toBe(hintBudget(word)) // off-menu reads as the default
+    expect(planHints(word, 9, 1)).toEqual(planHints(word, 9).slice(0, 1))
+    expect(planHints(word, 9, 0)).toEqual([])
+
+    const one = { word, seed: 9, round: { ...round, hintCount: 1 }, now: 99999 }
+    expect(nextHintToPublish({ ...one, published: [] })).toMatchObject({ n: 0 })
+    expect(nextHintToPublish({ ...one, published: [{ n: 0, i: 0, c: 'r' }] })).toBeNull()
+    expect(nextHintToPublish({ word, seed: 9, round: { ...round, hintCount: 0 }, published: [], now: 99999 })).toBeNull()
+    expect(nextHintToPublish({ word, seed: 9, round: { ...round, hintCount: 2 }, published: [{ n: 0, i: 0, c: 'r' }], now: 99999 })).toMatchObject({ n: 1 })
+  })
+
+  it('hints follow a shorter drawing clock', () => {
+    const round = { phase: 'drawing', drawStartedAt: 0, drawMs: 45000 }
+    expect(hintDueAt(round, 0)).toBe(22500)
+    expect(hintDueAt(round, 1)).toBe(33750)
   })
 })
