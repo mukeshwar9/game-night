@@ -2372,7 +2372,18 @@ body::before {
    the animation duration app-wide, so it simply appears. */
 .ar-route.is-peek { animation: ar-route-in var(--dur-fast) var(--ease-enter) backwards; pointer-events: none; }
 .ar-route.is-hover { opacity: 0.5; }
+.ar-route.is-pick { stroke-width: 1.5; opacity: 1; animation: ar-route-in var(--dur-fast) var(--ease-enter) backwards; pointer-events: none; }
+.ar-route.is-blocked { stroke: rgb(var(--c-danger)); }
 @keyframes ar-route-in { from { opacity: 0; } }
+/* Solo result: stars stamp in one at a time (--i), then the buttons appear. A star
+   that has just been lost in play drops a size. The game announcing, so a
+   plain ease; reduced motion freezes both app-wide. */
+.ar-stamp { animation: ar-stamp var(--dur-base) var(--ease-enter) backwards; animation-delay: calc(var(--i, 0) * 220ms); }
+@keyframes ar-stamp { from { opacity: 0; transform: scale(1.9); } }
+.ar-star-lost { animation: ar-star-lost var(--dur-page) var(--ease-exit) backwards; }
+@keyframes ar-star-lost { from { opacity: 1; transform: scale(1.5); color: rgb(var(--c-cta)); } }
+.ar-nudge { animation: ar-nudge 1.2s ease-in-out infinite; }
+@keyframes ar-nudge { 50% { box-shadow: 0 0 0 4px rgb(var(--c-cta) / 0.35); } }
 .ar-hit { outline: none; }
 .ar-hit:focus-visible { stroke: rgb(var(--c-cta) / 0.3); }
 /* Mirrors (a fixed tile with a slanted bar) and crates (a numbered box that
