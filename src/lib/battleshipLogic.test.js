@@ -13,6 +13,7 @@ import {
   allSunk,
   remainingShips,
   pickShot,
+  BOT_SHOT_LEVELS,
   verifyTranscript,
   canPlace,
 } from './battleshipLogic'
@@ -263,5 +264,76 @@ describe('verifyTranscript', () => {
     expect((await verifyTranscript(moved, salt, hash, [])).reason).toBe('commitment')
     expect((await verifyTranscript(fleet, salt, hash, [{ cell: 50, result: 'miss' }])).reason)
       .toBe('transcript') // 50 is battleship's second cell → real answer is 'hit'
+  })
+})
+
+describe('pickShot levels', () => {
+  // Shots needed to sink a whole random fleet at `level`, averaged over seeds.
+  const shotsToWin = (level, seeds = 40) => {
+    let total = 0
+    for (let seed = 1; seed <= seeds; seed++) {
+      const rng = mulberry32(seed)
+      const fleet = randomFleet(rng)
+      const shots = []
+      while (!allSunk(fleet, shots)) {
+        const cell = pickShot(shots, rng, level)
+        shots.push({ cell, result: gradeShot(fleet, cell, shots) })
+      }
+      total += shots.length
+    }
+    return total / seeds
+  }
+
+  it('lists the levels, with NORMAL as the original bot', () => {
+    expect(Object.keys(BOT_SHOT_LEVELS)).toEqual(['easy', 'normal', 'hard'])
+    expect(BOT_SHOT_LEVELS.normal).toEqual({ followUp: 1, parity: 0.7 })
+  })
+
+  it('an omitted or unknown level plays exactly like NORMAL', () => {
+    const shots = [{ cell: 12, result: 'miss' }, { cell: 44, result: 'hit' }]
+    for (let seed = 1; seed <= 20; seed++) {
+      expect(pickShot(shots, mulberry32(seed), 'nonsense')).toBe(pickShot(shots, mulberry32(seed)))
+      expect(pickShot(shots, mulberry32(seed), 'normal')).toBe(pickShot(shots, mulberry32(seed)))
+    }
+  })
+
+  it('never repeats a cell or finishes a board at any level', () => {
+    for (const level of ['easy', 'normal', 'hard']) {
+      const rng = mulberry32(9)
+      const fleet = randomFleet(rng)
+      const shots = []
+      for (let i = 0; i < 100; i++) {
+        const cell = pickShot(shots, rng, level)
+        expect(cell).not.toBeNull()
+        expect(shots.some(s => s.cell === cell)).toBe(false)
+        shots.push({ cell, result: gradeShot(fleet, cell, shots) })
+      }
+      expect(pickShot(shots, rng, level)).toBeNull()
+    }
+  })
+
+  it('HARD hunts on the checkerboard only', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const cell = pickShot([], mulberry32(seed), 'hard')
+      expect((Math.floor(cell / GRID_SIZE) + (cell % GRID_SIZE)) % 2).toBe(0)
+    }
+  })
+
+  it('EASY sometimes ignores a live hit that NORMAL always chases', () => {
+    const shots = [{ cell: 2, result: 'hit' }]
+    let ignored = 0
+    for (let seed = 1; seed <= 40; seed++) {
+      if (![1, 3, 12].includes(pickShot(shots, mulberry32(seed), 'easy'))) ignored++
+      expect([1, 3, 12]).toContain(pickShot(shots, mulberry32(seed), 'normal'))
+    }
+    expect(ignored).toBeGreaterThan(0)
+  })
+
+  it('sinks a fleet in fewer shots as the level rises', () => {
+    const easy = shotsToWin('easy')
+    const normal = shotsToWin('normal')
+    const hard = shotsToWin('hard')
+    expect(easy).toBeGreaterThan(normal)
+    expect(normal).toBeGreaterThan(hard)
   })
 })
