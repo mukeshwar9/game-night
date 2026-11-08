@@ -77,6 +77,7 @@ export function ghostsToSweep({ players, status, maxPlayers = PARTY_DEFAULT_MAX,
 export function inviteSeatsLine(invite) {
   if (!invite) return null
   if (invite.party) {
+    if (invite.joinsMidMatch) return `${invite.playerCount}/${invite.capacity} PLAYERS · MATCH IN PROGRESS — JOIN AS A GUESSER NEXT ROUND`
     if (invite.joinsNextRound) return `${invite.playerCount}/${invite.capacity} PLAYERS · ROUND IN PROGRESS — YOU'LL JOIN NEXT ROUND`
     if (invite.seatsLeft <= 0) return `${invite.playerCount}/${invite.capacity} PLAYERS · FULL — YOU'LL WATCH`
     return `${invite.playerCount}/${invite.capacity} PLAYERS · ${invite.seatsLeft} ${invite.seatsLeft === 1 ? 'SEAT' : 'SEATS'} LEFT`
@@ -102,7 +103,10 @@ export function inviteSummary(game, cfg) {
       playerCount: count,
       capacity,
       seatsLeft: Math.max(0, capacity - count),
-      // Party latecomers are seated at the next lobby, not mid-round.
+      // Party latecomers are seated at the next lobby, not mid-round —
+      // unless the game lets them join mid-match (registry `midJoin`) and
+      // there is a seat for them.
+      joinsMidMatch: !!cfg.midJoin && game?.status === 'playing' && count < capacity,
       joinsNextRound: game?.status !== 'waiting',
     }
   }

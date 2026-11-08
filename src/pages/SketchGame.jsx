@@ -15,7 +15,6 @@ import {
   scoringWindow,
   nextRoundState,
   activeGuessers,
-  participantGuessers,
   roundDeltas,
   deriveWord,
   SKETCH_SEEN_KEY,
@@ -45,6 +44,7 @@ import { buildDeck, roundCustom, pickOptionsWithCustom, deckOnly, sitsOut, isCus
 import SketchSetup from '../components/SketchSetup'
 import SketchWordsEditor, { CustomWordsRow } from '../components/SketchWordsEditor'
 import { normalizeWords } from '../lib/sketchWordsLogic'
+import { roundGuessers, lateGuessers, outsideOrder, joinedLate, lateJoinNotice } from '../lib/sketchLateJoinLogic'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { markSeen, normalizeSeen } from '../lib/seenHistory'
 import { scaledMs, timersOff } from '../lib/timerScale'
@@ -96,6 +96,8 @@ function normalizeRound(raw) {
     cycles: raw.cycles ?? null,
     drawBase: raw.drawBase ?? null,
     hintCount: raw.hintCount ?? null,
+    // server time the round was created: who joined before it plays it (S10)
+    startedAt: Number.isFinite(raw.startedAt) ? raw.startedAt : null,
     chat: raw.chat ?? {},
     correct: raw.correct ?? {},
     // letter hints the artist's phone published (see sketchLogic 'Letter hints')
@@ -200,6 +202,7 @@ function saveGallery(gameId, store) {
 export default function SketchGame({
   gameId, game, mySeat, players,
   onStart, onSwitchGame, onNewMatch, proposal,
+  midJoinState = null, onJoinMatch = null,
 }) {
   // Server-corrected clock, ticking every 250ms so countdown UIs re-render;
   // `now()` is a fresh server-time reading for handlers and transactions.
@@ -240,8 +243,13 @@ export default function SketchGame({
   const currentEntry = round ? entryForWord(deck, round.options, derivedWord) : null
   const iSitOut = !!round && sitsOut(custom, currentEntry, mySeat) && !isArtist
   const notSittingOut = id => !sitsOut(custom, currentEntry, id)
-  const participantGuesserIds = round ? participantGuessers(round.order, round.artist).filter(notSittingOut) : []
-  const activeGuesserIds = round ? activeGuessers(players || {}, round.order, round.artist).filter(notSittingOut) : []
+  // Guessers: the drawing order, plus players who joined mid-match before
+  // this round started (S10, sketchLateJoinLogic).
+  const roundOrder = round ? [...round.order, ...lateGuessers(round, players)] : []
+  const participantGuesserIds = round ? roundGuessers(round, players).filter(notSittingOut) : []
+  const activeGuesserIds = round ? activeGuessers(players || {}, roundOrder, round.artist).filter(notSittingOut) : []
+  // A player seated after this round started watches it ("YOU'RE IN").
+  const inThisRound = !!round && roundOrder.includes(mySeat)
   // Last-seen drawing-phase endsAt, captured via effect (see below) — `round.endsAt`
   // gets overwritten to the reveal deadline the instant the phase flips, but the
   // reveal screen still needs the ORIGINAL drawing deadline to recompute the same
@@ -256,7 +264,7 @@ export default function SketchGame({
   const [coarsePointer] = useState(isCoarsePointer)
   // Stage screen state: hints, the artist menu, the guess list, the gallery.
   const hints = round?.hints ?? []
-  const stageRole = isArtist ? 'artist' : isPlayer && !haveIGuessedCorrectly && !iSitOut ? 'guesser' : 'watcher'
+  const stageRole = isArtist ? 'artist' : isPlayer && inThisRound && !haveIGuessedCorrectly && !iSitOut ? 'guesser' : 'watcher'
   const [stageRef, stageSide] = useStageSide(stageRole)
   const [menuOpen, setMenuOpen] = useState(false)
   const [hintFlash, setHintFlash] = useState(null)       // n of the newest hint, shown for a moment
@@ -281,6 +289,7 @@ export default function SketchGame({
   const [skippingDrawing, runSkipDrawing] = useBusy()     // drawing: SKIP ROUND (artist offline)
   const [endingRound, runEndRound] = useBusy()           // drawing, timers off: END ROUND
   const [hearting, runHeart] = useBusy()                 // drawing (solved) / reveal: ♥
+  const [joining, runJoin] = useBusy()                   // watcher: JOIN mid-match (S10)
 
   const pickedRef = useRef(false)                    // this client already picked/auto-picked this round
   const correctSentRef = useRef(false)                // this client already published its own correct guess
@@ -375,6 +384,7 @@ export default function SketchGame({
     const r = roundRef.current
     if (!r || r.phase !== 'drawing') return
     if (r.artist === mySeat || r.correct?.[mySeat] || correctSentRef.current) return
+    if (![...r.order, ...lateGuessers(r, players)].includes(mySeat)) return // joined after this round began
     const nowTs = Date.now()
     if (nowTs - lastGuessAtRef.current < MIN_GUESS_INTERVAL_MS) return
     const raw = guessInput.trim().slice(0, MAX_GUESS_LEN)
@@ -417,7 +427,7 @@ export default function SketchGame({
       correctSentRef.current = false
       toast.error('GUESS FAILED — CHECK CONNECTION')
     }
-  }, [mySeat, guessInput, gameId, roundKey, derivedWord, deck])
+  }, [mySeat, guessInput, gameId, roundKey, derivedWord, deck, players])
 
   // ---- Host: void the round and rotate the artist (choosing stalled) ------
   const handleSkipChoosing = useCallback(async () => {
@@ -427,10 +437,11 @@ export default function SketchGame({
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'choosing') return // already resolved
-        const result = nextRoundState(withLists(r))
+        // `players`: mid-match joiners are appended at a cycle wrap (S10).
+        const result = nextRoundState(withLists(r), current.players)
         // The final reveal keeps the round with the folded heart tally (S5).
         if (result.finished) return { ...current, status: 'finished', proposal: null, ...(result.faves ? { round: { ...r, faves: result.faves } } : {}) }
-        return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt } }
+        return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt, startedAt: now() } }
       })
     } catch {
       toast.error('SKIP FAILED — CHECK CONNECTION')
@@ -459,7 +470,7 @@ export default function SketchGame({
         if (r.phase !== 'drawing') return // already advanced
         const trusted = r.commitment?.hash === commitHash
         // a custom word's author sits out its scoring (S3)
-        const liveGuesserIds = participantGuessers(normalizeRound(r).order, r.artist)
+        const liveGuesserIds = roundGuessers({ ...withLists(r), startedAt: normalizeRound(r).startedAt }, current.players)
           .filter(id => !(trusted && sitsOut(roundCustom(r), wordEntry, id)))
         const deltas = roundDeltas({
           guesserIds: liveGuesserIds,
@@ -494,10 +505,11 @@ export default function SketchGame({
         if (!current || !current.round) return current
         const r = current.round
         if (r.phase !== 'reveal' || r.endsAt !== expectedEndsAt) return // already advanced / stale
-        const result = nextRoundState(withLists(r))
+        // `players`: mid-match joiners are appended at a cycle wrap (S10).
+        const result = nextRoundState(withLists(r), current.players)
         // The final reveal keeps the round with the folded heart tally (S5).
         if (result.finished) return { ...current, status: 'finished', proposal: null, ...(result.faves ? { round: { ...r, faves: result.faves } } : {}) }
-        return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt } }
+        return { ...current, proposal: null, round: { ...result.round, endsAt: nextEndsAt, startedAt: now() } }
       })
     } catch {
       /* ignore */
@@ -777,7 +789,7 @@ export default function SketchGame({
         {matchOver ? (
           <>
             <CrowdFavourite award={award} gallery={gallery} players={players} voters={playerCount - 1} />
-            <Podium rows={podiumRows} players={players} mySeat={mySeat} />
+            <Podium rows={podiumRows} players={players} mySeat={mySeat} lateIds={order.filter(id => joinedLate(game.round, players[id]))} />
             <SketchGalleryShare
               entries={gallery}
               hearts={finalFaves}
@@ -900,7 +912,7 @@ export default function SketchGame({
   const pointsReady = replayDoneKey === revealKey
     || (round.revealAt != null && replayOver({ elapsed: nowMs - round.revealAt }))
 
-  const tiles = faceTiles({ players, order: round.order, scores: game.scores, round })
+  const tiles = faceTiles({ players, order: [...round.order, ...outsideOrder(round, players)], scores: game.scores, round })
   const correctCount = participantGuesserIds.filter(id => round.correct?.[id]).length
   const gotIt = gotItLabel(correctCount, participantGuesserIds.length)
   const canReportArtist = !isArtist && (round.phase === 'drawing' || round.phase === 'reveal')
@@ -1074,7 +1086,12 @@ export default function SketchGame({
               YOU ADDED THIS WORD — WATCH THIS ONE
             </p>
           )}
-          {isPlayer && !isArtist && !haveIGuessedCorrectly && !iSitOut && (
+          {isPlayer && !isArtist && !inThisRound && (
+            <p className="text-center font-pixel text-[9px] leading-relaxed text-retro-win" data-testid="sketch-late-notice">
+              {lateJoinNotice({ cycle: round.cycle, cycles: totalCycles, canGrow: round.cycles != null })}
+            </p>
+          )}
+          {isPlayer && !isArtist && inThisRound && !haveIGuessedCorrectly && !iSitOut && (
             <div className="space-y-1">
               <div className="flex gap-1.5">
                 <input
@@ -1186,6 +1203,28 @@ export default function SketchGame({
             </button>
           </div>
         </BottomSheet>
+      )}
+
+      {/* ---- A watcher may join the match in play (S10) ---- */}
+      {!isPlayer && midJoinState && (
+        <div className="space-y-2 rounded border border-retro-border bg-retro-card p-3 text-center" data-testid="sketch-join-bar">
+          {midJoinState === 'open' ? (
+            <>
+              <p className="font-pixel text-[9px] tracking-widest text-retro-dim">MATCH IN PROGRESS</p>
+              <p className="font-mono text-[11px] text-retro-text">Join as a guesser — you start next round with 0 points.</p>
+              <button
+                type="button"
+                onClick={() => runJoin(async () => { if (!(await onJoinMatch?.())) toast.error("COULDN'T JOIN — TRY AGAIN") }, () => toast.error("COULDN'T JOIN — TRY AGAIN"))}
+                disabled={joining || !onJoinMatch}
+                className="min-h-11 rounded bg-retro-cta px-6 font-pixel text-[10px] text-retro-bg transition press disabled:opacity-50"
+              >
+                {joining ? 'JOINING…' : 'JOIN'}
+              </button>
+            </>
+          ) : (
+            <p className="font-pixel text-[9px] text-retro-dim">{midJoinState === 'locked' ? 'ROOM LOCKED — WATCHING ONLY' : 'ROOM FULL — WATCHING'}</p>
+          )}
+        </div>
       )}
 
       {!proposal && onSwitchGame && <GameSwitcher currentType="sketch" onSwitch={onSwitchGame} />}

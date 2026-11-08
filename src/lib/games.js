@@ -2080,6 +2080,9 @@ export const GAME_TYPES = [
     addedAt: '2026-07-11',
     durationMin: 10, tags: ['thinky'],
     custom: true, nPlayer: true, minPlayers: 2, maxPlayers: 8,
+    // A visitor may JOIN a match in play: they guess from the next round and
+    // draw from the next cycle (useRoomSession joinMidMatch, sketchLateJoinLogic).
+    midJoin: true,
     Page: lazyWithRetry(() => import('../pages/SketchGame')),
     // Room chat is off for the artist mid-round (the word could be typed out).
     chatLocked: (game, uid) => sketchChatLock(game?.round, uid),
@@ -2102,6 +2105,8 @@ export const GAME_TYPES = [
           used: [],
           matchSeed: `${startedAt}:${Math.random().toString(36).slice(2)}`,
           endsAt: chooseMs == null ? null : startedAt + chooseMs,
+          // who was seated before a round started plays it (S10 late join)
+          startedAt,
           ...sketchRoundSetup(game?.sketchConfig, order.length),
           // the host's custom words (S3), copied so edits can't change the match
           custom: sketchCustomSnapshot(game?.sketchWords),

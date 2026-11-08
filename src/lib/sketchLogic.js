@@ -4,7 +4,8 @@
 //   { phase:       'choosing' | 'drawing' | 'reveal',
 //     cycle:       number,               // 1-indexed; bumps when the seat order wraps
 //     artist:      uid,
-//     order:       [uid, ...],           // fixed snapshot from startRound, never mutated
+//     order:       [uid, ...],           // snapshot from startRound; late joiners appended at a cycle wrap (S10)
+//     startedAt:   epoch-ms,             // server time this round was created (late-join eligibility); optional
 //     used:        [number, ...],        // deck indices already offered this match (any tier)
 //     matchSeed:   number | string,      // changes every new match so first options don't repeat
 //     options:     [number, number, number] | null,  // 3 deck indices; null until artist publishes
@@ -44,6 +45,7 @@ import { matchKey, normalizeText, editDistance, isCloseMatch } from './textMatch
 import { isBannedWord } from './wordDenylist'
 import { foldLikes } from './sketchFavesLogic'
 import { defaultDraws, roundCycles, roundHintCount } from './sketchConfigLogic'
+import { orderAtWrap } from './sketchLateJoinLogic'
 
 // ---- Tunable constants -----------------------------------------------------
 export const CHOOSE_MS = 15000
@@ -206,7 +208,11 @@ export function matchOver(order, artist, cycle, cycles = cyclesFor(order.length)
 // (the 3 offered candidates, whether or not the chosen one was ever confirmed).
 // The heart tally (`faves`) carries forward with this round's hearts folded in;
 // when the match ends it comes back as `faves` for the caller to keep.
-export function nextRoundState(round) {
+//
+// `players` (optional, the room's seats): at a cycle wrap, seated players who
+// joined mid-match are appended to the order (S10, sketchLateJoinLogic), so
+// they draw from the next cycle. Callers also stamp `startedAt` (server time).
+export function nextRoundState(round, players = null) {
   const { order, artist, cycle, used, options, matchSeed } = round
   const carryUsed = [...(used || []), ...(options || [])]
   const faves = foldLikes(round.faves, round)
@@ -214,13 +220,14 @@ export function nextRoundState(round) {
   if (matchOver(order, artist, cycle, roundCycles(round))) return hasFaves ? { finished: true, faves } : { finished: true }
   const idx = order.indexOf(artist)
   const wraps = idx === order.length - 1
+  const nextOrder = wraps && players ? orderAtWrap(round, players) : order
   return {
     finished: false,
     round: {
       phase: 'choosing',
       cycle: cycle + (wraps ? 1 : 0),
-      artist: nextArtist(order, artist),
-      order,
+      artist: wraps ? (nextOrder[0] ?? null) : nextArtist(order, artist),
+      order: nextOrder,
       used: carryUsed,
       matchSeed,
       // the match's setup, copied at START, rides along unchanged (S2)

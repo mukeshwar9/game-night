@@ -234,3 +234,49 @@ describe('SKETCH custom words', () => {
     await assertSucceeds(as('bob').ref('games/g1/round/custom').set({ by: 'alice', mode: 'mix', list: ['ok', 'fine'] }))
   })
 })
+
+// SKETCH join mid-match (S10): while a Sketch match is playing a visitor may
+// create their own seat (and only theirs); a locked room, a kicked or removed
+// player, another game and a finished match still refuse.
+describe('SKETCH join mid-match', () => {
+  const visitor = (over = {}) => ({ name: 'Dee', playerId: 'dee', joinedAt: 5000, online: true, ...over })
+
+  it('lets a visitor take their own seat while the match plays', async () => {
+    await put(room())
+    await assertSucceeds(as('dee').ref('games/g1/players/dee').set(visitor()))
+    // …and, now a member, touch the room like any player
+    await assertSucceeds(as('dee').ref('games/g1/lastActivityAt').set(Date.now()))
+  })
+
+  it('refuses someone else\'s seat or a seat written as someone else', async () => {
+    await put(room())
+    await assertFails(as('dee').ref('games/g1/players/eve').set(visitor({ playerId: 'eve' })))
+    await assertFails(as('dee').ref('games/g1/players/eve').set(visitor()))
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor({ playerId: 'eve' })))
+  })
+
+  it('refuses a locked room, a kicked or removed player, and a finished match', async () => {
+    await put({ ...room(), locked: true })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+    await put({ ...room(), kicked: { dee: true } })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+    await put({ ...room(), removed: { dee: true } })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+    await put({ ...room(), status: 'finished' })
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+  })
+
+  it('stays closed mid-match for every other game', async () => {
+    const other = room()
+    other.gameType = 'fibbage'
+    await put(other)
+    await assertFails(as('dee').ref('games/g1/players/dee').set(visitor()))
+  })
+
+  it('lets the coordinator append the newcomer to the order at the wrap', async () => {
+    await put({ ...room(round({ phase: 'reveal', cycles: 2 })), players: { ...players, dee: visitor() } })
+    const whole = (await as('alice').ref('games/g1').get()).val()
+    const next = { ...whole.round, phase: 'choosing', cycle: 2, artist: 'alice', order: ['alice', 'bob', 'cy', 'dee'], startedAt: 9000 }
+    await assertSucceeds(as('alice').ref('games/g1').set({ ...whole, round: next }))
+  })
+})

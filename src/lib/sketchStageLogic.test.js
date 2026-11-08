@@ -105,6 +105,10 @@ describe('faceTiles', () => {
     expect(faceTiles({ players, order: [], scores: {}, round }).map(t => t.id)).toEqual(['a', 'b', 'c'])
     expect(faceTiles({ players: null, order: null, scores: null, round: null })).toEqual([])
   })
+  it('marks a player outside the round\'s order as new (joined mid-match)', () => {
+    const tiles = faceTiles({ players, order: ['a', 'b', 'c'], scores: {}, round: { artist: 'a', order: ['a', 'b'] } })
+    expect(tiles.map(t => t.isNew)).toEqual([false, false, true])
+  })
 })
 
 describe('gotItLabel', () => {
