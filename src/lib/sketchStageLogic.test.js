@@ -16,6 +16,7 @@ import {
   galleryEntry,
   addToGallery,
   galleryFor,
+  galleryFooter,
   podium,
 } from './sketchStageLogic'
 
@@ -169,6 +170,13 @@ describe('gallery', () => {
     expect(galleryFor(stored, 's2')).toEqual([])
     expect(galleryFor(null, 's1')).toEqual([])
     expect(galleryFor({ seed: 's1', entries: 'nope' }, 's1')).toEqual([])
+  })
+})
+
+describe('galleryFooter', () => {
+  it('says the drawings stay on this phone, and how many to swipe through', () => {
+    expect(galleryFooter(6)).toBe('6 DRAWINGS · SWIPE · THEY STAY ON THIS PHONE UNTIL YOU CLOSE THE TAB')
+    expect(galleryFooter(1)).toBe('IT STAYS ON THIS PHONE UNTIL YOU CLOSE THE TAB')
   })
 })
 

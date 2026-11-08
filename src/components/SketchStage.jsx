@@ -7,7 +7,8 @@ import { useEffect, useRef } from 'react'
 import Avatar from './Avatar'
 import { DrawingThumb } from './SketchDrawing'
 import { blankCells, tierMultiplier } from '../lib/sketchLogic'
-import { RING_RADIUS, RING_CIRCUMFERENCE, ringState, recentBubbles } from '../lib/sketchStageLogic'
+import { RING_RADIUS, RING_CIRCUMFERENCE, ringState, recentBubbles, galleryFooter } from '../lib/sketchStageLogic'
+import { canShareAll } from '../lib/sketchShareLogic'
 import { heartAriaLabel, heartsOf, parseFaveKey } from '../lib/sketchFavesLogic'
 import { cn } from '@/lib/utils'
 
@@ -381,23 +382,66 @@ export function Podium({ rows, players, mySeat }) {
   )
 }
 
-export function Gallery({ entries }) {
+// Each card opens the viewer (`onOpen`) and has its own SHARE (`onShare`,
+// `sharingId` is the card being shared, `shareBusy` disables them all); the
+// header's SHARE ALL (`onShareAll`) shows with two or more drawings. Without
+// the handlers it is the plain gallery. `hearts` maps an entry id to its count.
+export function Gallery({ entries, hearts = {}, onOpen, onShare, sharingId = null, shareBusy = false, onShareAll }) {
   if (!entries || entries.length === 0) return null
+  const n = entries.length
   return (
     <section className="space-y-1.5" aria-label="This match's drawings" data-testid="sketch-gallery">
-      <p className="font-pixel text-[9px] tracking-widest text-retro-dim">THIS MATCH&apos;S DRAWINGS</p>
+      <div className="flex min-h-11 items-center justify-between gap-2">
+        <p className="font-pixel text-[9px] tracking-widest text-retro-dim">THIS MATCH&apos;S DRAWINGS</p>
+        {onShareAll && canShareAll(n) && (
+          <button
+            type="button"
+            onClick={onShareAll}
+            disabled={shareBusy}
+            className="min-h-11 shrink-0 rounded border-2 border-retro-cta px-3 font-pixel text-[9px] text-retro-cta transition press disabled:opacity-50"
+          >
+            SHARE ALL {n}
+          </button>
+        )}
+      </div>
       <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
-        {entries.map(e => (
-          <li key={e.id} className="w-[72%] max-w-[260px] shrink-0 snap-center space-y-1 rounded border-2 border-retro-border bg-retro-card p-1.5">
-            <DrawingThumb strokes={e.strokes} fills={e.fills} className="block rounded-sm" label={`${e.word}, drawn by ${e.artistName}`} />
-            <p className="truncate font-pixel text-[10px] text-retro-text">{String(e.word).toUpperCase()}</p>
-            <p className="truncate font-pixel text-[8px] text-retro-dim">
-              {String(e.artistName).toUpperCase()}{tierMultiplier(e.tier) > 1 ? ` · ×${tierMultiplier(e.tier)}` : ''}
-            </p>
-          </li>
-        ))}
+        {entries.map(e => {
+          const label = `${e.word}, drawn by ${e.artistName}`
+          const count = hearts[e.id] || 0
+          return (
+            <li key={e.id} className="w-[72%] max-w-[260px] shrink-0 snap-center space-y-1 rounded border-2 border-retro-border bg-retro-card p-1.5" data-testid="sketch-gallery-card">
+              {onOpen ? (
+                <button type="button" onClick={() => onOpen(e)} aria-label={`Open ${label}`} className="block w-full rounded-sm press-card">
+                  <DrawingThumb strokes={e.strokes} fills={e.fills} className="block rounded-sm" label={label} />
+                </button>
+              ) : (
+                <DrawingThumb strokes={e.strokes} fills={e.fills} className="block rounded-sm" label={label} />
+              )}
+              <p className="flex items-baseline justify-between gap-2 font-pixel text-[10px]">
+                <span className="min-w-0 truncate text-retro-text">{String(e.word).toUpperCase()}</span>
+                {count > 0 && (
+                  <span className="shrink-0 text-[9px] tabular-nums text-retro-p3" aria-label={`${count} heart${count === 1 ? '' : 's'}`}>♥ {count}</span>
+                )}
+              </p>
+              <p className="truncate font-pixel text-[8px] text-retro-dim">
+                {String(e.artistName).toUpperCase()}{tierMultiplier(e.tier) > 1 ? ` · ×${tierMultiplier(e.tier)}` : ''}
+              </p>
+              {onShare && (
+                <button
+                  type="button"
+                  onClick={() => onShare(e)}
+                  disabled={shareBusy}
+                  aria-label={sharingId === e.id ? undefined : `Share ${label}`}
+                  className="min-h-11 w-full rounded border border-retro-cta font-pixel text-[9px] text-retro-cta transition press disabled:opacity-50"
+                >
+                  {sharingId === e.id ? 'SHARING…' : 'SHARE'}
+                </button>
+              )}
+            </li>
+          )
+        })}
       </ul>
-      {entries.length > 1 && <p className="text-center font-pixel text-[8px] text-retro-dim">{entries.length} DRAWINGS · SWIPE</p>}
+      <p className="text-center font-pixel text-[8px] leading-relaxed text-retro-dim">{galleryFooter(n)}</p>
     </section>
   )
 }

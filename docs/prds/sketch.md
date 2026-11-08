@@ -40,6 +40,15 @@ deck files, and `commit.js` for keeping the word secret.
   drawing with the most hearts (at least 2) is CROWD FAVOURITE, above the podium; ties share it
   (up to 3, in play order). 2-player rooms show hearts but give no award. Hearts never touch
   the score. Logic: `sketchFavesLogic.js`.
+- **Sharing the drawings:** the match-end gallery (this phone's drawings, kept in the tab's
+  `sessionStorage`) has SHARE on each drawing and SHARE ALL in its header. One drawing becomes a
+  1080 × 1350 PNG card (word, artist, hearts, a QR code to Sketch); a tap on the picture opens a
+  viewer with REPLAY and a toggle to leave the name off. SHARE ALL makes PICTURES (3 × 3 collage
+  PNGs, up to 9 drawings each) or a PDF (a cover with the podium and CROWD FAVOURITE, then one A4
+  page per drawing). Files go to the system share sheet (WhatsApp is in it); where files can't be
+  shared they download and SEND ON WHATSAPP opens a `wa.me` link with the caption. Nothing is
+  uploaded or written to the room. Code: `sketchShareLogic.js`, `sketchShareCard.js`,
+  `pdfLogic.js`, `SketchShare.jsx`.
 - **Scoring (tunable constants in `sketchLogic.js`):** guessers earn by order of correct guess —
   1st: 100, 2nd: 90, 3rd: 80, … floor 50. Artist earns 25 per correct guesser (so a word everyone
   gets beats an impossible one). No points for the artist if nobody guesses.

@@ -8,7 +8,7 @@ import { getFont, getStoredFont } from './font'
 import { isNative, resolveShareOrigin } from './platform'
 import { shareImage } from './share'
 
-function themeColor(name, fallback) {
+export function themeColor(name, fallback) {
   try {
     const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
     return raw ? `rgb(${raw})` : fallback
@@ -17,7 +17,7 @@ function themeColor(name, fallback) {
   }
 }
 
-const loadImage = (src) => new Promise((res, rej) => {
+export const loadImage = (src) => new Promise((res, rej) => {
   const i = new Image()
   i.onload = () => res(i)
   i.onerror = rej
@@ -117,7 +117,7 @@ async function drawQrFooter(ctx, { url, S, dim, font, qs }) {
   ctx.fillText('PLAY AT GAME NIGHT', S / 2, S - 90)
 }
 
-function roundRect(ctx, x, y, w, h, r) {
+export function roundRect(ctx, x, y, w, h, r) {
   const rad = Math.min(r, w / 2, h / 2)
   ctx.beginPath()
   ctx.moveTo(x + rad, y)
@@ -214,7 +214,7 @@ async function drawRecapCard({ brand, title, sub, rows, url }) {
 }
 
 // Single-line text shrunk until it fits `maxWidth` (long names / game labels).
-function fitText(ctx, str, x, y, maxWidth, font, px) {
+export function fitText(ctx, str, x, y, maxWidth, font, px) {
   let size = px
   ctx.font = font(size)
   while (size > 18 && ctx.measureText(str).width > maxWidth) {
@@ -241,16 +241,22 @@ async function shareCanvas(canvas, text) {
   if (isNative) return false
 
   // Fallback: download the PNG
+  downloadBlob(blob, 'game-night.png')
+  toast.success('SAVED IMAGE — CHECK YOUR DOWNLOADS')
+  return true
+}
+
+// Saves a blob through a temporary download link. Web only: the native shell
+// has no downloads.
+export function downloadBlob(blob, filename) {
   const objUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = objUrl
-  a.download = 'game-night.png'
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(objUrl), 1000)
-  toast.success('SAVED IMAGE — CHECK YOUR DOWNLOADS')
-  return true
 }
 
 // Builds the share card and hands it to the native share sheet (falling back to a
