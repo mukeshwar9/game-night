@@ -335,9 +335,16 @@ export function CrowdFavourite({ award, entries, players, order }) {
                 label={`${entry.word}, drawn by ${name}`}
               />
             )}
-            <p className={cn('font-pixel text-retro-text', tied ? 'truncate text-[8px]' : 'text-[9px]')}>
-              {entry ? `${String(entry.word).toUpperCase()} · ` : ''}BY {name.toUpperCase()}
-            </p>
+            {tied ? (
+              <>
+                {entry && <p className="truncate font-pixel text-[8px] text-retro-text">{String(entry.word).toUpperCase()}</p>}
+                <p className="truncate font-pixel text-[8px] text-retro-dim">BY {name.toUpperCase()}</p>
+              </>
+            ) : (
+              <p className="font-pixel text-[9px] text-retro-text">
+                {entry ? `${String(entry.word).toUpperCase()} · ` : ''}BY {name.toUpperCase()}
+              </p>
+            )}
           </li>
         ))}
       </ul>
