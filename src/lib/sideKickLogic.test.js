@@ -5,7 +5,7 @@ import {
   CAR_HIT_X, NEAR_MISS_X, NEAR_MISS_FILL, SLIP_Z_MIN, SLIP_Z_MAX, SLIP_FILL, SLIPSTREAM_AFTER, inWake, tryBoost, RACE_END_AFTER_FIRST, RACE_MAX, CUP_POINTS,
   TRACKS, TRACK_IDS, TRACK_ORDER, buildTrack, trackForRace, createWorld, step, tryKick, kickTarget, inReach,
   applyHit, receiveKick, knockOff, raceShouldEnd, standings, placeOf, cupAward, encodeRider, decodeRider,
-  applyGhost, promoteBot, demoteBot, kickKey, parseKick, raceEntry, raceIsDone, normalizeStats, formatRaceTime,
+  applyGhost, GHOST_DELAY_MS, GHOST_EXTRAP_MS, createGhostNet, pushGhostSample, sampleGhost, trackArrivals, promoteBot, demoteBot, kickKey, parseKick, raceEntry, raceIsDone, normalizeStats, formatRaceTime,
   getDifficulty, DIFFICULTY_IDS, isBotId, rosterOf, raceDecided, decorateRound, gridFor, trackLength, normalizeGrid, roundTrack,
 } from './sideKickLogic'
 
@@ -723,6 +723,86 @@ describe('ending a race and the cup', () => {
   })
 })
 
+describe('ghost buffer', () => {
+  const snap = (z, at, extra = {}) => decodeRider({ z, x: 0, v: 500, at, ...extra })
+  it('drops a duplicate and an out-of-order report, and keeps a newer one', () => {
+    const net = createGhostNet()
+    expect(pushGhostSample(net, snap(100, 1000, { sq: 1 }), 1050)).toBe(true)
+    expect(pushGhostSample(net, snap(100, 1000, { sq: 1 }), 1060)).toBe(false)
+    expect(pushGhostSample(net, snap(300, 1200, { sq: 3 }), 1250)).toBe(true)
+    expect(pushGhostSample(net, snap(200, 1100, { sq: 2 }), 1260)).toBe(false)
+    expect(net.buf.map((b) => b.z)).toEqual([100, 300])
+  })
+  it('takes two reports with the same at as separate when the sequence number grew', () => {
+    const net = createGhostNet()
+    pushGhostSample(net, snap(100, 1000, { sq: 1 }), 1050)
+    expect(pushGhostSample(net, snap(150, 1000, { sq: 2 }), 1051)).toBe(true)
+  })
+  it('keeps the newest eight and times them by the smallest arrival delay in the window', () => {
+    const net = createGhostNet()
+    for (let i = 0; i < 12; i++) pushGhostSample(net, snap(i, 1000 + i * 100, { sq: i + 1 }), 1000 + i * 100 + (i === 5 ? 20 : 90 - (i % 3) * 10))
+    expect(net.buf).toHaveLength(8)
+    // i = 5 arrived with only 20 ms of delay; that stays the minimum while it is inside the 40-report window.
+    expect(net.buf[7].t).toBe(1000 + 11 * 100 + 20)
+  })
+  it('times reports with no clock stamp by their arrival and drops identical repeats', () => {
+    const net = createGhostNet()
+    expect(pushGhostSample(net, snap(100, 0), 5000)).toBe(true)
+    expect(pushGhostSample(net, snap(100, 0), 5016)).toBe(false)
+    expect(pushGhostSample(net, snap(200, 0), 5100)).toBe(true)
+    expect(net.buf.map((b) => b.t)).toEqual([5000, 5100])
+  })
+  it('never lets sample time run backwards', () => {
+    const net = createGhostNet()
+    pushGhostSample(net, snap(100, 1000, { sq: 1 }), 1100)
+    pushGhostSample(net, snap(200, 1100, { sq: 2 }), 1150) // a smaller delay than the first report
+    pushGhostSample(net, snap(300, 1101, { sq: 3 }), 1102)
+    for (let i = 1; i < net.buf.length; i++) expect(net.buf[i].t).toBeGreaterThan(net.buf[i - 1].t)
+  })
+  it('interpolates, holds before the oldest and extrapolates only briefly after the newest', () => {
+    const net = createGhostNet()
+    pushGhostSample(net, decodeRider({ z: 1000, x: 0, v: 1000, vx: 500, at: 0 }), 100)
+    pushGhostSample(net, decodeRider({ z: 2000, x: 100, v: 1000, vx: 500, at: 0 }), 200)
+    expect(sampleGhost(net, 50)).toEqual({ z: 1000, x: 0 })
+    const mid = sampleGhost(net, 150)
+    expect(mid.z).toBeCloseTo(1500, 5)
+    expect(mid.x).toBeCloseTo(0.05, 5)
+    const after = sampleGhost(net, 200 + 100)
+    expect(after.z).toBeCloseTo(2000 + MAXSPD * 0.1, 3)
+    expect(after.x).toBeCloseTo(0.1 + 0.5 * 0.1, 5)
+    const far = sampleGhost(net, 200 + 5000)
+    expect(far.z).toBeCloseTo(2000 + MAXSPD * (GHOST_EXTRAP_MS / 1000), 3)
+  })
+  it('does not carry a fallen rider forward and snaps across a teleport', () => {
+    const net = createGhostNet()
+    pushGhostSample(net, decodeRider({ z: 1000, x: 0, v: 800, s: 1, at: 0 }), 100)
+    expect(sampleGhost(net, 300).z).toBe(1000)
+    pushGhostSample(net, decodeRider({ z: 90000, x: 0, v: 800, at: 0 }), 400)
+    expect(sampleGhost(net, 250).z).toBe(1000)
+    expect(sampleGhost(net, 400).z).toBe(90000)
+  })
+  it('has nothing to sample before a first report', () => {
+    expect(sampleGhost(createGhostNet(), 100)).toBe(null)
+  })
+})
+
+describe('trackArrivals', () => {
+  it('stamps a report when it changes and reuses the entry while it does not', () => {
+    const a = trackArrivals({}, { r1: { z: 100, x: 0, at: 1000, sq: 1 } }, 1050)
+    expect(a.r1.at).toBe(1050)
+    expect(a.r1.snap.z).toBe(100)
+    const b = trackArrivals(a, { r1: { z: 100, x: 0, at: 1000, sq: 1 }, r2: { z: 5, at: 1010, sq: 1 } }, 1100)
+    expect(b.r1).toBe(a.r1)
+    expect(b.r2.at).toBe(1100)
+    const c = trackArrivals(b, { r1: { z: 160, x: 0, at: 1100, sq: 2 } }, 1160)
+    expect(c.r1.at).toBe(1160)
+    expect(c.r2).toBeUndefined()
+  })
+  it('copes with no stats', () => {
+    expect(trackArrivals({}, null, 5)).toEqual({})
+  })
+})
+
 describe('the wire format', () => {
   it('round-trips a rider through the codec within rounding', () => {
     const w = lab()
@@ -746,6 +826,26 @@ describe('the wire format', () => {
     expect(decodeRider(raw)).toMatchObject({ ol: 1, bm: 0.63 })
     expect(decodeRider({ z: 1, bm: 900 }).bm).toBe(1)
     expect(decodeRider({ z: 1, bm: -4 }).bm).toBe(0)
+  })
+  it('carries the sideways speed and a sequence number, and still reads a report without them', () => {
+    const w = lab()
+    const r = w.riders[0]
+    r.xv = -0.8
+    const raw = encodeRider(r, 9, 41)
+    expect(raw).toMatchObject({ vx: -800, sq: 41 })
+    expect(decodeRider(raw)).toMatchObject({ vx: -0.8, sq: 41 })
+    r.xv = 50
+    expect(encodeRider(r, 9, 1).vx).toBe(2000)
+    expect(decodeRider({ z: 5 })).toMatchObject({ vx: 0, sq: 0 })
+    expect(decodeRider({ z: 5, vx: 99999, sq: -3 })).toMatchObject({ vx: 2, sq: 0 })
+  })
+  it('a local rider measures its own sideways speed while steering', () => {
+    const w = lab()
+    const r = w.riders[0]
+    r.speed = MAXSPD * 0.8
+    for (let i = 0; i < 10; i++) step(w, { 0: { steer: 1, kick: 0, boost: false } })
+    expect(r.xv).toBeGreaterThan(0.5)
+    expect(encodeRider(r, 1, 1).vx).toBeGreaterThan(500)
   })
   it('marks a finished rider with its time', () => {
     const w = lab()
@@ -790,17 +890,66 @@ describe('ghosts', () => {
     expect(g.oil).toBe(0)
     expect(g.boosting).toBe(false)
   })
-  it('places a ghost from its report, carries it forward by the report\'s age and eases it in', () => {
+  it('draws a ghost a little in the past and interpolates between the reports around that moment', () => {
     const w = ghostWorld()
     const g = w.riders[1]
-    const snap = decodeRider({ z: 50000, x: 300, v: 800, at: 1000 })
-    applyGhost(w, g, snap, 1200)
-    expect(g.z).toBeCloseTo(50000 + 0.8 * MAXSPD * 0.2, 0) // first report snaps
-    const snap2 = decodeRider({ z: 51000, x: 300, v: 800, at: 1300 })
-    applyGhost(w, g, snap2, 1300)
-    expect(g.z).toBeGreaterThan(50000)
-    expect(g.z).toBeGreaterThanOrEqual(51000)
-    expect(g.z).toBeLessThan(51920)
+    // Reports every 100 ms of server time, delivered with a steady 30 ms of delay.
+    for (let i = 0; i < 4; i++) applyGhost(w, g, decodeRider({ z: 50000 + i * 1000, x: 300, v: 800, at: 1000 + i * 100 }), 1030 + i * 100)
+    // A sample is timed at its `at` plus the smallest arrival delay seen (30 ms), so the reports sit at 1030, 1130, ... and 1110 lies 80% of the way from the first to the second.
+    const now = 1110 + GHOST_DELAY_MS
+    applyGhost(w, g, decodeRider({ z: 53000, x: 300, v: 800, at: 1300 }), 1330)
+    applyGhost(w, g, decodeRider({ z: 53000, x: 300, v: 800, at: 1300 }), now)
+    expect(g.z).toBeCloseTo(50000 + 1000 * (1110 - 1030) / 100, 0)
+    expect(g.x).toBeCloseTo(0.3, 5)
+  })
+  it('does not jump when a burst of reports arrives at once', () => {
+    const w = ghostWorld()
+    const g = w.riders[1]
+    const reports = []
+    // A rider at 12 000 z/s sending every 100 ms; the connection stalls from 1200 to 1500 and then delivers all of it.
+    for (let at = 1000; at <= 1700; at += 100) reports.push({ z: 10000 + (at - 1000) * 12, at })
+    let latest = null
+    let prev = null
+    let worst = 0
+    for (let now = 1030; now <= 1700; now += 16) {
+      const delivered = reports.filter((r) => r.at + 30 <= now && (r.at < 1200 || now >= 1500))
+      const newest = delivered[delivered.length - 1]
+      if (newest && newest !== latest) {
+        for (const r of delivered) applyGhost(w, g, decodeRider({ z: r.z, x: 0, v: 1000, at: r.at }), now, -1, now)
+        latest = newest
+      }
+      applyGhost(w, g, decodeRider({ z: latest.z, x: 0, v: 1000, at: latest.at }), now, -1, now)
+      if (prev != null) worst = Math.max(worst, Math.abs(g.z - prev))
+      prev = g.z
+    }
+    // A frame is 16 ms = 192 z at that speed; a jump to a late report would be well over 1000.
+    expect(worst).toBeLessThan(450)
+  })
+  it('moves a ghost sideways between reports from the reported sideways speed', () => {
+    const w = ghostWorld()
+    const g = w.riders[1]
+    applyGhost(w, g, decodeRider({ z: 10000, x: 0, v: 500, vx: 1000, at: 1000 }), 1000)
+    // Newest report is at t 1000; render 100 ms past it.
+    applyGhost(w, g, decodeRider({ z: 10000, x: 0, v: 500, vx: 1000, at: 1000 }), 1000 + GHOST_DELAY_MS + 100)
+    expect(g.x).toBeCloseTo(0.1, 5)
+  })
+  it('holds a ghost still sideways when the report has no vx (older build)', () => {
+    const w = ghostWorld()
+    const g = w.riders[1]
+    applyGhost(w, g, decodeRider({ z: 10000, x: 200, v: 500, at: 1000 }), 1000)
+    applyGhost(w, g, decodeRider({ z: 10000, x: 200, v: 500, at: 1000 }), 1000 + GHOST_DELAY_MS + 100)
+    expect(g.x).toBeCloseTo(0.2, 5)
+  })
+  it('does not let a phone whose clock is far off change where the ghost is drawn', () => {
+    const run = (skew) => {
+      const w = ghostWorld()
+      const g = w.riders[1]
+      for (let i = 0; i < 6; i++) applyGhost(w, g, decodeRider({ z: 10000 + i * 1000, x: 0, v: 800, at: 1000 + i * 100 }), 1040 + skew + i * 100)
+      applyGhost(w, g, decodeRider({ z: 15000, x: 0, v: 800, at: 1500 }), 1540 + skew + GHOST_DELAY_MS)
+      return g.z
+    }
+    expect(run(0)).toBeCloseTo(run(-900), 0)
+    expect(run(0)).toBeCloseTo(run(2500), 0)
   })
   it('caps extrapolation of a stale report', () => {
     const w = ghostWorld()

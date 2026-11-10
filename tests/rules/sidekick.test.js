@@ -51,6 +51,27 @@ describe('SIDE KICK reports', () => {
     await assertSucceeds(as('carol').ref(`${stats('bot2')}/bm`).set(40))
   })
 
+  it('takes the sideways speed and the sequence number, and refuses them out of range', async () => {
+    await put(room())
+    await assertSucceeds(as('alice').ref(stats('alice')).update({ ...report(), vx: -800, sq: 41 }))
+    await assertSucceeds(as('alice').ref(`${stats('alice')}/vx`).set(2000))
+    await assertSucceeds(as('alice').ref(`${stats('alice')}/sq`).set(0))
+    await assertFails(as('alice').ref(`${stats('alice')}/vx`).set(-2001))
+    await assertFails(as('alice').ref(`${stats('alice')}/vx`).set('fast'))
+    await assertFails(as('alice').ref(`${stats('alice')}/sq`).set(true))
+    await assertFails(as('alice').ref(`${stats('alice')}/sq`).set(1e18))
+    await assertFails(as('alice').ref(`${stats('bob')}/vx`).set(10))
+    await assertFails(as('alice').ref(`${stats('bob')}/sq`).set(10))
+    await assertSucceeds(as('carol').ref(stats('bot1')).update({ ...report(), vx: 300, sq: 9 }))
+  })
+
+  it('still takes a report without them (an older build)', async () => {
+    await put(room())
+    const old = report()
+    delete old.vx; delete old.sq
+    await assertSucceeds(as('alice').ref(stats('alice')).update(old))
+  })
+
   it('refuses unknown fields, non-numbers and absurd numbers', async () => {
     await put(room())
     await assertFails(as('alice').ref(`${stats('alice')}/cheat`).set(1))
