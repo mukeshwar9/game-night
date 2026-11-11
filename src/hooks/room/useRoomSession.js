@@ -20,6 +20,7 @@ import useArrivingSignal from './useArrivingSignal'
 import { countdownEligible } from '../../lib/arrivalLogic'
 import { buildSwitchUpdates } from './roomUpdates'
 import { moderateRoomNames } from '../../lib/moderationLogic'
+import { createRoomFeed } from '../../lib/roomFeedLogic'
 import { trackRoomJoined } from '../../lib/track'
 import { getServerNow } from '../useServerClock'
 
@@ -108,6 +109,9 @@ export default function useRoomSession(gameId) {
     const publicListingRef = ref(db, `matchmaking/${gameId}`)
     let cancelled = false
     let unsubGame = null
+    // Side Kick style races write position reports many times a second; the page
+    // reads those itself, so the room tree hears of a stats-only change only now and then.
+    const roomFeed = createRoomFeed(setGame)
     // The first read comes from a listener rather than get(), and that
     // listener stays attached until the long-lived one below takes over: the
     // room stays synced, so that one fires from the local cache instead of
@@ -116,7 +120,7 @@ export default function useRoomSession(gameId) {
     let unsubWarm = null
     const dropWarm = () => { if (unsubWarm) { unsubWarm(); unsubWarm = null } }
     const listen = () => {
-      unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) setGame(moderateRoomNames(snap.val())) })
+      unsubGame = onValue(gameRef, snap => { if (!cancelled && snap.exists()) roomFeed.push(moderateRoomNames(snap.val())) })
       dropWarm()
     }
 
@@ -278,6 +282,7 @@ export default function useRoomSession(gameId) {
 
     return () => {
       cancelled = true
+      roomFeed.cancel()
       dropWarm()
       if (unsubGame) unsubGame()
     }

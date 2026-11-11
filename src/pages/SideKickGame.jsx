@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { ref, update } from 'firebase/database'
+import { onValue, ref, update } from 'firebase/database'
 import { toast } from 'sonner'
 import { db } from '../lib/firebase'
 import RaceShell from '../components/RaceShell'
@@ -14,7 +14,7 @@ import { isRoomCoordinator } from '../lib/coordinator'
 import { defaultAvatarForId } from '../lib/avatarKit'
 import {
   TRACKS, DUST_TRACKS, TRACK_SEED, RACE_MAX, DT, MAXSPD, BOT_NAMES, DUST_BOT_NAMES, CUP_RACES, SYNC_MS,
-  createWorld, applyGhost, receiveKick, receiveLasso, promoteBot, demoteBot, encodeRider, decodeRider, kickKey, parseKick,
+  createWorld, applyGhost, trackArrivals, receiveKick, receiveLasso, promoteBot, demoteBot, encodeRider, decodeRider, kickKey, parseKick,
   raceEntry, raceIsDone, raceDecided, decorateRound, rosterOf, isBotId, gridFor, normalizeGrid, roundTrack,
   trackForRace, dustTrackForRace, trackLength, formatRaceTime,
 } from '../lib/sideKickLogic'
@@ -96,11 +96,27 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase, d
 
   const worldRef = useRef(null)
   const live = useRef({ stats: null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid, round })
+  // Everyone's reports, straight from the database and at full rate. The room tree only
+  // hears of stats changes a few times a second (roomFeedLogic.js), so the sim reads this
+  // feed instead; `game.round.stats` stands in until the first message arrives.
+  const feed = useRef({ stats: null, arrivals: {} })
   useEffect(() => {
-    live.current = { stats: game.round?.stats?.[round.id] ?? null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid, round }
+    live.current = { stats: feed.current.stats ?? game.round?.stats?.[round.id] ?? null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid, round }
   })
+  const statsBaseRef = statsPath ? statsBase(statsPath) : null
+  useEffect(() => {
+    if (!statsBaseRef) return undefined
+    feed.current = { stats: null, arrivals: {} }
+    return onValue(ref(db, statsBaseRef), (snap) => {
+      const raw = snap.val()
+      const f = feed.current
+      f.stats = raw && typeof raw === 'object' ? raw : null
+      f.arrivals = trackArrivals(f.arrivals, f.stats, getServerNow())
+      live.current.stats = f.stats
+    })
+  }, [statsBaseRef])
   const seen = useRef(new Set())
-  const net = useRef({ last: {}, errorAt: 0, finalSent: false })
+  const net = useRef({ last: {}, seq: {}, errorAt: 0, finalSent: false })
 
   // One world per round. A reload mid-race resumes this rider from its last report,
   // and kicks already in the room are history, not new blows.
@@ -126,7 +142,7 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase, d
     for (const [kid, raw] of Object.entries(L.stats || {})) {
       for (const n of Object.keys(raw?.k && typeof raw.k === 'object' ? raw.k : {})) seen.current.add(`${kid}#${n}`)
     }
-    net.current = { last: {}, errorAt: 0, finalSent: false }
+    net.current = { last: {}, seq: {}, errorAt: 0, finalSent: false }
     worldRef.current = world
     return () => { worldRef.current = null }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new world per round / roster; the rest is read from `live`
@@ -154,8 +170,14 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase, d
         else if (!L.coord && r.local) demoteBot(r)
       }
     }
-    const stats = L.stats || {}
-    for (const r of world.riders) if (!r.local) applyGhost(world, r, decodeRider(stats[r.id]), now, view)
+    const stats = feed.current.stats ?? L.stats ?? {}
+    const arrivals = feed.current.arrivals
+    for (const r of world.riders) {
+      if (r.local) continue
+      const a = arrivals[r.id]
+      if (a) applyGhost(world, r, a.snap, now, view, a.at)
+      else applyGhost(world, r, decodeRider(stats[r.id]), now, view)
+    }
     // Kicks addressed to a rider this phone runs.
     for (const [kickerId, raw] of Object.entries(stats)) {
       const k = raw?.k
@@ -200,7 +222,8 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase, d
       const every = r.done ? 400 : SYNC_MS
       if (urgent || now - (n.last[r.id] || 0) >= every) {
         n.last[r.id] = now
-        write(r.id, encodeRider(r, now))
+        n.seq[r.id] = (n.seq[r.id] || 0) + 1
+        write(r.id, encodeRider(r, now, n.seq[r.id]))
       }
     }
     if (world.phase === 'done') n.finalSent = true
