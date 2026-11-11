@@ -65,6 +65,12 @@ jobs:
       VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
       # Optional; empty when the secret is not set (App Check / TURN stay off).
       VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
+      # Support address for /privacy, /terms, security.txt and the in-app Contact link.
+      VITE_CONTACT_EMAIL: ${{ secrets.VITE_CONTACT_EMAIL }}
+      # 1 once the OAuth redirect URI is added (docs/LAUNCH.md); empty keeps authDomain as is.
+      VITE_AUTH_SAME_ORIGIN: ${{ secrets.VITE_AUTH_SAME_ORIGIN }}
+      # Web Push certificate public key; without it the notifications toggle stays hidden.
+      VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
       VITE_TURN_URLS: ${{ secrets.VITE_TURN_URLS }}
       VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
       VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
@@ -112,6 +118,12 @@ jobs:
       VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
       # Optional; empty when the secret is not set (App Check / TURN stay off).
       VITE_APPCHECK_SITE_KEY: ${{ secrets.VITE_APPCHECK_SITE_KEY }}
+      # Support address for /privacy, /terms, security.txt and the in-app Contact link.
+      VITE_CONTACT_EMAIL: ${{ secrets.VITE_CONTACT_EMAIL }}
+      # 1 once the OAuth redirect URI is added (docs/LAUNCH.md); empty keeps authDomain as is.
+      VITE_AUTH_SAME_ORIGIN: ${{ secrets.VITE_AUTH_SAME_ORIGIN }}
+      # Web Push certificate public key; without it the notifications toggle stays hidden.
+      VITE_FIREBASE_VAPID_KEY: ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
       VITE_TURN_URLS: ${{ secrets.VITE_TURN_URLS }}
       VITE_TURN_USERNAME: ${{ secrets.VITE_TURN_USERNAME }}
       VITE_TURN_CREDENTIAL: ${{ secrets.VITE_TURN_CREDENTIAL }}
