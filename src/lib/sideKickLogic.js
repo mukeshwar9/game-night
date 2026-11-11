@@ -897,7 +897,10 @@ export function sampleGhost(net, renderT) {
   let i = buf.length - 2
   while (i > 0 && buf[i].t > renderT) i--
   const a = buf[i]; const b = buf[i + 1]
-  if (Math.abs(b.z - a.z) > 2500) return { z: renderT >= b.t ? b.z : a.z, x: renderT >= b.t ? b.x : a.x }
+  // Snap only across a jump the reported speed cannot explain (respawn, teleport);
+  // a late report at speed is a long segment, not a jump, and is interpolated.
+  const reach = Math.max(a.v, b.v) * (b.t - a.t) / 1000 * 2 + 2500
+  if (Math.abs(b.z - a.z) > reach) return { z: renderT >= b.t ? b.z : a.z, x: renderT >= b.t ? b.x : a.x }
   const k = (renderT - a.t) / (b.t - a.t)
   return { z: a.z + (b.z - a.z) * k, x: a.x + (b.x - a.x) * k }
 }

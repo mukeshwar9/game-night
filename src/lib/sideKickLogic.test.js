@@ -781,6 +781,28 @@ describe('ghost buffer', () => {
     expect(sampleGhost(net, 250).z).toBe(1000)
     expect(sampleGhost(net, 400).z).toBe(90000)
   })
+  it('stays smooth when one report arrives late at full speed', () => {
+    // Reports every 100 ms at top speed, one held back 250 ms; sampled per frame
+    // the way applyGhost does (push on arrival, draw GHOST_DELAY_MS in the past).
+    const net = createGhostNet()
+    const sends = [0, 100, 200, 300, 400, 650, 700, 800, 900, 1000]
+    let prev = null; let maxStep = 0; let backward = 0; let next = 0
+    for (let now = 0; now <= 1100; now += 16) {
+      while (next < sends.length && sends[next] <= now) {
+        const t = sends[next++]
+        pushGhostSample(net, decodeRider({ z: MAXSPD * t / 1000, x: 0, v: 1000, at: t, sq: next }), t)
+      }
+      const at = sampleGhost(net, now - GHOST_DELAY_MS)
+      if (at && prev) {
+        const step = at.z - prev.z
+        if (step < 0) backward++
+        maxStep = Math.max(maxStep, step)
+      }
+      if (at) prev = at
+    }
+    expect(backward).toBe(0)
+    expect(maxStep).toBeLessThan(MAXSPD * 0.016 * 2)
+  })
   it('has nothing to sample before a first report', () => {
     expect(sampleGhost(createGhostNet(), 100)).toBe(null)
   })
