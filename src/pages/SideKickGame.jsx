@@ -19,7 +19,6 @@ import {
   trackForRace, dustTrackForRace, trackLength, formatRaceTime,
 } from '../lib/sideKickLogic'
 import { lassoKey } from '../lib/dustKickLogic'
-import { netDbg } from '../lib/netDebug'
 
 // SIDE KICK online: a 2–4 rider road race with bots in the empty seats, run as a
 // three-race cup inside RaceShell (lobby, READY, results, NEW MATCH). Each phone
@@ -105,7 +104,6 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase, d
     live.current = { stats: feed.current.stats ?? game.round?.stats?.[round.id] ?? null, coord: amCoord, goAt, statsPath, players, myStats, grid: round.raw?.grid, round }
   })
   const statsBaseRef = statsPath ? statsBase(statsPath) : null
-  useEffect(() => netDbg.watch(statsBaseRef), [statsBaseRef])
   useEffect(() => {
     if (!statsBaseRef) return undefined
     feed.current = { stats: null, arrivals: {} }
@@ -180,7 +178,6 @@ function SideKickRacer({ game, round, mySeat, myStats, statsPath, goAt, phase, d
       if (a) applyGhost(world, r, a.snap, now, view, a.at)
       else applyGhost(world, r, decodeRider(stats[r.id]), now, view)
     }
-    netDbg.ghosts(world.riders)
     // Kicks addressed to a rider this phone runs.
     for (const [kickerId, raw] of Object.entries(stats)) {
       const k = raw?.k
@@ -290,7 +287,6 @@ function makeGame(dust) {
   const Racer = (props) => <SideKickRacer {...props} dust={dust} />
   const Final = (props) => <SideKickFinal {...props} dust={dust} />
   return function Game(props) {
-    netDbg.count('shellRender')
     return <RaceShell {...props} race={race} Racer={Racer} Final={Final} />
   }
 }

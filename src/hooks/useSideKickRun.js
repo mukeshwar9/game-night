@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { netDbg } from '../lib/netDebug'
 import { DT, MAXSPD, PIPS, BOOST_MIN, BOOST_TOP, CATCHUP_TOP, SLIPSTREAM_TOP, SLIPSTREAM_AFTER, NEAR_MISS_FILL, standings, step, formatRaceTime } from '../lib/sideKickLogic'
 import { HAY_FILL, ROPED_TOP, SPOOK_TOP } from '../lib/dustKickLogic'
 import { aimKick } from '../lib/sideKickCockpitLogic'
@@ -139,7 +138,6 @@ export default function useSideKickRun({
       const renderer = rendererRef.current
       const c = cb.current
       if (!world || !renderer) { last = ts; return }
-      netDbg.frame(last ? ts - last : 0)
       const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0
       last = ts
       const me = world.riders[c.view]
