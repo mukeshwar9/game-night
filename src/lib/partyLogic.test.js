@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   PARTY_CAP, playableAt, groupPickerForParty, partyPresentMembers, effectiveCap, overCapMembers,
-  partyFullFor, partyInviteLine,
+  partyFullFor, partyInviteLine, filterPartyGroups,
 } from './partyLogic'
 import { CHAMELEON_MIN_PLAYERS } from './chameleonLogic'
 import { CW_MIN_PLAYERS } from './codeWordsLogic'
@@ -143,5 +143,32 @@ describe('partyInviteLine', () => {
     expect(partyInviteLine({ gameType: 'connectfour' }, () => 'CONNECT FOUR')).toBe('CONNECT FOUR')
     expect(partyInviteLine({ gameType: 'zz' })).toBe('GAME')
     expect(partyInviteLine(null)).toBe('')
+  })
+})
+
+describe('filterPartyGroups', () => {
+  let groups
+  beforeAll(() => { groups = groupPickerForParty(GAME_TYPES, 3) })
+  const count = (g) => g.all.length + g.rotate.length + g.short.length
+
+  it('returns the groups untouched for a blank query', () => {
+    expect(filterPartyGroups(groups, '')).toBe(groups)
+    expect(filterPartyGroups(groups, '   ')).toBe(groups)
+  })
+
+  it('keeps only matching games, in their original groups', () => {
+    const g = filterPartyGroups(groups, 'sketch')
+    expect(g.all.map(t => t.type)).toContain('sketch')
+    expect(count(g)).toBeLessThan(count(groups))
+    for (const t of [...g.all, ...g.rotate]) expect(groups.all.includes(t) || groups.rotate.includes(t)).toBe(true)
+  })
+
+  it('searches case-insensitively and across the take-turns and short groups', () => {
+    expect(filterPartyGroups(groups, 'TIC TAC').rotate.length).toBeGreaterThan(0)
+    expect(filterPartyGroups(groups, 'code words').short.map(s => s.cfg.type)).toContain('codewords')
+  })
+
+  it('is empty when nothing matches', () => {
+    expect(count(filterPartyGroups(groups, 'zzzxqj'))).toBe(0)
   })
 })
