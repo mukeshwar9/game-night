@@ -112,7 +112,7 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
           NO GAMES MATCH "{query.trim().toUpperCase()}"
         </p>
       )}
-      {shownGroups.all.length > 0 && <PickerGroup
+      {(!searching || shownGroups.all.length > 0) && <PickerGroup
         testId="party-group-all" title={`EVERYONE PLAYS · ${shownGroups.all.length}`} tone="text-retro-win"
         games={shownGroups.all} chip={() => ({ label: `ALL ${n}`, tone: 'win' })}
         onPick={canPick ? pick : null} picking={picking} showAll={searching}
