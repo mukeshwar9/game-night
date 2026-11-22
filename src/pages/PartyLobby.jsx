@@ -6,7 +6,8 @@ import QrCode from '../components/QrCode'
 import VoicePanel from '../components/voice/VoicePanel'
 import useBusy from '../hooks/useBusy'
 import { GAME_TYPES, getPlayerTag } from '../lib/games'
-import { effectiveCap, groupPickerForParty, partyMembers, partyPresentMembers } from '../lib/partyLogic'
+import GameSearchInput from '../components/GameSearchInput'
+import { effectiveCap, filterPartyGroups, groupPickerForParty, partyMembers, partyPresentMembers } from '../lib/partyLogic'
 import { hostUidOf } from '../lib/night'
 import { memberPresent } from '../lib/nightLogic'
 import { recordFunnel } from '../lib/analytics'
@@ -47,6 +48,7 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
   groups.all = [...groups.all.filter(g => g.category === 'party'), ...groups.all.filter(g => g.category !== 'party')]
   groups.rotate = [...HEADLINE_2P.map(t => groups.rotate.find(g => g.type === t)).filter(Boolean), ...groups.rotate.filter(g => !HEADLINE_2P.includes(g.type))]
   const [picking, setPicking] = useState(null)
+  const [query, setQuery] = useState('')
   const [showQr, setShowQr] = useState(false)
   const [warmUp, setWarmUp] = useState(false)
   const [arrived, setArrived] = useState(null)
@@ -97,27 +99,38 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
 
   const slots = Array.from({ length: cap }, (_, i) => members[i] || null)
 
+  const searching = !!query.trim()
+  const shownGroups = filterPartyGroups(groups, query)
+  const total = groups.all.length + groups.rotate.length + groups.short.length
+  const noMatches = searching && shownGroups.all.length + shownGroups.rotate.length + shownGroups.short.length === 0
+
   const pickerGroups = (
     <>
-      <PickerGroup
-        testId="party-group-all" title={`EVERYONE PLAYS · ${groups.all.length}`} tone="text-retro-win"
-        games={groups.all} chip={() => ({ label: `ALL ${n}`, tone: 'win' })}
-        onPick={canPick ? pick : null} picking={picking}
-      />
-      {groups.rotate.length > 0 && (
+      <GameSearchInput value={query} onChange={setQuery} placeholder={`Search ${total} games…`} testId="party-search" />
+      {noMatches && (
+        <p data-testid="party-search-empty" className="rounded border border-retro-border bg-retro-card p-3 text-center font-pixel text-[8px] tracking-wider text-retro-dim">
+          NO GAMES MATCH "{query.trim().toUpperCase()}"
+        </p>
+      )}
+      {(!searching || shownGroups.all.length > 0) && <PickerGroup
+        testId="party-group-all" title={`EVERYONE PLAYS · ${shownGroups.all.length}`} tone="text-retro-win"
+        games={shownGroups.all} chip={() => ({ label: `ALL ${n}`, tone: 'win' })}
+        onPick={canPick ? pick : null} picking={picking} showAll={searching}
+      />}
+      {shownGroups.rotate.length > 0 && (
         <PickerGroup
-          testId="party-group-rotate" title={`TAKE TURNS · 2 PLAY, WINNER STAYS · ${groups.rotate.length}`} tone="text-retro-p4"
-          games={groups.rotate} chip={() => ({ label: `2 + ${n - 2}`, tone: 'p4' })}
-          onPick={canPick ? pick : null} picking={picking}
+          testId="party-group-rotate" title={`TAKE TURNS · 2 PLAY, WINNER STAYS · ${shownGroups.rotate.length}`} tone="text-retro-p4"
+          games={shownGroups.rotate} chip={() => ({ label: `2 + ${n - 2}`, tone: 'p4' })}
+          onPick={canPick ? pick : null} picking={picking} showAll={searching}
         />
       )}
-      {groups.short.length > 0 && (
+      {shownGroups.short.length > 0 && (
         <details className="rounded border border-dashed border-retro-border px-3 py-2" data-testid="party-group-short">
           <summary className="cursor-pointer font-pixel text-[8px] tracking-wider text-retro-dim min-h-9 flex items-center">
-            NEEDS MORE PLAYERS · {groups.short.length}
+            NEEDS MORE PLAYERS · {shownGroups.short.length}
           </summary>
           <ul className="space-y-1 pt-1">
-            {groups.short.map(({ cfg, short }) => (
+            {shownGroups.short.map(({ cfg, short }) => (
               <li key={cfg.type} className="flex items-center justify-between font-mono text-[11px] text-retro-dim">
                 <span>{cfg.label}</span><span>+{short} {short === 1 ? 'player' : 'players'}</span>
               </li>
@@ -267,9 +280,9 @@ const CHIP_TONE = {
 // SHOW ALL toggle, so the lobby stays a lobby rather than a catalogue.
 const GROUP_PREVIEW = 6
 
-function PickerGroup({ testId, title, tone, games, chip, onPick, picking }) {
+function PickerGroup({ testId, title, tone, games, chip, onPick, picking, showAll = false }) {
   const [expanded, setExpanded] = useState(false)
-  const shown = expanded ? games : games.slice(0, GROUP_PREVIEW)
+  const shown = expanded || showAll ? games : games.slice(0, GROUP_PREVIEW)
   return (
     <section className="space-y-2" data-testid={testId}>
       <p className={cn('font-pixel text-[8px] tracking-wider', tone)}>{title}</p>
@@ -309,7 +322,7 @@ function PickerGroup({ testId, title, tone, games, chip, onPick, picking }) {
           )
         })}
       </div>
-      {games.length > GROUP_PREVIEW && (
+      {!showAll && games.length > GROUP_PREVIEW && (
         <button
           type="button"
           onClick={() => setExpanded(v => !v)}

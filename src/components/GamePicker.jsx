@@ -7,6 +7,7 @@ import CategoryTabs from './CategoryTabs'
 import VariantChooser from './VariantChooser'
 import GameOptionsSheet from './GameOptionsSheet'
 import GameCard from './GameCard'
+import GameSearchInput from './GameSearchInput'
 import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
 import FilterButton, { ViewTabs } from './GameFilters'
@@ -317,31 +318,12 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const emptyState = (message) => <EmptyState>{message}</EmptyState>
 
   const searchBlock = (
-    <div className="relative">
-      <input
-        ref={searchRef}
-        type="text"
-        enterKeyHint="search"
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        placeholder={`Search ${totalVisible} games…${showSlashHint ? ' ( / )' : ''}`}
-        aria-label="Search games"
-        className="w-full min-h-11 bg-retro-card border-2 border-retro-border text-retro-text
-          font-mono text-sm placeholder-retro-dim rounded pl-4 pr-11 py-2.5
-          focus:outline-none focus:border-retro-p1 transition-colors"
-      />
-      {query && (
-        <button
-          type="button"
-          onClick={() => { setQuery(''); searchRef.current?.focus() }}
-          aria-label="Clear search"
-          className="absolute inset-y-0 right-0 px-4 flex items-center justify-center
-            text-retro-dim hover:text-retro-text font-pixel text-xs transition-colors"
-        >
-          ✕
-        </button>
-      )}
-    </div>
+    <GameSearchInput
+      ref={searchRef}
+      value={query}
+      onChange={setQuery}
+      placeholder={`Search ${totalVisible} games…${showSlashHint ? ' ( / )' : ''}`}
+    />
   )
 
   const filterMatchCount = GAME_TYPES.filter(t => !isHidden(t) && passesFilters(t)).length

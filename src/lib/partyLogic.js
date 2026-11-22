@@ -8,6 +8,7 @@
 // @ts-check
 
 import { memberPresent, partyMembers, partyHostUid } from './nightLogic'
+import { searchGames } from './gameSearch'
 
 export { partyMembers, partyHostUid }
 
@@ -58,6 +59,24 @@ export function groupPickerForParty(types, n) {
   }
   out.short.sort((a, b) => a.short - b.short)
   return out
+}
+
+/**
+ * Narrow the grouped picker to a search query (same matching as the catalog's
+ * search, lib/gameSearch.js). Groups keep their shape so the lobby's per-group
+ * chips and headers still apply; a blank query returns the groups untouched.
+ * @template {{ type: string }} T
+ * @param {{ all: T[], rotate: T[], short: { cfg: T, short: number }[] }} groups
+ * @param {string} query
+ */
+export function filterPartyGroups(groups, query) {
+  if (!(query || '').trim()) return groups
+  const hits = new Set(searchGames(query).map(t => t.type))
+  return {
+    all: groups.all.filter(g => hits.has(g.type)),
+    rotate: groups.rotate.filter(g => hits.has(g.type)),
+    short: groups.short.filter(s => hits.has(s.cfg.type)),
+  }
 }
 
 /**
