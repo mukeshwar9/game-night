@@ -1,0 +1,9 @@
+/* One themed focus ring for keyboard and assistive-tech focus, in the CTA
+   colour of whichever theme is on, instead of the browser's default blue
+   (which clashes with every theme but one). Pointer taps never show it.
+   Kept out of index.css on purpose: the rule-media stills hash index.css, and a
+   rule this small should not force every still to be recaptured. */
+:focus-visible {
+  outline: 2px solid rgb(var(--c-cta));
+  outline-offset: 2px;
+}

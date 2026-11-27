@@ -545,6 +545,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -593,7 +594,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "a905b467991a",
+      "sourceHash": "1436cf6526ae",
       "assetHash": "14d0f4bf977f",
       "dpr": 1
     },
@@ -782,6 +783,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -829,7 +831,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "3a0b1cdcf1e3",
+      "sourceHash": "9eec33948b1e",
       "assetHash": "c09ac5ade8ff",
       "dpr": 1
     },
@@ -919,6 +921,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -967,7 +970,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "17f1e5b67007",
+      "sourceHash": "9fe0feede291",
       "assetHash": "d97a9340ae51",
       "dpr": 1
     },
@@ -1057,6 +1060,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/crColors.js",
         "src/components/loading/PixelDots.jsx",
@@ -1106,7 +1110,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "18a69c14343c",
+      "sourceHash": "c7ba845daac1",
       "assetHash": "ad60d803b0ad",
       "dpr": 1
     },
@@ -1196,6 +1200,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/crColors.js",
         "src/components/loading/PixelDots.jsx",
@@ -1245,7 +1250,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "18a69c14343c",
+      "sourceHash": "c7ba845daac1",
       "assetHash": "c697f74d6866",
       "dpr": 1
     },
@@ -1527,6 +1532,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -1574,7 +1580,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e8ea80aeb384",
+      "sourceHash": "97ca204828e6",
       "assetHash": "91c862625413",
       "dpr": 1
     },
@@ -1703,6 +1709,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -1750,7 +1757,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "37688b9dce1e",
+      "sourceHash": "303eb24226a7",
       "assetHash": "711bb2f27081",
       "dpr": 1
     },
@@ -1840,6 +1847,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -1887,7 +1895,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "37688b9dce1e",
+      "sourceHash": "303eb24226a7",
       "assetHash": "1187e7e0a09d",
       "dpr": 1
     },
@@ -1977,6 +1985,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -2023,7 +2032,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "b58928e49503",
+      "sourceHash": "d4fec5963e12",
       "assetHash": "6f2911a9b6bd",
       "dpr": 1
     },
@@ -2113,6 +2122,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -2159,7 +2169,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "b58928e49503",
+      "sourceHash": "d4fec5963e12",
       "assetHash": "cc9d021603dc",
       "dpr": 1
     },
@@ -2249,6 +2259,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -2296,7 +2307,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "96219a512e0c",
+      "sourceHash": "4bcf251e0cef",
       "assetHash": "c103f1f2c664",
       "dpr": 1
     },
@@ -2386,6 +2397,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -2433,7 +2445,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "96219a512e0c",
+      "sourceHash": "4bcf251e0cef",
       "assetHash": "bca0a221831b",
       "dpr": 1
     },
@@ -2684,6 +2696,7 @@
         "src/components/GomokuBoard.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -2731,7 +2744,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "7854d630494f",
+      "sourceHash": "5701c2457bd1",
       "assetHash": "5509438ab603",
       "dpr": 1
     },
@@ -3024,6 +3037,7 @@
         "src/components/HexBoard.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -3071,7 +3085,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "94153b185857",
+      "sourceHash": "9096c4f1f6c6",
       "assetHash": "5eb98978c05b",
       "dpr": 1
     },
@@ -3161,6 +3175,7 @@
         "src/components/KamisadoBoard.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -3209,7 +3224,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "523d5e2d30fc",
+      "sourceHash": "93ee70cca6f6",
       "assetHash": "7ab8b0197c56",
       "dpr": 1
     },
@@ -3299,6 +3314,7 @@
         "src/components/LoaBoard.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -3347,7 +3363,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "c00a9b272f7e",
+      "sourceHash": "9c9fcf3295b9",
       "assetHash": "986a9387f9c3",
       "dpr": 1
     },
@@ -3546,6 +3562,7 @@
         "src/components/NewGamesRail.jsx",
         "src/components/OnitamaBoard.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -3593,7 +3610,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "305f6c3904b7",
+      "sourceHash": "92b687eb2f39",
       "assetHash": "c98179dd4cf9",
       "dpr": 1
     },
@@ -3683,6 +3700,7 @@
         "src/components/NewGamesRail.jsx",
         "src/components/OrderChaosBoard.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -3730,7 +3748,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e4d2599f1830",
+      "sourceHash": "354b5fa7f7b8",
       "assetHash": "348ccf7307d6",
       "dpr": 1
     },
@@ -4005,6 +4023,7 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PairsBoard.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -4056,7 +4075,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "15959b0f8822",
+      "sourceHash": "9b70c1d838e3",
       "assetHash": "f8c153941e69",
       "dpr": 1
     },
@@ -4148,6 +4167,7 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PairsBoard.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
@@ -4216,7 +4236,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "346c5b19220d",
+      "sourceHash": "a4a689cb3946",
       "assetHash": "9870bacff510"
     },
     "quarto": {
@@ -4305,6 +4325,7 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/QuartoBoard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -4352,7 +4373,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "a24af3f47b91",
+      "sourceHash": "489fa0745442",
       "assetHash": "d46d59c1f5ad",
       "dpr": 1
     },
@@ -4565,6 +4586,7 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SantoriniBoard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useModalHistory.js",
@@ -4612,7 +4634,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "dcc1c907709c",
+      "sourceHash": "f6aebbd56bcf",
       "assetHash": "bca4c743fdaf",
       "dpr": 1
     },
@@ -4701,6 +4723,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/SimBoard.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
@@ -4749,7 +4772,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "db545552f4cb",
+      "sourceHash": "d845ed259322",
       "assetHash": "1636859f66c0",
       "dpr": 1
     },
@@ -4947,6 +4970,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/SosBoard.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
@@ -4995,7 +5019,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1238e41e80cc",
+      "sourceHash": "c6d70a7cc423",
       "assetHash": "7a2de1780001",
       "dpr": 1
     },
@@ -5476,7 +5500,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/TriviaDemo.jsx"
       ],
-      "sourceHash": "88d37f362ece",
+      "sourceHash": "93449e253bd3",
       "assetHash": "9140a6947b9d"
     },
     "tron": {
@@ -5743,6 +5767,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/UltimateTttBoard.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/loading/PixelDots.jsx",
@@ -5791,7 +5816,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0f23873e62ef",
+      "sourceHash": "a3f162569702",
       "assetHash": "3365a0dd1dbc",
       "dpr": 1
     },
@@ -6002,6 +6027,7 @@
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/YavalathBoard.jsx",
         "src/components/loading/PixelDots.jsx",
@@ -6050,7 +6076,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "7a5398068bdb",
+      "sourceHash": "bdfc32ca0a44",
       "assetHash": "3038ed15f2a9",
       "dpr": 1
     }

@@ -1,6 +1,6 @@
 // Party voice controls, without a Cloudflare app: the voice panel shows only
-// to party members, the first JOIN VOICE asks once (mic or listen only), the
-// 13+ age check comes first for an account with no birth year on file, and a
+// to party members, the first JOIN VOICE asks once (mic or listen only) and, for an
+// account with no birth year on file, the 13+ question inside that same sheet, and a
 // voiceSfu that is not reachable (no Functions emulator here) leaves a clear
 // error instead of a stuck button. A real SFU session needs a Cloudflare test
 // app and runs as a manual device check (see the voice report).
@@ -34,17 +34,20 @@ test('voice panel, first-use sheet and the 13+ age check in a party', async ({ b
     await alice.page.getByTestId('voice-join').click()
     const sheet = alice.page.getByRole('dialog', { name: 'Join voice?' })
     await expect(sheet).toContainText('Nothing is recorded')
+    // No birth year on file: the 13+ question is inside this sheet, and the
+    // join buttons stay off until it has a valid year.
+    await expect(sheet.getByLabel(/What year were you born/)).toBeVisible()
+    await expect(sheet.getByRole('button', { name: 'LISTEN ONLY' })).toBeDisabled()
+    await expect(sheet.getByRole('button', { name: 'JOIN WITH MIC' })).toBeDisabled()
+    await sheet.getByLabel(/What year were you born/).fill('2000')
     // LISTEN ONLY: a headless browser on a desktop OS may never answer a
     // microphone request; the mic path is covered by the controller tests.
     await sheet.getByRole('button', { name: 'LISTEN ONLY' }).click()
   })
 
-  await test.step('no birth year on file: the age check comes first', async () => {
-    await expect(alice.page.getByTestId('voice-age')).toBeVisible()
-    await alice.page.getByTestId('voice-age').getByRole('button', { name: 'CHECK' }).click()
-    const age = alice.page.getByRole('dialog', { name: 'Age check' })
-    await age.getByLabel(/What year were you born/).selectOption('2000')
-    await age.getByRole('button', { name: 'CONTINUE' }).click()
+  await test.step('the year was saved with the choice: no second age sheet', async () => {
+    await expect(alice.page.getByRole('dialog', { name: 'Age check' })).toHaveCount(0)
+    await expect(alice.page.getByTestId('voice-age')).toHaveCount(0)
   })
 
   await test.step('with no voice service reachable, the panel says so and stays usable', async () => {

@@ -9,6 +9,43 @@ import { subscribeFriends, subscribeProfile, inviteFriendToGame, inviteFriendsTo
 import { displayNameFor } from '../lib/moderationLogic'
 import { recordFunnel } from '../lib/analytics'
 import { track } from '../lib/track'
+import QrCode from './QrCode'
+import { shareUrl } from '../lib/platform'
+import { shareLink } from '../lib/share'
+import { inviteShareText } from '../lib/arrivalLogic'
+
+// A party's other ways in, kept in this one sheet so the lobby has a single
+// INVITE FRIENDS entry point: the room code in big type, the link (native share
+// sheet, else copy) and a QR for a phone next to you.
+function PartyLink({ gameId, hostName }) {
+  const [showQr, setShowQr] = useState(false)
+  const [busy, run] = useBusy()
+  const url = shareUrl(`/game/${gameId}`)
+  const share = () => run(async () => {
+    const outcome = await shareLink({ text: inviteShareText({ hostName, party: true }), url })
+    if (outcome === 'shared') { recordFunnel('shared'); track('invite_shared', { surface: 'party_invite_sheet', method: 'native_share' }); return }
+    if (outcome === 'cancelled') return
+    await navigator.clipboard.writeText(url)
+    recordFunnel('shared')
+    track('invite_shared', { surface: 'party_invite_sheet', method: 'copy' })
+    toast.success('LINK COPIED!')
+  }, () => toast.error("COULDN'T SHARE — COPY THE LINK FROM THE ADDRESS BAR"))
+  return (
+    <div className="space-y-2 rounded border border-retro-border bg-retro-bg p-3" data-testid="party-invite-link">
+      <p className="font-mono text-[11px] text-retro-dim text-center">Room code</p>
+      <p className="font-mono text-3xl font-bold tracking-[0.3em] text-retro-text text-center select-all" aria-label={`Room code ${gameId}`}>{gameId}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={share} disabled={busy} className="min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded hover:shadow-neon-cta transition press disabled:opacity-50">
+          {busy ? 'SHARING…' : 'SHARE LINK'}
+        </button>
+        <button type="button" onClick={() => setShowQr(v => !v)} aria-expanded={showQr} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press">
+          {showQr ? 'HIDE QR' : 'SHOW QR'}
+        </button>
+      </div>
+      {showQr && <div className="flex justify-center pt-1"><QrCode value={url} size={160} /></div>}
+    </div>
+  )
+}
 
 // Modal to invite a friend into the current room. Lists friends (online first)
 // with a one-tap INVITE that pushes a game invite to their account, plus
@@ -75,10 +112,11 @@ export default function InviteFriendModal({ gameId, gameType, onClose, excludeUi
       {party && (
         <p className="font-mono text-[11px] text-retro-dim">
           {placesLeft > 0
-            ? `Party: ${party.size} of ${party.cap} · ${placesLeft} ${placesLeft === 1 ? 'place' : 'places'} left. Not friends yet? Share the link or code.`
+            ? `Party: ${party.size} of ${party.cap} · ${placesLeft} ${placesLeft === 1 ? 'place' : 'places'} left. Not friends yet? Share the link or code below.`
             : `Party is full (${party.size} of ${party.cap}).`}
         </p>
       )}
+      {party && placesLeft > 0 && <PartyLink gameId={gameId} hostName={party.hostName} />}
 
       {friendUids === null ? (
         <div className="space-y-2">

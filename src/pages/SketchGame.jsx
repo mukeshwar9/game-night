@@ -1065,7 +1065,7 @@ export default function SketchGame({
             <div className="min-w-0 flex-1 space-y-1 text-left">
               {round.phase === 'drawing' ? (
                 <>
-                  <p className="truncate font-pixel text-[8px] tracking-wider text-retro-dim">
+                  <p className="font-pixel text-[8px] leading-snug tracking-wider text-retro-dim [overflow-wrap:anywhere]">
                     {haveIGuessedCorrectly
                       ? `✓ YOU GOT IT · ${gotIt}`
                       : isArtist
@@ -1087,7 +1087,7 @@ export default function SketchGame({
                 </>
               ) : (
                 <>
-                  <p className="truncate font-pixel text-[8px] tracking-wider text-retro-dim">
+                  <p className="font-pixel text-[8px] leading-snug tracking-wider text-retro-dim [overflow-wrap:anywhere]">
                     {isArtist ? 'YOU DREW' : `${artistName} DREW`} · {gotIt}
                   </p>
                   <p className="font-pixel text-base tracking-widest text-retro-win text-glow-win" data-testid="sketch-word">

@@ -75,9 +75,27 @@ test('party first: gather, pick by party size, take turns, back to the party', a
     await group(alice.page, 'party-group-rotate').getByRole('button', { name: `SHOW ALL ${rotate}` }).click()
     await expect(group(alice.page, 'party-group-rotate').getByRole('button', { name: /^Play / })).toHaveCount(rotate)
     await expect(group(alice.page, 'party-group-short')).toContainText(/NEEDS MORE PLAYERS · \d+/)
+    // Seats show once, in the shell header: three faces and the spare seat's
+    // invite tile, nothing repeated in the body, and no "ALL 3" chip per game.
+    await expect(alice.page.getByTestId('shell-tile')).toHaveCount(3)
+    await expect(alice.page.getByTestId('party-member')).toHaveCount(0)
+    await expect(group(alice.page, 'party-group-all')).not.toContainText(/ALL 3/)
+    // The picker comes straight after the title; inviting is one row below it.
+    const lobby = alice.page.getByTestId('party-lobby')
+    await expect(lobby.getByRole('heading').first()).toContainText("ALICE'S PARTY")
+    await expect(lobby.getByText('PICK A GAME FOR 3')).toBeVisible()
+    await expect(alice.page.getByTestId('party-invite-row')).toBeVisible()
+    await expect(alice.page.getByTestId('party-invite-row').getByRole('button', { name: 'INVITE FRIENDS' })).toBeVisible()
     // Guests see who is picking and can't pick.
     await expect(bob.page.getByTestId('party-picking')).toContainText('Alice')
     await expect(group(bob.page, 'party-group-all').getByRole('button', { name: 'FIBBAGE' })).toBeDisabled()
+    // Searching for nothing offers a way back instead of a dead end.
+    const search = alice.page.getByTestId('party-search')
+    await search.fill('zzzz')
+    await expect(alice.page.getByTestId('party-search-empty')).toContainText('No games match')
+    await alice.page.getByTestId('party-search-empty').getByRole('button', { name: 'CLEAR SEARCH' }).click()
+    await expect(search).toHaveValue('')
+    await expect(group(alice.page, 'party-group-all')).toBeVisible()
   })
 
   await test.step('Alice picks Connect Four: host and next joiner sit, Carol lines up', async () => {

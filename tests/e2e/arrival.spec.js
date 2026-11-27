@@ -85,7 +85,19 @@ test('alone in a party: a warm-up while friends arrive, and a clear cue when one
     url = alice.page.url()
     await expect(alice.page.getByTestId('party-alone')).toContainText('WHILE YOUR FRIENDS ARRIVE')
     await expect(alice.page.getByTestId('party-progress')).toHaveText('1 OF 2 · WAITING FOR A FRIEND')
-    await expect(alice.page.getByRole('button', { name: 'INVITE FRIENDS' })).toBeVisible()
+    // One invite button (its sheet holds friends, the link and the QR) and the
+    // room code in big type; the seats are the header's, not repeated in the body.
+    await expect(alice.page.getByRole('button', { name: 'INVITE FRIENDS' })).toHaveCount(1)
+    await expect(alice.page.getByTestId('party-code')).toHaveText(url.split('/').pop())
+    await expect(alice.page.getByTestId('party-member')).toHaveCount(0)
+    await expect(alice.page.getByRole('button', { name: 'LINK', exact: true })).toHaveCount(0)
+    await alice.page.getByRole('button', { name: 'INVITE FRIENDS' }).click()
+    const invite = alice.page.getByRole('dialog', { name: 'Invite a friend' })
+    await expect(invite.getByTestId('party-invite-link')).toContainText(url.split('/').pop())
+    await expect(invite.getByRole('button', { name: 'SHARE LINK' })).toBeVisible()
+    await invite.getByRole('button', { name: 'SHOW QR' }).click()
+    await expect(invite.getByRole('img').first()).toBeVisible()
+    await invite.getByRole('button', { name: 'Close' }).click()
     // The game list is still reachable, just tucked away.
     await expect(alice.page.getByTestId('party-group-all')).toBeHidden()
     await alice.page.getByTestId('party-browse').getByText('BROWSE GAMES ANYWAY').click()

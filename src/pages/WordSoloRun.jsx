@@ -11,6 +11,7 @@ import {
 } from '../lib/wordSoloLogic'
 import { readSoloBest, recordSoloBest } from '../lib/soloBest'
 import { sounds } from '../lib/sounds'
+import { sentenceCase } from '../lib/sentenceCase'
 import { cn } from '@/lib/utils'
 
 // Solo WORD RACE (SPRINT), WORD DUEL (FIVE-WORD SET) and WORD CO-OP (STREAK):
@@ -154,9 +155,16 @@ export default function WordSoloRun({ mode }) {
     return (
       <div className="flex flex-col items-center gap-4 py-6 text-center">
         <p className="font-pixel text-[10px] text-retro-text">{cfg.name}</p>
-        <div className="mx-auto w-fit space-y-1 text-left font-pixel text-[8px] text-retro-dim">
-          {cfg.how.map(line => <p key={line}>● {line}</p>)}
-          <p>✓ GREEN: RIGHT SPOT · • YELLOW: WRONG SPOT · × GRAY: NOT IN THE WORD</p>
+        <div className="mx-auto w-fit max-w-full space-y-2 text-left font-mono text-[12px] leading-relaxed text-retro-dim">
+          {cfg.how.map(line => <p key={line}>● {sentenceCase(line)}</p>)}
+          <ul className="space-y-1.5 pt-1" aria-label="What the tile colours mean">
+            {[['G', 'Right spot'], ['Y', 'Wrong spot'], ['B', 'Not in the word']].map(([mark, text]) => (
+              <li key={mark} className="flex items-center gap-2">
+                <MarkTile mark={mark} size="sm" label={text} />
+                <span>{text}</span>
+              </li>
+            ))}
+          </ul>
         </div>
         {best > 0 && <p className="font-pixel text-[9px] text-retro-dim">BEST {best}</p>}
         <button

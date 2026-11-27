@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PACKS, PRICES, PRICES_INR, PRODUCTS, amountFor, formatCents, formatPaise, formatPrice, yearlySavingsPercent } from './premiumCatalog'
-import { accessFor, birthYearOptions, bypassActive, canViewAsPlayer, effectiveAccess, viewAsPlayerActive, hasActivePass, isUnlocked, itemKey, missingPacks, purchaseGate, unlockReason, viewerAccess } from './premium'
+import { accessFor, birthYearOptions, parseBirthYear, stepBirthYear, bypassActive, canViewAsPlayer, effectiveAccess, viewAsPlayerActive, hasActivePass, isUnlocked, itemKey, missingPacks, purchaseGate, unlockReason, viewerAccess } from './premium'
 
 const NOW = 1_800_000_000_000
 const free = { kind: 'theme', id: 'matcha' }
@@ -152,6 +152,32 @@ describe('purchaseGate', () => {
     expect(years[0]).toBe(2026)
     expect(years.at(-1)).toBe(1926)
     expect(new Set(years).size).toBe(years.length)
+  })
+})
+
+describe('birth year field', () => {
+  const now = new Date('2026-11-27T00:00:00Z')
+
+  it('accepts a four-digit year inside the offered range only', () => {
+    expect(parseBirthYear('1990', now)).toBe(1990)
+    expect(parseBirthYear(' 2026 ', now)).toBe(2026)
+    expect(parseBirthYear('1926', now)).toBe(1926)
+    expect(parseBirthYear('1925', now)).toBeNull()
+    expect(parseBirthYear('2027', now)).toBeNull()
+    expect(parseBirthYear('199', now)).toBeNull()
+    expect(parseBirthYear('19900', now)).toBeNull()
+    expect(parseBirthYear('abcd', now)).toBeNull()
+    expect(parseBirthYear('', now)).toBeNull()
+    expect(parseBirthYear(null, now)).toBeNull()
+  })
+
+  it('steps one year per tap from a neutral start, inside the range', () => {
+    expect(stepBirthYear('', 1, now)).toBe(1996)
+    expect(stepBirthYear('', -1, now)).toBe(1996)
+    expect(stepBirthYear('1996', 1, now)).toBe(1997)
+    expect(stepBirthYear('1996', -1, now)).toBe(1995)
+    expect(stepBirthYear('2026', 1, now)).toBe(2026)
+    expect(stepBirthYear('1926', -1, now)).toBe(1926)
   })
 })
 

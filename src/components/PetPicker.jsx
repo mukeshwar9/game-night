@@ -148,7 +148,7 @@ export default function PetPicker({ saved, onClose, onEditLook }) {
                   )}
                 >
                   <PetSprite id={p.id} scale={6} label={p.id === 'none' ? 'no pet' : `${p.label.toLowerCase()} pet`} />
-                  <span className={cn('w-full truncate text-center font-pixel text-[8px]', selected ? 'text-retro-cta' : 'text-retro-text')}>{p.id === 'none' ? 'NO PET' : p.label}</span>
+                  <span className={cn('w-full text-center font-pixel text-[8px] leading-snug [overflow-wrap:anywhere]', selected ? 'text-retro-cta' : 'text-retro-text')}>{p.id === 'none' ? 'NO PET' : p.label}</span>
                   {showTier && <span className="w-full text-center font-pixel text-[7px] leading-tight text-retro-dim" aria-hidden="true">{p.tier === 'earn' ? p.note?.toUpperCase() : tierText}</span>}
                   {selected && (
                     <span aria-hidden="true" className="absolute top-1 left-1 w-4 h-4 rounded-sm bg-retro-cta text-retro-bg flex items-center justify-center"><TierIcon tier="earn" /></span>

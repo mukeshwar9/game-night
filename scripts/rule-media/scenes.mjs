@@ -66,7 +66,7 @@ export const SCENES = {
   fibbage: scene('FibbageDemo', [input('Moon cheese', 1), click('SUBMIT LIE', 1, 1800)], [click('^START$')]),
   spyfair: scene('SpyfairDemo', [click('TAP TO SEE YOUR SECRET', 0), click('START QUESTIONING', 1)], [click('^START$')]),
   herd: scene('HerdDemo', [input('pizza', 0), click('LOCK', 1, 1000)]),
-  trivia: scene('TriviaDemo', [place('button:not([aria-pressed])', 1), { action: 'wait', wait: 3500, cap: 2 }]),
+  trivia: scene('TriviaDemo', [place('button:not([aria-pressed])', 1), { action: 'wait', wait: 3500, cap: 2 }], [click('^START$')]),
 }
 
 // Selection games show the preview before completing the turn.

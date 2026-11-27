@@ -8,8 +8,9 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 let searchGames
+let SUGGESTED_SEARCH_TERMS
 beforeAll(async () => {
-  ;({ searchGames } = await import('./gameSearch'))
+  ;({ searchGames, SUGGESTED_SEARCH_TERMS } = await import('./gameSearch'))
 })
 
 describe('searchGames', () => {
@@ -49,5 +50,13 @@ describe('searchGames', () => {
     expect(lower).toEqual(upper)
     expect(lower).toEqual(mixed)
     expect(lower).toContain('dice')
+  })
+})
+
+describe('SUGGESTED_SEARCH_TERMS', () => {
+  it('every suggestion finds several games, so the empty state never dead-ends', () => {
+    for (const term of SUGGESTED_SEARCH_TERMS) {
+      expect(searchGames(term).length, term).toBeGreaterThanOrEqual(3)
+    }
   })
 })

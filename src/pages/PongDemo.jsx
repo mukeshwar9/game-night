@@ -8,6 +8,7 @@ import {
 } from '../lib/pongLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
+import { sentenceCase } from '../lib/sentenceCase'
 import { readBotRecord, recordBotResult, formatLevelRecord } from '../lib/botRecordLogic'
 
 // Solo Pong: pick a mode (and bot skill), then play full-screen against a
@@ -45,7 +46,7 @@ function Choice({ active, onClick, children, sub }) {
       )}
     >
       <span className="block">{children}</span>
-      {sub && <span className="block mt-1 text-[8px] leading-snug opacity-80">{sub}</span>}
+      {sub && <span className="block mt-1 font-mono text-[11px] leading-snug opacity-90">{sub}</span>}
     </button>
   )
 }
@@ -61,7 +62,7 @@ function Setup({ setup, setSetup, best, onPlay }) {
         <p className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">MODE</p>
         <div className="grid grid-cols-2 gap-2">
           {SOLO_MODES.map(id => (
-            <Choice key={id} active={setup.mode === id} onClick={() => setSetup({ ...setup, mode: id })} sub={MODES[id].blurb}>
+            <Choice key={id} active={setup.mode === id} onClick={() => setSetup({ ...setup, mode: id })} sub={sentenceCase(MODES[id].blurb)}>
               {MODES[id].label}
             </Choice>
           ))}
@@ -83,13 +84,14 @@ function Setup({ setup, setSetup, best, onPlay }) {
         <p className="font-pixel text-[8px] text-retro-dim text-center">BEST RUN: <span className="text-retro-cta">{best}</span> RETURNS</p>
       )}
       {mode.powerups && (
-        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+        <ul className="flex flex-wrap justify-center gap-x-3 gap-y-1.5" aria-label="Power-ups">
           {(mode.kinds || Object.keys(PICKUP_INFO)).map(k => (
-            <span key={k} className="font-pixel text-[8px] text-retro-dim">
-              <span className="text-retro-text">{PICKUP_INFO[k].glyph}</span> {PICKUP_INFO[k].name}
-            </span>
+            <li key={k} className="flex items-center gap-1.5 font-mono text-[12px] text-retro-dim">
+              <span aria-hidden="true" className="w-6 h-6 flex items-center justify-center rounded-sm border border-retro-border bg-retro-card font-pixel text-[9px] text-retro-text">{PICKUP_INFO[k].glyph}</span>
+              {sentenceCase(PICKUP_INFO[k].name)}
+            </li>
           ))}
-        </div>
+        </ul>
       )}
       <button
         onClick={onPlay}
@@ -97,8 +99,8 @@ function Setup({ setup, setSetup, best, onPlay }) {
       >
         PLAY FULL SCREEN
       </button>
-      <p className="font-pixel text-[8px] text-retro-dim/80 text-center leading-relaxed">
-        DRAG ANYWHERE TO MOVE<span className="kbd-hint"> · KEYS WORK TOO</span> · FLICK THE PADDLE AS YOU HIT TO CURVE THE BALL
+      <p className="font-mono text-[12px] text-retro-dim text-center leading-relaxed">
+        Drag anywhere to move<span className="kbd-hint">, or use the keys</span>. Flick the paddle as you hit to curve the ball.
       </p>
     </div>
   )

@@ -39,7 +39,7 @@ const PlayerChip = memo(function PlayerChip({
         {points}
       </span>
       <div className={cn('min-w-0 space-y-1', align === 'right' && 'flex flex-col items-end')}>
-        <p className={cn('font-pixel text-[8px] truncate max-w-[9rem]', col)}>
+        <p className={cn('font-pixel text-[8px] leading-snug max-w-[9rem] [overflow-wrap:anywhere]', col)}>
           {(name || side).toUpperCase()}{me && name?.toUpperCase() !== 'YOU' ? ' (YOU)' : ''}
         </p>
         <div className={cn('flex items-center gap-1 flex-wrap', align === 'right' && 'justify-end')}>

@@ -10,11 +10,17 @@ test.describe('phone fixes', () => {
 
   test('solo Trivia starts: the clock runs and answering settles the round', async ({ page }) => {
     await page.goto('/solo/trivia')
+    // The clock waits for START: nothing is ticking on the ready card.
+    await expect(page.getByTestId('trivia-ready')).toBeVisible()
+    await expect(page.getByText(/⏱/)).toHaveCount(0)
+    await page.getByRole('button', { name: 'START' }).tap()
     await expect(page.getByText(/⏱ \d+\.\ds/)).toBeVisible()
     const first = await page.getByText(/⏱ (\d+\.\d)s/).innerText()
     await page.waitForTimeout(800)
     const later = await page.getByText(/⏱ (\d+\.\d)s/).innerText()
     expect(later).not.toEqual(first)
+    // CPU difficulty hides once the match is under way.
+    await expect(page.getByRole('group', { name: 'CPU difficulty' })).toHaveCount(0)
     await page.locator('main button:has(span[aria-hidden])').filter({ hasText: /^[▲■●◆]/ }).first().tap()
     await expect(page.getByText(/LOCKED IN/)).toBeVisible()
     // The bots answer on their own, so the round always settles and moves on.

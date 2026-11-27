@@ -10,6 +10,7 @@ import GameCard from './GameCard'
 import GameSearchInput from './GameSearchInput'
 import NewGamesRail from './NewGamesRail'
 import EmptyState from './EmptyState'
+import SearchEmpty from './SearchEmpty'
 import FilterButton, { ViewTabs } from './GameFilters'
 import { FILTER_DEFS, isSortId, readCatalogView, sortGames } from '../lib/gameFilters'
 import { makePickerScope } from '../lib/pickerScope'
@@ -18,8 +19,8 @@ import { track } from '../lib/track'
 
 // Facet definitions live in lib/gameFilters.js (shared with the
 // FILTERS sheet); the toggle state below stays session-persisted here.
-// M-82: filters/query/sort survive visits (Home fully unmounts on
-// navigation, so this can't live in useState alone). Device-local
+// M-82: filters/sort survive visits (the search text does not). Home fully
+// unmounts on navigation, so this can't live in useState alone. Device-local
 // localStorage — a returning visitor keeps their slice of the catalog.
 // Scoped to layout="full" (the Games catalog) — GameSwitcher's compact
 // picker always wants to default to the current game's category. The
@@ -49,6 +50,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   const isFull = layout === 'full'
   const startType = excludeType || currentType
   const defaultCat = isFull ? 'all' : ((startType && getGameConfig(startType)?.category) || GAME_CATEGORIES[0].id)
+  // The search box is deliberately not restored: a dead query from last visit
+  // read as a broken catalog. Filters and sort are kept.
   const persisted = isFull ? readPickerState() : null
   // In-room switching (excludeType set) is restricted to the current seat
   // family: party rooms key players by uid, 2P rooms by 'X'/'O'. The one
@@ -76,7 +79,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   // opened from the sheet's MORE MODES row), 'solo' (VS AI row), or 'local'
   // (2P PASS row, opens the hot-seat pass-and-play route).
   const [variantMode, setVariantMode] = useState('friend')
-  const [query, setQuery] = useState(persisted?.query || '')
+  const [query, setQuery] = useState('')
   const [favVersion, setFavVersion] = useState(0)
   const [filters, setFilters] = useState(persisted?.filters || {})
   const [sort, setSort] = useState(persisted && isSortId(persisted.sort) ? persisted.sort : 'curated')
@@ -122,11 +125,11 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
   useEffect(() => {
     if (!isFull) return
     try {
-      localStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ filters, query, sort }))
+      localStorage.setItem(PICKER_STATE_KEY, JSON.stringify({ filters, sort }))
     } catch {
       // storage unavailable (private mode / quota) — restoration just no-ops
     }
-  }, [isFull, filters, query, sort])
+  }, [isFull, filters, sort])
 
   const activeFilterKeys = Object.keys(filters).filter(k => filters[k])
   const passesFilters = (t) => activeFilterKeys.every(k => FILTER_DEFS.find(f => f.key === k).test(t))
@@ -375,7 +378,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
         searchResults.length > 0 ? (
           renderGrid(searchResults)
         ) : (
-          emptyState(`NO GAMES MATCH "${query.trim().toUpperCase()}"`)
+          <SearchEmpty testId="catalog-search-empty" query={query} onClear={() => setQuery('')} onSuggest={setQuery} />
         )
       ) : isFull ? (
         visibleFavorites.length === 0 && categorySections.length === 0 ? (
