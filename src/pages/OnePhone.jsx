@@ -78,7 +78,7 @@ export default function OnePhone() {
               to="/"
               className="inline-flex min-h-11 items-center px-4 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded press"
             >
-              START A PARTY INSTEAD
+              BACK TO HOME · START A PARTY
             </Link>
           </div>
         )}
