@@ -228,6 +228,7 @@ export default function Home() {
 
         {/* ALL GAMES lived here too, a copy of the GAMES tab one row down. */}
         <section className="max-w-md mx-auto w-full space-y-2" aria-label="More ways to play">
+          <ActionRow to="/night" title="PLAY A NIGHT" detail="5, 7 or 10 games, one phone" action="DEAL" />
           <DailyTile />
           <DailyMemoryTile />
           <ActionRow to="/online" title="FIND AN OPPONENT" detail="Join a public room or open one" action="BROWSE" />
