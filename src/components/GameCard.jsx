@@ -109,8 +109,12 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
             loadingType && !isLoading && 'opacity-40',
           )}
         >
-          <span className="flex-1 min-w-0 font-pixel text-[9px] text-retro-text truncate">{label}</span>
-          {tag && !isLoading && <CardTag tag={tag} className="shrink-0" />}
+          {/* Tag on its own line under the name: inline, it truncated long
+              names on a 360 px phone (as in the compact row). */}
+          <span className="flex-1 min-w-0">
+            <span className="block font-pixel text-[9px] text-retro-text truncate">{label}</span>
+            {tag && !isLoading && <span className="block mt-1 leading-none"><CardTag tag={tag} className="inline-block" /></span>}
+          </span>
           {isLoading ? (
             <span className="shrink-0"><PixelDots size="sm" tone="cta" /></span>
           ) : (
