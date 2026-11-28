@@ -8,7 +8,7 @@
 // locally, then adds its level's execution error. Pure — randomness comes in
 // through `rng`.
 
-import { COURSE_W, COURSE_H } from './minigolfCourses'
+import { holeExtent } from './minigolfCourses'
 import { BALL_R, simulateShot, quantizeShot, pointInPoly, inRect, holeSegments } from './minigolfPhysics'
 
 export const BOT_LEVELS = {
@@ -18,21 +18,24 @@ export const BOT_LEVELS = {
 }
 const POWERS = [0.15, 0.25, 0.35, 0.45, 0.6, 0.75, 0.9, 1]
 const CELL = 6
-const GW = Math.ceil(COURSE_W / CELL)
-const GH = Math.ceil(COURSE_H / CELL)
 const INF = 1e9
 
 const fields = new WeakMap()
-const cellOf = (x, y) =>
-  Math.max(0, Math.min(GH - 1, Math.floor(y / CELL))) * GW + Math.max(0, Math.min(GW - 1, Math.floor(x / CELL)))
 
 /**
  * Path distance (in cells) from every grid cell to the cup. Cached per hole.
+ * The grid covers the hole's extent (360×600 for the front nine).
  * @param {any} hole
  */
 export function distanceField(hole) {
   const cached = fields.get(hole)
   if (cached) return cached
+  const ext = holeExtent(hole)
+  const GW = Math.ceil(ext.w / CELL)
+  const GH = Math.ceil(ext.h / CELL)
+  /** @param {number} x @param {number} y */
+  const cellOf = (x, y) =>
+    Math.max(0, Math.min(GH - 1, Math.floor(y / CELL))) * GW + Math.max(0, Math.min(GW - 1, Math.floor(x / CELL)))
   const segs = holeSegments(hole)
   const open = new Uint8Array(GW * GH)
   for (let gy = 0; gy < GH; gy++) {
@@ -58,6 +61,13 @@ export function distanceField(hole) {
   // A ball entering portal a appears at b, so a is as close as b.
   const warp = new Map()
   for (const pt of hole.portals || []) warp.set(cellOf(pt.b[0], pt.b[1]), cellOf(pt.a[0], pt.a[1]))
+  // A jump ramp's lip reaches the fairway beyond its gap (a flight of ~150 u).
+  for (const z of hole.zones || []) {
+    if (z.t !== 'jump') continue
+    const [rx, ry, rw, rh] = z.r
+    const lx = rx + rw / 2 + (z.dx * rw) / 2, ly = ry + rh / 2 + (z.dy * rh) / 2
+    warp.set(cellOf(lx + z.dx * 150, ly + z.dy * 150), cellOf(lx - z.dx * 8, ly - z.dy * 8))
+  }
   const queue = [cup]
   const N = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]]
   for (let qi = 0; qi < queue.length; qi++) {
@@ -82,7 +92,7 @@ export function distanceField(hole) {
 /** Lower is better. @param {any} hole @param {any} r a simulateShot result */
 export function scoreRest(hole, r) {
   if (r.holed) return -1e6
-  const { dist } = distanceField(hole)
+  const { dist, cellOf } = distanceField(hole)
   let d = dist[cellOf(r.x, r.y)]
   if (d >= INF) d = 400
   return d * CELL + (r.water ? 250 : 0) + (r.oob ? 300 : 0)

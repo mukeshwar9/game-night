@@ -3,13 +3,13 @@ import MinigolfCourse from './MinigolfCourse'
 import MinigolfScorecard from './MinigolfScorecard'
 import { HOLES, getCourse } from '../lib/minigolfCourses'
 import { aimRayLength, quantizeShot, shotVelocity, simulateShot } from '../lib/minigolfPhysics'
-import { STROKE_CAP, formatVsPar, scoreName, vsPar } from '../lib/minigolfLogic'
+import { formatVsPar, scoreName, strokeCap, vsPar } from '../lib/minigolfLogic'
 import { SEAT_GLYPHS, seatColor } from '../lib/minigolfUi'
 import useGolfAim, { svgSurface } from '../hooks/useGolfAim'
 import useMotionPref from '../hooks/useMotionPref'
 import useFocusArena from '../hooks/useFocusArena'
 import { sounds } from '../lib/sounds'
-import { cameraMode, pathHeading, reachMetres } from '../lib/minigolf3dLogic'
+import { ballCameraMode, cameraMode, pathHeading, reachMetres, routeAngle } from '../lib/minigolf3dLogic'
 import { readGolfView, webglAvailable, writeGolfView } from '../lib/golfView'
 import { lazyWithRetry } from '../lib/lazyWithRetry'
 import { cn } from '@/lib/utils'
@@ -75,6 +75,7 @@ export default function MinigolfPlay({
   const [playback, setPlayback] = useState(null) // { entry, last, hole, path, events, start, base, speed }
   const [banner, setBanner] = useState(null)     // { text, sub, seat, pos, tone, holeDone }
   const [card, setCard] = useState(null)         // { pos, manual }
+  const [mapView, setMapView] = useState(false)  // ball-camera holes: the whole-hole overview
   const [toast, setToast] = useState(null)
   const [flashBumper, setFlashBumper] = useState(-1)
   const [burst, setBurst] = useState(null)
@@ -97,7 +98,7 @@ export default function MinigolfPlay({
       if (shotEntry) {
         const hole = HOLES[holes[shotEntry.h]]
         const r = simulateShot(hole, shotEntry.from, shotEntry.shot, { path: true })
-        setPlayback({ entry: shotEntry, last, hole, path: r.path, events: r.events, start: now, base: 0, speed: 1 })
+        setPlayback({ entry: shotEntry, last, hole, path: r.path, pz: r.pz, events: r.events, start: now, base: 0, speed: 1 })
       } else {
         setPlayback({ entry: null, last, hole: HOLES[holes[last.h]], path: [0, 0], events: [], start: now, base: 0, speed: 1 })
       }
@@ -132,7 +133,7 @@ export default function MinigolfPlay({
     const name = m[last.by]?.name ?? '?'
     const sub = holed
       ? `${name} · ${last.score} STROKE${last.score > 1 ? 'S' : ''}`
-      : last.outcome === 'skip' ? `${name} · NO SHOT — SCORES ${last.score}` : `${name} · ${STROKE_CAP} STROKES — SCORES ${last.score}`
+      : last.outcome === 'skip' ? `${name} · NO SHOT — SCORES ${last.score}` : `${name} · ${strokeCap(hole)} STROKES — SCORES ${last.score}`
     if (holed) {
       sounds.cup(last.score <= hole.par)
       if (!rm) setBurst({ key: `${last.h}-${last.by}-${last.index}`, x: hole.cup[0], y: hole.cup[1], seat })
@@ -165,6 +166,9 @@ export default function MinigolfPlay({
             const bx = pb.path[i * 2], by = pb.path[i * 2 + 1]
             setFlashBumper((pb.hole.bumpers || []).findIndex(([x, y, r]) => Math.hypot(x - bx, y - by) < r + 10))
           } else if (type === 'water') sounds.splash()
+          else if (type === 'boost') sounds.warp()
+          else if (type === 'jump') sounds.boing()
+          else if (type === 'land') sounds.wall()
           else if (type === 'portal') sounds.warp()
           else if (type === 'lip') { sounds.rattle(); setToast('SO CLOSE!') }
         }
@@ -227,7 +231,7 @@ export default function MinigolfPlay({
     const i = stepAt(pb, now)
     const seat = meta[pb.entry.by]?.seat ?? 0
     hole = pb.hole
-    balls = [{ key: 'b', x: pb.path[i * 2], y: pb.path[i * 2 + 1], seat }]
+    balls = [{ key: 'b', x: pb.path[i * 2], y: pb.path[i * 2 + 1], z: pb.pz?.[i] ?? 0, seat }]
     t = (pb.entry.shot.k + i) / STEPS_PER_SEC
     hudUid = pb.entry.by
     hudStrokes = pb.entry.strokes
@@ -258,18 +262,32 @@ export default function MinigolfPlay({
   }
 
   const canAim = controllable && !busy && !state.done
+  // Holes with `ballCam` are played from behind the ball (3D only); MAP shows
+  // the whole hole and keeps the pull-back-anywhere putt.
+  const ballCam = view3d && !!hole.ballCam
+  const ballAiming = ballCam && !mapView
+  const angle0 = useMemo(
+    () => (state.ball && state.hole?.ballCam ? routeAngle(state.hole, state.ball.x, state.ball.y) : -Math.PI / 2),
+    [state.hole, state.ball],
+  )
   const aim = useGolfAim({
     surface: view3d ? surface3d : surface2d,
     enabled: canAim,
+    mode: ballAiming ? 'ball' : 'pull',
+    angle0,
+    resetKey: `${state.pos}:${state.log.length}:${state.turn}`,
     onShoot: (angle, power) => onShot?.({ ...quantizeShot(angle, power), k: tickAt(performance.now()) }),
   })
   const aimLine = useMemo(() => {
     if (!aim || !canAim || !state.ball) return null
     const dx = Math.cos(aim.angle), dy = Math.sin(aim.angle)
-    let length = 30 + aim.power * 170
+    const ballMode = aim.src === 'ball'
+    // behind the ball the guide shows the line before any pull, then grows with power
+    let length = ballMode ? 120 + aim.power * 240 : 30 + aim.power * 170
     if (assist === 'wall') length = Math.min(length, aimRayLength(state.hole, state.ball.x, state.ball.y, dx, dy, length))
-    return { x: state.ball.x, y: state.ball.y, angle: aim.angle, power: aim.power, length }
+    return { x: state.ball.x, y: state.ball.y, angle: aim.angle, power: aim.power, length, mode: ballMode ? 'ball' : 'pull' }
   }, [aim, canAim, state.ball, state.hole, assist])
+  const playSpeed = Math.hypot(heading.vx, heading.vy) * (STEPS_PER_SEC / 6) // pathHeading spans 6 steps
 
   if (state.done && !busy && renderDone) return renderDone()
 
@@ -295,14 +313,14 @@ export default function MinigolfPlay({
             <p className="font-pixel text-[9px] leading-relaxed truncate" style={{ color: seatColor(hudSeat) }}>
               {SEAT_GLYPHS[hudSeat]} {meta[hudUid]?.name ?? '?'}
             </p>
-            <div className="flex gap-[3px] justify-end" role="img" aria-label={`stroke ${hudStrokes} of ${STROKE_CAP}`}>
-              {Array.from({ length: STROKE_CAP }, (_, i) => (
+            <div className="flex gap-[3px] justify-end" role="img" aria-label={`stroke ${hudStrokes} of ${strokeCap(hole)}`}>
+              {Array.from({ length: strokeCap(hole) }, (_, i) => (
                 <span key={i} className={cn('block w-2 h-2 rounded-full border', i < hudStrokes ? 'bg-retro-cta border-retro-cta' : 'border-retro-dim')} />
               ))}
             </div>
           </div>
         )}
-        {canToggle && (
+        {canToggle && !hole.ballCam && (
           <button
             type="button"
             onClick={() => { const next = view3d ? '2d' : '3d'; setView(next); writeGolfView(next) }}
@@ -312,6 +330,18 @@ export default function MinigolfPlay({
             className="shrink-0 w-9 h-9 grid place-items-center rounded border border-retro-border bg-retro-card font-pixel text-[8px] text-retro-dim hover:text-retro-text aria-pressed:text-retro-cta aria-pressed:border-retro-cta"
           >
             3D
+          </button>
+        )}
+        {ballCam && (
+          <button
+            type="button"
+            onClick={() => setMapView(m => !m)}
+            aria-pressed={mapView}
+            aria-label={mapView ? 'Back to the ball camera' : 'Show the whole hole'}
+            title={mapView ? 'Ball camera' : 'Map'}
+            className="shrink-0 h-9 px-2 grid place-items-center rounded border border-retro-border bg-retro-card font-pixel text-[8px] text-retro-dim hover:text-retro-text aria-pressed:text-retro-cta aria-pressed:border-retro-cta"
+          >
+            MAP
           </button>
         )}
         <button
@@ -353,7 +383,9 @@ export default function MinigolfPlay({
                 flashBumper={flashBumper}
                 burst={burst}
                 sink={banner?.holed ? { key: banner.key, seat: banner.seat } : null}
-                cam={{ mode: cameraMode({ playing: !!playback?.entry, sunk: !!banner?.holed }), ...heading }}
+                cam={ballCam
+                  ? { mode: ballCameraMode({ playing: !!playback?.entry, sunk: !!banner?.holed, map: mapView }), ...heading, angle: aim?.angle ?? angle0, speed: playSpeed }
+                  : { mode: cameraMode({ playing: !!playback?.entry, sunk: !!banner?.holed }), ...heading }}
                 landscape={landscape}
                 reduced={reduced}
                 onSurface={setSurface3d}
@@ -381,7 +413,7 @@ export default function MinigolfPlay({
           <div className="pointer-events-none absolute inset-x-2 bottom-2 flex flex-wrap justify-between items-end gap-x-2 gap-y-1">
             <span className={cn('font-pixel text-[8px] rounded px-1.5 py-1 shrink-0 whitespace-nowrap', (aimLine || toast) && 'bg-retro-bg/75 text-retro-text')}>
               {aimLine ? (
-                view3d ? (
+                aimLine.mode === 'ball' && aimLine.power <= 0.04 ? 'DRAG ← → TO AIM · PULL ↓ TO PUTT' : view3d ? (
                   <>
                     <b style={NUMERAL}>{Math.round(aimLine.power * 100)}</b>% POWER · <b style={NUMERAL}>{reachMetres(aimLine.length).toFixed(1)}</b> M REACH
                   </>

@@ -3,7 +3,7 @@ import { HOLES, getCourse } from './minigolfCourses'
 import { simulateShot } from './minigolfPhysics'
 import {
   PICKUP_SCORE, STROKE_CAP, formatVsPar, holeStars, honoursOrder, matchWinner,
-  replayCourse, scoreName, standings, totalOf, vsPar,
+  pickupScore, replayCourse, scoreName, standings, strokeCap, totalOf, vsPar,
 } from './minigolfLogic'
 
 const UP = 49152
@@ -135,5 +135,35 @@ describe('scoring helpers', () => {
     expect(scoreName(6, 3)).toBe('+3')
     expect(scoreName(7, 3, true)).toBe('PICKED UP')
     expect([holeStars(1, 3), holeStars(2, 3), holeStars(3, 3), holeStars(4, 3), holeStars(7, 3)]).toEqual([3, 2, 1, 0, 0])
+  })
+})
+
+describe('per-hole stroke cap (test level)', () => {
+  const testHole = HOLES[getCourse('test').holes[0]]
+  it('front-nine holes keep the 6-stroke cap; the test level allows par + 3', () => {
+    for (const i of getCourse('front9').holes) {
+      expect(strokeCap(HOLES[i])).toBe(STROKE_CAP)
+      expect(pickupScore(HOLES[i])).toBe(PICKUP_SCORE)
+    }
+    expect(strokeCap(testHole)).toBe(testHole.par + 3)
+    expect(pickupScore(testHole)).toBe(testHole.par + 4)
+  })
+
+  it('picks the ball up after the test level cap and scores cap + 1', () => {
+    const cap = strokeCap(testHole)
+    const shots = Array.from({ length: cap }, () => dribble('a', 0))
+    const before = replayCourse({ course: 'test', order: ['a'], shots: shots.slice(0, cap - 1) })
+    expect(before.done).toBe(false)
+    expect(before.strokes).toBe(cap - 1)
+    const s = replayCourse({ course: 'test', order: ['a'], shots })
+    expect(s.done).toBe(true)
+    expect(s.scores.a).toEqual([cap + 1])
+    expect(s.log.at(-1).outcome).toBe('pickup')
+  })
+
+  it('a coordinator skip on the test level scores its pick-up score', () => {
+    const s = replayCourse({ course: 'test', order: ['a', 'b'], shots: [], skips: { 0: { a: 'away' } } })
+    expect(s.scores.a).toEqual([pickupScore(testHole)])
+    expect(s.turn).toBe('b')
   })
 })

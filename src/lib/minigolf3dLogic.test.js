@@ -3,8 +3,9 @@ import { HOLES, COURSE_W, COURSE_H } from './minigolfCourses'
 import {
   K, RISE, FOV_DEG, courseToWorld, worldToCourse, heightAt, zoneAt, zoneDip, rayToCourse,
   makeProjector, solveTeeCamera, followCamera, sinkCamera, easePose, poseSettled, easeAlpha,
-  cameraMode, pathHeading, reachMetres,
+  cameraMode, pathHeading, reachMetres, ballCamera, chaseCamera, routeAngle, ballCameraMode, clearBehind, BALL_FOV_DEG,
 } from './minigolf3dLogic'
+import { RAMP_H, terrainHeight } from './minigolfPhysics'
 
 const byId = (id) => HOLES.find(h => h.id === id)
 
@@ -223,5 +224,67 @@ describe('helpers', () => {
   })
   it('reach is in world metres', () => {
     expect(reachMetres(200)).toBe(5)
+  })
+})
+
+describe('ball camera (test level)', () => {
+  const pier = byId('pierrun')
+  const len = (v) => Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+  const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
+
+  it('draws terrain and the jump ramp at the heights the physics uses', () => {
+    const [cx, cy] = pier.cup
+    expect(heightAt(pier, cx, cy)).toBeCloseTo(terrainHeight(pier, cx, cy), 12)
+    const ramp = pier.zones.find(z => z.t === 'jump')
+    const [rx, ry, rw] = ramp.r
+    expect(heightAt(pier, rx + rw / 2, ry)).toBeCloseTo(RAMP_H, 12) // the lip
+    // front-nine holes have neither: flat outside their slope zones
+    expect(heightAt(byId('straight'), 180, 300)).toBe(0)
+  })
+
+  it('sits behind and above the ball, looking along the aim', () => {
+    const angle = -Math.PI / 2 // straight up the course (toward −z)
+    const pose = ballCamera(pier, 180, 1000, angle)
+    const ball = courseToWorld(180, 1000)
+    expect(pose.pos.z).toBeGreaterThan(ball.z)         // behind: on the tee side
+    expect(pose.look.z).toBeLessThan(ball.z)           // looking ahead
+    expect(pose.pos.y).toBeGreaterThan(heightAt(pier, 180, 1000) + 0.5)
+    expect(Math.abs(pose.pos.x - ball.x)).toBeLessThan(1e-9)
+    expect(BALL_FOV_DEG).toBeGreaterThan(FOV_DEG)       // wider lens behind the ball
+  })
+
+  it('rises over a rail right behind the ball so it never hides the ball', () => {
+    // Just above the bottom wall (y = 1260), aiming up: the rail is 10 units (0.25 m) behind.
+    const open = ballCamera(pier, 180, 1000, -Math.PI / 2)
+    const tight = ballCamera(pier, 180, 1250, -Math.PI / 2)
+    const free = clearBehind(pier, 180, 1250, -Math.PI / 2, 2.2)
+    expect(free).toBeLessThan(0.5)
+    expect(clearBehind(pier, 180, 1000, -Math.PI / 2, 2.2)).toBe(2.2)
+    const rise = (pose, y) => pose.pos.y - heightAt(pier, 180, y)
+    expect(rise(tight, 1250)).toBeGreaterThan(rise(open, 1000))
+    // the sight line from the camera to the ball passes above the rail
+    const back = tight.pos.z - courseToWorld(180, 1250).z
+    expect(rise(tight, 1250) * free / back).toBeGreaterThan(0.3)
+  })
+
+  it('the chase pulls back and rises with speed and air height', () => {
+    const slow = chaseCamera(pier, 180, 900, -Math.PI / 2, 0)
+    const fast = chaseCamera(pier, 180, 900, -Math.PI / 2, 600)
+    const air = chaseCamera(pier, 180, 900, -Math.PI / 2, 600, 20)
+    expect(len(sub(fast.pos, fast.look))).toBeGreaterThan(len(sub(slow.pos, slow.look)))
+    expect(fast.pos.y).toBeGreaterThan(slow.pos.y)
+    expect(air.pos.y).toBeGreaterThan(fast.pos.y)
+  })
+
+  it('starts the aim down the corridor toward the cup', () => {
+    const a = routeAngle(pier, pier.tee[0], pier.tee[1])
+    expect(Math.abs(a - (-Math.PI / 2)) < 0.15 || Math.abs(a - 1.5 * Math.PI) < 0.15).toBe(true)
+  })
+
+  it('picks the rig: map, then sink, then chase while rolling, else behind the ball', () => {
+    expect(ballCameraMode({ playing: true, sunk: true, map: true })).toBe('map')
+    expect(ballCameraMode({ playing: true, sunk: true, map: false })).toBe('sink')
+    expect(ballCameraMode({ playing: true, sunk: false, map: false })).toBe('chase')
+    expect(ballCameraMode({ playing: false, sunk: false, map: false })).toBe('ball')
   })
 })

@@ -4,8 +4,8 @@ import { db } from '../lib/firebase'
 import MinigolfPlay from '../components/MinigolfPlay'
 import MinigolfScorecard from '../components/MinigolfScorecard'
 import GameSwitcher from '../components/GameSwitcher'
-import { COURSES, DEFAULT_COURSE, coursePar, getCourse } from '../lib/minigolfCourses'
-import { formatVsPar, matchWinner, replayCourse, standings, vsPar } from '../lib/minigolfLogic'
+import { COURSES, DEFAULT_COURSE, HOLES, coursePar, getCourse } from '../lib/minigolfCourses'
+import { formatVsPar, matchWinner, replayCourse, standings, strokeCap, vsPar } from '../lib/minigolfLogic'
 import { normalizeGolfOrder, normalizeGolfShots, shotKey, skipCount } from '../lib/minigolfRoom'
 import { isRoomCoordinator } from '../lib/coordinator'
 import { SEAT_GLYPHS, seatColor } from '../lib/minigolfUi'
@@ -210,7 +210,7 @@ export default function MinigolfGame({ gameId, game, mySeat, players, onStart, o
           <Seg label="Course" disabled={!amCoordinator} value={course} onChange={(v) => setRoom({ golfCourse: v })} options={Object.values(COURSES).map(c => [c.id, c.label])} />
           <p className="font-pixel text-[8px] text-retro-dim tracking-widest pt-1">SHOT CLOCK</p>
           <Seg label="Shot clock" disabled={!amCoordinator} value={clock} onChange={(v) => setRoom({ golfClock: v })} options={CLOCKS} />
-          <p className="font-mono text-[10px] text-retro-dim">{getCourse(course).holes.length} holes · par {coursePar(course)} · 6 strokes max per hole</p>
+          <p className="font-mono text-[10px] text-retro-dim">{getCourse(course).holes.length} {getCourse(course).holes.length === 1 ? 'hole' : 'holes'} · par {coursePar(course)} · {Math.max(...getCourse(course).holes.map(h => strokeCap(HOLES[h])))} strokes max per hole</p>
         </div>
 
         {amCoordinator && enough && (
@@ -281,7 +281,7 @@ export default function MinigolfGame({ gameId, game, mySeat, players, onStart, o
   const turnName = turnUid ? meta[turnUid]?.name ?? '?' : ''
   const showClock = secsLeft != null && (!turnOnline || waited >= CLOCK_WARN_MS)
   let statusText
-  if (myTurn) statusText = showClock ? `YOUR PUTT · ${secsLeft}s` : 'YOUR PUTT · DRAG ANYWHERE'
+  if (myTurn) statusText = showClock ? `YOUR PUTT · ${secsLeft}s` : state.hole?.ballCam ? 'YOUR PUTT' : 'YOUR PUTT · DRAG ANYWHERE'
   else if (turnUid && !turnOnline) statusText = `${turnName} OFFLINE · PICK-UP IN ${secsLeft}s`
   else if (turnUid) statusText = `${turnName} IS PUTTING${showClock ? ` · ${secsLeft}s` : '…'}`
   if (!amGolfer) statusText = `${statusText ?? ''}${statusText ? ' · ' : ''}WATCHING`

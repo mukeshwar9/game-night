@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { HOLES } from './minigolfCourses'
-import { ANGLE_STEPS, MAX_SPEED, aimRayLength, pointInPoly, quantizeShot, shotVelocity, simulateShot } from './minigolfPhysics'
+import { ANGLE_STEPS, MAX_SPEED, RAMP_H, aimRayLength, holeSegments, pointInPoly, quantizeShot, rampHeight, shotVelocity, simulateShot, terrainHeight } from './minigolfPhysics'
 import { mulberry32 } from './detMath'
 
 const byId = (id) => HOLES.find(h => h.id === id)
@@ -131,5 +131,100 @@ describe('simulateShot', () => {
     // From the tee straight up: the top wall is at y=40, so 510-40-6 = 464.
     expect(aimRayLength(h, 180, 510, 0, -1, 1000)).toBeCloseTo(464, 6)
     expect(aimRayLength(h, 180, 510, 0, -1, 100)).toBe(100)
+  })
+})
+
+// The TEST LEVEL's newer mechanics. Each is used only by holes that declare it,
+// so the front nine replays exactly as before.
+describe('newer mechanics (test level)', () => {
+  const pier = byId('pierrun')
+  const open = (zones = [], terrain = []) => ({
+    id: 'lab', par: 3, tee: [180, 560], cup: [180, 30],
+    bounds: [[[20, 10], [340, 10], [340, 590], [20, 590]]], zones, terrain,
+  })
+  const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+
+  it('a full putt boosts, jumps the water gap, lands and keeps going', () => {
+    const r = simulateShot(pier, tee(pier), { a: UP, p: 920, k: 0 }, { path: true })
+    const kinds = r.events.map(e => e[1])
+    expect(kinds).toContain('boost')
+    expect(kinds).toContain('jump')
+    expect(kinds).toContain('land')
+    expect(r.water).toBe(false)
+    expect(r.y).toBeLessThan(640) // past the far edge of the water
+    const jump = r.events.find(e => e[1] === 'jump')[0], land = r.events.find(e => e[1] === 'land')[0]
+    expect(Math.max(...r.pz.slice(jump, land))).toBeGreaterThan(RAMP_H * 40)
+    expect(r.pz.length).toBe(r.path.length / 2)
+  })
+
+  it('a ball too slow at the lip does not take off and rolls into the water', () => {
+    const r = simulateShot(pier, { x: 175, y: 812 }, { a: UP, p: 260, k: 0 })
+    expect(r.events.some(e => e[1] === 'jump')).toBe(false)
+    expect(r.water).toBe(true)
+    expect({ x: r.x, y: r.y }).toEqual({ x: 175, y: 812 }) // back to where the stroke started
+  })
+
+  it('a boost pad sends the same putt further', () => {
+    const shot = { a: UP, p: 300, k: 0 }
+    const plain = simulateShot(open(), { x: 180, y: 500 }, shot)
+    const boosted = simulateShot(open([{ t: 'boost', r: [150, 380, 60, 60], dx: 0, dy: -1 }]), { x: 180, y: 500 }, shot)
+    expect(boosted.events.some(e => e[1] === 'boost')).toBe(true)
+    expect(boosted.y).toBeLessThan(plain.y - 60)
+  })
+
+  it('ice carries the same putt further', () => {
+    const shot = { a: UP, p: 250, k: 0 }
+    const turf = simulateShot(open(), { x: 180, y: 560 }, shot)
+    const ice = simulateShot(open([{ t: 'ice', r: [20, 200, 320, 380] }]), { x: 180, y: 560 }, shot)
+    expect(ice.events.some(e => e[1] === 'ice')).toBe(true)
+    expect(560 - ice.y).toBeGreaterThan((560 - turf.y) * 1.5)
+  })
+
+  it('terrain: a ball on the side of a bowl rolls in; a very gentle slope holds it', () => {
+    const bowl = [{ x: 180, y: 300, r: 100, h: -0.6 }]
+    const start = { x: 180 + 50, y: 300 }
+    const nudge = { a: UP, p: 1, k: 0 }
+    const r = simulateShot(open([], bowl), start, nudge)
+    expect(dist(r, { x: 180, y: 300 })).toBeLessThan(dist(start, { x: 180, y: 300 }) - 20)
+    const gentle = simulateShot(open([], [{ x: 180, y: 300, r: 100, h: -0.05 }]), start, nudge)
+    expect(dist(gentle, start)).toBeLessThan(2)
+    // heights follow the same smooth shape
+    expect(terrainHeight({ terrain: bowl }, 180, 300)).toBeCloseTo(-0.6, 12)
+    expect(terrainHeight({ terrain: bowl }, 180 + 100, 300)).toBe(0)
+  })
+
+  it('ramp height rises from 0 at the back to RAMP_H at the lip', () => {
+    const ramp = pier.zones.find(z => z.t === 'jump') // lip at the top edge (dy = -1)
+    const [rx, ry, rw, rh] = ramp.r
+    expect(rampHeight(ramp, rx + rw / 2, ry + rh)).toBe(0)
+    expect(rampHeight(ramp, rx + rw / 2, ry)).toBe(RAMP_H)
+  })
+
+  it('is deterministic on the test level, air heights included', () => {
+    const shot = { a: UP + 400, p: 870, k: 333 }
+    const a = simulateShot(pier, tee(pier), shot, { path: true })
+    const b = simulateShot(pier, tee(pier), shot, { path: true })
+    expect([b.x, b.y, b.steps]).toEqual([a.x, a.y, a.steps])
+    expect(b.path).toEqual(a.path)
+    expect(b.pz).toEqual(a.pz)
+  })
+
+  it('never lets the ball escape on the test level, from any clear resting spot', () => {
+    const rng = mulberry32(7)
+    const segs = holeSegments(pier)
+    const clear = (x, y) => segs.every(([x1, y1, x2, y2]) => {
+      const dx = x2 - x1, dy = y2 - y1
+      const u = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy)))
+      return (x - x1 - dx * u) ** 2 + (y - y1 - dy * u) ** 2 > 64
+    })
+    let n = 0
+    while (n < 600) {
+      const x = 60 + rng() * 240, y = 30 + rng() * 1240
+      if (!pier.bounds.some(p => pointInPoly(x, y, p)) || (pier.blocks || []).some(p => pointInPoly(x, y, p)) || !clear(x, y)) continue
+      const r = simulateShot(pier, { x, y }, { a: Math.floor(rng() * 65536), p: 1 + Math.floor(rng() * 1000), k: Math.floor(rng() * 5000) })
+      expect(r.oob, `${x},${y}`).toBe(false)
+      expect((pier.blocks || []).some(p => pointInPoly(r.x, r.y, p))).toBe(false)
+      n++
+    }
   })
 })

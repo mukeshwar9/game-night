@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { COURSE_W, COURSE_H } from '../lib/minigolfCourses'
+import { holeExtent } from '../lib/minigolfCourses'
 import { BALL_R, CUP_R, moverGeometry } from '../lib/minigolfPhysics'
 import { SEAT_GLYPHS, seatColor } from '../lib/minigolfUi'
 
@@ -41,6 +41,17 @@ function Zone({ z, sandId }) {
       </g>
     )
   }
+  if (z.t === 'ice') return <rect x={x} y={y} width={w} height={h} style={{ fill: c('p4', 0.18) }} />
+  if (z.t === 'boost' || z.t === 'jump') {
+    // arrows along the push / take-off direction
+    const cx = x + w / 2, cy = y + h / 2, ang = (Math.atan2(z.dy, z.dx) * 180) / Math.PI
+    return (
+      <g>
+        <rect x={x} y={y} width={w} height={h} style={{ fill: z.t === 'boost' ? c('cta', 0.22) : c('text', 0.16) }} />
+        <path transform={`translate(${cx} ${cy}) rotate(${ang})`} d="M-12 -10 L0 0 L-12 10 M0 -10 L12 0 L0 10" style={{ fill: 'none', stroke: z.t === 'boost' ? c('cta') : c('text', 0.7), strokeWidth: 3 }} />
+      </g>
+    )
+  }
   // slope: chevrons point downhill (the way it pushes the ball)
   const dir = Math.sign(z.ay || 0) || 1
   const chevrons = []
@@ -75,6 +86,9 @@ export default function MinigolfCourse({
   const uid = useId().replace(/:/g, '')
   const clipId = `mg-clip-${uid}`
   const sandId = `mg-sand-${uid}`
+  // 360×600 for the front nine; a longer hole (the TEST LEVEL) gets a taller
+  // world, letterboxed into the same play area — 2D is only its fallback.
+  const { w: COURSE_W, h: COURSE_H } = holeExtent(hole)
   const vbW = landscape ? COURSE_H : COURSE_W
   const vbH = landscape ? COURSE_W : COURSE_H
   const worldTransform = landscape ? `translate(0 ${COURSE_W}) rotate(-90)` : undefined
@@ -102,7 +116,7 @@ export default function MinigolfCourse({
         ))}
         <g clipPath={`url(#${clipId})`}>
           <rect x="0" y="0" width={COURSE_W} height={COURSE_H} style={{ fill: c('win', 0.1) }} />
-          {Array.from({ length: COURSE_H / 60 }, (_, i) => (
+          {Array.from({ length: Math.ceil(COURSE_H / 60) }, (_, i) => (
             <rect key={i} x="0" y={i * 60} width={COURSE_W} height="30" style={{ fill: c('win', 0.05) }} />
           ))}
         </g>

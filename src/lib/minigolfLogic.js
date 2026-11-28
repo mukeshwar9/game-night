@@ -13,8 +13,9 @@
 //   * each player finishes the hole (holed, or picked up) before the next
 //     player tees off; hole 1 uses seat order, later holes use honours — best
 //     score on the previous hole first, ties keep the previous order
-//   * STROKE_CAP strokes per hole; a ball not holed by then is picked up and
-//     scores PICKUP_SCORE
+//   * STROKE_CAP strokes per hole (a hole may set its own `cap`); a ball not
+//     holed by then is picked up and scores one more than the cap (PICKUP_SCORE
+//     on the front nine)
 //   * water costs +1 stroke and the ball goes back to where the shot started
 //   * lowest total wins; a tie at the top is a draw (shared place)
 
@@ -23,6 +24,11 @@ import { simulateShot } from './minigolfPhysics'
 
 export const STROKE_CAP = 6
 export const PICKUP_SCORE = 7
+
+/** Strokes allowed on a hole before the ball is picked up. @param {{ cap?: number }} hole */
+export const strokeCap = (hole) => hole?.cap || STROKE_CAP
+/** Score for a picked-up (or skipped) ball on a hole. @param {{ cap?: number }} hole */
+export const pickupScore = (hole) => strokeCap(hole) + 1
 
 // Replays re-run every stroke of the match on each room update; results are a
 // pure function of their inputs, so memoize them.
@@ -82,8 +88,8 @@ export function replayCourse({ course, order, shots, skips }) {
       let strokes = 0
       for (;;) {
         if (skips?.[pos]?.[uid]) {
-          scores[uid][pos] = PICKUP_SCORE
-          log.push({ by: uid, h: pos, from: ball, shot: null, result: null, strokes, outcome: 'skip', score: PICKUP_SCORE, index: -1 })
+          scores[uid][pos] = pickupScore(hole)
+          log.push({ by: uid, h: pos, from: ball, shot: null, result: null, strokes, outcome: 'skip', score: pickupScore(hole), index: -1 })
           break
         }
         const next = list[si]
@@ -105,9 +111,9 @@ export function replayCourse({ course, order, shots, skips }) {
           break
         }
         ball = { x: r.x, y: r.y }
-        if (strokes >= STROKE_CAP) {
-          scores[uid][pos] = PICKUP_SCORE
-          log.push({ by: uid, h: pos, from, shot: next, result: r, strokes, outcome: 'pickup', score: PICKUP_SCORE, index: si - 1 })
+        if (strokes >= strokeCap(hole)) {
+          scores[uid][pos] = pickupScore(hole)
+          log.push({ by: uid, h: pos, from, shot: next, result: r, strokes, outcome: 'pickup', score: pickupScore(hole), index: si - 1 })
           break
         }
         log.push({ by: uid, h: pos, from, shot: next, result: r, strokes, outcome: r.water ? 'water' : r.oob ? 'oob' : 'rest', score: null, index: si - 1 })

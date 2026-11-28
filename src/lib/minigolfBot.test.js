@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { HOLES } from './minigolfCourses'
 import { botSearch, botShot, distanceField, scoreRest } from './minigolfBot'
-import { STROKE_CAP } from './minigolfLogic'
+import { strokeCap } from './minigolfLogic'
 import { simulateShot } from './minigolfPhysics'
 import { mulberry32 } from './detMath'
 
@@ -9,7 +9,7 @@ import { mulberry32 } from './detMath'
 function playHole(hole, level, seed) {
   const rng = mulberry32(seed)
   let ball = { x: hole.tee[0], y: hole.tee[1] }, strokes = 0, k = seed * 31
-  while (strokes < STROKE_CAP) {
+  while (strokes < strokeCap(hole)) {
     const shot = botShot(hole, ball, k, level, rng)
     const r = simulateShot(hole, ball, shot)
     strokes += r.water ? 2 : 1
@@ -53,8 +53,9 @@ describe('minigolf bot', () => {
     expect(r.value).toHaveProperty('a')
   })
 
-  // Course solvability: a HARD bot sinks every front-nine hole within the cap,
-  // and within par + 2. Guards against a hole edit that makes one unplayable.
+  // Course solvability: a HARD bot sinks every hole (front nine and the test
+  // level) within its cap, and within par + 2. Guards against a hole edit that
+  // makes one unplayable.
   it('every hole is solvable by the HARD bot within par + 2', () => {
     for (const h of HOLES) {
       const strokes = playHole(h, 'hard', 7)
