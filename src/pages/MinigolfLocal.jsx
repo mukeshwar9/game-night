@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import MinigolfPlay from '../components/MinigolfPlay'
 import MinigolfScorecard from '../components/MinigolfScorecard'
 import { COURSES, DEFAULT_COURSE, HOLES, coursePar, getCourse } from '../lib/minigolfCourses'
-import { formatVsPar, holeStars, replayCourse, standings, totalOf, vsPar } from '../lib/minigolfLogic'
+import { formatVsPar, holeStars, replayCourse, standings, strokeCap, totalOf, vsPar } from '../lib/minigolfLogic'
 import { botSearch } from '../lib/minigolfBot'
 import { mulberry32 } from '../lib/detMath'
 import { SEAT_GLYPHS, seatColor } from '../lib/minigolfUi'
@@ -211,7 +211,7 @@ export default function MinigolfLocal({ mode = 'local' }) {
         <Label>COURSE</Label>
         <Seg label="Course" value={course} onChange={setCourse} options={Object.values(COURSES).map(c => [c.id, c.label])} />
         <p className="font-mono text-[11px] text-retro-dim leading-relaxed">
-          {getCourse(course).holes.length} holes · par {coursePar(course)} · 6 strokes max per hole.
+          {getCourse(course).holes.length} {getCourse(course).holes.length === 1 ? 'hole' : 'holes'} · par {coursePar(course)} · {Math.max(...getCourse(course).holes.map(h => strokeCap(HOLES[h])))} strokes max per hole.
           {solo && soloKind === 'par' && best ? ` Your best: ${best} (${formatVsPar(best - coursePar(course))}).` : ''}
           {!solo && ' Each player finishes the hole, then passes the phone. Best score on a hole tees off first on the next.'}
         </p>
@@ -287,7 +287,7 @@ export default function MinigolfLocal({ mode = 'local' }) {
         onShot={shoot}
         onBusyChange={setBusy}
         renderDone={renderResults}
-        statusText={thinking ? 'BOT IS THINKING…' : botTurn ? 'BOT' : 'DRAG ANYWHERE · BACK TO CANCEL'}
+        statusText={thinking ? 'BOT IS THINKING…' : botTurn ? 'BOT' : state.hole?.ballCam ? null : 'DRAG ANYWHERE · BACK TO CANCEL'}
         overlay={needsHandoff && turnMeta ? (
           <Handoff
             name={turnMeta.name}

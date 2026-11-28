@@ -1,5 +1,5 @@
 import { HOLES, getCourse } from '../lib/minigolfCourses'
-import { PICKUP_SCORE, totalOf } from '../lib/minigolfLogic'
+import { pickupScore, totalOf } from '../lib/minigolfLogic'
 import { SEAT_GLYPHS, seatColor } from '../lib/minigolfUi'
 import { cn } from '@/lib/utils'
 
@@ -37,7 +37,7 @@ export default function MinigolfScorecard({ course, order, meta, scores, current
                 const v = row[i]
                 if (v == null) return <td key={i} className="py-1.5 text-center text-retro-dim">·</td>
                 const p = HOLES[h].par
-                if (v >= PICKUP_SCORE) {
+                if (v >= pickupScore(HOLES[h])) {
                   return <td key={i} className="py-1.5 text-center text-retro-p2"><span className="inline-block px-0.5 border border-retro-p2" title="Picked up">P</span></td>
                 }
                 if (v < p) return <td key={i} className="py-1.5 text-center text-retro-win"><span className="inline-block min-w-[1.3em] py-0.5 rounded-full border border-retro-win" title="Under par">{v}</span></td>

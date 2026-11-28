@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { COURSE_W, COURSE_H } from '../../lib/minigolfCourses'
-import { holeSegments, moverGeometry, pointInPoly, CUP_R } from '../../lib/minigolfPhysics'
+import { holeExtent } from '../../lib/minigolfCourses'
+import { holeSegments, moverGeometry, pointInPoly, CUP_R, RAMP_H } from '../../lib/minigolfPhysics'
 import { K, courseToWorld, heightAt, zoneAt, zoneDip } from '../../lib/minigolf3dLogic'
 
 // Builds the static scenery of one Minigolf hole as the "course as a sports
@@ -134,10 +134,12 @@ export function buildHole(hole, number, C) {
   group.add(sun)
 
   // ── plinth: the venue slab the hole stands on ──
+  // Holes with bowls sit their plinth lower so a dipped green never sinks into it.
+  const dip = Math.min(0, ...(hole.terrain || []).map(t => t.h))
   for (const poly of hole.bounds) {
     const shape = new THREE.Shape(poly.map(([x, y]) => new THREE.Vector2(wx(x), -wz(y))))
     const g = new THREE.ExtrudeGeometry(shape, { depth: 0.55, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 14 * K, bevelSegments: 3 })
-    g.rotateX(-Math.PI / 2); g.translate(0, -0.69, 0)
+    g.rotateX(-Math.PI / 2); g.translate(0, -0.69 + dip * 1.4, 0)
     const m = new THREE.Mesh(g, std(C.plinth, { roughness: 0.95 }))
     m.receiveShadow = m.castShadow = true
     group.add(m)
@@ -156,7 +158,8 @@ export function buildHole(hole, number, C) {
       vid.set(key, pos.length / 3 - 1)
       return pos.length / 3 - 1
     }
-    for (let y = 0; y < COURSE_H; y += STEP) for (let x = 0; x < COURSE_W; x += STEP) {
+    const ext = holeExtent(hole)
+    for (let y = 0; y < ext.h; y += STEP) for (let x = 0; x < ext.w; x += STEP) {
       const cx = x + STEP / 2, cy = y + STEP / 2
       if (!inside(cx, cy)) continue
       const zt = zoneAt(hole, cx, cy)
@@ -179,6 +182,44 @@ export function buildHole(hole, number, C) {
     const s = new THREE.Mesh(new THREE.PlaneGeometry(w * K, h * K), std(C.water, { roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.82 }))
     s.rotation.x = -Math.PI / 2; s.position.set(wx(x + w / 2), -0.06, wz(y + h / 2))
     group.add(s)
+  }
+
+  // Boost pads: chevrons along the push direction, in the accent colour.
+  for (const z of (hole.zones || []).filter(z => z.t === 'boost')) {
+    const [x, y, w, h] = z.r
+    const c = document.createElement('canvas'); c.width = c.height = 128
+    const g = c.getContext('2d')
+    g.fillStyle = css(C.accent); g.globalAlpha = 0.25; g.fillRect(0, 0, 128, 128); g.globalAlpha = 1
+    g.strokeStyle = css(C.accent); g.lineWidth = 12; g.lineJoin = 'round'; g.lineCap = 'round'
+    for (const yy of [34, 72, 110]) { g.beginPath(); g.moveTo(24, yy); g.lineTo(64, yy - 28); g.lineTo(104, yy); g.stroke() }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w * K, h * K), new THREE.MeshStandardMaterial({ map: t, emissive: C.accent, emissiveMap: t, emissiveIntensity: 0.5, transparent: true, roughness: 0.5 }))
+    m.rotation.x = -Math.PI / 2
+    m.rotation.z = Math.atan2(-z.dx, -z.dy) // texture "up" points along (dx, dy)
+    const cx = x + w / 2, cy = y + h / 2
+    m.position.set(wx(cx), hAt(cx, cy) + 0.012, wz(cy))
+    group.add(m)
+  }
+  // Ice: a glossy, pale tile laid over the turf.
+  for (const z of (hole.zones || []).filter(z => z.t === 'ice')) {
+    const [x, y, w, h] = z.r
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w * K, h * K), std(C.white.clone().lerp(C.water, 0.25), { roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.6 }))
+    m.rotation.x = -Math.PI / 2
+    const cx = x + w / 2, cy = y + h / 2
+    m.position.set(wx(cx), hAt(cx, cy) + 0.01, wz(cy)); m.receiveShadow = true
+    group.add(m)
+  }
+  // Jump ramps: a wedge rising to RAMP_H at the lip.
+  for (const z of (hole.zones || []).filter(z => z.t === 'jump')) {
+    const [x, y, w, h] = z.r
+    const along = z.dx ? w : h, across = z.dx ? h : w
+    const prof = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(along * K, 0), new THREE.Vector2(along * K, RAMP_H)])
+    const g = new THREE.ExtrudeGeometry(prof, { depth: across * K, bevelEnabled: false })
+    g.translate(-(along * K) / 2, 0, -(across * K) / 2)
+    const m = new THREE.Mesh(g, std(C.wall, { roughness: 0.6 }))
+    m.rotation.y = -Math.atan2(z.dy, z.dx)
+    m.position.set(wx(x + w / 2), 0.004, wz(y + h / 2)); m.castShadow = m.receiveShadow = true
+    group.add(m)
   }
 
   // ── rails: rounded boxes along every static segment, merged into two meshes ──
@@ -290,7 +331,7 @@ export function buildHole(hole, number, C) {
   pole.position.y = 0.67; pole.castShadow = true; flagGroup.add(pole)
   const flag = new THREE.Mesh(
     new THREE.PlaneGeometry(0.5, 0.32),
-    new THREE.MeshStandardMaterial({ map: label(String(number), { bg: C.roof, fg: C.signInk }), side: THREE.DoubleSide, roughness: 0.7 }),
+    new THREE.MeshStandardMaterial({ map: label(String(hole.flag ?? number), { bg: C.roof, fg: C.signInk }), side: THREE.DoubleSide, roughness: 0.7 }),
   )
   flag.position.set(0.25, 1.17, 0); flag.castShadow = true; flagGroup.add(flag)
 

@@ -2,16 +2,18 @@
 // minigolf3dLogic.js — pure geometry for the 3D Minigolf view (no DOM, no three).
 //
 // The 3D view is a renderer swap: the sim stays the 2D one in minigolfPhysics.js
-// and every position below is a course coordinate (360×600) mapped into world
-// space. Heights are cosmetic — the physics already applies a slope's push — so
-// nothing here may feed back into a replay.
+// and every position below is a course coordinate (360×600 for the front nine)
+// mapped into world space. Slope-zone heights are cosmetic — the physics
+// already applies a slope's push; terrain hills and jump ramps are drawn at the
+// heights the physics uses. Nothing here may feed back into a replay.
 //
 // World space: x right, y up, z toward the tee (course y). One world unit is 40
 // course units. Cameras are plain { pos, look, up } poses so they can be solved,
 // eased and tested without a GL context.
 
 import { COURSE_W, COURSE_H } from './minigolfCourses'
-import { inRect } from './minigolfPhysics'
+import { inRect, terrainHeight, rampHeight, aimRayLength } from './minigolfPhysics'
+import { distanceField } from './minigolfBot'
 
 export const K = 1 / 40
 export const RISE = 1.1
@@ -34,12 +36,15 @@ export const worldToCourse = (X, Z) => ({ x: X / K + COURSE_W / 2, y: Z / K + CO
 const smooth = (/** @type {number} */ t) => t * t * (3 - 2 * t)
 
 /**
- * Cosmetic surface height at a course point: slopes become ramps that ease in
- * and out, sideways slopes a camber across their band.
- * @param {{ zones?: any[] }} hole @param {number} x @param {number} y
+ * Surface height at a course point: slope zones become ramps that ease in and
+ * out (cosmetic), sideways slopes a camber across their band; terrain hills
+ * and jump ramps add their real heights.
+ * @param {{ zones?: any[], terrain?: any[] }} hole @param {number} x @param {number} y
  */
 export function heightAt(hole, x, y) {
   let h = 0
+  if (hole.terrain) h += terrainHeight(hole, x, y)
+  for (const z of hole.zones || []) if (z.t === 'jump' && inRect(x, y, z.r)) h += rampHeight(z, x, y)
   for (const z of hole.zones || []) {
     if (z.t !== 'slope') continue
     const [rx, ry, rw, rh] = z.r
@@ -224,3 +229,92 @@ export function pathHeading(path, i, back = 6) {
 
 /** Reach readout in metres (one world unit) for the aim line. @param {number} length course units */
 export const reachMetres = (length) => length * K
+
+// ── ball camera (holes with `ballCam`) ──────────────────────────────────────
+// The play camera sits behind the ball looking along the aim; while a stroke
+// plays it chases the ball along its heading. Course angles: 0 = +x, π/2 = +y
+// (toward the tee side), the same convention as quantizeShot.
+
+export const BALL_FOV_DEG = 58
+const BALL_BACK = 2.2, BALL_UP = 1.15, BALL_AHEAD = 3.8
+const RAIL_CLEAR = 0.38 // metres: rail height (0.3) plus a margin
+const MAX_UP = 3.2
+
+/**
+ * Behind-the-ball pose for aiming.
+ * @param {any} hole @param {number} x @param {number} y ball, course coords
+ * @param {number} angle aim, radians @param {number} [z] air height, course units
+ * @returns {CameraPose}
+ */
+export function ballCamera(hole, x, y, angle, z = 0) {
+  return behindPose(hole, x, y, angle, z, BALL_BACK, BALL_UP, BALL_AHEAD)
+}
+
+/**
+ * Free distance (metres) behind the ball before a wall or block, capped at `want`.
+ * @param {any} hole @param {number} x @param {number} y @param {number} a @param {number} want
+ */
+export function clearBehind(hole, x, y, a, want) {
+  return Math.min(want, aimRayLength(hole, x, y, -Math.cos(a), -Math.sin(a), want / K) * K)
+}
+
+/**
+ * Chase pose while the ball rolls: further back and higher when fast or airborne.
+ * @param {any} hole @param {number} x @param {number} y @param {number} heading radians
+ * @param {number} speed course units/s @param {number} [z] air height, course units
+ * @returns {CameraPose}
+ */
+export function chaseCamera(hole, x, y, heading, speed, z = 0) {
+  const back = 2.6 + Math.min(1.2, speed / 500)
+  const up = 1.25 + Math.min(0.8, speed / 600) + z * K * 0.5
+  return behindPose(hole, x, y, heading, z, back, up, 2.4)
+}
+
+/** @param {any} hole @param {number} x @param {number} y @param {number} a @param {number} z @param {number} back @param {number} up @param {number} ahead */
+function behindPose(hole, x, y, a, z, back, up, ahead) {
+  // A rail right behind the ball would cut the sight line: rise until the line
+  // from the camera to the ball clears a rail at that distance (with a margin).
+  // Past MAX_UP, come in closer instead (a steep look down at a ball on the rail).
+  const free = Math.max(0.02, clearBehind(hole, x, y, a, back))
+  if (free < back) {
+    const need = (RAIL_CLEAR * back) / free
+    if (need <= MAX_UP) up = Math.max(up, need)
+    else { up = MAX_UP; back = Math.max(0.5, (MAX_UP * free) / RAIL_CLEAR) }
+  }
+  const w = courseToWorld(x, y), h = heightAt(hole, x, y) + z * K
+  const dx = Math.cos(a), dz = Math.sin(a)
+  return {
+    pos: { x: w.x - dx * back, y: h + up, z: w.z - dz * back },
+    look: { x: w.x + dx * ahead, y: h + 0.05, z: w.z + dz * ahead },
+    up: { x: 0, y: 1, z: 0 },
+  }
+}
+
+/**
+ * Default aim for the ball camera: the direction that gets furthest along the
+ * route to the cup (the bot's distance field), looking down the corridor as far
+ * as the walls allow (up to 200 units). Cosmetic: it only sets where the camera
+ * starts; the player can turn it.
+ * @param {any} hole @param {number} x @param {number} y
+ */
+export function routeAngle(hole, x, y) {
+  const { dist, cellOf } = distanceField(hole)
+  let best = { d: dist[cellOf(x, y)], a: Math.atan2(hole.cup[1] - y, hole.cup[0] - x) }
+  for (let i = 0; i < 72; i++) {
+    const a = (i / 72) * Math.PI * 2, dx = Math.cos(a), dy = Math.sin(a)
+    const reach = aimRayLength(hole, x, y, dx, dy, 200)
+    if (reach < 12) continue
+    const d = dist[cellOf(x + dx * reach * 0.9, y + dy * reach * 0.9)]
+    if (d < best.d - 0.5) best = { d, a }
+  }
+  return best.a
+}
+
+/**
+ * Camera rig for a ball-camera hole.
+ * @param {{ playing: boolean, sunk: boolean, map: boolean }} s
+ * @returns {'map' | 'sink' | 'chase' | 'ball'}
+ */
+export function ballCameraMode({ playing, sunk, map }) {
+  return map ? 'map' : sunk ? 'sink' : playing ? 'chase' : 'ball'
+}

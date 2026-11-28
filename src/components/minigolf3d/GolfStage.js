@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { HOLES } from '../../lib/minigolfCourses'
 import { BALL_R } from '../../lib/minigolfPhysics'
 import {
-  K, FOV_DEG, courseToWorld, heightAt, rayToCourse, solveTeeCamera, followCamera, sinkCamera,
-  easePose, poseSettled, easeAlpha,
+  K, FOV_DEG, BALL_FOV_DEG, courseToWorld, heightAt, rayToCourse, solveTeeCamera, followCamera, sinkCamera,
+  ballCamera, chaseCamera, easePose, poseSettled, easeAlpha,
 } from '../../lib/minigolf3dLogic'
 import { buildHole, readPalette } from './buildHole'
 
@@ -226,11 +226,12 @@ export class GolfStage {
     const sig = [
       this.w, this.h, p.landscape ? 1 : 0, p.reduced ? 1 : 0,
       b.hasMovers ? Math.round(p.t * 120) : 0,
-      p.balls.map(x => `${x.key}:${x.x.toFixed(2)},${x.y.toFixed(2)},${x.seat},${x.dim ? 1 : 0},${x.scale ?? 1}`).join('|'),
-      p.aim ? `${p.aim.x},${p.aim.y},${p.aim.angle.toFixed(4)},${p.aim.power.toFixed(3)},${p.aim.length.toFixed(1)}` : '',
+      p.balls.map(x => `${x.key}:${x.x.toFixed(2)},${x.y.toFixed(2)},${(x.z ?? 0).toFixed(1)},${x.seat},${x.dim ? 1 : 0},${x.scale ?? 1}`).join('|'),
+      p.aim ? `${p.aim.x},${p.aim.y},${p.aim.angle.toFixed(4)},${p.aim.power.toFixed(3)},${p.aim.length.toFixed(1)},${p.aim.mode ?? ''}` : '',
       p.trail ? p.trail.map(t => `${t.x.toFixed(1)},${t.y.toFixed(1)}`).join('|') : '',
       p.flashBumper, p.burst?.key ?? '', p.sink?.key ?? '', p.cam?.mode ?? 'tee',
       Math.round((p.cam?.vx ?? 0) * 10), Math.round((p.cam?.vy ?? 0) * 10),
+      (p.cam?.angle ?? 0).toFixed(4), Math.round(p.cam?.speed ?? 0),
     ].join(';')
     if (sig === this.sig) return
     this.sig = sig
@@ -241,7 +242,10 @@ export class GolfStage {
   apply(p) {
     const { hole, built: b, palette: P } = this
     const hAt = (x, y) => heightAt(hole, x, y)
-    const place = (obj, x, y, lift = 0) => { const w = courseToWorld(x, y); obj.position.set(w.x, hAt(x, y) + R0 - lift, w.z) }
+    const place = (obj, x, y, lift = 0, z = 0) => { const w = courseToWorld(x, y); obj.position.set(w.x, hAt(x, y) + R0 - lift + z * K, w.z) }
+    const mode = p.cam?.mode ?? 'tee'
+    // Behind the ball the 1.6× overview ball would look huge: draw it near true size.
+    const near = mode === 'ball' || mode === 'chase' ? 0.5 : 1
 
     if (b.hasMovers) b.syncMovers(p.t)
 
@@ -252,8 +256,8 @@ export class GolfStage {
       let ball = this.balls.get(x.key)
       if (!ball) { ball = this.makeBall(); this.balls.set(x.key, ball) }
       this.paintBall(ball, x.seat, !!x.dim)
-      place(ball.group, x.x, x.y)
-      ball.group.scale.setScalar(x.scale ?? 1)
+      place(ball.group, x.x, x.y, 0, x.z ?? 0)
+      ball.group.scale.setScalar((x.scale ?? 1) * near)
     }
     for (const [key, ball] of this.balls) {
       if (live.has(key)) continue
@@ -299,11 +303,14 @@ export class GolfStage {
     }
 
     // camera rig
-    const mode = p.cam?.mode ?? 'tee'
     const ball = p.balls[0]
     const speed = Math.hypot(p.cam?.vx ?? 0, p.cam?.vy ?? 0)
     if (speed > 0.4) this.heading = { vx: p.cam.vx, vy: p.cam.vy }
+    const fov = mode === 'ball' || mode === 'chase' ? BALL_FOV_DEG : FOV_DEG
+    if (this.camera.fov !== fov) { this.camera.fov = fov; this.camera.updateProjectionMatrix() }
     if (mode === 'follow' && ball) this.target = followCamera(hole, ball.x, ball.y, this.heading.vx, this.heading.vy)
+    else if (mode === 'ball' && ball) this.target = ballCamera(hole, ball.x, ball.y, p.cam.angle ?? -Math.PI / 2, ball.z ?? 0)
+    else if (mode === 'chase' && ball) this.target = chaseCamera(hole, ball.x, ball.y, Math.atan2(this.heading.vy, this.heading.vx), p.cam.speed ?? 0, ball.z ?? 0)
     else if (mode === 'sink') this.target = sinkCamera(hole)
     else this.target = this.teePose(p.landscape)
     if (!this.pose) this.needSnap = true
@@ -331,6 +338,8 @@ export class GolfStage {
     this.aimBand.scale.z = pull * K
     this.aimBand.rotation.y = Math.PI / 2 - a.angle
     at(this.aimFinger, fx, fy, 0.04)
+    // Ball-camera aiming pulls on the screen, not behind the ball: no band or finger ring.
+    this.aimBand.visible = this.aimFinger.visible = a.mode !== 'ball'
     at(this.aimArc, a.x, a.y, 0.03)
     if (Math.abs(a.power - this.aimArcPower) > 0.004) {
       this.aimArcPower = a.power

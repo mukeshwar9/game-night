@@ -86,6 +86,25 @@ MOAT was first drafted as par 4 with a 40-unit bridge. The HARD bot sank it in 1
 
 Back-nine ideas for later: ice rink, one-way gate, castle gate, split cup, bridge with rails, flippers, seesaw slope, mirror, combo finale.
 
+## Test level (round 2 prototype)
+
+A single long hole for testing the round-2 design: course **TEST LEVEL** (`COURSES.test`, hole `HOLES[9]`, PIER RUN), picked from the course row in solo, pass and play, and online lobbies. The front nine and QUICK 3 are unchanged.
+
+- **The hole:** about 31 m (1,280 units long), par 5. A hump, then a boost pad, then a jump ramp over a water gap; a narrow dry plank is the safe line. Past the gap is a lighthouse windmill, an ice patch, two sand traps, and a bowl around the cup.
+- **Mechanics** (in `minigolfPhysics.js`, used only by holes that declare them; arithmetic only, so replays stay deterministic):
+  - `terrain` hills and bowls push the ball with their slope, and a stopped ball holds on a gentle one;
+  - `boost` pads;
+  - `ice`;
+  - `jump` ramps: leaving the lip fast enough launches the ball, which flies with air height and lands.
+  - Front-nine replays are bit-identical to before (7,200 random shots compared against the previous sim).
+- **Ball camera** (`ballCam: true`, 3D only):
+  - Play from behind the ball: drag sideways to aim, pull down to putt, with fine aim while pulling.
+  - A chase camera follows the roll; the camera rises over a rail right behind the ball.
+  - **MAP** shows the whole hole and keeps the pull-back putt.
+  - The default aim follows the route to the cup (the bot's distance field).
+- **Per-hole stroke cap:** `cap` (8 here, par + 3); a pick-up scores cap + 1. The front nine keep 6 and 7.
+- **Not in it** (pending the captain's design picks): the three realistic settings, simultaneous putting, and removing the 2D view. 2D stays as the WebGL fallback for this hole, letterboxed.
+
 ## Determinism contract
 
 The rules are the same as Artillery's (`docs/prds/artillery.md`):
