@@ -20,7 +20,7 @@ function readOwnAvatar() {
 // FIBBAGE, SPYFAIR): pick how many bots fill the table, preview the roster,
 // then START. Purely presentational/local — no Firebase, no useBusy (START
 // is a synchronous local action, not an async write). Pass `level` +
-// `onLevel` to show the shared CPU difficulty chips (the page feeds the level to
+// `onLevel` to show the shared CPU difficulty slider (the page feeds the level to
 // generateBotRoster).
 export default function PartyBotSetup({ title, blurb, botCount, onBotCount, roster, onStart, minBots = 2, maxBots = 7, level, onLevel }) {
   const totalPlayers = botCount + 1
