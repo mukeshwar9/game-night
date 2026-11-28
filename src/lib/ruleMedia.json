@@ -28,8 +28,8 @@
         {
           "cap": 0,
           "box": {
-            "x": 59.49089972527472,
-            "y": 32.662953795379536,
+            "x": 75.38203983516483,
+            "y": 52.39273927392739,
             "w": 10.989010989010989,
             "h": 13.201320132013201
           },
@@ -37,8 +37,8 @@
           "h": 302,
           "dark": {
             "box": {
-              "x": 78.26665521978022,
-              "y": 24.520420792079207,
+              "x": 5.438701923076923,
+              "y": 59.23576732673267,
               "w": 10.989010989010989,
               "h": 13.201320132013201
             },
@@ -49,8 +49,8 @@
         {
           "cap": 0,
           "box": {
-            "x": 64.23849587912088,
-            "y": 72.58147689768977,
+            "x": 48.61778846153846,
+            "y": 42.7134900990099,
             "w": 10.989010989010989,
             "h": 13.201320132013201
           },
@@ -58,8 +58,8 @@
           "h": 302,
           "dark": {
             "box": {
-              "x": 63.590315934065934,
-              "y": 47.963077557755774,
+              "x": 65.44900412087912,
+              "y": 72.28754125412541,
               "w": 10.989010989010989,
               "h": 13.201320132013201
             },
@@ -69,20 +69,21 @@
         }
       ],
       "bytes": {
-        "light": 19532,
-        "dark": 31779
+        "light": 19918,
+        "dark": 32738
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/rules.js",
         "src/lib/soloBotLevels.js",
         "src/pages/demos/AimTrainerDemo.jsx"
       ],
-      "sourceHash": "9788472d2f8d",
-      "assetHash": "2bc8d5feb4ad"
+      "sourceHash": "38ea401dc1db",
+      "assetHash": "efc32f220e54"
     },
     "airhockey": {
       "w": 188,
@@ -357,13 +358,15 @@
         "src/lib/archeryLogic.js",
         "src/lib/audioContext.js",
         "src/lib/displayPrefs.js",
+        "src/lib/haptics.js",
         "src/lib/keyGuard.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/soloBest.js",
         "src/lib/sounds.js",
         "src/pages/ArcheryDemo.jsx"
       ],
-      "sourceHash": "9f0b5fd8495f",
+      "sourceHash": "1f508fdb371b",
       "assetHash": "97abac9dc0cf",
       "dpr": 1
     },
@@ -460,8 +463,8 @@
       "assetHash": "110c7eb2ade7"
     },
     "ataxx": {
-      "w": 208,
-      "h": 338,
+      "w": 178,
+      "h": 340,
       "steps": [
         {
           "cap": "objective",
@@ -471,8 +474,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 208,
-          "h": 338,
+          "w": 178,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -480,56 +483,56 @@
               "w": 98,
               "h": 98
             },
-            "w": 208,
-            "h": 338
+            "w": 178,
+            "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
             "x": 3.8461538461538463,
-            "y": 66.31155303030303,
+            "y": 71.12418831168831,
             "w": 12.246737637362637,
-            "h": 7.504734848484849
+            "h": 6.43262987012987
           },
-          "w": 208,
-          "h": 338,
+          "w": 178,
+          "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 66.31155303030303,
+              "y": 71.12418831168831,
               "w": 12.246737637362637,
-              "h": 7.504734848484849
+              "h": 6.43262987012987
             },
-            "w": 208,
-            "h": 338
+            "w": 178,
+            "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
             "x": 3.8461538461538463,
-            "y": 66.31155303030303,
+            "y": 71.12418831168831,
             "w": 12.246737637362637,
-            "h": 7.504734848484849
+            "h": 6.43262987012987
           },
-          "w": 208,
-          "h": 338,
+          "w": 178,
+          "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 66.31155303030303,
+              "y": 71.12418831168831,
               "w": 12.246737637362637,
-              "h": 7.504734848484849
+              "h": 6.43262987012987
             },
-            "w": 208,
-            "h": 338
+            "w": 178,
+            "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 64291,
-        "dark": 49738
+        "light": 52493,
+        "dark": 41369
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -537,8 +540,8 @@
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -583,12 +586,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -637,8 +640,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "8187bdf06852",
-      "assetHash": "9a57d39f15a5"
+      "sourceHash": "9d780429d542",
+      "assetHash": "0019d83f69c7"
     },
     "battleship": {
       "w": 150,
@@ -740,7 +743,7 @@
       "assetHash": "a2744377c020"
     },
     "blockade": {
-      "w": 186,
+      "w": 162,
       "h": 340,
       "steps": [
         {
@@ -751,7 +754,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 186,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
@@ -760,7 +763,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 186,
+            "w": 162,
             "h": 340
           }
         },
@@ -772,7 +775,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 186,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
@@ -781,7 +784,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 186,
+            "w": 162,
             "h": 340
           }
         },
@@ -793,7 +796,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 186,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
@@ -802,14 +805,14 @@
               "w": 98,
               "h": 98
             },
-            "w": 186,
+            "w": 162,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 62014,
-        "dark": 51169
+        "light": 39697,
+        "dark": 45555
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -817,8 +820,8 @@
         "src/components/BlockadeBoard.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -866,12 +869,12 @@
         "src/lib/boardCameraLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -919,11 +922,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "56b88968e929",
-      "assetHash": "0eb40a6e2881"
+      "sourceHash": "16f1697ab61e",
+      "assetHash": "aa481ab1dc31"
     },
     "breakthrough": {
-      "w": 208,
+      "w": 178,
       "h": 340,
       "steps": [
         {
@@ -934,7 +937,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
@@ -943,7 +946,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -951,20 +954,20 @@
           "cap": 1,
           "box": {
             "x": 3.8461538461538463,
-            "y": 64.83050847457628,
+            "y": 69.88388969521046,
             "w": 10.576923076923077,
-            "h": 6.52542372881356
+            "h": 5.587808417997097
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 64.83050847457628,
+              "y": 69.88388969521046,
               "w": 10.576923076923077,
-              "h": 6.52542372881356
+              "h": 5.587808417997097
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -972,27 +975,27 @@
           "cap": 1,
           "box": {
             "x": 3.8461538461538463,
-            "y": 64.83050847457628,
+            "y": 69.88388969521046,
             "w": 10.576923076923077,
-            "h": 6.52542372881356
+            "h": 5.587808417997097
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 64.83050847457628,
+              "y": 69.88388969521046,
               "w": 10.576923076923077,
-              "h": 6.52542372881356
+              "h": 5.587808417997097
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 69525,
-        "dark": 66610
+        "light": 61534,
+        "dark": 51679
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -1000,8 +1003,8 @@
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
         "src/components/BreakthroughBoard.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -1046,12 +1049,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -1100,11 +1103,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "5c819ab4d4c9",
-      "assetHash": "20cda48ab66e"
+      "sourceHash": "4bc364a167c1",
+      "assetHash": "8a2f797ceb71"
     },
     "chainreaction": {
-      "w": 188,
+      "w": 162,
       "h": 340,
       "steps": [
         {
@@ -1115,7 +1118,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 188,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
@@ -1124,7 +1127,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 188,
+            "w": 162,
             "h": 340
           }
         },
@@ -1132,20 +1135,20 @@
           "cap": 0,
           "box": {
             "x": 2.7472527472527473,
-            "y": 22.340425531914892,
+            "y": 32.49669749009247,
             "w": 11.45260989010989,
-            "h": 6.33548632218845
+            "h": 5.506935270805813
           },
-          "w": 188,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
               "x": 2.7472527472527473,
-              "y": 22.340425531914892,
+              "y": 32.49669749009247,
               "w": 11.45260989010989,
-              "h": 6.33548632218845
+              "h": 5.506935270805813
             },
-            "w": 188,
+            "w": 162,
             "h": 340
           }
         },
@@ -1153,36 +1156,36 @@
           "cap": 0,
           "box": {
             "x": 2.7472527472527473,
-            "y": 22.340425531914892,
+            "y": 32.49669749009247,
             "w": 11.45260989010989,
-            "h": 6.33548632218845
+            "h": 5.506935270805813
           },
-          "w": 188,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
               "x": 2.7472527472527473,
-              "y": 22.340425531914892,
+              "y": 32.49669749009247,
               "w": 11.45260989010989,
-              "h": 6.33548632218845
+              "h": 5.506935270805813
             },
-            "w": 188,
+            "w": 162,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 75712,
-        "dark": 53872
+        "light": 46623,
+        "dark": 42445
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ChainReactionBoard.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -1228,12 +1231,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -1281,11 +1284,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "970447b58ed7",
-      "assetHash": "6f24f26dd4bb"
+      "sourceHash": "0e5c5b1bbff5",
+      "assetHash": "42a0e55820bd"
     },
     "chainreaction6": {
-      "w": 180,
+      "w": 156,
       "h": 340,
       "steps": [
         {
@@ -1296,7 +1299,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 180,
+          "w": 156,
           "h": 340,
           "dark": {
             "box": {
@@ -1305,7 +1308,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 180,
+            "w": 156,
             "h": 340
           }
         },
@@ -1313,20 +1316,20 @@
           "cap": 0,
           "box": {
             "x": 2.7472527472527473,
-            "y": 21.397379912663755,
+            "y": 31.297709923664122,
             "w": 15.406078296703297,
-            "h": 8.162754730713246
+            "h": 7.134621501272265
           },
-          "w": 180,
+          "w": 156,
           "h": 340,
           "dark": {
             "box": {
               "x": 2.7472527472527473,
-              "y": 21.397379912663755,
+              "y": 31.297709923664122,
               "w": 15.406078296703297,
-              "h": 8.162754730713246
+              "h": 7.134621501272265
             },
-            "w": 180,
+            "w": 156,
             "h": 340
           }
         },
@@ -1334,36 +1337,36 @@
           "cap": 0,
           "box": {
             "x": 2.7472527472527473,
-            "y": 21.397379912663755,
+            "y": 31.297709923664122,
             "w": 15.406078296703297,
-            "h": 8.162754730713246
+            "h": 7.134621501272265
           },
-          "w": 180,
+          "w": 156,
           "h": 340,
           "dark": {
             "box": {
               "x": 2.7472527472527473,
-              "y": 21.397379912663755,
+              "y": 31.297709923664122,
               "w": 15.406078296703297,
-              "h": 8.162754730713246
+              "h": 7.134621501272265
             },
-            "w": 180,
+            "w": 156,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 62184,
-        "dark": 43651
+        "light": 37420,
+        "dark": 37132
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ChainReactionBoard.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -1409,12 +1412,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -1462,8 +1465,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "970447b58ed7",
-      "assetHash": "c39bf78c86a2"
+      "sourceHash": "0e5c5b1bbff5",
+      "assetHash": "9ccba0279ab1"
     },
     "checkers": {
       "w": 232,
@@ -1630,35 +1633,61 @@
         "dark": 35863
       },
       "sources": [
+        "src/components/ChallengeButton.jsx",
         "src/components/ChimpBoard.jsx",
         "src/components/NumberMemoryParts.jsx",
         "src/components/SimonBoard.jsx",
         "src/components/VisualMemoryBoard.jsx",
+        "src/components/memory/RunParts.jsx",
+        "src/hooks/useBusy.js",
+        "src/hooks/useGameKeys.js",
+        "src/hooks/useRunBest.js",
         "src/hooks/useServerClock.js",
         "src/hooks/useTurnDeadlineEnforcer.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
         "src/lib/chimpLogic.js",
+        "src/lib/daily.js",
+        "src/lib/detMath.js",
         "src/lib/displayPrefs.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/games.js",
+        "src/lib/haptics.js",
+        "src/lib/keyGuard.js",
+        "src/lib/levelRaceLogic.js",
+        "src/lib/memoryDailyLogic.js",
+        "src/lib/memoryProgress.js",
         "src/lib/memorySoloLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/numberMemoryLogic.js",
+        "src/lib/platform.js",
+        "src/lib/playerCache.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/rules.js",
         "src/lib/serverClock.js",
+        "src/lib/share.js",
         "src/lib/simonLogic.js",
+        "src/lib/simonPads.js",
         "src/lib/soloBest.js",
+        "src/lib/soloChallengeLogic.js",
         "src/lib/sounds.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "4ba768d54b65",
+      "sourceHash": "23825d7f0d58",
       "assetHash": "103d26f2013d",
       "dpr": 1
     },
     "chomp": {
-      "w": 244,
+      "w": 204,
       "h": 340,
       "steps": [
         {
@@ -1669,7 +1698,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 244,
+          "w": 204,
           "h": 340,
           "dark": {
             "box": {
@@ -1678,7 +1707,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 244,
+            "w": 204,
             "h": 340
           }
         },
@@ -1686,20 +1715,20 @@
           "cap": 1,
           "box": {
             "x": 65.38461538461539,
-            "y": 72.5296442687747,
+            "y": 77.02479338842976,
             "w": 13.736263736263735,
-            "h": 9.881422924901186
+            "h": 8.264462809917354
           },
-          "w": 244,
+          "w": 204,
           "h": 340,
           "dark": {
             "box": {
               "x": 65.38461538461539,
-              "y": 72.5296442687747,
+              "y": 77.02479338842976,
               "w": 13.736263736263735,
-              "h": 9.881422924901186
+              "h": 8.264462809917354
             },
-            "w": 244,
+            "w": 204,
             "h": 340
           }
         },
@@ -1707,36 +1736,36 @@
           "cap": 2,
           "box": {
             "x": 6.043956043956044,
-            "y": 61.85770750988142,
+            "y": 68.09917355371901,
             "w": 13.736263736263735,
-            "h": 9.881422924901186
+            "h": 8.264462809917354
           },
-          "w": 244,
+          "w": 204,
           "h": 340,
           "dark": {
             "box": {
               "x": 6.043956043956044,
-              "y": 61.85770750988142,
+              "y": 68.09917355371901,
               "w": 13.736263736263735,
-              "h": 9.881422924901186
+              "h": 8.264462809917354
             },
-            "w": 244,
+            "w": 204,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 70088,
-        "dark": 49063
+        "light": 67879,
+        "dark": 41719
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ChompBoard.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -1781,12 +1810,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -1834,8 +1863,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "7ceb57be86f6",
-      "assetHash": "cd0cd68926df"
+      "sourceHash": "1e3a2734e11e",
+      "assetHash": "3e066672f517"
     },
     "connectfour": {
       "w": 304,
@@ -1946,16 +1975,16 @@
       ],
       "bytes": {
         "light": 67534,
-        "dark": 41090
+        "dark": 49783
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ConnectFourBoard.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -2001,12 +2030,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -2054,8 +2083,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f649e36a2309",
-      "assetHash": "51ce9ba199ea"
+      "sourceHash": "3f0f3e5c9b07",
+      "assetHash": "fdba1dcddea4"
     },
     "connectfourpop": {
       "w": 344,
@@ -2127,16 +2156,16 @@
       ],
       "bytes": {
         "light": 54099,
-        "dark": 30201
+        "dark": 38786
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ConnectFourBoard.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -2182,12 +2211,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -2235,11 +2264,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f649e36a2309",
-      "assetHash": "a9bd3bb78669"
+      "sourceHash": "3f0f3e5c9b07",
+      "assetHash": "f64ff140d408"
     },
     "dice": {
-      "w": 208,
+      "w": 178,
       "h": 340,
       "steps": [
         {
@@ -2250,7 +2279,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
@@ -2259,7 +2288,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -2267,20 +2296,20 @@
           "cap": 0,
           "box": {
             "x": 10.989010989010989,
-            "y": 79.49152542372882,
+            "y": 82.43831640058055,
             "w": 37.362637362637365,
-            "h": 8.135593220338983
+            "h": 6.966618287373004
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 10.989010989010989,
-              "y": 79.49152542372882,
+              "y": 82.43831640058055,
               "w": 37.362637362637365,
-              "h": 8.135593220338983
+              "h": 6.966618287373004
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -2288,36 +2317,36 @@
           "cap": 1,
           "box": {
             "x": 51.64835164835165,
-            "y": 79.49152542372882,
+            "y": 82.43831640058055,
             "w": 37.362637362637365,
-            "h": 8.135593220338983
+            "h": 6.966618287373004
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 51.64835164835165,
-              "y": 79.49152542372882,
+              "y": 82.43831640058055,
               "w": 37.362637362637365,
-              "h": 8.135593220338983
+              "h": 6.966618287373004
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 42148,
-        "dark": 50483
+        "light": 46081,
+        "dark": 43866
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/DiceBoard.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -2361,12 +2390,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -2414,11 +2443,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e000673a56da",
-      "assetHash": "79a0330264ec"
+      "sourceHash": "841b409fddc5",
+      "assetHash": "bafc9fc46ab9"
     },
     "dice-big": {
-      "w": 208,
+      "w": 178,
       "h": 340,
       "steps": [
         {
@@ -2429,7 +2458,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
@@ -2438,7 +2467,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -2446,20 +2475,20 @@
           "cap": 0,
           "box": {
             "x": 10.989010989010989,
-            "y": 79.49152542372882,
+            "y": 82.43831640058055,
             "w": 37.362637362637365,
-            "h": 8.135593220338983
+            "h": 6.966618287373004
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 10.989010989010989,
-              "y": 79.49152542372882,
+              "y": 82.43831640058055,
               "w": 37.362637362637365,
-              "h": 8.135593220338983
+              "h": 6.966618287373004
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -2467,36 +2496,36 @@
           "cap": 1,
           "box": {
             "x": 51.64835164835165,
-            "y": 79.49152542372882,
+            "y": 82.43831640058055,
             "w": 37.362637362637365,
-            "h": 8.135593220338983
+            "h": 6.966618287373004
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 51.64835164835165,
-              "y": 79.49152542372882,
+              "y": 82.43831640058055,
               "w": 37.362637362637365,
-              "h": 8.135593220338983
+              "h": 6.966618287373004
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 45233,
-        "dark": 52228
+        "light": 49868,
+        "dark": 44755
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/DiceBoard.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -2540,12 +2569,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -2593,192 +2622,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e000673a56da",
-      "assetHash": "0618e0ae2d15"
+      "sourceHash": "841b409fddc5",
+      "assetHash": "b3f55ab9296f"
     },
     "dotsandboxes": {
-      "w": 208,
-      "h": 338,
-      "steps": [
-        {
-          "cap": "objective",
-          "box": {
-            "x": 1,
-            "y": 1,
-            "w": 98,
-            "h": 98
-          },
-          "w": 208,
-          "h": 338,
-          "dark": {
-            "box": {
-              "x": 1,
-              "y": 1,
-              "w": 98,
-              "h": 98
-            },
-            "w": 208,
-            "h": 338
-          }
-        },
-        {
-          "cap": 0,
-          "box": {
-            "x": 9.340659340659341,
-            "y": 24.242424242424242,
-            "w": 11.263736263736265,
-            "h": 7.407407407407407
-          },
-          "w": 208,
-          "h": 338,
-          "dark": {
-            "box": {
-              "x": 9.340659340659341,
-              "y": 24.242424242424242,
-              "w": 11.263736263736265,
-              "h": 7.407407407407407
-            },
-            "w": 208,
-            "h": 338
-          }
-        },
-        {
-          "cap": 0,
-          "box": {
-            "x": 1.9230769230769231,
-            "y": 28.78787878787879,
-            "w": 12.087912087912088,
-            "h": 6.902356902356902
-          },
-          "w": 208,
-          "h": 338,
-          "dark": {
-            "box": {
-              "x": 1.9230769230769231,
-              "y": 28.78787878787879,
-              "w": 12.087912087912088,
-              "h": 6.902356902356902
-            },
-            "w": 208,
-            "h": 338
-          }
-        }
-      ],
-      "bytes": {
-        "light": 52190,
-        "dark": 48864
-      },
-      "sources": [
-        "src/components/AddFriendButton.jsx",
-        "src/components/Avatar.jsx",
-        "src/components/BottomSheet.jsx",
-        "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
-        "src/components/CategoryTabs.jsx",
-        "src/components/DotsAndBoxesBoard.jsx",
-        "src/components/EmptyState.jsx",
-        "src/components/FocusStage.jsx",
-        "src/components/GameArt.jsx",
-        "src/components/GameArtCutPaper.jsx",
-        "src/components/GameCard.jsx",
-        "src/components/GameFilters.jsx",
-        "src/components/GameOptionsSheet.jsx",
-        "src/components/GamePicker.jsx",
-        "src/components/GamePickerSheet.jsx",
-        "src/components/GameSearchInput.jsx",
-        "src/components/GameStatus.jsx",
-        "src/components/GameSwitcher.jsx",
-        "src/components/NewGamesRail.jsx",
-        "src/components/PlayerCard.jsx",
-        "src/components/SearchEmpty.jsx",
-        "src/components/SwitchRow.jsx",
-        "src/components/VariantChooser.jsx",
-        "src/components/gameArtToon/GameArtToon.jsx",
-        "src/components/gameArtToon/toonPalette.js",
-        "src/components/loading/PixelDots.jsx",
-        "src/hooks/useFocusArena.js",
-        "src/hooks/useFocusMode.js",
-        "src/hooks/useKeyboardInset.js",
-        "src/hooks/useModalHistory.js",
-        "src/hooks/useMotionPref.js",
-        "src/hooks/useTapConfirm.js",
-        "src/index.css",
-        "src/lib/a11yLabels.js",
-        "src/lib/analytics.js",
-        "src/lib/ataxxLogic.js",
-        "src/lib/attribution.js",
-        "src/lib/audioContext.js",
-        "src/lib/auth.js",
-        "src/lib/authDomainLogic.js",
-        "src/lib/avatarKit/art.js",
-        "src/lib/avatarKit/canvas.js",
-        "src/lib/avatarKit/catalog.js",
-        "src/lib/avatarKit/character.js",
-        "src/lib/avatarKit/compose.js",
-        "src/lib/avatarKit/palette.js",
-        "src/lib/avatarSprites.js",
-        "src/lib/avatars.js",
-        "src/lib/blockadeLogic.js",
-        "src/lib/botRecordLogic.js",
-        "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
-        "src/lib/chainReactionLogic.js",
-        "src/lib/chompLogic.js",
-        "src/lib/connectFourLogic.js",
-        "src/lib/demoBots.js",
-        "src/lib/diceLogic.js",
-        "src/lib/displayPrefs.js",
-        "src/lib/dotsAndBoxesLogic.js",
-        "src/lib/favorites.js",
-        "src/lib/features.js",
-        "src/lib/firebase.js",
-        "src/lib/focusLogic.js",
-        "src/lib/gameArtLogic.js",
-        "src/lib/gameArtStyle.js",
-        "src/lib/gameFilters.js",
-        "src/lib/gameLogic.js",
-        "src/lib/gameSearch.js",
-        "src/lib/games.js",
-        "src/lib/gomokuLogic.js",
-        "src/lib/haptics.js",
-        "src/lib/hexLogic.js",
-        "src/lib/inView.js",
-        "src/lib/kamisadoLogic.js",
-        "src/lib/lazyWithRetry.js",
-        "src/lib/loaLogic.js",
-        "src/lib/monitoring.js",
-        "src/lib/motion.js",
-        "src/lib/native/nativeAuth.js",
-        "src/lib/nativeAuthLogic.js",
-        "src/lib/onitamaLogic.js",
-        "src/lib/orderChaosLogic.js",
-        "src/lib/pairsLogic.js",
-        "src/lib/pickerScope.js",
-        "src/lib/platform.js",
-        "src/lib/playerCacheLogic.js",
-        "src/lib/quartoLogic.js",
-        "src/lib/reversiLogic.js",
-        "src/lib/roomSwitchContext.js",
-        "src/lib/rules.js",
-        "src/lib/santoriniLogic.js",
-        "src/lib/sha256.js",
-        "src/lib/simLogic.js",
-        "src/lib/sosLogic.js",
-        "src/lib/sounds.js",
-        "src/lib/spring.js",
-        "src/lib/telemetry.js",
-        "src/lib/tictactoe4Logic.js",
-        "src/lib/track.js",
-        "src/lib/trackLogic.js",
-        "src/lib/ultimateTttLogic.js",
-        "src/lib/yavalathLogic.js",
-        "src/pages/demos/BotBoardDemo.jsx"
-      ],
-      "sourceHash": "905a7b5436dc",
-      "assetHash": "c30f2c9f8f44"
-    },
-    "dotsandboxes4": {
-      "w": 214,
+      "w": 178,
       "h": 340,
       "steps": [
         {
@@ -2789,7 +2637,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 214,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
@@ -2798,7 +2646,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 214,
+            "w": 178,
             "h": 340
           }
         },
@@ -2806,20 +2654,20 @@
           "cap": 0,
           "box": {
             "x": 9.340659340659341,
-            "y": 25.043478260869566,
-            "w": 18.26923076923077,
-            "h": 7.6521739130434785
+            "y": 35.064935064935064,
+            "w": 11.263736263736265,
+            "h": 6.349206349206349
           },
-          "w": 214,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 9.340659340659341,
-              "y": 25.043478260869566,
-              "w": 18.26923076923077,
-              "h": 7.6521739130434785
+              "y": 35.064935064935064,
+              "w": 11.263736263736265,
+              "h": 6.349206349206349
             },
-            "w": 214,
+            "w": 178,
             "h": 340
           }
         },
@@ -2827,35 +2675,35 @@
           "cap": 0,
           "box": {
             "x": 1.9230769230769231,
-            "y": 29.73913043478261,
+            "y": 38.96103896103896,
             "w": 12.087912087912088,
-            "h": 11.565217391304348
+            "h": 5.916305916305916
           },
-          "w": 214,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 1.9230769230769231,
-              "y": 29.73913043478261,
+              "y": 38.96103896103896,
               "w": 12.087912087912088,
-              "h": 11.565217391304348
+              "h": 5.916305916305916
             },
-            "w": 214,
+            "w": 178,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 73709,
-        "dark": 44564
+        "light": 54003,
+        "dark": 42527
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/DotsAndBoxesBoard.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
@@ -2902,12 +2750,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -2955,8 +2803,189 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "905a7b5436dc",
-      "assetHash": "23fade08943a"
+      "sourceHash": "9d466e528443",
+      "assetHash": "e0735114437c"
+    },
+    "dotsandboxes4": {
+      "w": 182,
+      "h": 340,
+      "steps": [
+        {
+          "cap": "objective",
+          "box": {
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
+          },
+          "w": 182,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
+            },
+            "w": 182,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 9.340659340659341,
+            "y": 36.053412462908014,
+            "w": 18.26923076923077,
+            "h": 6.528189910979228
+          },
+          "w": 182,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 9.340659340659341,
+              "y": 36.053412462908014,
+              "w": 18.26923076923077,
+              "h": 6.528189910979228
+            },
+            "w": 182,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 1.9230769230769231,
+            "y": 40.0593471810089,
+            "w": 12.087912087912088,
+            "h": 9.86646884272997
+          },
+          "w": 182,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 1.9230769230769231,
+              "y": 40.0593471810089,
+              "w": 12.087912087912088,
+              "h": 9.86646884272997
+            },
+            "w": 182,
+            "h": 340
+          }
+        }
+      ],
+      "bytes": {
+        "light": 30049,
+        "dark": 38339
+      },
+      "sources": [
+        "src/components/AddFriendButton.jsx",
+        "src/components/Avatar.jsx",
+        "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
+        "src/components/DotsAndBoxesBoard.jsx",
+        "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
+        "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
+        "src/components/GameOptionsSheet.jsx",
+        "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
+        "src/components/GameSearchInput.jsx",
+        "src/components/GameStatus.jsx",
+        "src/components/GameSwitcher.jsx",
+        "src/components/NewGamesRail.jsx",
+        "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
+        "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
+        "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
+        "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useTapConfirm.js",
+        "src/index.css",
+        "src/lib/a11yLabels.js",
+        "src/lib/analytics.js",
+        "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
+        "src/lib/audioContext.js",
+        "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
+        "src/lib/avatarSprites.js",
+        "src/lib/avatars.js",
+        "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
+        "src/lib/breakthroughLogic.js",
+        "src/lib/chainReactionLogic.js",
+        "src/lib/chompLogic.js",
+        "src/lib/connectFourLogic.js",
+        "src/lib/demoBots.js",
+        "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
+        "src/lib/displayPrefs.js",
+        "src/lib/dotsAndBoxesLogic.js",
+        "src/lib/favorites.js",
+        "src/lib/features.js",
+        "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
+        "src/lib/gameLogic.js",
+        "src/lib/gameSearch.js",
+        "src/lib/games.js",
+        "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
+        "src/lib/hexLogic.js",
+        "src/lib/inView.js",
+        "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
+        "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
+        "src/lib/onitamaLogic.js",
+        "src/lib/orderChaosLogic.js",
+        "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
+        "src/lib/quartoLogic.js",
+        "src/lib/reversiLogic.js",
+        "src/lib/roomSwitchContext.js",
+        "src/lib/rules.js",
+        "src/lib/santoriniLogic.js",
+        "src/lib/sha256.js",
+        "src/lib/simLogic.js",
+        "src/lib/sosLogic.js",
+        "src/lib/sounds.js",
+        "src/lib/spring.js",
+        "src/lib/telemetry.js",
+        "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
+        "src/lib/ultimateTttLogic.js",
+        "src/lib/yavalathLogic.js",
+        "src/pages/demos/BotBoardDemo.jsx"
+      ],
+      "sourceHash": "9d466e528443",
+      "assetHash": "de1c482a7238"
     },
     "fibbage": {
       "w": 364,
@@ -3027,8 +3056,8 @@
         }
       ],
       "bytes": {
-        "light": 54069,
-        "dark": 35304
+        "light": 53102,
+        "dark": 34725
       },
       "sources": [
         "src/components/Avatar.jsx",
@@ -3077,8 +3106,8 @@
         "src/lib/wordDenylist.js",
         "src/pages/FibbageDemo.jsx"
       ],
-      "sourceHash": "848c030147e1",
-      "assetHash": "6b6c6c493d15"
+      "sourceHash": "50edc99ac465",
+      "assetHash": "da94206dd86d"
     },
     "gomoku": {
       "w": 314,
@@ -3120,7 +3149,7 @@
       "assetHash": "2b96a7237958"
     },
     "gomokuswap": {
-      "w": 200,
+      "w": 172,
       "h": 340,
       "steps": [
         {
@@ -3131,7 +3160,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 200,
+          "w": 172,
           "h": 340,
           "dark": {
             "box": {
@@ -3140,7 +3169,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 200,
+            "w": 172,
             "h": 340
           }
         },
@@ -3148,20 +3177,20 @@
           "cap": 0,
           "box": {
             "x": 3.2967032967032965,
-            "y": 24.18831168831169,
+            "y": 34.68531468531469,
             "w": 5.96668956043956,
-            "h": 3.525771103896104
+            "h": 3.0375874125874125
           },
-          "w": 200,
+          "w": 172,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.2967032967032965,
-              "y": 24.18831168831169,
+              "y": 34.68531468531469,
               "w": 5.96668956043956,
-              "h": 3.525771103896104
+              "h": 3.0375874125874125
             },
-            "w": 200,
+            "w": 172,
             "h": 340
           }
         },
@@ -3169,35 +3198,35 @@
           "cap": 0,
           "box": {
             "x": 3.2967032967032965,
-            "y": 24.18831168831169,
+            "y": 34.68531468531469,
             "w": 5.96668956043956,
-            "h": 3.525771103896104
+            "h": 3.0375874125874125
           },
-          "w": 200,
+          "w": 172,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.2967032967032965,
-              "y": 24.18831168831169,
+              "y": 34.68531468531469,
               "w": 5.96668956043956,
-              "h": 3.525771103896104
+              "h": 3.0375874125874125
             },
-            "w": 200,
+            "w": 172,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 75020,
-        "dark": 44954
+        "light": 59898,
+        "dark": 46302
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -3246,12 +3275,12 @@
         "src/lib/boardCameraLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -3299,8 +3328,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "b850ef27b39d",
-      "assetHash": "5244b4bfe8e1"
+      "sourceHash": "b4b9ef8ca0cb",
+      "assetHash": "24ce1dab8c88"
     },
     "hangwoman": {
       "w": 152,
@@ -3375,24 +3404,31 @@
         "dark": 37975
       },
       "sources": [
+        "src/components/CpuDifficultyChips.jsx",
         "src/components/HangmanGallows.jsx",
         "src/components/LetterKeyboard.jsx",
         "src/components/MatchScoreRail.jsx",
         "src/components/WordDisplay.jsx",
         "src/components/WordFeedback.jsx",
         "src/components/WordSetter.jsx",
+        "src/hooks/useBotDifficulty.js",
         "src/hooks/useBusy.js",
+        "src/hooks/useFocusArena.js",
         "src/hooks/useGameKeys.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/commit.js",
         "src/lib/commonWords.js",
+        "src/lib/decks/wordAllowList.js",
         "src/lib/dictionary.js",
         "src/lib/displayPrefs.js",
         "src/lib/fibbageLogic.js",
         "src/lib/hangmanLogic.js",
+        "src/lib/haptics.js",
         "src/lib/keyGuard.js",
         "src/lib/normalize.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
         "src/lib/sha256.js",
@@ -3408,7 +3444,7 @@
         "src/lib/wordraceLogic.js",
         "src/pages/HangmanDemo.jsx"
       ],
-      "sourceHash": "3a88b1516024",
+      "sourceHash": "2ad8250290f1",
       "assetHash": "9b60b313fc5b",
       "dpr": 1
     },
@@ -3491,8 +3527,10 @@
         "src/lib/decks/herd.js",
         "src/lib/displayPrefs.js",
         "src/lib/fibbageLogic.js",
+        "src/lib/haptics.js",
         "src/lib/herdLogic.js",
         "src/lib/normalize.js",
+        "src/lib/platform.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
         "src/lib/sounds.js",
@@ -3501,12 +3539,12 @@
         "src/lib/wordDenylist.js",
         "src/pages/HerdDemo.jsx"
       ],
-      "sourceHash": "f1ddd7ac9cd4",
+      "sourceHash": "c451c1651299",
       "assetHash": "beae2c6ee863",
       "dpr": 1
     },
     "hex": {
-      "w": 238,
+      "w": 200,
       "h": 340,
       "steps": [
         {
@@ -3517,7 +3555,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 238,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
@@ -3526,7 +3564,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 238,
+            "w": 200,
             "h": 340
           }
         },
@@ -3534,20 +3572,20 @@
           "cap": 0,
           "box": {
             "x": 2.4699598878294555,
-            "y": 31.45511834196342,
+            "y": 42.48917246252541,
             "w": 5.941254752022879,
-            "h": 4.835906509281129
+            "h": 4.0574435102261175
           },
-          "w": 238,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
               "x": 2.4699598878294555,
-              "y": 31.45511834196342,
+              "y": 42.48917246252541,
               "w": 5.941254752022879,
-              "h": 4.835906509281129
+              "h": 4.0574435102261175
             },
-            "w": 238,
+            "w": 200,
             "h": 340
           }
         },
@@ -3555,35 +3593,35 @@
           "cap": 0,
           "box": {
             "x": 2.4699598878294555,
-            "y": 32.92259850801851,
+            "y": 44.13993423049514,
             "w": 5.941254752022879,
-            "h": 5.061516752107631
+            "h": 4.215080673630173
           },
-          "w": 250,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
               "x": 2.4699598878294555,
-              "y": 32.92259850801851,
+              "y": 44.13993423049514,
               "w": 5.941254752022879,
-              "h": 5.061516752107631
+              "h": 4.215080673630173
             },
-            "w": 250,
+            "w": 208,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 101435,
-        "dark": 72636
+        "light": 76931,
+        "dark": 59643
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -3633,12 +3671,12 @@
         "src/lib/boardCameraLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -3686,11 +3724,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "7325fe2393b4",
-      "assetHash": "e42ebaca74ca"
+      "sourceHash": "7d5b274ca542",
+      "assetHash": "aeea89f98433"
     },
     "kamisado": {
-      "w": 194,
+      "w": 168,
       "h": 340,
       "steps": [
         {
@@ -3701,7 +3739,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 194,
+          "w": 168,
           "h": 340,
           "dark": {
             "box": {
@@ -3710,7 +3748,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 194,
+            "w": 166,
             "h": 340
           }
         },
@@ -3718,20 +3756,20 @@
           "cap": 2,
           "box": {
             "x": 3.8461538461538463,
-            "y": 37.10567823343849,
+            "y": 45.451436388508895,
             "w": 11.057692307692308,
-            "h": 6.348580441640379
+            "h": 5.506155950752394
           },
-          "w": 194,
+          "w": 168,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 37.10567823343849,
+              "y": 45.96883468834688,
               "w": 11.057692307692308,
-              "h": 6.348580441640379
+              "h": 5.453929539295393
             },
-            "w": 194,
+            "w": 166,
             "h": 340
           }
         },
@@ -3739,35 +3777,35 @@
           "cap": 1,
           "box": {
             "x": 3.8461538461538463,
-            "y": 31.704851752021565,
+            "y": 40.100472813238774,
             "w": 11.057692307692308,
-            "h": 5.4245283018867925
+            "h": 4.757683215130023
           },
-          "w": 166,
+          "w": 146,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 31.704851752021565,
+              "y": 40.100472813238774,
               "w": 11.057692307692308,
-              "h": 5.4245283018867925
+              "h": 4.757683215130023
             },
-            "w": 166,
+            "w": 146,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 55956,
-        "dark": 47680
+        "light": 41438,
+        "dark": 41620
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -3813,12 +3851,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -3867,11 +3905,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "8c774696e119",
-      "assetHash": "4982b0dad363"
+      "sourceHash": "270500d7b6c6",
+      "assetHash": "2fded02af5ce"
     },
     "loa": {
-      "w": 208,
+      "w": 178,
       "h": 340,
       "steps": [
         {
@@ -3882,7 +3920,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
@@ -3891,7 +3929,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -3899,20 +3937,20 @@
           "cap": 0,
           "box": {
             "x": 27.197802197802197,
-            "y": 32.79661016949152,
+            "y": 42.45283018867924,
             "w": 10.576923076923077,
-            "h": 6.52542372881356
+            "h": 5.587808417997097
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 27.197802197802197,
-              "y": 32.79661016949152,
+              "y": 42.45283018867924,
               "w": 10.576923076923077,
-              "h": 6.52542372881356
+              "h": 5.587808417997097
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -3920,35 +3958,35 @@
           "cap": 0,
           "box": {
             "x": 27.197802197802197,
-            "y": 32.79661016949152,
+            "y": 42.45283018867924,
             "w": 10.576923076923077,
-            "h": 6.52542372881356
+            "h": 5.587808417997097
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 27.197802197802197,
-              "y": 32.79661016949152,
+              "y": 42.45283018867924,
               "w": 10.576923076923077,
-              "h": 6.52542372881356
+              "h": 5.587808417997097
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 70184,
-        "dark": 63316
+        "light": 63503,
+        "dark": 50647
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -3994,12 +4032,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -4048,8 +4086,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "a9e6f0a866e8",
-      "assetHash": "26c5e5415b81"
+      "sourceHash": "961149b349ce",
+      "assetHash": "c5726614d72e"
     },
     "numbermemory": {
       "w": 364,
@@ -4124,11 +4162,15 @@
         "dark": 33324
       },
       "sources": [
+        "src/components/ChallengeButton.jsx",
         "src/components/ChimpBoard.jsx",
         "src/components/NumberMemoryParts.jsx",
         "src/components/SimonBoard.jsx",
         "src/components/VisualMemoryBoard.jsx",
+        "src/components/memory/RunParts.jsx",
+        "src/hooks/useBusy.js",
         "src/hooks/useGameKeys.js",
+        "src/hooks/useRunBest.js",
         "src/hooks/useServerClock.js",
         "src/hooks/useTurnDeadlineEnforcer.js",
         "src/index.css",
@@ -4136,32 +4178,44 @@
         "src/lib/auth.js",
         "src/lib/authDomainLogic.js",
         "src/lib/chimpLogic.js",
+        "src/lib/daily.js",
+        "src/lib/detMath.js",
         "src/lib/displayPrefs.js",
         "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/games.js",
         "src/lib/haptics.js",
         "src/lib/keyGuard.js",
         "src/lib/levelRaceLogic.js",
+        "src/lib/memoryDailyLogic.js",
+        "src/lib/memoryProgress.js",
         "src/lib/memorySoloLogic.js",
+        "src/lib/monitoring.js",
         "src/lib/native/nativeAuth.js",
         "src/lib/nativeAuthLogic.js",
         "src/lib/numberMemoryLogic.js",
         "src/lib/platform.js",
+        "src/lib/playerCache.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/rules.js",
         "src/lib/serverClock.js",
+        "src/lib/share.js",
         "src/lib/simonLogic.js",
         "src/lib/simonPads.js",
         "src/lib/soloBest.js",
+        "src/lib/soloChallengeLogic.js",
         "src/lib/sounds.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "e814d7bbc4ae",
+      "sourceHash": "23825d7f0d58",
       "assetHash": "029a93d33546"
     },
     "onitama": {
-      "w": 156,
+      "w": 140,
       "h": 340,
       "steps": [
         {
@@ -4172,7 +4226,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 156,
+          "w": 140,
           "h": 340,
           "dark": {
             "box": {
@@ -4181,7 +4235,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 156,
+            "w": 140,
             "h": 340
           }
         },
@@ -4189,56 +4243,56 @@
           "cap": 1,
           "box": {
             "x": 18.681318681318682,
-            "y": 71.75,
+            "y": 74.86095661846497,
             "w": 29.67032967032967,
-            "h": 15.375
+            "h": 13.681868743047831
           },
-          "w": 154,
+          "w": 136,
           "h": 340,
           "dark": {
             "box": {
               "x": 18.681318681318682,
-              "y": 71.75,
+              "y": 74.86095661846497,
               "w": 29.67032967032967,
-              "h": 15.375
+              "h": 13.681868743047831
             },
-            "w": 154,
+            "w": 136,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 22.52747252747253,
-            "y": 55.357142857142854,
+            "x": 3.8461538461538463,
+            "y": 60.362400906002264,
             "w": 17.582417582417584,
-            "h": 8.16326530612245
+            "h": 7.2480181200453
           },
-          "w": 156,
+          "w": 140,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 55.357142857142854,
+              "y": 60.362400906002264,
               "w": 17.582417582417584,
-              "h": 8.16326530612245
+              "h": 7.2480181200453
             },
-            "w": 156,
+            "w": 140,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 46905,
-        "dark": 51077
+        "light": 37194,
+        "dark": 44327
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -4284,12 +4338,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -4337,12 +4391,12 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e5dc3d698945",
-      "assetHash": "d077d9696a85"
+      "sourceHash": "f74c0885329a",
+      "assetHash": "97f769906b92"
     },
     "orderchaos": {
-      "w": 196,
-      "h": 338,
+      "w": 170,
+      "h": 340,
       "steps": [
         {
           "cap": "objective",
@@ -4352,8 +4406,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 196,
-          "h": 338,
+          "w": 170,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -4361,64 +4415,64 @@
               "w": 98,
               "h": 98
             },
-            "w": 196,
-            "h": 338
+            "w": 170,
+            "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
             "x": 4.945054945054945,
-            "y": 24.76038338658147,
+            "y": 35.03448275862069,
             "w": 14.32864010989011,
-            "h": 8.331669329073483
+            "h": 7.193965517241379
           },
-          "w": 196,
-          "h": 338,
+          "w": 170,
+          "h": 340,
           "dark": {
             "box": {
               "x": 4.945054945054945,
-              "y": 24.76038338658147,
+              "y": 35.03448275862069,
               "w": 14.32864010989011,
-              "h": 8.331669329073483
+              "h": 7.193965517241379
             },
-            "w": 196,
-            "h": 338
+            "w": 170,
+            "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
             "x": 20.09787087912088,
-            "y": 24.76038338658147,
+            "y": 35.03448275862069,
             "w": 14.332932692307692,
-            "h": 8.33416533546326
+            "h": 7.196120689655173
           },
-          "w": 196,
-          "h": 338,
+          "w": 170,
+          "h": 340,
           "dark": {
             "box": {
               "x": 20.09787087912088,
-              "y": 24.76038338658147,
+              "y": 35.03448275862069,
               "w": 14.332932692307692,
-              "h": 8.33416533546326
+              "h": 7.196120689655173
             },
-            "w": 196,
-            "h": 338
+            "w": 170,
+            "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 52745,
-        "dark": 43298
+        "light": 40534,
+        "dark": 42088
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -4464,12 +4518,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -4517,8 +4571,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "af5f22886378",
-      "assetHash": "fbdf73895fda"
+      "sourceHash": "abe022c7955d",
+      "assetHash": "b47560592daa"
     },
     "pacmac": {
       "w": 174,
@@ -4706,7 +4760,7 @@
       "assetHash": "ebb408ec8700"
     },
     "pairs": {
-      "w": 208,
+      "w": 178,
       "h": 340,
       "steps": [
         {
@@ -4717,7 +4771,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
@@ -4726,7 +4780,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -4734,20 +4788,20 @@
           "cap": 0,
           "box": {
             "x": 4.395604395604396,
-            "y": 25.04201680672269,
+            "y": 35.73487031700288,
             "w": 13.826407967032967,
-            "h": 8.458508403361344
+            "h": 7.25189121037464
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 4.395604395604396,
-              "y": 25.04201680672269,
+              "y": 35.73487031700288,
               "w": 13.826407967032967,
-              "h": 8.458508403361344
+              "h": 7.25189121037464
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         },
@@ -4755,35 +4809,35 @@
           "cap": 0,
           "box": {
             "x": 19.87036401098901,
-            "y": 25.714285714285715,
+            "y": 36.31123919308357,
             "w": 13.826407967032967,
-            "h": 8.458508403361344
+            "h": 7.25189121037464
           },
-          "w": 208,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
               "x": 19.87036401098901,
-              "y": 25.714285714285715,
+              "y": 36.31123919308357,
               "w": 13.826407967032967,
-              "h": 8.458508403361344
+              "h": 7.25189121037464
             },
-            "w": 208,
+            "w": 178,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 93393,
-        "dark": 63828
+        "light": 82585,
+        "dark": 77522
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FaceSprite.jsx",
         "src/components/FocusStage.jsx",
@@ -4831,12 +4885,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -4887,196 +4941,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "abc4e2102433",
-      "assetHash": "0311ef31c700"
+      "sourceHash": "1f0dc3acd8b3",
+      "assetHash": "2c7934c7307f"
     },
     "pairs4": {
-      "w": 208,
-      "h": 338,
-      "steps": [
-        {
-          "cap": "objective",
-          "box": {
-            "x": 1,
-            "y": 1,
-            "w": 98,
-            "h": 98
-          },
-          "w": 208,
-          "h": 338,
-          "dark": {
-            "box": {
-              "x": 1,
-              "y": 1,
-              "w": 98,
-              "h": 98
-            },
-            "w": 208,
-            "h": 338
-          }
-        },
-        {
-          "cap": 0,
-          "box": {
-            "x": 4.395604395604396,
-            "y": 25.084175084175083,
-            "w": 21.565934065934066,
-            "h": 13.215488215488216
-          },
-          "w": 208,
-          "h": 338,
-          "dark": {
-            "box": {
-              "x": 4.395604395604396,
-              "y": 25.084175084175083,
-              "w": 21.565934065934066,
-              "h": 13.215488215488216
-            },
-            "w": 208,
-            "h": 338
-          }
-        },
-        {
-          "cap": 0,
-          "box": {
-            "x": 27.60989010989011,
-            "y": 25.757575757575758,
-            "w": 21.565934065934066,
-            "h": 13.215488215488216
-          },
-          "w": 208,
-          "h": 338,
-          "dark": {
-            "box": {
-              "x": 27.60989010989011,
-              "y": 25.757575757575758,
-              "w": 21.565934065934066,
-              "h": 13.215488215488216
-            },
-            "w": 208,
-            "h": 338
-          }
-        }
-      ],
-      "bytes": {
-        "light": 81395,
-        "dark": 79979
-      },
-      "sources": [
-        "src/components/AddFriendButton.jsx",
-        "src/components/Avatar.jsx",
-        "src/components/BottomSheet.jsx",
-        "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
-        "src/components/CategoryTabs.jsx",
-        "src/components/EmptyState.jsx",
-        "src/components/FaceSprite.jsx",
-        "src/components/FocusStage.jsx",
-        "src/components/GameArt.jsx",
-        "src/components/GameArtCutPaper.jsx",
-        "src/components/GameCard.jsx",
-        "src/components/GameFilters.jsx",
-        "src/components/GameOptionsSheet.jsx",
-        "src/components/GamePicker.jsx",
-        "src/components/GamePickerSheet.jsx",
-        "src/components/GameSearchInput.jsx",
-        "src/components/GameStatus.jsx",
-        "src/components/GameSwitcher.jsx",
-        "src/components/NewGamesRail.jsx",
-        "src/components/PairsBoard.jsx",
-        "src/components/PlayerCard.jsx",
-        "src/components/SearchEmpty.jsx",
-        "src/components/SwitchRow.jsx",
-        "src/components/VariantChooser.jsx",
-        "src/components/gameArtToon/GameArtToon.jsx",
-        "src/components/gameArtToon/toonPalette.js",
-        "src/components/loading/PixelDots.jsx",
-        "src/hooks/useFocusArena.js",
-        "src/hooks/useFocusMode.js",
-        "src/hooks/useKeyboardInset.js",
-        "src/hooks/useModalHistory.js",
-        "src/hooks/useMotionPref.js",
-        "src/hooks/useServerClock.js",
-        "src/hooks/useTurnDeadlineEnforcer.js",
-        "src/index.css",
-        "src/lib/analytics.js",
-        "src/lib/ataxxLogic.js",
-        "src/lib/attribution.js",
-        "src/lib/audioContext.js",
-        "src/lib/auth.js",
-        "src/lib/authDomainLogic.js",
-        "src/lib/avatarKit/art.js",
-        "src/lib/avatarKit/canvas.js",
-        "src/lib/avatarKit/catalog.js",
-        "src/lib/avatarKit/character.js",
-        "src/lib/avatarKit/compose.js",
-        "src/lib/avatarKit/palette.js",
-        "src/lib/avatarSprites.js",
-        "src/lib/avatars.js",
-        "src/lib/blockadeLogic.js",
-        "src/lib/botRecordLogic.js",
-        "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
-        "src/lib/chainReactionLogic.js",
-        "src/lib/chompLogic.js",
-        "src/lib/connectFourLogic.js",
-        "src/lib/demoBots.js",
-        "src/lib/diceLogic.js",
-        "src/lib/displayPrefs.js",
-        "src/lib/dotsAndBoxesLogic.js",
-        "src/lib/favorites.js",
-        "src/lib/features.js",
-        "src/lib/firebase.js",
-        "src/lib/focusLogic.js",
-        "src/lib/gameArtLogic.js",
-        "src/lib/gameArtStyle.js",
-        "src/lib/gameFilters.js",
-        "src/lib/gameLogic.js",
-        "src/lib/gameSearch.js",
-        "src/lib/games.js",
-        "src/lib/gomokuLogic.js",
-        "src/lib/haptics.js",
-        "src/lib/hexLogic.js",
-        "src/lib/inView.js",
-        "src/lib/kamisadoLogic.js",
-        "src/lib/lazyWithRetry.js",
-        "src/lib/loaLogic.js",
-        "src/lib/monitoring.js",
-        "src/lib/motion.js",
-        "src/lib/native/nativeAuth.js",
-        "src/lib/nativeAuthLogic.js",
-        "src/lib/onitamaLogic.js",
-        "src/lib/orderChaosLogic.js",
-        "src/lib/pairsFaces.js",
-        "src/lib/pairsLogic.js",
-        "src/lib/pickerScope.js",
-        "src/lib/platform.js",
-        "src/lib/playerCacheLogic.js",
-        "src/lib/playerId.js",
-        "src/lib/quartoLogic.js",
-        "src/lib/reversiLogic.js",
-        "src/lib/roomSwitchContext.js",
-        "src/lib/rules.js",
-        "src/lib/santoriniLogic.js",
-        "src/lib/serverClock.js",
-        "src/lib/sha256.js",
-        "src/lib/simLogic.js",
-        "src/lib/sosLogic.js",
-        "src/lib/sounds.js",
-        "src/lib/spring.js",
-        "src/lib/telemetry.js",
-        "src/lib/tictactoe4Logic.js",
-        "src/lib/track.js",
-        "src/lib/trackLogic.js",
-        "src/lib/ultimateTttLogic.js",
-        "src/lib/yavalathLogic.js",
-        "src/pages/demos/BotBoardDemo.jsx"
-      ],
-      "sourceHash": "abc4e2102433",
-      "assetHash": "6f75aed04f4a"
-    },
-    "quarto": {
-      "w": 162,
+      "w": 178,
       "h": 340,
       "steps": [
         {
@@ -5087,7 +4956,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 162,
+          "w": 178,
           "h": 340,
           "dark": {
             "box": {
@@ -5096,7 +4965,192 @@
               "w": 98,
               "h": 98
             },
-            "w": 162,
+            "w": 178,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 4.395604395604396,
+            "y": 35.78643578643579,
+            "w": 21.565934065934066,
+            "h": 11.327561327561327
+          },
+          "w": 178,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 4.395604395604396,
+              "y": 35.78643578643579,
+              "w": 21.565934065934066,
+              "h": 11.327561327561327
+            },
+            "w": 178,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 27.60989010989011,
+            "y": 36.36363636363637,
+            "w": 21.565934065934066,
+            "h": 11.327561327561327
+          },
+          "w": 178,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 27.60989010989011,
+              "y": 36.36363636363637,
+              "w": 21.565934065934066,
+              "h": 11.327561327561327
+            },
+            "w": 178,
+            "h": 340
+          }
+        }
+      ],
+      "bytes": {
+        "light": 75360,
+        "dark": 70181
+      },
+      "sources": [
+        "src/components/AddFriendButton.jsx",
+        "src/components/Avatar.jsx",
+        "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
+        "src/components/EmptyState.jsx",
+        "src/components/FaceSprite.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
+        "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
+        "src/components/GameOptionsSheet.jsx",
+        "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
+        "src/components/GameSearchInput.jsx",
+        "src/components/GameStatus.jsx",
+        "src/components/GameSwitcher.jsx",
+        "src/components/NewGamesRail.jsx",
+        "src/components/PairsBoard.jsx",
+        "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
+        "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
+        "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
+        "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useServerClock.js",
+        "src/hooks/useTurnDeadlineEnforcer.js",
+        "src/index.css",
+        "src/lib/analytics.js",
+        "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
+        "src/lib/audioContext.js",
+        "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
+        "src/lib/avatarSprites.js",
+        "src/lib/avatars.js",
+        "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
+        "src/lib/breakthroughLogic.js",
+        "src/lib/chainReactionLogic.js",
+        "src/lib/chompLogic.js",
+        "src/lib/connectFourLogic.js",
+        "src/lib/demoBots.js",
+        "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
+        "src/lib/displayPrefs.js",
+        "src/lib/dotsAndBoxesLogic.js",
+        "src/lib/favorites.js",
+        "src/lib/features.js",
+        "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
+        "src/lib/gameLogic.js",
+        "src/lib/gameSearch.js",
+        "src/lib/games.js",
+        "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
+        "src/lib/hexLogic.js",
+        "src/lib/inView.js",
+        "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
+        "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
+        "src/lib/onitamaLogic.js",
+        "src/lib/orderChaosLogic.js",
+        "src/lib/pairsFaces.js",
+        "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
+        "src/lib/playerId.js",
+        "src/lib/quartoLogic.js",
+        "src/lib/reversiLogic.js",
+        "src/lib/roomSwitchContext.js",
+        "src/lib/rules.js",
+        "src/lib/santoriniLogic.js",
+        "src/lib/serverClock.js",
+        "src/lib/sha256.js",
+        "src/lib/simLogic.js",
+        "src/lib/sosLogic.js",
+        "src/lib/sounds.js",
+        "src/lib/spring.js",
+        "src/lib/telemetry.js",
+        "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
+        "src/lib/ultimateTttLogic.js",
+        "src/lib/yavalathLogic.js",
+        "src/pages/demos/BotBoardDemo.jsx"
+      ],
+      "sourceHash": "1f0dc3acd8b3",
+      "assetHash": "b3320a587486"
+    },
+    "quarto": {
+      "w": 144,
+      "h": 340,
+      "steps": [
+        {
+          "cap": "objective",
+          "box": {
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
+          },
+          "w": 144,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
+            },
+            "w": 144,
             "h": 340
           }
         },
@@ -5104,20 +5158,20 @@
           "cap": 1,
           "box": {
             "x": 3.8461538461538463,
-            "y": 24.90118577075099,
+            "y": 33.56643356643357,
             "w": 22.252747252747252,
-            "h": 10.671936758893281
+            "h": 9.44055944055944
           },
-          "w": 162,
+          "w": 144,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 24.90118577075099,
+              "y": 33.56643356643357,
               "w": 22.252747252747252,
-              "h": 10.671936758893281
+              "h": 9.44055944055944
             },
-            "w": 162,
+            "w": 144,
             "h": 340
           }
         },
@@ -5129,7 +5183,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 174,
+          "w": 152,
           "h": 340,
           "dark": {
             "box": {
@@ -5138,22 +5192,22 @@
               "w": 98,
               "h": 98
             },
-            "w": 174,
+            "w": 152,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 43439,
-        "dark": 36904
+        "light": 25755,
+        "dark": 32983
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -5199,12 +5253,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -5252,12 +5306,12 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "666155bb81bf",
-      "assetHash": "17977835f876"
+      "sourceHash": "a9859bcf3db6",
+      "assetHash": "5c809ea92d69"
     },
     "reaction": {
-      "w": 364,
-      "h": 270,
+      "w": 334,
+      "h": 340,
       "steps": [
         {
           "cap": "objective",
@@ -5267,8 +5321,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 364,
-          "h": 270,
+          "w": 334,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -5276,8 +5330,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 364,
-            "h": 270
+            "w": 334,
+            "h": 340
           }
         },
         {
@@ -5324,20 +5378,21 @@
         }
       ],
       "bytes": {
-        "light": 21312,
-        "dark": 25737
+        "light": 53521,
+        "dark": 29381
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/rules.js",
         "src/lib/soloBotLevels.js",
         "src/pages/demos/ReactionDemo.jsx"
       ],
-      "sourceHash": "4ac70a6baec1",
-      "assetHash": "d42e10020f5f"
+      "sourceHash": "a0213ee97e3d",
+      "assetHash": "57dd61e098a8"
     },
     "reversi": {
       "w": 310,
@@ -5379,7 +5434,7 @@
       "assetHash": "baccdba42c33"
     },
     "santorini": {
-      "w": 202,
+      "w": 174,
       "h": 340,
       "steps": [
         {
@@ -5390,7 +5445,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 202,
+          "w": 174,
           "h": 340,
           "dark": {
             "box": {
@@ -5399,7 +5454,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 202,
+            "w": 174,
             "h": 340
           }
         },
@@ -5407,20 +5462,20 @@
           "cap": 1,
           "box": {
             "x": 3.8461538461538463,
-            "y": 61.53846153846154,
+            "y": 66.90140845070422,
             "w": 17.582417582417584,
-            "h": 10.474631751227497
+            "h": 9.014084507042254
           },
-          "w": 202,
+          "w": 174,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 61.53846153846154,
+              "y": 66.90140845070422,
               "w": 17.582417582417584,
-              "h": 10.474631751227497
+              "h": 9.014084507042254
             },
-            "w": 202,
+            "w": 174,
             "h": 340
           }
         },
@@ -5428,35 +5483,35 @@
           "cap": 1,
           "box": {
             "x": 3.8461538461538463,
-            "y": 50.40916530278233,
+            "y": 57.32394366197183,
             "w": 17.582417582417584,
-            "h": 10.474631751227497
+            "h": 9.014084507042254
           },
-          "w": 202,
+          "w": 174,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.8461538461538463,
-              "y": 50.40916530278233,
+              "y": 57.32394366197183,
               "w": 17.582417582417584,
-              "h": 10.474631751227497
+              "h": 9.014084507042254
             },
-            "w": 202,
+            "w": 174,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 54867,
-        "dark": 47795
+        "light": 52562,
+        "dark": 41791
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -5502,12 +5557,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -5555,11 +5610,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "a483c780f743",
-      "assetHash": "097a3b61d72b"
+      "sourceHash": "bf4d42f90187",
+      "assetHash": "b7a5312ac893"
     },
     "sim": {
-      "w": 230,
+      "w": 194,
       "h": 340,
       "steps": [
         {
@@ -5570,7 +5625,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 230,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
@@ -5579,7 +5634,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 230,
+            "w": 194,
             "h": 340
           }
         },
@@ -5587,56 +5642,56 @@
           "cap": 0,
           "box": {
             "x": 62.736092032967036,
-            "y": 29.78812611806798,
+            "y": 40.35191869300912,
             "w": 12.920673076923077,
-            "h": 8.413461538461538
+            "h": 7.147606382978723
           },
-          "w": 220,
+          "w": 188,
           "h": 340,
           "dark": {
             "box": {
               "x": 62.736092032967036,
-              "y": 29.78812611806798,
+              "y": 40.35191869300912,
               "w": 12.920673076923077,
-              "h": 8.413461538461538
+              "h": 7.147606382978723
             },
-            "w": 220,
+            "w": 188,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 43.53966346153846,
-            "y": 51.42833184257603,
+            "x": 62.736092032967036,
+            "y": 52.60733282674772,
             "w": 12.920673076923077,
-            "h": 8.413461538461538
+            "h": 7.147606382978723
           },
-          "w": 220,
+          "w": 188,
           "h": 340,
           "dark": {
             "box": {
               "x": 62.736092032967036,
-              "y": 44.21399821109124,
+              "y": 52.60733282674772,
               "w": 12.920673076923077,
-              "h": 8.413461538461538
+              "h": 7.147606382978723
             },
-            "w": 220,
+            "w": 188,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 95665,
-        "dark": 62959
+        "light": 65142,
+        "dark": 53907
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -5682,12 +5737,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -5735,8 +5790,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "02b4ac35e180",
-      "assetHash": "aa812315ee66"
+      "sourceHash": "2169cf28f6d1",
+      "assetHash": "c36a829dca91"
     },
     "simon": {
       "w": 212,
@@ -5811,11 +5866,15 @@
         "dark": 34003
       },
       "sources": [
+        "src/components/ChallengeButton.jsx",
         "src/components/ChimpBoard.jsx",
         "src/components/NumberMemoryParts.jsx",
         "src/components/SimonBoard.jsx",
         "src/components/VisualMemoryBoard.jsx",
+        "src/components/memory/RunParts.jsx",
+        "src/hooks/useBusy.js",
         "src/hooks/useGameKeys.js",
+        "src/hooks/useRunBest.js",
         "src/hooks/useServerClock.js",
         "src/hooks/useTurnDeadlineEnforcer.js",
         "src/index.css",
@@ -5823,33 +5882,45 @@
         "src/lib/auth.js",
         "src/lib/authDomainLogic.js",
         "src/lib/chimpLogic.js",
+        "src/lib/daily.js",
+        "src/lib/detMath.js",
         "src/lib/displayPrefs.js",
         "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/games.js",
         "src/lib/haptics.js",
         "src/lib/keyGuard.js",
         "src/lib/levelRaceLogic.js",
+        "src/lib/memoryDailyLogic.js",
+        "src/lib/memoryProgress.js",
         "src/lib/memorySoloLogic.js",
+        "src/lib/monitoring.js",
         "src/lib/native/nativeAuth.js",
         "src/lib/nativeAuthLogic.js",
         "src/lib/numberMemoryLogic.js",
         "src/lib/platform.js",
+        "src/lib/playerCache.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/rules.js",
         "src/lib/serverClock.js",
+        "src/lib/share.js",
         "src/lib/simonLogic.js",
         "src/lib/simonPads.js",
         "src/lib/soloBest.js",
+        "src/lib/soloChallengeLogic.js",
         "src/lib/sounds.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/visualMemoryLogic.js",
         "src/pages/MemorySoloDemos.jsx"
       ],
-      "sourceHash": "e814d7bbc4ae",
+      "sourceHash": "23825d7f0d58",
       "assetHash": "2ac1432f3a13"
     },
     "sos": {
-      "w": 196,
-      "h": 338,
+      "w": 170,
+      "h": 340,
       "steps": [
         {
           "cap": "objective",
@@ -5859,8 +5930,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 196,
-          "h": 338,
+          "w": 170,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -5868,64 +5939,64 @@
               "w": 98,
               "h": 98
             },
-            "w": 196,
-            "h": 338
+            "w": 170,
+            "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
             "x": 4.945054945054945,
-            "y": 24.76038338658147,
+            "y": 35.03448275862069,
             "w": 12.165178571428571,
-            "h": 7.0736821086261985
+            "h": 6.107758620689655
           },
-          "w": 196,
-          "h": 338,
+          "w": 170,
+          "h": 340,
           "dark": {
             "box": {
               "x": 4.945054945054945,
-              "y": 24.76038338658147,
+              "y": 35.03448275862069,
               "w": 12.165178571428571,
-              "h": 7.0736821086261985
+              "h": 6.107758620689655
             },
-            "w": 196,
-            "h": 338
+            "w": 170,
+            "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
             "x": 17.93440934065934,
-            "y": 24.76038338658147,
+            "y": 35.03448275862069,
             "w": 12.165178571428571,
-            "h": 7.0736821086261985
+            "h": 6.107758620689655
           },
-          "w": 196,
-          "h": 338,
+          "w": 170,
+          "h": 340,
           "dark": {
             "box": {
               "x": 17.93440934065934,
-              "y": 24.76038338658147,
+              "y": 35.03448275862069,
               "w": 12.165178571428571,
-              "h": 7.0736821086261985
+              "h": 6.107758620689655
             },
-            "w": 196,
-            "h": 338
+            "w": 170,
+            "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 55138,
-        "dark": 46472
+        "light": 43151,
+        "dark": 42231
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -5971,12 +6042,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -6024,8 +6095,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "ce0a9a8f9a69",
-      "assetHash": "52b7b3f4786c"
+      "sourceHash": "a10d4f882f47",
+      "assetHash": "7d9999cf3604"
     },
     "spaceduel": {
       "w": 206,
@@ -6187,8 +6258,8 @@
         }
       ],
       "bytes": {
-        "light": 29512,
-        "dark": 34872
+        "light": 30412,
+        "dark": 35948
       },
       "sources": [
         "src/components/Avatar.jsx",
@@ -6237,8 +6308,8 @@
         "src/lib/wordDenylist.js",
         "src/pages/SpyfairDemo.jsx"
       ],
-      "sourceHash": "80c6799cafaa",
-      "assetHash": "c37acdcb2398"
+      "sourceHash": "308910317dfc",
+      "assetHash": "c8e43764d1cd"
     },
     "sumo": {
       "w": 214,
@@ -6667,15 +6738,16 @@
         }
       ],
       "bytes": {
-        "light": 129662,
-        "dark": 73347
+        "light": 128825,
+        "dark": 73909
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/TypingKeyboard.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/keyGuard.js",
         "src/lib/rules.js",
         "src/lib/seenHistory.js",
@@ -6683,11 +6755,11 @@
         "src/lib/typingLogic.js",
         "src/pages/demos/TypingDemo.jsx"
       ],
-      "sourceHash": "d4e3555631b8",
-      "assetHash": "81af4a4298ba"
+      "sourceHash": "86f2c1fd97e8",
+      "assetHash": "b058e8494711"
     },
     "ultimatettt": {
-      "w": 214,
+      "w": 184,
       "h": 340,
       "steps": [
         {
@@ -6698,7 +6770,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 214,
+          "w": 184,
           "h": 340,
           "dark": {
             "box": {
@@ -6707,7 +6779,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 214,
+            "w": 184,
             "h": 340
           }
         },
@@ -6715,20 +6787,20 @@
           "cap": 1,
           "box": {
             "x": 3.2967032967032965,
-            "y": 29.49389179755672,
+            "y": 39.88095238095238,
             "w": 9.276270604395604,
-            "h": 5.8927792321116925
+            "h": 5.0246465773809526
           },
-          "w": 214,
+          "w": 184,
           "h": 340,
           "dark": {
             "box": {
               "x": 3.2967032967032965,
-              "y": 29.49389179755672,
+              "y": 39.88095238095238,
               "w": 9.276270604395604,
-              "h": 5.8927792321116925
+              "h": 5.0246465773809526
             },
-            "w": 214,
+            "w": 184,
             "h": 340
           }
         },
@@ -6736,35 +6808,35 @@
           "cap": 1,
           "box": {
             "x": 35.52970467032967,
-            "y": 49.9727312390925,
+            "y": 57.34281994047619,
             "w": 9.276270604395604,
-            "h": 5.8927792321116925
+            "h": 5.0246465773809526
           },
-          "w": 214,
+          "w": 184,
           "h": 340,
           "dark": {
             "box": {
               "x": 35.52970467032967,
-              "y": 49.9727312390925,
+              "y": 57.34281994047619,
               "w": 9.276270604395604,
-              "h": 5.8927792321116925
+              "h": 5.0246465773809526
             },
-            "w": 214,
+            "w": 184,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 82077,
-        "dark": 45991
+        "light": 51824,
+        "dark": 39520
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -6810,12 +6882,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -6863,12 +6935,12 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "83f2d394873a",
-      "assetHash": "ce766f5023cd"
+      "sourceHash": "798e20138d93",
+      "assetHash": "1afc235fa150"
     },
     "wavelength": {
-      "w": 192,
-      "h": 338,
+      "w": 204,
+      "h": 340,
       "steps": [
         {
           "cap": "objective",
@@ -6878,8 +6950,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 192,
-          "h": 338,
+          "w": 204,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -6895,12 +6967,12 @@
           "cap": 1,
           "box": {
             "x": 5.769230769230769,
-            "y": 84.34579439252336,
+            "y": 83.36092715231788,
             "w": 88.46153846153847,
-            "h": 5.607476635514018
+            "h": 5.960264900662252
           },
-          "w": 192,
-          "h": 338,
+          "w": 204,
+          "h": 340,
           "dark": {
             "box": {
               "x": 5.769230769230769,
@@ -6929,14 +7001,14 @@
               "w": 98,
               "h": 98
             },
-            "w": 284,
+            "w": 296,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 72810,
-        "dark": 55099
+        "light": 74985,
+        "dark": 57367
       },
       "sources": [
         "src/components/Avatar.jsx",
@@ -6985,11 +7057,11 @@
         "src/lib/wordDenylist.js",
         "src/pages/WavelengthDemo.jsx"
       ],
-      "sourceHash": "118281caaa71",
-      "assetHash": "4ea12cfb44b7"
+      "sourceHash": "1509a44c784e",
+      "assetHash": "54407b8c89ce"
     },
     "yavalath": {
-      "w": 244,
+      "w": 204,
       "h": 340,
       "steps": [
         {
@@ -7000,7 +7072,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 244,
+          "w": 204,
           "h": 340,
           "dark": {
             "box": {
@@ -7009,7 +7081,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 244,
+            "w": 204,
             "h": 340
           }
         },
@@ -7017,20 +7089,20 @@
           "cap": 0,
           "box": {
             "x": 27.197802197802197,
-            "y": 30.816326530612244,
+            "y": 42.444821731748725,
             "w": 8.241758241758241,
-            "h": 5.325255102040816
+            "h": 4.430178268251273
           },
-          "w": 252,
+          "w": 210,
           "h": 340,
           "dark": {
             "box": {
               "x": 27.197802197802197,
-              "y": 30.816326530612244,
+              "y": 42.444821731748725,
               "w": 8.241758241758241,
-              "h": 5.325255102040816
+              "h": 4.430178268251273
             },
-            "w": 252,
+            "w": 210,
             "h": 340
           }
         },
@@ -7038,35 +7110,35 @@
           "cap": 0,
           "box": {
             "x": 27.197802197802197,
-            "y": 29.900990099009903,
+            "y": 41.390728476821195,
             "w": 8.241758241758241,
-            "h": 5.167079207920792
+            "h": 4.320157284768212
           },
-          "w": 244,
+          "w": 204,
           "h": 340,
           "dark": {
             "box": {
               "x": 27.197802197802197,
-              "y": 29.900990099009903,
+              "y": 41.390728476821195,
               "w": 8.241758241758241,
-              "h": 5.167079207920792
+              "h": 4.320157284768212
             },
-            "w": 244,
+            "w": 204,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 95748,
-        "dark": 74900
+        "light": 82705,
+        "dark": 59846
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
         "src/components/BottomSheetPanel.jsx",
-        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/EmptyState.jsx",
         "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
@@ -7113,12 +7185,12 @@
         "src/lib/blockadeLogic.js",
         "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
-        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
         "src/lib/demoBots.js",
         "src/lib/diceLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
@@ -7166,11 +7238,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "fa8c1f48313d",
-      "assetHash": "0a430d983411"
+      "sourceHash": "45eedfa1f62b",
+      "assetHash": "f1ec8041b23a"
     }
   },
-  "commit": "faa3632",
+  "commit": "650bfcc",
   "skipped": {
     "mancala": "No enabled control for cell: [data-testid^=\"pit \"]",
     "snake": "error: \"Error: Cannot read properties of null (reading 'children')\"\ncode: UNKNOWN",
