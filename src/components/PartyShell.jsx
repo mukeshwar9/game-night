@@ -235,8 +235,11 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
         {view === 'mini' && (
           <button
             type="button"
-            onClick={() => setView(toggleShellMinimised(view))}
-            aria-label={videoUids.length ? 'Show the player row, a camera is on' : 'Show the player row'}
+            onClick={shortLandscape ? undefined : () => setView(toggleShellMinimised(view))}
+            aria-disabled={shortLandscape || undefined}
+            aria-label={shortLandscape
+              ? (videoUids.length ? 'Player row, a camera is on, turn the phone upright to see it' : 'Player row, turn the phone upright to open it')
+              : (videoUids.length ? 'Show the player row, a camera is on' : 'Show the player row')}
             data-testid="shell-expand"
             data-video={videoUids.length || undefined}
             className="w-full h-[30px] flex items-center justify-center gap-2"
@@ -249,14 +252,13 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
                   'w-3 h-3 rounded-full flex items-center justify-center',
                   SEAT_BG[(t.seat - 1) % 4], !t.online && 'opacity-40',
                   statusOf(t)?.speaking && 'ring-2 ring-retro-win', t.turn && 'ring-2 ring-retro-cta',
-                  videoUids.includes(t.uid) && 'ring-2 ring-retro-text',
                 )}
               >
                 {videoUids.includes(t.uid) && <span className="w-1 h-1 rounded-full bg-retro-bg" data-testid="mini-video-dot" />}
               </span>
             ))}
-            {videoUids.length > 0 && <span className="font-pixel text-[7px] text-retro-text tracking-wider" data-testid="mini-video-cue">CAMERA ON · TAP TO SEE</span>}
-            <span className="font-pixel text-[7px] text-retro-dim">▾</span>
+            {videoUids.length > 0 && <span className="font-pixel text-[7px] text-retro-text tracking-wider" data-testid="mini-video-cue">{shortLandscape ? 'CAMERA ON · TURN UPRIGHT TO SEE' : 'CAMERA ON · TAP TO SEE'}</span>}
+            {!shortLandscape && <span className="font-pixel text-[7px] text-retro-dim">▾</span>}
           </button>
         )}
       </header>}

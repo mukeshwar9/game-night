@@ -213,10 +213,15 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     if (room?.camerasOff === true) { emit({ camError: 'cameras-off' }); return }
     // Outside voice: join listen only (no microphone prompt) so the camera has
     // a session to ride. A refusal (age check, no service) lands in `error`.
-    if (!session) {
+    const joinedForCam = !session
+    if (joinedForCam) {
       if (state.status === 'joining') return
       await join({ listenOnly: true })
       if (!session || state.cam !== 'off') return
+    }
+    const fail = async (camError) => {
+      if (joinedForCam && session) await leave()
+      emit({ cam: 'off', camError })
     }
     emit({ cam: 'starting', camError: null, ...(typeof everyone === 'boolean' ? { camAll: everyone } : {}) })
     let stream
@@ -224,7 +229,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
       stream = await io.getCamera()
     } catch (e) {
       const denied = e?.name === 'NotAllowedError' || e?.name === 'SecurityError' || e?.name === 'PermissionDeniedError'
-      emit({ cam: 'off', camError: denied ? 'cam-denied' : 'cam-failed' })
+      await fail(denied ? 'cam-denied' : 'cam-failed')
       return
     }
     if (!session) { stream.getTracks().forEach(t => t.stop()); emit({ cam: 'off' }); return }
@@ -235,7 +240,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
       await session.startCamera(stream)
     } catch (e) {
       stopCameraTracks()
-      emit({ cam: 'off', camError: voiceErrorCode(e) })
+      await fail(voiceErrorCode(e))
       return
     }
     if (camStream !== stream) return // turned off while the SFU was answering

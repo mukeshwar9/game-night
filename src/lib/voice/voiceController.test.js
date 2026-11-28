@@ -246,6 +246,29 @@ describe('voice controller', () => {
       expect(ctl.getState()).toMatchObject({ cam: 'off', status: 'off', error: 'age-required' })
     })
 
+    it('outside voice, a blocked camera leaves the listen-only session it opened', async () => {
+      const f = fakeIo({ cameraDenied: true })
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.startCamera()
+      expect(f.sessions[0].closed).toBe(true)
+      expect(ctl.getState()).toMatchObject({ status: 'off', cam: 'off', camError: 'cam-denied', listenOnly: false })
+    })
+
+    it('outside voice, a server refusal of the camera leaves the listen-only session it opened', async () => {
+      const f = fakeIo()
+      f.io.openSession.mockImplementationOnce(async (opts) => {
+        const s = await f.io.openSession.getMockImplementation()(opts)
+        s.startCamera.mockRejectedValueOnce(new Error('under-age'))
+        return s
+      })
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.startCamera()
+      expect(f.sessions[0].closed).toBe(true)
+      expect(ctl.getState()).toMatchObject({ status: 'off', cam: 'off', camError: 'under-age' })
+    })
+
     it('outside voice, cameras off for the party refuses before joining', async () => {
       const f = fakeIo()
       const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
