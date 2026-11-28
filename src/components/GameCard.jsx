@@ -2,6 +2,7 @@ import { getPlayerTag, getGameConfig } from '../lib/games'
 import { GameArt } from './GameArt'
 import { cn } from '@/lib/utils'
 import PixelDots from './loading/PixelDots'
+import CardTag from './CardTag'
 
 // One compact catalog row (~56px): icon left, name, then one meta line
 // (players · duration, plus the blurb from sm up). Two columns on a phone
@@ -12,9 +13,10 @@ import PixelDots from './loading/PixelDots'
 // Tapping the row opens GameOptionsSheet on the Games page (see `handleTap`
 // in GamePicker.jsx); in GameSwitcher's in-room picker it proposes the
 // switch, and `onModes` (optional) adds a MODES button for games with
-// variants so those stay reachable there. New games are surfaced by the
-// catalog's NEW THIS MONTH rail, not a per-row tag.
-export default function GameCard({ game, onTap, onModes, loadingType, disabled, isFav, onToggleFav, layout = 'row' }) {
+// variants so those stay reachable there. `tag` ('popular' | 'new', from
+// lib/catalogTags.js) adds a small word mark; the catalog's NEW THIS MONTH
+// rail still lists every new game.
+export default function GameCard({ game, onTap, onModes, loadingType, disabled, isFav, onToggleFav, layout = 'row', tag = null }) {
   const { type, variantOf } = game
   const base = variantOf ? getGameConfig(variantOf) : null
   const label = variantOf ? (game.variantLabel || game.label) : game.label
@@ -52,6 +54,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
               {Icon && <Icon />}
             </span>
             <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
+            {tag && <CardTag tag={tag} className="absolute top-1.5 left-1.5" />}
           </span>
           <span className="block px-1 pt-2 pb-1">
             {isLoading ? (
@@ -107,6 +110,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           )}
         >
           <span className="flex-1 min-w-0 font-pixel text-[9px] text-retro-text truncate">{label}</span>
+          {tag && !isLoading && <CardTag tag={tag} className="shrink-0" />}
           {isLoading ? (
             <span className="shrink-0"><PixelDots size="sm" tone="cta" /></span>
           ) : (
@@ -171,6 +175,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
             <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
           ) : (
             <span className="block font-mono text-[10px] text-retro-dim mt-0.5 truncate">
+              {tag && <CardTag tag={tag} className="mr-1.5 align-middle" />}
               {' '}
               <span className={game.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(game)}</span>
               {game.durationMin != null && ` · ~${game.durationMin} min`}
