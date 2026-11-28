@@ -528,8 +528,8 @@
         }
       ],
       "bytes": {
-        "light": 64288,
-        "dark": 49835
+        "light": 64291,
+        "dark": 49738
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -637,8 +637,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "d4aaf7355bbf",
-      "assetHash": "d8d38c46ee60"
+      "sourceHash": "8187bdf06852",
+      "assetHash": "9a57d39f15a5"
     },
     "battleship": {
       "w": 150,
@@ -808,8 +808,8 @@
         }
       ],
       "bytes": {
-        "light": 61717,
-        "dark": 50622
+        "light": 62014,
+        "dark": 51169
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -919,8 +919,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "34f65e5b87f3",
-      "assetHash": "f4e0bfeb2e24"
+      "sourceHash": "56b88968e929",
+      "assetHash": "0eb40a6e2881"
     },
     "breakthrough": {
       "w": 208,
@@ -991,8 +991,8 @@
         }
       ],
       "bytes": {
-        "light": 69297,
-        "dark": 67096
+        "light": 69525,
+        "dark": 66610
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -1100,8 +1100,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "d5779a1c86cc",
-      "assetHash": "72732775f3dc"
+      "sourceHash": "5c819ab4d4c9",
+      "assetHash": "20cda48ab66e"
     },
     "chainreaction": {
       "w": 188,
@@ -1172,8 +1172,8 @@
         }
       ],
       "bytes": {
-        "light": 75934,
-        "dark": 53554
+        "light": 75712,
+        "dark": 53872
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -1281,8 +1281,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "304ce9dfa6b7",
-      "assetHash": "ebb6ff2b38d1"
+      "sourceHash": "970447b58ed7",
+      "assetHash": "6f24f26dd4bb"
     },
     "chainreaction6": {
       "w": 180,
@@ -1353,8 +1353,8 @@
         }
       ],
       "bytes": {
-        "light": 61776,
-        "dark": 43734
+        "light": 62184,
+        "dark": 43651
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -1462,8 +1462,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "304ce9dfa6b7",
-      "assetHash": "93135ba87d55"
+      "sourceHash": "970447b58ed7",
+      "assetHash": "c39bf78c86a2"
     },
     "checkers": {
       "w": 232,
@@ -1726,8 +1726,8 @@
         }
       ],
       "bytes": {
-        "light": 69118,
-        "dark": 49175
+        "light": 70088,
+        "dark": 49063
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -1834,8 +1834,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "3f4f3f5e6a90",
-      "assetHash": "2e64c1f904ab"
+      "sourceHash": "7ceb57be86f6",
+      "assetHash": "cd0cd68926df"
     },
     "connectfour": {
       "w": 304,
@@ -1945,7 +1945,7 @@
         }
       ],
       "bytes": {
-        "light": 67296,
+        "light": 67534,
         "dark": 41090
       },
       "sources": [
@@ -2054,8 +2054,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "ca09dd2a7875",
-      "assetHash": "4448fe6b984f"
+      "sourceHash": "f649e36a2309",
+      "assetHash": "51ce9ba199ea"
     },
     "connectfourpop": {
       "w": 344,
@@ -2126,8 +2126,8 @@
         }
       ],
       "bytes": {
-        "light": 54765,
-        "dark": 29519
+        "light": 54099,
+        "dark": 30201
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -2235,8 +2235,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "ca09dd2a7875",
-      "assetHash": "1e9447ef77b8"
+      "sourceHash": "f649e36a2309",
+      "assetHash": "a9bd3bb78669"
     },
     "dice": {
       "w": 208,
@@ -2307,8 +2307,8 @@
         }
       ],
       "bytes": {
-        "light": 41838,
-        "dark": 50176
+        "light": 42148,
+        "dark": 50483
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -2414,8 +2414,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "2a2b9000005e",
-      "assetHash": "4196d08f42f7"
+      "sourceHash": "e000673a56da",
+      "assetHash": "79a0330264ec"
     },
     "dice-big": {
       "w": 208,
@@ -2486,8 +2486,8 @@
         }
       ],
       "bytes": {
-        "light": 42880,
-        "dark": 51986
+        "light": 45233,
+        "dark": 52228
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -2593,8 +2593,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "2a2b9000005e",
-      "assetHash": "abbfaf6c6921"
+      "sourceHash": "e000673a56da",
+      "assetHash": "0618e0ae2d15"
     },
     "dotsandboxes": {
       "w": 208,
@@ -2665,8 +2665,8 @@
         }
       ],
       "bytes": {
-        "light": 52230,
-        "dark": 48482
+        "light": 52190,
+        "dark": 48864
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -2774,8 +2774,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9ba1a6a1fcdc",
-      "assetHash": "5bc9dfe82169"
+      "sourceHash": "905a7b5436dc",
+      "assetHash": "c30f2c9f8f44"
     },
     "dotsandboxes4": {
       "w": 214,
@@ -2846,8 +2846,8 @@
         }
       ],
       "bytes": {
-        "light": 72667,
-        "dark": 43598
+        "light": 73709,
+        "dark": 44564
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -2955,8 +2955,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9ba1a6a1fcdc",
-      "assetHash": "13628c7bf957"
+      "sourceHash": "905a7b5436dc",
+      "assetHash": "23fade08943a"
     },
     "fibbage": {
       "w": 364,
@@ -3027,8 +3027,8 @@
         }
       ],
       "bytes": {
-        "light": 53102,
-        "dark": 34725
+        "light": 54069,
+        "dark": 35304
       },
       "sources": [
         "src/components/Avatar.jsx",
@@ -3077,8 +3077,8 @@
         "src/lib/wordDenylist.js",
         "src/pages/FibbageDemo.jsx"
       ],
-      "sourceHash": "50edc99ac465",
-      "assetHash": "da94206dd86d"
+      "sourceHash": "848c030147e1",
+      "assetHash": "6b6c6c493d15"
     },
     "gomoku": {
       "w": 314,
@@ -3188,8 +3188,8 @@
         }
       ],
       "bytes": {
-        "light": 75236,
-        "dark": 44757
+        "light": 75020,
+        "dark": 44954
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -3299,8 +3299,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0514df3da0b8",
-      "assetHash": "8f58f9da4731"
+      "sourceHash": "b850ef27b39d",
+      "assetHash": "5244b4bfe8e1"
     },
     "hangwoman": {
       "w": 152,
@@ -3574,8 +3574,8 @@
         }
       ],
       "bytes": {
-        "light": 99436,
-        "dark": 73584
+        "light": 101435,
+        "dark": 72636
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -3686,8 +3686,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "25892324e725",
-      "assetHash": "ab09d17dfdd8"
+      "sourceHash": "7325fe2393b4",
+      "assetHash": "e42ebaca74ca"
     },
     "kamisado": {
       "w": 194,
@@ -3718,9 +3718,9 @@
           "cap": 2,
           "box": {
             "x": 3.8461538461538463,
-            "y": 36.90664556962025,
+            "y": 37.10567823343849,
             "w": 11.057692307692308,
-            "h": 6.368670886075949
+            "h": 6.348580441640379
           },
           "w": 194,
           "h": 340,
@@ -3758,8 +3758,8 @@
         }
       ],
       "bytes": {
-        "light": 56682,
-        "dark": 47868
+        "light": 55956,
+        "dark": 47680
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -3867,8 +3867,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "a3fbd434458c",
-      "assetHash": "3a3f11d230a6"
+      "sourceHash": "8c774696e119",
+      "assetHash": "4982b0dad363"
     },
     "loa": {
       "w": 208,
@@ -3939,8 +3939,8 @@
         }
       ],
       "bytes": {
-        "light": 70136,
-        "dark": 63195
+        "light": 70184,
+        "dark": 63316
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -4048,8 +4048,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "e1e03692d7cc",
-      "assetHash": "2202731bace8"
+      "sourceHash": "a9e6f0a866e8",
+      "assetHash": "26c5e5415b81"
     },
     "numbermemory": {
       "w": 364,
@@ -4209,7 +4209,7 @@
         {
           "cap": 1,
           "box": {
-            "x": 3.8461538461538463,
+            "x": 22.52747252747253,
             "y": 55.357142857142854,
             "w": 17.582417582417584,
             "h": 8.16326530612245
@@ -4229,8 +4229,8 @@
         }
       ],
       "bytes": {
-        "light": 46463,
-        "dark": 51119
+        "light": 46905,
+        "dark": 51077
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -4337,8 +4337,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "fd6d4d9efda3",
-      "assetHash": "c154a6f7432d"
+      "sourceHash": "e5dc3d698945",
+      "assetHash": "d077d9696a85"
     },
     "orderchaos": {
       "w": 196,
@@ -4409,8 +4409,8 @@
         }
       ],
       "bytes": {
-        "light": 52965,
-        "dark": 42931
+        "light": 52745,
+        "dark": 43298
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -4517,8 +4517,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "73346ce996cf",
-      "assetHash": "875a01a8f62c"
+      "sourceHash": "af5f22886378",
+      "assetHash": "fbdf73895fda"
     },
     "pacmac": {
       "w": 174,
@@ -4774,8 +4774,8 @@
         }
       ],
       "bytes": {
-        "light": 92966,
-        "dark": 63753
+        "light": 93393,
+        "dark": 63828
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -4887,8 +4887,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "5d184f29d691",
-      "assetHash": "957c26050e25"
+      "sourceHash": "abc4e2102433",
+      "assetHash": "0311ef31c700"
     },
     "pairs4": {
       "w": 208,
@@ -4959,8 +4959,8 @@
         }
       ],
       "bytes": {
-        "light": 86259,
-        "dark": 78062
+        "light": 81395,
+        "dark": 79979
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -5072,8 +5072,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "5d184f29d691",
-      "assetHash": "756f0b88a3b0"
+      "sourceHash": "abc4e2102433",
+      "assetHash": "6f75aed04f4a"
     },
     "quarto": {
       "w": 162,
@@ -5144,8 +5144,8 @@
         }
       ],
       "bytes": {
-        "light": 43280,
-        "dark": 37568
+        "light": 43439,
+        "dark": 36904
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -5252,8 +5252,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "4097b56b2942",
-      "assetHash": "40ef34427e14"
+      "sourceHash": "666155bb81bf",
+      "assetHash": "17977835f876"
     },
     "reaction": {
       "w": 364,
@@ -5447,8 +5447,8 @@
         }
       ],
       "bytes": {
-        "light": 54508,
-        "dark": 47706
+        "light": 54867,
+        "dark": 47795
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -5555,8 +5555,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "d3a387b7c3e5",
-      "assetHash": "e9c66d582cf2"
+      "sourceHash": "a483c780f743",
+      "assetHash": "097a3b61d72b"
     },
     "sim": {
       "w": 230,
@@ -5607,8 +5607,8 @@
         {
           "cap": 0,
           "box": {
-            "x": 62.736092032967036,
-            "y": 44.21399821109124,
+            "x": 43.53966346153846,
+            "y": 51.42833184257603,
             "w": 12.920673076923077,
             "h": 8.413461538461538
           },
@@ -5627,8 +5627,8 @@
         }
       ],
       "bytes": {
-        "light": 95431,
-        "dark": 64223
+        "light": 95665,
+        "dark": 62959
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -5735,8 +5735,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "cca4d2421adc",
-      "assetHash": "601ff2b53d4f"
+      "sourceHash": "02b4ac35e180",
+      "assetHash": "aa812315ee66"
     },
     "simon": {
       "w": 212,
@@ -5916,8 +5916,8 @@
         }
       ],
       "bytes": {
-        "light": 55721,
-        "dark": 46165
+        "light": 55138,
+        "dark": 46472
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -6024,8 +6024,8 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "8a0d165b9376",
-      "assetHash": "711e43f85005"
+      "sourceHash": "ce0a9a8f9a69",
+      "assetHash": "52b7b3f4786c"
     },
     "spaceduel": {
       "w": 206,
@@ -6187,8 +6187,8 @@
         }
       ],
       "bytes": {
-        "light": 30412,
-        "dark": 35948
+        "light": 29512,
+        "dark": 34872
       },
       "sources": [
         "src/components/Avatar.jsx",
@@ -6237,8 +6237,8 @@
         "src/lib/wordDenylist.js",
         "src/pages/SpyfairDemo.jsx"
       ],
-      "sourceHash": "308910317dfc",
-      "assetHash": "c8e43764d1cd"
+      "sourceHash": "80c6799cafaa",
+      "assetHash": "c37acdcb2398"
     },
     "sumo": {
       "w": 214,
@@ -6755,8 +6755,8 @@
         }
       ],
       "bytes": {
-        "light": 82012,
-        "dark": 45172
+        "light": 82077,
+        "dark": 45991
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -6863,12 +6863,12 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1f55a2c0e033",
-      "assetHash": "ba15315c33a4"
+      "sourceHash": "83f2d394873a",
+      "assetHash": "ce766f5023cd"
     },
     "wavelength": {
-      "w": 204,
-      "h": 340,
+      "w": 192,
+      "h": 338,
       "steps": [
         {
           "cap": "objective",
@@ -6878,8 +6878,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 204,
-          "h": 340,
+          "w": 192,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -6895,12 +6895,12 @@
           "cap": 1,
           "box": {
             "x": 5.769230769230769,
-            "y": 83.36092715231788,
+            "y": 84.34579439252336,
             "w": 88.46153846153847,
-            "h": 5.960264900662252
+            "h": 5.607476635514018
           },
-          "w": 204,
-          "h": 340,
+          "w": 192,
+          "h": 338,
           "dark": {
             "box": {
               "x": 5.769230769230769,
@@ -6929,14 +6929,14 @@
               "w": 98,
               "h": 98
             },
-            "w": 296,
+            "w": 284,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 74985,
-        "dark": 57367
+        "light": 72810,
+        "dark": 55099
       },
       "sources": [
         "src/components/Avatar.jsx",
@@ -6985,8 +6985,8 @@
         "src/lib/wordDenylist.js",
         "src/pages/WavelengthDemo.jsx"
       ],
-      "sourceHash": "1509a44c784e",
-      "assetHash": "54407b8c89ce"
+      "sourceHash": "118281caaa71",
+      "assetHash": "4ea12cfb44b7"
     },
     "yavalath": {
       "w": 244,
@@ -7057,8 +7057,8 @@
         }
       ],
       "bytes": {
-        "light": 96279,
-        "dark": 75402
+        "light": 95748,
+        "dark": 74900
       },
       "sources": [
         "src/components/AddFriendButton.jsx",
@@ -7166,11 +7166,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "2139739c1c7d",
-      "assetHash": "9032c820deb8"
+      "sourceHash": "fa8c1f48313d",
+      "assetHash": "0a430d983411"
     }
   },
-  "commit": "99e6ae6",
+  "commit": "faa3632",
   "skipped": {
     "mancala": "No enabled control for cell: [data-testid^=\"pit \"]",
     "snake": "error: \"Error: Cannot read properties of null (reading 'children')\"\ncode: UNKNOWN",
