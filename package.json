@@ -21,6 +21,7 @@
     "test:e2e": "node scripts/with-emulators.mjs auth,database npx playwright test",
     "deploy": "node scripts/deploy.mjs",
     "symbolicate": "node scripts/symbolicate.mjs",
+    "launch:check": "node scripts/launch-check.mjs",
     "sourcemaps:sentry": "node scripts/upload-sourcemaps.mjs"
   },
   "dependencies": {
