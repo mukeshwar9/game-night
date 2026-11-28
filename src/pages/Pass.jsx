@@ -1,6 +1,8 @@
 import { toast } from 'sonner'
 import PassStatus from '../components/premium/PassStatus'
 import PayCurrencySwitch from '../components/premium/PayCurrencySwitch'
+import PassPriceLadder from '../components/premium/PassPriceLadder'
+import { ladderEnabled } from '../lib/passLadder'
 import LegalLinks from '../components/LegalLinks'
 import useAccess from '../hooks/useAccess'
 import useBusy from '../hooks/useBusy'
@@ -37,6 +39,7 @@ export default function Pass() {
   const access = useAccess()
   const currency = usePayCurrency()
   const inr = currency === 'INR'
+  const ladderOn = ladderEnabled(window.location.search, import.meta.env.DEV)
   const yearly = formatPrice(PRODUCTS['pass-yearly'], currency)
   const monthly = formatPrice(PRODUCTS['pass-monthly'], currency)
   const [portalBusy, runPortal] = useBusy()
@@ -69,6 +72,8 @@ export default function Pass() {
           <button type="button" onClick={openPortal} disabled={portalBusy} className="w-full min-h-12 rounded border-2 border-retro-border bg-retro-card text-retro-text font-pixel text-[10px] tracking-wider press transition disabled:opacity-50">
             {portalBusy ? 'OPENING…' : 'MANAGE OR CANCEL SUBSCRIPTION'}
           </button>
+        ) : ladderOn ? (
+          <PassPriceLadder />
         ) : (
           <div className="space-y-2">
             {access.pass && <p className="font-pixel text-[9px] tracking-wider text-retro-dim">ADD MORE TIME</p>}
@@ -87,7 +92,7 @@ export default function Pass() {
           </div>
         )}
 
-        <div className="space-y-2 font-mono text-[10px] leading-relaxed text-retro-dim">
+        <div hidden={ladderOn} className="space-y-2 font-mono text-[10px] leading-relaxed text-retro-dim">
           {inr ? (
             <p>
               Paid in rupees, the Pass is one payment for a fixed number of days. It never renews by itself and nothing is charged again; buying again adds the days to the time you have left. Payments are processed by Razorpay (UPI, cards, netbanking). Refunds follow our Terms; write to us from the Support page.
