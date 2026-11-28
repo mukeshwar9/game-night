@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import useGameKeys from '../hooks/useGameKeys'
 import {
-  startReveal, pressDown, pressUp, confirmSeen, progressLabel, tintFor,
+  startReveal, pressDown, pressUp, confirmSeen, progressLabel, tintFor, isHoldKey, holdKeyAction,
 } from '../lib/secretRevealLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
@@ -56,20 +56,33 @@ export default function SecretReveal({ players, renderSecret, onDone, holdLabel 
     onDone?.()
   }, [state.done, onDone])
 
-  // Space/Enter hold the button for keyboard players; GOT IT on its own key.
+  // Space/Enter hold the reveal button for keyboard players; on a focused
+  // GOT IT they fall through to its native click.
+  const revealRef = useRef(null)
+  const releaseRef = useRef(null)
+  const stopKeyHold = useCallback(() => {
+    if (releaseRef.current) window.removeEventListener('keyup', releaseRef.current)
+    releaseRef.current = null
+  }, [])
+  useEffect(() => stopKeyHold, [stopKeyHold])
+
   useGameKeys((e) => {
-    if (e.key === ' ' || e.key === 'Enter') {
-      if (e.repeat) return true
-      dispatch({ type: 'down' })
-      const release = (ev) => {
-        if (ev.key !== ' ' && ev.key !== 'Enter') return
-        window.removeEventListener('keyup', release)
-        dispatch({ type: 'up' })
-      }
-      window.addEventListener('keyup', release)
-      return true
+    const button = e.target instanceof Element ? e.target.closest('button') : null
+    const action = holdKeyAction({
+      key: e.key, repeat: e.repeat, onOtherButton: !!button && button !== revealRef.current,
+    })
+    if (action === 'pass') return false
+    if (action === 'repeat') return true
+    stopKeyHold()
+    dispatch({ type: 'down' })
+    const release = (ev) => {
+      if (!isHoldKey(ev.key)) return
+      stopKeyHold()
+      dispatch({ type: 'up' })
     }
-    return false
+    releaseRef.current = release
+    window.addEventListener('keyup', release)
+    return true
   }, { enabled: !state.done })
 
   if (state.done) return null
@@ -108,6 +121,7 @@ export default function SecretReveal({ players, renderSecret, onDone, holdLabel 
 
       <div className="w-full space-y-2">
         <button
+          ref={revealRef}
           type="button"
           onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); down() }}
           onPointerUp={up}

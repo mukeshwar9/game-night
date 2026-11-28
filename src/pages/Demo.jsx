@@ -14,6 +14,7 @@ import {
 } from '../components/GameIcons';
 import { getGameConfig, supportsLocalPlay } from '../lib/games'
 import { canFocusPage } from '../lib/focusLogic'
+import { localPlayerRange } from '../lib/onePhoneLogic'
 import { FocusPlay } from '../components/FocusStage'
 import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
@@ -253,7 +254,7 @@ function LocalPlayPage({ routeType }) {
             {cfg.label}
           </h1>
           <p className="font-pixel text-[9px] text-retro-dim text-center">
-            {cfg.localBlurb || 'PASS & PLAY · ONE SCREEN, TAKE TURNS'}{cfg.localMaxPlayers ? ` · ${cfg.localMinPlayers ?? 2}-${cfg.localMaxPlayers} PLAYERS` : ''}
+            {cfg.localBlurb || 'PASS & PLAY · ONE SCREEN, TAKE TURNS'}{cfg.localMaxPlayers ? ` · ${localPlayerRange(cfg).min}-${cfg.localMaxPlayers} PLAYERS` : ''}
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>

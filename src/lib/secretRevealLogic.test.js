@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   startReveal, pressDown, pressUp, confirmSeen, progressLabel, tintFor, REVEAL_TINTS, REVEAL_MIN_PLAYERS,
+  isHoldKey, holdKeyAction,
 } from './secretRevealLogic'
 
 describe('secretRevealLogic', () => {
@@ -75,5 +76,22 @@ describe('secretRevealLogic', () => {
     expect(tintFor(0)).toBe(REVEAL_TINTS[0])
     expect(tintFor(REVEAL_TINTS.length)).toBe(REVEAL_TINTS[0])
     expect(tintFor(-1)).toBe(REVEAL_TINTS[REVEAL_TINTS.length - 1])
+  })
+
+  it('treats Space and Enter as the hold key, nothing else', () => {
+    expect(isHoldKey(' ')).toBe(true)
+    expect(isHoldKey('Enter')).toBe(true)
+    expect(isHoldKey('g')).toBe(false)
+  })
+
+  it('lets Space/Enter on a focused GOT IT reach its native click', () => {
+    expect(holdKeyAction({ key: 'Enter', repeat: false, onOtherButton: true })).toBe('pass')
+    expect(holdKeyAction({ key: ' ', repeat: false, onOtherButton: true })).toBe('pass')
+  })
+
+  it('starts a reveal on Space/Enter elsewhere and swallows auto-repeat', () => {
+    expect(holdKeyAction({ key: ' ', repeat: false, onOtherButton: false })).toBe('down')
+    expect(holdKeyAction({ key: 'Enter', repeat: true, onOtherButton: false })).toBe('repeat')
+    expect(holdKeyAction({ key: 'a', repeat: false, onOtherButton: false })).toBe('pass')
   })
 })

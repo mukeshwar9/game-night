@@ -51,3 +51,18 @@ export function confirmSeen(state) {
 export function progressLabel(state) {
   return `PLAYER ${Math.min(state.index + 1, state.total)} OF ${state.total}`
 }
+
+/** Space/Enter act as the hold button for keyboard players. */
+export function isHoldKey(key) {
+  return key === ' ' || key === 'Enter'
+}
+
+/**
+ * What a keydown does: 'pass' leaves it to the browser (any other key, or
+ * Space/Enter on a focused button such as GOT IT, so its native click runs),
+ * 'repeat' swallows auto-repeat while held, 'down' starts a reveal.
+ */
+export function holdKeyAction({ key, repeat, onOtherButton }) {
+  if (!isHoldKey(key) || onOtherButton) return 'pass'
+  return repeat ? 'repeat' : 'down'
+}

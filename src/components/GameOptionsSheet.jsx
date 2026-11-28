@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { GameArt } from './GameArt'
 import { supportsLocalPlay } from '../lib/games'
+import { localPlayerRange } from '../lib/onePhoneLogic'
 import BottomSheet from './BottomSheet'
 
 // ••• sheet for a catalog card — replaces the old floating VS AI / 2P PASS /
@@ -147,7 +148,7 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                   <Row
                     onClick={() => onLocal(game)}
                     label="SAME DEVICE"
-                    badge={game.localMaxPlayers ? `${game.localMinPlayers ?? 2}-${game.localMaxPlayers}P` : '2P'}
+                    badge={game.localMaxPlayers ? `${localPlayerRange(game).min}-${game.localMaxPlayers}P` : '2P'}
                     disabled={isBusy}
                     blurb="Pass one device between turns."
                   />
