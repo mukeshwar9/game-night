@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test'
 const WITH_CPU_ROW = [
   'paint', 'pacmac', 'tron', 'snake', 'sumo', 'spaceduel', 'mancala', 'checkers',
   'battleship', 'artillery', 'reaction', 'aim', 'typing', 'math', 'trivia',
-  'wavelength', 'fibbage', 'spyfair', 'airhockey', 'tictactoe', 'pairs',
+  'wavelength', 'fibbage', 'spyfair', 'tictactoe', 'pairs',
 ]
 
 test.describe.configure({ mode: 'parallel' })
@@ -25,6 +25,19 @@ for (const type of WITH_CPU_ROW) {
     expect(await page.evaluate((t) => localStorage.getItem(`bot-difficulty-${t}`), type)).toBe('hard')
   })
 }
+
+// Air Hockey keeps its own chip row (it carries a per-level record).
+test('/solo/airhockey offers a remembered CPU level', async ({ page }) => {
+  await page.goto('/solo/airhockey')
+  const row = page.getByRole('group', { name: 'CPU difficulty' })
+  const chip = (level) => row.getByRole('button', { name: new RegExp(`^${level}`, 'i') })
+  await expect(chip('normal')).toHaveAttribute('aria-pressed', 'true')
+  await chip('hard').click()
+  await expect(chip('hard')).toHaveAttribute('aria-pressed', 'true')
+  await page.reload()
+  await expect(chip('hard')).toHaveAttribute('aria-pressed', 'true')
+  expect(await page.evaluate(() => localStorage.getItem('bot-difficulty-airhockey'))).toBe('hard')
+})
 
 test('/solo/minesweeper picks the mine count and restarts the board', async ({ page }) => {
   await page.goto('/solo/minesweeper')
