@@ -19,7 +19,10 @@ import { useMusicScene } from '../lib/music'
 import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
 import GamePickerSheet from '../components/GamePickerSheet';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import IntroCard from '../components/IntroCard';
+import useOwnSeat from '../hooks/useOwnSeat';
+import { introSeats } from '../lib/introCardLogic';
 import HeadlineGames from '../components/HeadlineGames';
 import { isAdVisit, isHeadlineGame } from '../lib/adLanding';
 import { parseBeat } from '../lib/soloChallengeLogic'
@@ -201,19 +204,46 @@ const SOLO_PICKER_TYPES = DEMOS.map(d => d.type).filter(type => !OFF_SHELF.has(t
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// Pass-and-play pages that open on the shared intro card. A local constant,
+// not a registry flag: src/lib/games.js is hashed into every game's HOW TO PLAY
+// capture (ruleMedia.json), so touching it would need a full recapture.
+const INTRO_CARD_LOCAL = new Set(['connectfour'])
+
 // Local pass-and-play: two people share one screen/keyboard, alternating
 // moves on the real BoardComponent with no bot and no Firebase. Reuses the
 // generic BotBoardDemo engine (mode="local") — no per-game code needed.
 function LocalPlayPage({ routeType }) {
   const cfg = getGameConfig(routeType)
+  const navigate = useNavigate()
+  const me = useOwnSeat()
+  // INTRO_CARD_LOCAL games open on the shared intro card; PLAY starts the
+  // board. Everything else goes straight to the board as before.
+  const [started, setStarted] = useState(!INTRO_CARD_LOCAL.has(routeType))
   const playRecorded = useRef(false)
   useMusicScene('game', routeType)
   useEffect(() => {
-    if (playRecorded.current) return
+    if (!started || playRecorded.current) return
     playRecorded.current = true
     recordPlay(routeType, 'local')
     recordRecentPlay(routeType, 'local')
-  }, [routeType])
+  }, [routeType, started])
+
+  if (!started) {
+    return (
+      <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
+        <div className="w-full max-w-md p-4 pt-5">
+          <IntroCard
+            gameType={routeType}
+            seats={introSeats(me, [{ id: 'friend', name: 'Friend' }])}
+            modes={cfg.solo ? [{ id: 'solo', label: 'VS AI' }, { id: 'local', label: 'SAME PHONE' }] : undefined}
+            mode="local"
+            onMode={(id) => { if (id === 'solo') navigate(`/solo/${routeType}`) }}
+            onPlay={() => setStarted(true)}
+          />
+        </div>
+      </main></VideoCallShell>
+    )
+  }
 
   return (
     <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
@@ -287,7 +317,7 @@ export default function Demo({ mode }) {
   const { type: routeType } = useParams()
 
   if (mode === 'local' && routeType && supportsLocalPlay(routeType)) {
-    return <LocalPlayPage routeType={routeType} />
+    return <LocalPlayPage key={routeType} routeType={routeType} />
   }
   // /solo/:type with no demo entry gets the explicit not-available card; only
   // a bare /demo (no type) or a valid /solo/:type reaches the hub.
