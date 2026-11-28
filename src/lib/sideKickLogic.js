@@ -241,7 +241,7 @@ function newRider(i, desc, slot, tune) {
     i, id: desc.id ?? `r${i}`, name: desc.name ?? `R${i + 1}`, avatar: desc.avatar ?? null,
     bot: !!desc.bot, local: desc.local !== false,
     x: GRID_X[slot % 4], z: 1500 + (slot % 4) * 250,
-    vx: 0, speed: 0, lean: 0, state: 'ride', t: 0, tMax: DOWN_T, stag: 0, shield: 0, pips: PIPS, sinceHit: 0,
+    vx: 0, xv: 0, speed: 0, lean: 0, state: 'ride', t: 0, tMax: DOWN_T, stag: 0, shield: 0, pips: PIPS, sinceHit: 0,
     kickT: 0, kickSide: 0, kicked: false, cd: 0, draft: 0, done: false, time: 0, hits: 0, offs: 0,
     kickCount: 0, buf: null,
     base: tune.base, aggr: tune.aggr, tx: GRID_X[slot % 4], think: 0, hunt: 0, flash: 0,
@@ -249,7 +249,7 @@ function newRider(i, desc, slot, tune) {
     strain: 0, strainT: 0, boost: BOOST_START, boosting: false, boostT: 0, boostLen: 0, bbuf: 0, wantBoost: false, oil: 0, oilPh: 0, nm: {},
     cu: 0, cuTarget: -1, cuGap: 0, rec: 0, recV: 0, sq: 0, susp: 0, suspV: 0, slope: 0, brk: false, look: 0,
     // Ghost bookkeeping (only used while `local` is false).
-    seenKick: 0, seenDown: 0, netAt: 0, netState: 0, netLean: 0, netCu: 0,
+    seenKick: 0, seenDown: 0, gnet: null, netAt: 0, netState: 0, netLean: 0, netCu: 0,
     // DUST KICK: spooked / hay surge / mud-less wobble, the coil in hand, the lasso in flight, roped and reeling.
     spook: 0, surge: 0, wob: 0, rope: 0, lassoT: 0, lassoN: 0, lastLasso: false, roped: 0, reel: 0, got: new Set(), lassos: 0,
   }
@@ -732,8 +732,11 @@ export function step(world, inputs = [], dt = DT, clockT = null) {
   for (const c of world.cars) c.z = c.z0 + c.spd * world.t
   for (const w of world.weeds) Object.assign(w, weedAt(w, world.t))
   for (const r of world.riders) {
-    if (r.local) stepRider(world, r, inputs[r.i])
-    else stepGhost(world, r)
+    if (r.local) {
+      const px = r.x
+      stepRider(world, r, inputs[r.i])
+      r.xv = (r.x - px) / DT // sideways speed, sent so a friend's phone can keep the bike moving between reports
+    } else stepGhost(world, r)
   }
   // Riders lean on each other instead of overlapping (each phone moves its own).
   const rs = world.riders
@@ -790,16 +793,24 @@ export function nextGrid(orderBestFirst) {
 // A rider's report: small integers, one flat object, so a write is a few dozen
 // bytes. Everything is re-validated on read: stats are written by clients.
 export const SYNC_MS = 100
+/** Sideways speed cap on the wire, lane units per second (steering tops out near 1.6; the rules cap the wire value at 2000). */
+const VX_MAX = 2
 
-/** @returns {Record<string, number>} */
-export function encodeRider(r, serverMs) {
+/**
+ * `sq` is a counter the sender bumps on every report, `vx` the sideways speed in
+ * thousandths of a lane unit per second; both are optional on the wire so a report
+ * from an older build still decodes.
+ * @returns {Record<string, number>}
+ */
+export function encodeRider(r, serverMs, seq = 0) {
   return {
     z: Math.round(r.z), x: Math.round(r.x * 1000), v: Math.round((r.speed / MAXSPD) * 1000),
+    vx: Math.round(clamp(r.xv || 0, -VX_MAX, VX_MAX) * 1000),
     s: r.state === 'down' ? 1 : 0, ln: Math.round(clamp(r.lean, -1, 1) * 100),
     pp: r.pips, bo: r.boosting ? 1 : 0, sh: r.shield > 0 ? 1 : 0, sg: r.stag > 0 ? 1 : 0, cu: r.cu > 0 ? 1 : 0, ol: r.oil > 0 ? 1 : 0, bm: Math.round(clamp(r.boost, 0, 1) * 100),
     kn: r.kickCount, ks: r.lastLasso ? 2 : r.kickSide > 0 ? 1 : 0, ro: r.roped > 0 ? 1 : 0, dn: r.offs, dw: r.lastDownBy + 1,
     hk: r.hits, pb: r.paybacks, fin: r.done ? Math.max(1, Math.round(r.time * 1000)) : 0,
-    at: Math.round(serverMs),
+    at: Math.round(serverMs), sq: Math.max(0, Math.round(seq)),
   }
 }
 
@@ -811,6 +822,7 @@ export function decodeRider(raw) {
   if (!Number.isFinite(Number(raw.z))) return null
   return {
     z: num(raw.z, 0, 1e7), x: num(raw.x, -2000, 2000) / 1000, v: num(raw.v, 0, 1400) / 1000,
+    vx: num(raw.vx, -VX_MAX * 1000, VX_MAX * 1000) / 1000, sq: Math.round(num(raw.sq, 0, 1e12)),
     s: raw.s === 1 || raw.s === '1' ? 1 : 0, ln: num(raw.ln, -100, 100) / 100,
     pp: Math.round(num(raw.pp, 0, PIPS, PIPS)), bo: raw.bo ? 1 : 0, sh: raw.sh ? 1 : 0, sg: raw.sg ? 1 : 0, cu: raw.cu ? 1 : 0, ol: raw.ol ? 1 : 0, bm: Math.round(num(raw.bm, 0, 100)) / 100,
     kn: Math.round(num(raw.kn, 0, 9999)), ks: Number(raw.ks) === 2 ? 2 : raw.ks ? 1 : 0, ro: raw.ro ? 1 : 0, dn: Math.round(num(raw.dn, 0, 9999)), dw: Math.round(num(raw.dw, 0, RIDERS)),
@@ -819,22 +831,113 @@ export function decodeRider(raw) {
   }
 }
 
+// ── Ghost smoothing ──────────────────────────────────────────────────────
+// Reports arrive at ~10 Hz and in bursts (a reliable socket holds them back and
+// then delivers several). A ghost is therefore drawn a little in the past from a
+// short buffer of reports and interpolated between the two that bracket that
+// moment; only when the buffer runs dry does it extrapolate, briefly.
+
+/** How far behind real time a ghost is drawn: a report and a half, plus room for jitter. */
+export const GHOST_DELAY_MS = 140
+/** Longest a ghost is carried past its newest report before it simply holds. */
+export const GHOST_EXTRAP_MS = 250
+const GHOST_BUF = 8
+const GHOST_OFFSET_WINDOW = 40
+
+/** Empty per-rider buffer. */
+export function createGhostNet() {
+  return { buf: [], deltas: [], lastAt: -1, lastSq: -1, lastT: -Infinity }
+}
+
 /**
- * Place ghost `r` from its last report. Position is carried forward by the
- * report's age (capped), then eased in so a 10 Hz feed does not stutter.
+ * Add a report to a ghost's buffer. `arrivalMs` is when this phone received it,
+ * on this phone's server clock. A report is stamped with the sender's own clock
+ * (`at`); the difference to arrival mixes real delay with the clock error between
+ * the two phones, so the offset used is the smallest one seen over the last
+ * reports (the least-delayed packet), which is steady, and a sample's time is the
+ * sender's `at` plus that offset. A report with no `at` (older build) is timed by
+ * its arrival. Returns false for a duplicate or an out-of-order report.
+ */
+export function pushGhostSample(net, snap, arrivalMs) {
+  if (!snap) return false
+  const last = net.buf[net.buf.length - 1]
+  if (snap.at > 0) {
+    if (snap.at < net.lastAt || (snap.at === net.lastAt && !(snap.sq > net.lastSq))) return false
+  } else if (last && last.z === snap.z && last.x === snap.x && last.v === snap.v * MAXSPD) return false
+  let t = arrivalMs
+  if (snap.at > 0) {
+    net.deltas.push(arrivalMs - snap.at)
+    if (net.deltas.length > GHOST_OFFSET_WINDOW) net.deltas.shift()
+    t = snap.at + Math.min(...net.deltas)
+    net.lastAt = snap.at; net.lastSq = snap.sq
+  }
+  if (t <= net.lastT) t = net.lastT + 1 // time only moves forward
+  net.lastT = t
+  net.buf.push({ t, z: snap.z, x: snap.x, v: snap.v * MAXSPD, vx: snap.vx || 0, s: snap.s })
+  if (net.buf.length > GHOST_BUF) net.buf.shift()
+  return true
+}
+
+/**
+ * Where the ghost is at `renderT` (receiver server clock, already shifted back by
+ * the render delay). Interpolates between the bracketing reports; past the newest
+ * it carries z at the reported speed and x at the reported sideways speed for at
+ * most GHOST_EXTRAP_MS; before the oldest it holds the oldest.
+ * @returns {{ z: number, x: number } | null}
+ */
+export function sampleGhost(net, renderT) {
+  const buf = net.buf
+  if (!buf.length) return null
+  const first = buf[0]; const last = buf[buf.length - 1]
+  if (renderT <= first.t) return { z: first.z, x: first.x }
+  if (renderT >= last.t) {
+    const dt = Math.min(renderT - last.t, GHOST_EXTRAP_MS) / 1000
+    return { z: last.z + (last.s ? 0 : last.v * dt), x: clamp(last.x + last.vx * dt, -MAX_X, MAX_X) }
+  }
+  let i = buf.length - 2
+  while (i > 0 && buf[i].t > renderT) i--
+  const a = buf[i]; const b = buf[i + 1]
+  // Snap only across a jump the reported speed cannot explain (respawn, teleport);
+  // a late report at speed is a long segment, not a jump, and is interpolated.
+  const reach = Math.max(a.v, b.v) * (b.t - a.t) / 1000 * 2 + 2500
+  if (Math.abs(b.z - a.z) > reach) return { z: renderT >= b.t ? b.z : a.z, x: renderT >= b.t ? b.x : a.x }
+  const k = (renderT - a.t) / (b.t - a.t)
+  return { z: a.z + (b.z - a.z) * k, x: a.x + (b.x - a.x) * k }
+}
+
+/**
+ * Keep the newest arrival per rider from a stats node, so the receive time of a
+ * report is the moment the listener saw it, not the next animation frame.
+ * `prev` is the previous result; entries whose report did not change are reused.
+ * @param {Record<string, {raw: any, snap: any, at: number}>} prev
+ * @param {Record<string, any> | null} stats
+ */
+export function trackArrivals(prev, stats, nowMs) {
+  const out = {}
+  for (const [id, raw] of Object.entries(stats || {})) {
+    const old = prev[id]
+    const same = old && old.raw && raw && old.raw.at === raw.at && old.raw.sq === raw.sq && old.raw.z === raw.z && old.raw.x === raw.x && old.raw.kn === raw.kn && old.raw.fin === raw.fin && old.raw.s === raw.s
+    out[id] = same ? old : { raw, snap: decodeRider(raw), at: nowMs }
+  }
+  return out
+}
+
+/**
+ * Place ghost `r` from its reports. The newest report (`snap`, received at
+ * `arrivalMs`) goes into the ghost's buffer; position is then sampled a short
+ * moment in the past (see pushGhostSample / sampleGhost). Everything else a
+ * report carries (flags, kicks, falls) is applied from the newest report at once.
  * Returns the events this report implies for the local player: a new kick swing
  * (animation only) and a knock-off by `meIdx`.
  */
-export function applyGhost(world, r, snap, nowMs, meIdx = -1) {
+export function applyGhost(world, r, snap, nowMs, meIdx = -1, arrivalMs = nowMs) {
   if (!snap || r.local) return
-  const age = clamp((nowMs - snap.at) / 1000, 0, 0.4)
   const speed = snap.v * MAXSPD
-  const tz = snap.z + (snap.s ? 0 : speed * age)
-  const fresh = r.netAt === 0
-  if (fresh || Math.abs(tz - r.z) > 2500) { r.z = tz; r.x = snap.x } else {
-    r.z += (tz - r.z) * 0.4
-    r.x += (snap.x - r.x) * 0.4
-  }
+  const fresh = !r.gnet
+  if (fresh) r.gnet = createGhostNet()
+  pushGhostSample(r.gnet, snap, arrivalMs)
+  const at = sampleGhost(r.gnet, nowMs - GHOST_DELAY_MS)
+  if (at) { r.z = at.z; r.x = at.x }
   r.speed = speed; r.netLean = snap.ln
   r.netAt = snap.at
   r.stag = snap.sg ? 0.3 : 0
@@ -879,7 +982,7 @@ export function promoteBot(r) {
 /** The reverse: this phone stops driving the bot and follows its reports instead. */
 export function demoteBot(r) {
   r.local = false
-  r.netAt = 0
+  r.netAt = 0; r.gnet = null
 }
 
 /** Shared-state key for a kick sent over the network: `victimId|side` under the kicker's `k/{n}`. */

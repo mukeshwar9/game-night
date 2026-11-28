@@ -67,10 +67,15 @@ DUST KICK, the Wild West version, runs on this same engine with a `dust` rules o
 Nothing new at the transport: the room is the party-room model (`players` keyed by uid) and `RaceShell` runs
 the lobby, READY, the countdown and the results.
 
-- Each phone simulates only its own bike at 60 Hz and writes a ~16-field report of small integers
-  (`encodeRider`) to `round/stats/{round}/{uid}` about every 100 ms, at once on a fall, a remount, a swing
-  or the flag. Other riders are ghosts: placed from the last report, carried forward by its age (at most
-  0.4 s) and eased in. Everything read is re-validated (`decodeRider`), because stats are client-written.
+- Each phone simulates only its own bike at 60 Hz and writes a ~18-field report of small integers
+  (`encodeRider`, including sideways speed `vx` and a per-report counter `sq`) to `round/stats/{round}/{uid}`
+  about every 100 ms, at once on a fall, a remount, a swing or the flag. Other riders are ghosts: each
+  report is buffered and timed by its arrival on this phone (`pushGhostSample`), and the ghost is drawn
+  `GHOST_DELAY_MS` in the past, interpolated between the reports around that moment (`sampleGhost`;
+  briefly extrapolated when the buffer runs dry). Everything read is re-validated (`decodeRider`), because
+  stats are client-written; `vx` and `sq` are optional so an older build's report still decodes.
+- The page listens to `round/stats` itself; the room listener holds back stats-only changes so the room
+  tree re-renders at most every `HOT_STATS_INTERVAL_MS` for them (`roomFeedLogic.js`).
 - A kick is judged on the kicker's phone against the ghost it sees and written as `k/{n} = "victim|side"`
   on the kicker's own node. The victim's phone applies the shove, the pip and the stagger
   (`receiveKick`): dropped if the victim is shielded, down or finished (the kicker sees a CLANG) or if the
