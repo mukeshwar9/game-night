@@ -15,7 +15,7 @@ import {
   pickKeeperWord, hangmanPattern, hangmanCandidates, pickHangmanGuess, hangmanThinkMs,
   wordBotLevel, WORD_BOT_LEVEL_IDS,
 } from '../lib/wordBotsLogic'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { loadDictionary } from '../lib/wordhuntDictionary'
 import { sounds } from '../lib/sounds'
@@ -248,7 +248,7 @@ export default function HangmanDemo() {
         </>
       )}
       {(round.phase === 'setting' || round.phase === 'reveal') && (
-        <CpuDifficultyChips levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} note="HOW WELL THE CPU GUESSES YOUR WORDS" />
+        <DifficultySlider levels={WORD_BOT_LEVEL_IDS} value={level} onChange={setLevel} note="HOW WELL THE CPU GUESSES YOUR WORDS" />
       )}
     </div>
   )

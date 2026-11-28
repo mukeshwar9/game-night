@@ -158,7 +158,7 @@ export default function AirHockeyDemo() {
 
   return (
     <div className="space-y-3">
-      {/* CPU row: same chips, label and placement as the board-game demos (with your record per level) */}
+      {/* CPU row: own chips with your record per level (the board-game demos use DifficultySlider) */}
       <div role="group" aria-label="CPU difficulty" className="flex items-center justify-center gap-1.5">
         <span className="font-pixel text-[8px] text-retro-dim tracking-widest mr-1">CPU</span>
         {DIFFICULTIES.map(d => (

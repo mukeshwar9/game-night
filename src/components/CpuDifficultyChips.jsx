@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils'
 
-// EASY / NORMAL / HARD chips for a solo CPU. Same look as the board-game demos'
-// picker; `note` says when a change takes effect. A solo run with no opponent
-// (Mine Race) passes its own `label` / `ariaLabel` instead of CPU.
+// EASY / NORMAL / HARD chips. Solo CPU levels use DifficultySlider; this row is
+// left for pickers that are not a CPU level (Mine Race's mine count, via its own
+// `label` / `ariaLabel`). `note` says when a change takes effect.
 export default function CpuDifficultyChips({ levels, value, onChange, note, className, label = 'CPU', ariaLabel = 'CPU difficulty' }) {
   return (
     <div className={cn('space-y-1', className)}>

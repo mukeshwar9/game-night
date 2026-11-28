@@ -6,7 +6,7 @@ import {
 } from '../lib/spaceduelLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
@@ -97,7 +97,7 @@ export default function SpaceduelDemo() {
 
   return (
     <div className="space-y-3">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <SpaceduelArena
         ref={arenaRef}
         ships={view.ships}

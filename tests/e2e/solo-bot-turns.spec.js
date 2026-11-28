@@ -62,8 +62,9 @@ test('solo Mancala: the bot keeps sowing after an extra turn', async ({ page }) 
 test('solo board games keep your record against each CPU level', async ({ page }) => {
   await page.addInitScript(seedRandom, 7)
   await page.goto('/solo/tictactoe')
-  await page.getByRole('button', { name: /^hard, your record/ }).click()
-  await expect(page.getByRole('button', { name: 'hard, your record not played yet' })).toBeVisible()
+  await page.getByRole('slider', { name: 'CPU difficulty' }).fill('2')
+  await expect(page.getByRole('slider', { name: 'CPU difficulty' })).toHaveAttribute('aria-valuetext', 'hard')
+  await expect(page.getByText('YOU VS CPU', { exact: false })).toHaveCount(0)
 
   const result = page.getByText(/^(DRAW!|YOU WIN!|CPU WINS!)$/)
   const open = page.getByRole('button', { name: /^Row \d, column \d, empty/ }).and(page.locator(':enabled'))
@@ -74,7 +75,7 @@ test('solo board games keep your record against each CPU level', async ({ page }
   // Hard tic-tac-toe never loses: the game is a draw or a CPU win.
   const record = page.getByTestId('bot-record-hard')
   await expect(record).toHaveText(/^0–[01](–[01])?$/)
-  await expect(page.getByRole('button', { name: /^hard, your record 0 wins, / })).toBeVisible()
+  await expect(page.getByLabel(/^your record 0 wins, /)).toBeVisible()
 
   // It is kept on this device across visits.
   await page.reload()

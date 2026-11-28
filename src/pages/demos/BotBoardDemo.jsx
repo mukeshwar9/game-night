@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import useFocusArena from '../../hooks/useFocusArena'
+import DifficultySlider from '../../components/DifficultySlider'
 import { cn } from '@/lib/utils'
 import GameStatus from '../../components/GameStatus'
 import PlayerCard from '../../components/PlayerCard'
@@ -232,28 +233,14 @@ export default function BotBoardDemo({ type, mode = 'bot' }) {
   return (
     <div ref={rootRef} className="scroll-mt-3 space-y-4">
       {levels.length > 1 && (
-        <div role="group" aria-label="CPU difficulty" className="flex items-center justify-center gap-1.5">
-          <span className="font-pixel text-[8px] text-retro-dim tracking-widest mr-1">CPU</span>
-          {levels.map(level => (
-            <button
-              key={level}
-              onClick={() => chooseDifficulty(level)}
-              aria-pressed={difficulty === level}
-              aria-label={`${level}, your record ${describeLevelRecord(record[level])}`}
-              className={cn(
-                'min-h-11 px-4 py-1 font-pixel text-[9px] uppercase rounded border-2 transition press flex flex-col items-center justify-center gap-1',
-                difficulty === level
-                  ? 'border-retro-cta text-retro-cta shadow-neon-cta'
-                  : 'border-retro-border text-retro-dim hover:border-retro-p1/50',
-              )}
-            >
-              <span>{level}</span>
-              {formatLevelRecord(record[level]) && (
-                <span data-testid={`bot-record-${level}`} className="text-[7px] text-retro-dim">{formatLevelRecord(record[level])}</span>
-              )}
-            </button>
-          ))}
-        </div>
+        <DifficultySlider
+          levels={levels}
+          value={difficulty}
+          onChange={chooseDifficulty}
+          note={formatLevelRecord(record[difficulty])
+            ? <span aria-label={`your record ${describeLevelRecord(record[difficulty])}`}>YOU VS CPU · <span data-testid={`bot-record-${difficulty}`}>{formatLevelRecord(record[difficulty])}</span></span>
+            : null}
+        />
       )}
       {levels.length === 1 && formatLevelRecord(record[levels[0]]) && (
         <p data-testid={`bot-record-${levels[0]}`} className="font-pixel text-[8px] text-retro-dim text-center tracking-widest">

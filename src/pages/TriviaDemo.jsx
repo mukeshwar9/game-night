@@ -8,7 +8,7 @@ import {
 import { TRIVIA_DECK } from '../lib/decks/trivia'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 import { triviaBotAccuracy } from '../lib/soloBotLevels'
@@ -194,7 +194,7 @@ export default function TriviaDemo() {
       {/* The level is picked before the first question or after the match,
           never mid-play. */}
       {(phase === 'ready' || phase === 'end') && (
-        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+        <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       )}
 
       {phase === 'ready' && (

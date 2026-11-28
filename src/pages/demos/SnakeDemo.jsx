@@ -4,7 +4,7 @@ import { useSnakeControls } from '../../hooks/useSnakeControls'
 import { createState as createSnakeState, tick as snakeTick, computeAI as snakeAI, getWinner as snakeWinner, WIN_SCORE as SNAKE_WIN, TICK_MS as SNAKE_TICK } from '../../lib/snakeLogic'
 import { sounds } from '../../lib/sounds'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import DifficultySlider from '../../components/DifficultySlider'
 import useBotDifficulty from '../../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../../lib/botLevels'
 
@@ -66,7 +66,7 @@ export default function SnakeDemo() {
 
   return (
     <div className="space-y-3">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <div className="flex justify-center gap-6 font-pixel text-[10px]">
         <span className={cn('text-retro-p1', scoreX >= 3 && 'text-glow-p1')}>YOU {scoreX}</span>
         <span className="text-retro-dim">{SNAKE_WIN} WINS</span>

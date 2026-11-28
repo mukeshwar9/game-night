@@ -5,7 +5,7 @@ import {
   scoreMathAnswer, timeoutMathQuestion, advanceMathQuestion, normalizeMathStats,
 } from '../../lib/mathLogic'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import DifficultySlider from '../../components/DifficultySlider'
 import IntroCard from '../../components/IntroCard'
 import useOwnSeat from '../../hooks/useOwnSeat'
 import { introSeats } from '../../lib/introCardLogic'
@@ -195,7 +195,7 @@ export default function MathDemo() {
     const winner = youScore > botScore ? 'YOU' : youScore < botScore ? 'BOT' : null
     return (
       <div className="space-y-3">
-        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+        <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'YOU', score: youScore, won: winner === 'YOU', col: 'retro-p1' },
@@ -233,7 +233,7 @@ export default function MathDemo() {
         meta={`1 player vs a bot · ${DEMO_MATH_S} sec`}
         onPlay={() => setPhase('countdown')}
       >
-        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+        <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-center">
           <p>● FIRST CORRECT ANSWER WINS THE ROUND</p>
           <p>✗ WRONG ANSWERS RESET YOUR STREAK — SCORE NEVER DROPS</p>

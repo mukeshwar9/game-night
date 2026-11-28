@@ -535,7 +535,7 @@ export function botFoundMap(plan = [], { startedAt = 0, elapsedMs = Infinity, sc
 
 // ── CPU difficulty (word solos) ─────────────────────────────────────────────
 //
-// EASY / NORMAL / HARD for the word-game CPUs, the same three chips the
+// EASY / NORMAL / HARD for the word-game CPUs, the same three levels the
 // board-game demos offer. NORMAL is the tuning above. Starting values, to
 // playtest: EASY should lose most rounds to a casual player, HARD should beat
 // most; move the knobs toward NORMAL if a level feels unfair.

@@ -1,7 +1,7 @@
 import Avatar from './Avatar'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
-import CpuDifficultyChips from './CpuDifficultyChips'
+import DifficultySlider from './DifficultySlider'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 // Reads the local player's display avatar the same way NavBar/Home do — the
@@ -20,7 +20,7 @@ function readOwnAvatar() {
 // FIBBAGE, SPYFAIR): pick how many bots fill the table, preview the roster,
 // then START. Purely presentational/local — no Firebase, no useBusy (START
 // is a synchronous local action, not an async write). Pass `level` +
-// `onLevel` to show the shared CPU difficulty chips (the page feeds the level to
+// `onLevel` to show the shared CPU difficulty slider (the page feeds the level to
 // generateBotRoster).
 export default function PartyBotSetup({ title, blurb, botCount, onBotCount, roster, onStart, minBots = 2, maxBots = 7, level, onLevel }) {
   const totalPlayers = botCount + 1
@@ -59,7 +59,7 @@ export default function PartyBotSetup({ title, blurb, botCount, onBotCount, rost
       </div>
 
       {onLevel && (
-        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={onLevel} note="HOW SHARP THE BOTS PLAY" />
+        <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={onLevel} note="HOW SHARP THE BOTS PLAY" />
       )}
 
       <div className="flex flex-wrap items-center justify-center gap-2">

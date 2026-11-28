@@ -6,7 +6,7 @@ import {
   createState, stepFrame, createBot, pollBot, getWinner, RINGOUT_HOLD_MS,
 } from '../lib/sumoLogic'
 import { sounds } from '../lib/sounds'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
@@ -111,7 +111,7 @@ export default function SumoDemo() {
 
   return (
     <div className="space-y-3">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <SumoArena
         ref={arenaRef}
         blobs={view.blobs}

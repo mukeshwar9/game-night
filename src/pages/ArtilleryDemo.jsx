@@ -8,7 +8,7 @@ import {
 import { pickArtilleryShot } from '../lib/artilleryBot'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
@@ -74,7 +74,7 @@ export default function ArtilleryDemo() {
 
   return (
     <div className="space-y-4">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <div className="flex items-center justify-between font-pixel text-[9px]">
         <span className={cn('text-retro-p1', myTurn && 'text-glow-p1')}>YOU {state.tanks.X.hp} HP</span>
         <span className="text-retro-dim">WIND {windNow >= 0 ? '→' : '←'} {Math.abs(windNow * 100).toFixed(0)}</span>

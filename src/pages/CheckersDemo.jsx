@@ -9,7 +9,7 @@ import {
 import { pickCheckersMove } from "../lib/checkersBot";
 import { sounds } from "../lib/sounds";
 import { cn } from "@/lib/utils";
-import CpuDifficultyChips from "../components/CpuDifficultyChips";
+import DifficultySlider from "../components/DifficultySlider";
 import useBotDifficulty from "../hooks/useBotDifficulty";
 import { BOT_LEVEL_IDS } from "../lib/botLevels";
 
@@ -142,7 +142,7 @@ export default function CheckersDemo() {
 
   return (
     <div className="space-y-4">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       {/* Status */}
       <p className={cn(
         "font-pixel text-[10px] text-center",

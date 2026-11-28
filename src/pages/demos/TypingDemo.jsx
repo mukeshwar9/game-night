@@ -3,7 +3,7 @@ import TypingKeyboard from '../../components/TypingKeyboard'
 import { cn } from '@/lib/utils'
 import { PASSAGES, countCorrectChars, computeWpm, computeAccuracy, computeEffWpm } from '../../lib/typingLogic'
 import { typingBotWpm } from '../../lib/soloBotLevels'
-import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import DifficultySlider from '../../components/DifficultySlider'
 import useBotDifficulty from '../../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../../lib/botLevels'
 
@@ -96,7 +96,7 @@ export default function TypingDemo() {
     const outcome = player.eff > botEff ? 'win' : player.eff < botEff ? 'lose' : 'draw'
     return (
       <div className="space-y-3">
-        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+        <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'YOU', ...player, col: 'retro-p1', won: outcome === 'win' },
@@ -129,7 +129,7 @@ export default function TypingDemo() {
   const botDone = botProgress >= passage.length
   return (
     <div className="space-y-3">
-      {phase === 'idle' && <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />}
+      {phase === 'idle' && <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />}
       {phase !== 'idle' && (
         <div className="space-y-1">
           {[

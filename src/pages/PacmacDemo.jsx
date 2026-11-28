@@ -7,7 +7,7 @@ import {
 } from '../lib/pacmacLogic'
 import { playPacmacSfx, isCoarsePointer, PACMAC_RULES_LINE } from '../lib/pacmacUi'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
@@ -150,7 +150,7 @@ export default function PacmacDemo() {
 
   return (
     <div ref={rootRef} className="scroll-mt-3 space-y-2" style={{ '--pacmac-reserve': coarse ? '292px' : '190px' }}>
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <div className="flex justify-center gap-6 font-pixel text-[10px]">
         <span className={cn('text-retro-p1', wins.X >= MATCH_TARGET && 'text-glow-p1')}>YOU {wins.X}</span>
         <span className="text-retro-dim">FIRST TO {MATCH_TARGET}</span>

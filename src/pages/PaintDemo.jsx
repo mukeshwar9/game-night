@@ -3,7 +3,7 @@ import PaintArena from '../components/PaintArena'
 import { usePaintControls } from '../hooks/usePaintControls'
 import { createState, step, computeAI, getWinner, AI_DIFFICULTIES, MATCH_SECONDS } from '../lib/paintLogic'
 import { sounds } from '../lib/sounds'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
@@ -82,7 +82,7 @@ export default function PaintDemo() {
 
   return (
     <div className="space-y-3">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={chooseLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={chooseLevel} />
       <PaintArena
         ref={arenaRef}
         grid={view.grid}

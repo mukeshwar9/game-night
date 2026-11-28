@@ -16,7 +16,7 @@ import {
 } from '../lib/battleshipLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
@@ -191,7 +191,7 @@ export default function BattleshipDemo() {
 
   return (
     <div className="space-y-4">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       {/* Status */}
       {phase === 'placing' && (
         <div className="text-center space-y-1">

@@ -1,6 +1,6 @@
 // @ts-check
 // The CPU levels every solo mode offers: the same three names, in the same
-// order, on every `CPU` chip row (CpuDifficultyChips). Each game keeps its own
+// order, on every `CPU` slider (DifficultySlider). Each game keeps its own
 // tuning table in its *Logic.js; this module only names the levels so a page
 // can show the picker without importing a game's whole bot.
 
