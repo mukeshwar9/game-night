@@ -58,6 +58,16 @@ export function dealPool(configs, supportsLocal, playerCount) {
   return configs.filter(cfg => canDeal(cfg, supportsLocal(cfg.type), playerCount)).map(cfg => cfg.type)
 }
 
+/**
+ * The night length to deal from a pool of `poolSize` games: `length` when the
+ * pool can fill it, else the longest NIGHT_LENGTHS entry it can (the shortest
+ * when it cannot fill any).
+ */
+export function fitLength(length, poolSize) {
+  const fits = NIGHT_LENGTHS.filter(n => n <= Math.min(length, poolSize))
+  return fits.length ? fits[fits.length - 1] : NIGHT_LENGTHS[0]
+}
+
 /** Fisher-Yates over a copy, with an injectable random source for tests. */
 export function shuffle(list, rng = Math.random) {
   const out = [...list]

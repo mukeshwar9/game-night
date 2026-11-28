@@ -17,7 +17,7 @@ import { recordPlay } from '../lib/analytics'
 import { recordRecentPlay } from '../lib/recentPlays'
 import {
   NIGHT_LENGTHS, DEFAULT_LENGTH, MIN_PLAYERS, MAX_PLAYERS, NAME_MAX,
-  defaultPlayers, cleanName, dealPool, dealGames, redealOne,
+  defaultPlayers, cleanName, dealPool, fitLength, dealGames, redealOne,
   createNight, currentGame, currentIndex, isFinished, setPhase, recordResult, undoResult,
   standings, champions, winnerOf, gamePoints, parseNight, serializeNight,
 } from '../lib/localNightLogic'
@@ -121,6 +121,13 @@ function Setup({ onStart }) {
   const redeal = (nextCount, nextLength) =>
     setGames(dealGames(dealPool(GAME_TYPES, supportsLocalPlay, nextCount), nextLength))
 
+  const pickCount = (n) => {
+    const nextLength = fitLength(length, dealPool(GAME_TYPES, supportsLocalPlay, n).length)
+    setCount(n)
+    setLength(nextLength)
+    redeal(n, nextLength)
+  }
+
   const start = () => {
     const players = defaultPlayers(count).map((p, i) => ({ ...p, name: cleanName(names[i], p.name) }))
     onStart(createNight({ players, games }))
@@ -136,7 +143,7 @@ function Setup({ onStart }) {
               key={n}
               type="button"
               aria-pressed={count === n}
-              onClick={() => { setCount(n); redeal(n, length) }}
+              onClick={() => pickCount(n)}
               className={chip(count === n)}
             >
               {n}
@@ -168,8 +175,9 @@ function Setup({ onStart }) {
               key={n}
               type="button"
               aria-pressed={length === n}
+              disabled={n > pool.length}
               onClick={() => { setLength(n); redeal(count, n) }}
-              className={chip(length === n)}
+              className={`${chip(length === n)} disabled:cursor-not-allowed disabled:opacity-40`}
             >
               {n}
             </button>
@@ -256,25 +264,31 @@ function WhoWon({ night, onPick }) {
   )
 }
 
+function LastResult({ night, onUndo }) {
+  const idx = currentIndex(night)
+  if (idx === 0) return null
+  const last = night.results[idx - 1]
+  const lastWinner = winnerOf(night, idx - 1)
+  const lastPts = gamePoints(night.players, last.winner).find(p => p.points > 0)?.points
+  return (
+    <p className="rounded border border-retro-border bg-retro-card px-3 py-2 text-center font-mono text-[11px] text-retro-dim" data-testid="night-last">
+      {getGameConfig(last.type).label}:{' '}
+      {lastWinner
+        ? <span className="text-retro-win">{lastWinner.name} won +{lastPts}</span>
+        : <span className="text-retro-text">a draw, +1 each</span>}
+      {' · '}
+      <button type="button" onClick={onUndo} className="min-h-11 px-1 text-retro-cta underline">UNDO</button>
+    </p>
+  )
+}
+
 function Intro({ night, onPlay, onSwap, onUndo }) {
   const idx = currentIndex(night)
   const type = currentGame(night)
   const cfg = getGameConfig(type)
-  const last = idx > 0 ? night.results[idx - 1] : null
-  const lastWinner = idx > 0 ? winnerOf(night, idx - 1) : null
-  const lastPts = last ? gamePoints(night.players, last.winner).find(p => p.points > 0)?.points : 0
   return (
     <div className="space-y-3" data-testid="night-intro">
-      {last && (
-        <p className="rounded border border-retro-border bg-retro-card px-3 py-2 text-center font-mono text-[11px] text-retro-dim" data-testid="night-last">
-          {getGameConfig(last.type).label}:{' '}
-          {lastWinner
-            ? <span className="text-retro-win">{lastWinner.name} won +{lastPts}</span>
-            : <span className="text-retro-text">a draw, +1 each</span>}
-          {' · '}
-          <button type="button" onClick={onUndo} className="min-h-11 px-1 text-retro-cta underline">UNDO</button>
-        </p>
-      )}
+      <LastResult night={night} onUndo={onUndo} />
       <section className="space-y-3 rounded border border-retro-border bg-retro-card p-4 text-center">
         <p className="font-pixel text-[8px] tracking-wider text-retro-dim">{idx === 0 ? 'FIRST GAME' : 'NEXT GAME'}</p>
         <div className="flex justify-center"><GameIcon cfg={cfg} size={48} /></div>
@@ -287,11 +301,12 @@ function Intro({ night, onPlay, onSwap, onUndo }) {
   )
 }
 
-function Finale({ night, onAgain }) {
+function Finale({ night, onAgain, onUndo }) {
   const rows = standings(night)
   const champs = champions(night)
   return (
     <div className="space-y-4" data-testid="night-finale">
+      <LastResult night={night} onUndo={onUndo} />
       <section className="space-y-2 rounded border border-retro-win bg-retro-card p-4 text-center shadow-neon-win">
         <p className="font-pixel text-[8px] tracking-wider text-retro-dim">{champs.length > 1 ? 'IT IS A TIE' : 'NIGHT CHAMPION'}</p>
         <div className="flex justify-center gap-2">
@@ -366,7 +381,7 @@ export default function LocalNight() {
               <StandingsStrip night={night} />
               <ProgressTrack night={night} />
 
-              {finished && <Finale night={night} onAgain={() => update(null)} />}
+              {finished && <Finale night={night} onAgain={() => update(null)} onUndo={() => update(undoResult(night))} />}
 
               {!finished && night.phase === 'intro' && (
                 <Intro

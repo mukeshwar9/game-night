@@ -17,8 +17,13 @@ test('deal a 5-game night for two, score it between games and crown a champion',
   await expect(page.getByLabel('Dealt games').getByRole('listitem')).toHaveCount(5)
 
   // Three players can only be dealt games that seat three.
+  await page.getByRole('button', { name: '10', exact: true }).click()
   await page.getByRole('button', { name: '3', exact: true }).first().click()
   await expect(page.getByLabel('Player 3 name')).toBeVisible()
+  await expect(page.getByRole('button', { name: '10', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '7', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByLabel('Dealt games').getByRole('listitem')).toHaveCount(7)
+  await page.getByRole('button', { name: '5', exact: true }).click()
   await page.getByRole('button', { name: '2', exact: true }).first().click()
   await page.getByLabel('Player 1 name').fill('Ana')
   await page.getByLabel('Player 2 name').fill('Ben')
@@ -52,6 +57,13 @@ test('deal a 5-game night for two, score it between games and crown a champion',
   await expect(page.getByTestId('night-champion')).toHaveText('Ana')
   await expect(page.getByTestId('night-strip-p1')).toContainText('10')
   await expect(page.getByTestId('night-strip-p2')).toContainText('4')
+
+  // The last game's result can still be taken back from the finale.
+  await page.getByTestId('night-last').getByRole('button', { name: 'UNDO' }).click()
+  await expect(page.getByTestId('night-judging')).toBeVisible()
+  await expect(page.getByTestId('night-strip-p1')).toContainText('7')
+  await page.getByTestId('night-winner-p1').click()
+  await expect(page.getByTestId('night-champion')).toHaveText('Ana')
 
   await page.getByTestId('night-again').click()
   await expect(page.getByTestId('night-setup')).toBeVisible()

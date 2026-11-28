@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { NIGHT_POINTS, DRAW_POINTS } from './nightLogic'
 import {
-  defaultPlayers, cleanName, canDeal, dealPool, shuffle, dealGames, redealOne,
+  defaultPlayers, cleanName, canDeal, dealPool, fitLength, shuffle, dealGames, redealOne,
   createNight, currentGame, currentIndex, isFinished, setPhase, recordResult, undoResult,
   gamePoints, standings, champions, winnerOf, parseNight, serializeNight,
   NIGHT_LENGTHS, NAME_MAX,
@@ -56,6 +56,15 @@ describe('dealing', () => {
     expect(canDeal(undefined, true, 2)).toBe(false)
     expect(dealPool(cfgs, local, 2)).toEqual(['ttt', 'quad', 'three'])
     expect(dealPool(cfgs, local, 4)).toEqual(['quad'])
+  })
+
+  it('fits the night length to the games the pool can deal', () => {
+    expect(fitLength(10, 8)).toBe(7)
+    expect(fitLength(7, 8)).toBe(7)
+    expect(fitLength(10, 30)).toBe(10)
+    expect(fitLength(5, 30)).toBe(5)
+    expect(fitLength(10, 6)).toBe(5)
+    expect(fitLength(7, 3)).toBe(5)
   })
 
   it('shuffle keeps every item and does not touch the input', () => {
