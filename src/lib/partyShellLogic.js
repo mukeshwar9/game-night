@@ -48,14 +48,15 @@ export function restoredShellView(raw) {
 }
 
 /**
- * The seated players whose camera is live, for the folded dots row (which has
- * no room for video) to point at.
+ * The other seated players whose camera is live, for the folded dots row
+ * (which has no room for video) to point at; the viewer's own preview is not news.
  * @param {{ uid: string | null, invite?: boolean }[]} tiles
  * @param {Record<string, { video?: unknown } | undefined> | undefined} statusFor
+ * @param {string | null | undefined} [myUid]
  * @returns {string[]}
  */
-export function liveVideoUids(tiles, statusFor) {
-  return tiles.filter(t => !t.invite && t.uid && statusFor?.[t.uid]?.video).map(t => /** @type {string} */ (t.uid))
+export function liveVideoUids(tiles, statusFor, myUid) {
+  return tiles.filter(t => !t.invite && t.uid && t.uid !== myUid && statusFor?.[t.uid]?.video).map(t => /** @type {string} */ (t.uid))
 }
 
 /**

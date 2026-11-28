@@ -386,6 +386,11 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     const restoreCam = state.cam === 'on'
     await leave()
     await join({ listenOnly: false })
+    if (!session) {
+      const error = state.error
+      await join({ listenOnly: true })
+      if (session && error) emit({ error })
+    }
     if (restoreCam && session) await startCamera()
   }
 

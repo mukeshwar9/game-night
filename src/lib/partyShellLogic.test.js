@@ -59,6 +59,11 @@ describe('view', () => {
     expect(liveVideoUids(tiles, { a: { video: {} }, b: { muted: true } })).toEqual(['a'])
     expect(liveVideoUids(tiles, undefined)).toEqual([])
   })
+  it('leaves the viewer\'s own camera out of the cue', () => {
+    const tiles = [{ uid: 'me' }, { uid: 'b' }]
+    expect(liveVideoUids(tiles, { me: { video: {} } }, 'me')).toEqual([])
+    expect(liveVideoUids(tiles, { me: { video: {} }, b: { video: {} } }, 'me')).toEqual(['b'])
+  })
 })
 
 describe('turnUid', () => {

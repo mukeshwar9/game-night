@@ -434,6 +434,18 @@ describe('voice controller', () => {
       expect(['connecting', 'connected']).toContain(ctl.getState().status)
     })
 
+    it('a failed rejoin with the mic goes back to listen only with the camera', async () => {
+      const f = fakeIo()
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.join({ listenOnly: true })
+      await ctl.startCamera({ everyone: true })
+      f.io.openSession.mockImplementationOnce(async () => { throw Object.assign(new Error('down'), { code: 'no-service' }) })
+      await ctl.enableMic()
+      expect(ctl.getState()).toMatchObject({ listenOnly: true, cam: 'on', error: 'no-service' })
+      expect(['connecting', 'connected']).toContain(ctl.getState().status)
+    })
+
     it('does nothing with the mic already on or outside voice', async () => {
       const f = fakeIo()
       const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })

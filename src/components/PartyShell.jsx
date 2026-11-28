@@ -202,7 +202,7 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
 
   const seated = tiles.filter(t => !t.invite)
   const statusOf = (t) => (t.uid ? statusFor?.[t.uid] : undefined)
-  const videoUids = liveVideoUids(tiles, statusFor)
+  const videoUids = liveVideoUids(tiles, statusFor, myUid)
 
   // The wrapper and the children's slot are identical whether or not the chrome
   // shows, so a room that flips between party and plain never remounts the game.
