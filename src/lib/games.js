@@ -1823,6 +1823,10 @@ export const GAME_TYPES = [
     durationMin: 12, tags: ['thinky', 'party'],
     custom: true, nPlayer: true, minPlayers: 3, maxPlayers: 8,
     Page: lazyWithRetry(() => import('../pages/ChameleonGame')),
+    // /local/chameleon: 3-8 people pass one phone round for the secret reveal.
+    localMaxPlayers: 8,
+    localBlurb: 'ONE PHONE · PASS IT ROUND FOR THE SECRET',
+    LocalPage: lazyWithRetry(() => import('../pages/ChameleonLocal')),
     // no startRound — ChameleonGame deals its own sealed rounds
   },
   {

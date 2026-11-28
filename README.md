@@ -93,7 +93,7 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 - **Fibbage** — bluff a believable answer *(3–8 players)*
 - **Spyfair** — find the spy among you *(3–8 players)*
 - **Heads Up** — act it out on the call *(3–8 players)*
-- **Chameleon** — blend in, or spot who can’t *(3–8 players)*
+- **Chameleon** — blend in, or spot who can’t *(3–8 players, online or on one phone)*
 - **Sketch** — draw & guess the word *(2–8 players)*
 - **Code Words** — team clues, hidden agents *(4–8 players)*
 - **Just One** — co-op clues, duplicates cancel *(3–8 players)*
