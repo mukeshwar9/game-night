@@ -6,7 +6,7 @@ import {
 const KNOB_PX = 30
 
 // Static class names so Tailwind sees them.
-const MOOD_TEXT = { win: 'text-retro-win', cta: 'text-retro-cta', p2: 'text-retro-p2', danger: 'text-retro-danger' }
+const MOOD_TEXT = { win: 'text-retro-win', cta: 'text-retro-cta', danger: 'text-retro-danger' }
 
 // A pixel face that gets grumpier with the mood (see difficultySliderLogic.js).
 // Ink is the page background colour, the face fill is the mood's theme colour.

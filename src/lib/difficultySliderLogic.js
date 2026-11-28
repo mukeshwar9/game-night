@@ -8,10 +8,10 @@
 export const FACE_SIZE = 12
 
 /** Mood 0 is the friendliest face, MOOD_COUNT - 1 the grumpiest. */
-export const MOOD_COUNT = 4
+export const MOOD_COUNT = 3
 
 /** Theme colour role behind each mood (a Tailwind `retro-*` token name). */
-export const MOOD_TOKENS = /** @type {const} */ (['win', 'cta', 'p2', 'danger'])
+export const MOOD_TOKENS = /** @type {const} */ (['win', 'cta', 'danger'])
 
 /** @type {Record<string, { label: string, blurb: string }>} */
 const LEVEL_COPY = {
@@ -92,13 +92,8 @@ const FEATURES = {
   0: [...EYES, { x: 3, y: 7 }, { x: 8, y: 7 }, { x: 4, y: 8 }, { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }],
   // Flat: eyes and a straight mouth.
   1: [...EYES, { x: 3, y: 8 }, { x: 4, y: 8 }, { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }, { x: 8, y: 8 }],
-  // Smirk: level brows, a mouth that lifts on one side.
-  2: [
-    ...EYES, { x: 3, y: 3 }, { x: 4, y: 3 }, { x: 7, y: 3 }, { x: 8, y: 3 },
-    { x: 4, y: 8 }, { x: 5, y: 8 }, { x: 6, y: 8 }, { x: 7, y: 8 }, { x: 8, y: 7 },
-  ],
   // Grumpy: brows slanting down to the middle and a frown.
-  3: [
+  2: [
     ...EYES, { x: 2, y: 2 }, { x: 3, y: 3 }, { x: 4, y: 3 }, { x: 9, y: 2 }, { x: 8, y: 3 }, { x: 7, y: 3 },
     { x: 4, y: 7 }, { x: 5, y: 7 }, { x: 6, y: 7 }, { x: 7, y: 7 }, { x: 3, y: 8 }, { x: 8, y: 8 },
   ],

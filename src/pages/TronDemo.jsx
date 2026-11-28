@@ -4,7 +4,7 @@ import { useTronControls } from '../hooks/useTronControls'
 import { createState, tick, computeAI, getWinner, TICK_MS } from '../lib/tronLogic'
 import { sounds } from '../lib/sounds'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../components/CpuDifficultyChips'
+import DifficultySlider from '../components/DifficultySlider'
 import useBotDifficulty from '../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
@@ -55,7 +55,7 @@ export default function TronDemo() {
 
   return (
     <div className="space-y-3">
-      <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+      <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       <TronArena
         ref={arenaRef}
         cycles={view.cycles}

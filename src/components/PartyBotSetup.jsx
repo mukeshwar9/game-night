@@ -1,7 +1,7 @@
 import Avatar from './Avatar'
 import { getPlayerId } from '../lib/playerId'
 import { defaultAvatarForId } from '../lib/avatarKit'
-import CpuDifficultyChips from './CpuDifficultyChips'
+import DifficultySlider from './DifficultySlider'
 import { BOT_LEVEL_IDS } from '../lib/botLevels'
 
 // Reads the local player's display avatar the same way NavBar/Home do — the
@@ -59,7 +59,7 @@ export default function PartyBotSetup({ title, blurb, botCount, onBotCount, rost
       </div>
 
       {onLevel && (
-        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={onLevel} note="HOW SHARP THE BOTS PLAY" />
+        <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={onLevel} note="HOW SHARP THE BOTS PLAY" />
       )}
 
       <div className="flex flex-wrap items-center justify-center gap-2">

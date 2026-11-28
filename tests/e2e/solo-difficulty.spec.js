@@ -1,6 +1,5 @@
-// Every solo CPU mode shows the shared EASY / NORMAL / HARD control (chips, or
-// the one-drag DifficultySlider on board games and the reaction / aim / typing
-// races), defaults to NORMAL and remembers the pick across a reload
+// Every solo CPU mode shows the shared EASY / NORMAL / HARD one-drag
+// DifficultySlider, defaults to NORMAL and remembers the pick across a reload
 // (bot-difficulty-<type>).
 import { test, expect } from '@playwright/test'
 
@@ -18,23 +17,11 @@ for (const type of WITH_CPU_ROW) {
     const row = page.getByRole('group', { name: 'CPU difficulty' })
     await expect(row).toBeVisible()
     const slider = row.getByRole('slider')
-    if (await slider.count()) {
-      await expect(slider).toHaveAttribute('aria-valuetext', 'normal')
-      await slider.fill('2')
-      await expect(slider).toHaveAttribute('aria-valuetext', 'hard')
-      await page.reload()
-      await expect(slider).toHaveAttribute('aria-valuetext', 'hard')
-    } else {
-      const chip = (level) => row.getByRole('button', { name: new RegExp(`^${level}`, 'i') })
-      await expect(chip('normal')).toHaveAttribute('aria-pressed', 'true')
-
-      await chip('hard').click()
-      await expect(chip('hard')).toHaveAttribute('aria-pressed', 'true')
-      await expect(chip('normal')).toHaveAttribute('aria-pressed', 'false')
-
-      await page.reload()
-      await expect(chip('hard')).toHaveAttribute('aria-pressed', 'true')
-    }
+    await expect(slider).toHaveAttribute('aria-valuetext', 'normal')
+    await slider.fill('2')
+    await expect(slider).toHaveAttribute('aria-valuetext', 'hard')
+    await page.reload()
+    await expect(slider).toHaveAttribute('aria-valuetext', 'hard')
     expect(await page.evaluate((t) => localStorage.getItem(`bot-difficulty-${t}`), type)).toBe('hard')
   })
 }
