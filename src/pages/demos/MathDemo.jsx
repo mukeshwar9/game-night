@@ -6,6 +6,9 @@ import {
 } from '../../lib/mathLogic'
 import { cn } from '@/lib/utils'
 import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import IntroCard from '../../components/IntroCard'
+import useOwnSeat from '../../hooks/useOwnSeat'
+import { introSeats } from '../../lib/introCardLogic'
 import useBotDifficulty from '../../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../../lib/botLevels'
 import { mathBot, rollBetween } from '../../lib/soloBotLevels'
@@ -20,6 +23,7 @@ const DEMO_MATH_S = DEMO_CONFIG.durationSeconds
 export default function MathDemo() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e9))
   const [level, setLevel] = useBotDifficulty('math', BOT_LEVEL_IDS)
+  const me = useOwnSeat()
 
   const [phase, setPhase]           = useState('idle')
   const [cdSec, setCdSec]           = useState(3)
@@ -222,20 +226,19 @@ export default function MathDemo() {
 
   if (phase === 'idle') {
     return (
-      <div className="space-y-4 text-center">
+      <IntroCard
+        hideTitle
+        gameType="math"
+        seats={introSeats(me, [{ id: 'bot', name: 'BOT' }])}
+        meta={`1 player vs a bot · ${DEMO_MATH_S} sec`}
+        onPlay={() => setPhase('countdown')}
+      >
         <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
-        <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-left">
+        <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-center">
           <p>● FIRST CORRECT ANSWER WINS THE ROUND</p>
-          <p>⚡ POWER QUESTIONS · 2× POINTS</p>
-          <p>🔥 3 IN A ROW = DOUBLE MULTIPLIER</p>
           <p>✗ WRONG ANSWERS RESET YOUR STREAK — SCORE NEVER DROPS</p>
-          <p>⏱ {DEMO_MATH_S}-SECOND PRACTICE · SAME SCORER AS THE RACE</p>
         </div>
-        <button onClick={() => setPhase('countdown')}
-          className="px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta press">
-          START
-        </button>
-      </div>
+      </IntroCard>
     )
   }
 
