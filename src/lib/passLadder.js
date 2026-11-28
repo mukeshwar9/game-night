@@ -26,8 +26,8 @@ export const PASS_LADDER = [
 /** The step that starts selected: the one marked best value. */
 export const DEFAULT_LADDER_STEP = 'yearly'
 
-/** Months a recurring step covers, for the per-month line; forever has none. */
-const MONTHS = { monthly: 1, yearly: 12 }
+/** Months the yearly step covers, for its per-month line. */
+const MONTHS_IN_YEAR = 12
 
 /** @param {number} rupees */
 export function formatRupees(rupees) {
@@ -49,7 +49,7 @@ export function priceLine(step) {
  */
 export function perMonthNote(step) {
   if (step.id !== 'yearly') return null
-  return `about ${formatRupees(step.rupees / MONTHS.yearly)} a month`
+  return `about ${formatRupees(step.rupees / MONTHS_IN_YEAR)} a month`
 }
 
 /**
@@ -57,7 +57,7 @@ export function perMonthNote(step) {
  * @returns {LadderStep}
  */
 export function ladderStep(id) {
-  return PASS_LADDER.find((s) => s.id === id) ?? PASS_LADDER[1]
+  return PASS_LADDER.find((s) => s.id === id) ?? PASS_LADDER.find((s) => s.id === DEFAULT_LADDER_STEP)
 }
 
 /**

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { backDestination } from '../../lib/backNavLogic'
 import { DEFAULT_LADDER_STEP, PASS_LADDER, ladderStep, perMonthNote, priceLine } from '../../lib/passLadder'
 
 // One price screen: monthly, yearly (BEST VALUE) and forever, in rupees.
@@ -8,11 +9,12 @@ import { DEFAULT_LADDER_STEP, PASS_LADDER, ladderStep, perMonthNote, priceLine }
 // nothing here touches checkout.
 export default function PassPriceLadder() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [picked, setPicked] = useState(DEFAULT_LADDER_STEP)
   const step = ladderStep(picked)
 
   const close = () => {
-    if (window.history.length > 1) navigate(-1)
+    if (backDestination(location) === 'history') navigate(-1)
     else navigate('/')
   }
 
