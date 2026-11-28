@@ -246,6 +246,20 @@ describe('voice controller', () => {
       expect(ctl.getState()).toMatchObject({ cam: 'off', status: 'off', error: 'age-required' })
     })
 
+    it('outside voice, a join the camera opened does not count as seeing the voice intro', async () => {
+      const f = fakeIo()
+      const stored = []
+      globalThis.localStorage.setItem = (k) => stored.push(k)
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.startCamera()
+      expect(ctl.getState()).toMatchObject({ cam: 'on', listenOnly: true, seenIntro: false })
+      expect(stored).toEqual([])
+      await ctl.enableMic()
+      expect(ctl.getState()).toMatchObject({ listenOnly: false, seenIntro: true })
+      expect(stored).toEqual(['gn-voice-intro-seen'])
+    })
+
     it('outside voice, a blocked camera leaves the listen-only session it opened', async () => {
       const f = fakeIo({ cameraDenied: true })
       const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })

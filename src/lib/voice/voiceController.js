@@ -216,11 +216,11 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     const joinedForCam = !session
     if (joinedForCam) {
       if (state.status === 'joining') return
-      await join({ listenOnly: true })
+      await join({ listenOnly: true, fromCamera: true })
       if (!session || state.cam !== 'off') return
     }
     const fail = async (camError) => {
-      if (joinedForCam && session) await leave()
+      if (joinedForCam && session) { intent = null; await leave() }
       emit({ cam: 'off', camError })
     }
     emit({ cam: 'starting', camError: null, ...(typeof everyone === 'boolean' ? { camAll: everyone } : {}) })
@@ -318,7 +318,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
   // taps the mic to talk. A rejoin after the app was in the background keeps
   // whatever the player had (`keepMute`), so a short app switch doesn't
   // silently mute someone mid-sentence or open a mic they had closed.
-  async function join({ listenOnly = false, keepMute = false } = {}) {
+  async function join({ listenOnly = false, keepMute = false, fromCamera = false } = {}) {
     if (!state.available || session || state.status === 'joining') return
     emit({ error: null, status: 'joining' })
     io.resumeAudio()
@@ -374,8 +374,10 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     const muted = s.listenOnly || (keepMute ? state.muted : true)
     s.setMuted(muted)
     io.setMusicBlock('voice', pcStatus !== 'failed' && pcStatus !== 'reconnecting')
-    try { localStorage.setItem(FIRST_USE_KEY, '1') } catch { /* private mode */ }
-    emit({ listenOnly: s.listenOnly, muted, error, seenIntro: true, status: pcStatus })
+    if (!fromCamera) {
+      try { localStorage.setItem(FIRST_USE_KEY, '1') } catch { /* private mode */ }
+    }
+    emit({ listenOnly: s.listenOnly, muted, error, status: pcStatus, ...(fromCamera ? {} : { seenIntro: true }) })
     if (io.hasDb) io.publish({ on: true, muted, at: Date.now() }).catch(() => {})
     startSpeaking()
     startLinkMonitor()

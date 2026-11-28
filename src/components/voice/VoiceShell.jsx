@@ -54,6 +54,10 @@ export default function VoiceShell({ gameId, ...shellProps }) {
     actions.join({ listenOnly: false })
   }
   const joining = state.status === 'joining'
+  const enableMic = () => {
+    if (!state.seenIntro) { setSheet('intro-mic'); return }
+    actions.enableMic()
+  }
 
   const startCamera = (opts = {}) => {
     setPendingCam(live ? null : opts)
@@ -96,7 +100,7 @@ export default function VoiceShell({ gameId, ...shellProps }) {
       ) : (
         <button
           type="button"
-          onClick={actions.enableMic}
+          onClick={enableMic}
           aria-label="Listening only. Turn on microphone"
           data-testid="voice-listen-only"
           className={cn(BTN, 'border-retro-border bg-retro-card text-retro-dim')}
@@ -151,6 +155,7 @@ export default function VoiceShell({ gameId, ...shellProps }) {
     <>
       <PartyShell {...shellProps} statusFor={statusFor} onPerson={onPerson} trailing={mic} notice={notice} />
       {sheet === 'intro' && <IntroSheet onClose={() => setSheet(null)} onJoin={(listenOnly) => { setSheet(null); actions.join({ listenOnly }) }} />}
+      {sheet === 'intro-mic' && <IntroSheet onClose={() => setSheet(null)} onJoin={(listenOnly) => { setSheet(null); if (!listenOnly) actions.enableMic() }} />}
       {sheet === 'age' && (
         <AgeSheet
           onClose={() => setSheet(null)}
@@ -180,6 +185,7 @@ export default function VoiceShell({ gameId, ...shellProps }) {
           voice={voice}
           live={live}
           isHost={hostUidOf(game) === me}
+          onEnableMic={enableMic}
           onClose={() => setSheet(null)}
         />
       )}
@@ -262,7 +268,7 @@ function CameraSheet({ initialEveryone, joinsVoice, onClose, onStart }) {
   )
 }
 
-function SelfSheet({ gameId, game, voice, live, isHost, onClose }) {
+function SelfSheet({ gameId, game, voice, live, isHost, onEnableMic, onClose }) {
   const { state, actions } = voice
   const [busy, run] = useBusy()
   const camerasOff = game?.camerasOff === true
@@ -275,7 +281,7 @@ function SelfSheet({ gameId, game, voice, live, isHost, onClose }) {
     <BottomSheet onClose={onClose} ariaLabel="Your voice and video" className="bg-retro-card space-y-3">
       <h2 className="font-pixel text-xs text-retro-cta">YOU</h2>
       {live && state.listenOnly && (
-        <button type="button" onClick={() => { onClose(); actions.enableMic() }} data-testid="self-enable-mic" className={cn(row, 'border-retro-cta text-retro-cta')}>
+        <button type="button" onClick={() => { onClose(); onEnableMic() }} data-testid="self-enable-mic" className={cn(row, 'border-retro-cta text-retro-cta')}>
           LISTENING ONLY · TURN ON MIC
         </button>
       )}
