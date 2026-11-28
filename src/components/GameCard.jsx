@@ -174,13 +174,16 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           {isLoading ? (
             <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
           ) : (
+            <>
+            {/* Own line: inline in the one-line truncated meta, the tag ate
+                the players · duration text on a 360-390 px phone. */}
+            {tag && <span className="block mt-1 leading-none"><CardTag tag={tag} className="inline-block" /></span>}
             <span className="block font-mono text-[10px] text-retro-dim mt-0.5 truncate">
-              {tag && <CardTag tag={tag} className="mr-1.5 align-middle" />}
-              {' '}
               <span className={game.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(game)}</span>
               {game.durationMin != null && ` · ~${game.durationMin} min`}
               <span className="hidden sm:inline"> · {desc}</span>
             </span>
+            </>
           )}
         </span>
       </button>
