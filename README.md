@@ -183,6 +183,7 @@ Firebase Realtime Database holds every room at `games/{gameId}`; security rules 
 - **Resilience** — seat reclaim by uid, pending-move confirmation, a banner when the server is unreachable, LEAVE lets the opponent claim at once, dropped players never stall party rounds
 - **PWA** — installable, offline home screen, UPDATE READY banner instead of mid-game auto-reload
 - **Solo practice** — `/demo` runs local vs-AI versions with difficulty levels, no Firebase needed
+- **One phone** — the Home screen's ONE PHONE door (`/one-phone`) asks how many are playing (2/3/4/5+) and lists only the games that run on one shared phone for that count (`src/lib/onePhoneLogic.js`)
 
 ## Security
 
