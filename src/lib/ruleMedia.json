@@ -82,7 +82,7 @@
         "src/lib/soloBotLevels.js",
         "src/pages/demos/AimTrainerDemo.jsx"
       ],
-      "sourceHash": "38ea401dc1db",
+      "sourceHash": "665432916693",
       "assetHash": "efc32f220e54"
     },
     "airhockey": {
@@ -154,8 +154,8 @@
         }
       ],
       "bytes": {
-        "light": 39429,
-        "dark": 34595
+        "light": 38789,
+        "dark": 34895
       },
       "sources": [
         "src/components/AirHockeyTable.jsx",
@@ -171,8 +171,8 @@
         "src/lib/sounds.js",
         "src/pages/AirHockeyDemo.jsx"
       ],
-      "sourceHash": "704394d150e7",
-      "assetHash": "d2e4d5581de8"
+      "sourceHash": "0f35010e66dc",
+      "assetHash": "d04000587bc5"
     },
     "animalstack": {
       "w": 196,
@@ -371,7 +371,7 @@
       "dpr": 1
     },
     "artillery": {
-      "w": 232,
+      "w": 194,
       "h": 340,
       "steps": [
         {
@@ -382,7 +382,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 232,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
@@ -391,7 +391,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 232,
+            "w": 194,
             "h": 340
           }
         },
@@ -399,20 +399,20 @@
           "cap": 1,
           "box": {
             "x": 1.098901098901099,
-            "y": 81.72490619136961,
+            "y": 84.58761867088607,
             "w": 97.8021978021978,
-            "h": 8.25515947467167
+            "h": 6.962025316455696
           },
-          "w": 232,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
               "x": 1.098901098901099,
-              "y": 81.72490619136961,
+              "y": 84.58761867088607,
               "w": 97.8021978021978,
-              "h": 8.25515947467167
+              "h": 6.962025316455696
             },
-            "w": 232,
+            "w": 194,
             "h": 340
           }
         },
@@ -420,31 +420,31 @@
           "cap": 1,
           "box": {
             "x": 1.098901098901099,
-            "y": 81.72490619136961,
+            "y": 84.58761867088607,
             "w": 97.8021978021978,
-            "h": 8.25515947467167
+            "h": 6.962025316455696
           },
-          "w": 232,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
               "x": 1.098901098901099,
-              "y": 81.72490619136961,
+              "y": 84.58761867088607,
               "w": 97.8021978021978,
-              "h": 8.25515947467167
+              "h": 6.962025316455696
             },
-            "w": 232,
+            "w": 194,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 67021,
-        "dark": 46343
+        "light": 47347,
+        "dark": 41368
       },
       "sources": [
         "src/components/ArtilleryArena.jsx",
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/artilleryBot.js",
@@ -452,6 +452,7 @@
         "src/lib/audioContext.js",
         "src/lib/botLevels.js",
         "src/lib/detMath.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/platform.js",
@@ -459,8 +460,8 @@
         "src/lib/sounds.js",
         "src/pages/ArtilleryDemo.jsx"
       ],
-      "sourceHash": "796e87006e04",
-      "assetHash": "110c7eb2ade7"
+      "sourceHash": "c9398defdd1c",
+      "assetHash": "c2b5e72b62a2"
     },
     "ataxx": {
       "w": 178,
@@ -640,31 +641,31 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9d780429d542",
+      "sourceHash": "6c2e1445858c",
       "assetHash": "0019d83f69c7"
     },
     "battleship": {
-      "w": 150,
+      "w": 134,
       "h": 340,
       "steps": [
         {
           "cap": "objective",
           "box": {
             "x": 34.43080357142857,
-            "y": 89.24665856622114,
+            "y": 90.40130151843817,
             "w": 31.138392857142858,
-            "h": 4.0097205346294045
+            "h": 3.579175704989154
           },
-          "w": 150,
+          "w": 134,
           "h": 340,
           "dark": {
             "box": {
               "x": 34.43080357142857,
-              "y": 89.24665856622114,
+              "y": 90.40130151843817,
               "w": 31.138392857142858,
-              "h": 4.0097205346294045
+              "h": 3.579175704989154
             },
-            "w": 150,
+            "w": 134,
             "h": 340
           }
         },
@@ -676,7 +677,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 194,
+          "w": 168,
           "h": 340,
           "dark": {
             "box": {
@@ -685,7 +686,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 194,
+            "w": 168,
             "h": 340
           }
         },
@@ -693,32 +694,32 @@
           "cap": 2,
           "box": {
             "x": 6.043956043956044,
-            "y": 30.173775671406002,
+            "y": 39.61748633879781,
             "w": 8.791208791208792,
-            "h": 5.055292259083728
+            "h": 4.371584699453552
           },
-          "w": 194,
+          "w": 168,
           "h": 340,
           "dark": {
             "box": {
               "x": 6.043956043956044,
-              "y": 30.173775671406002,
+              "y": 39.61748633879781,
               "w": 8.791208791208792,
-              "h": 5.055292259083728
+              "h": 4.371584699453552
             },
-            "w": 194,
+            "w": 168,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 61330,
-        "dark": 46779
+        "light": 43013,
+        "dark": 41071
       },
       "sources": [
         "src/components/BattleshipBoard.jsx",
         "src/components/BattleshipTabs.jsx",
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/ZoomViewport.jsx",
         "src/hooks/useBattleshipView.js",
         "src/hooks/useBoardCamera.js",
@@ -731,6 +732,7 @@
         "src/lib/boardCameraLogic.js",
         "src/lib/botLevels.js",
         "src/lib/commit.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/platform.js",
@@ -739,8 +741,8 @@
         "src/lib/sounds.js",
         "src/pages/BattleshipDemo.jsx"
       ],
-      "sourceHash": "1c8bd07d4340",
-      "assetHash": "a2744377c020"
+      "sourceHash": "2ce6e37e057d",
+      "assetHash": "2ccf97c3447d"
     },
     "blockade": {
       "w": 162,
@@ -922,7 +924,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "16f1697ab61e",
+      "sourceHash": "36a0765a754d",
       "assetHash": "aa481ab1dc31"
     },
     "breakthrough": {
@@ -1103,7 +1105,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "4bc364a167c1",
+      "sourceHash": "bf799d227d19",
       "assetHash": "8a2f797ceb71"
     },
     "chainreaction": {
@@ -1284,7 +1286,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0e5c5b1bbff5",
+      "sourceHash": "22bae91093f7",
       "assetHash": "42a0e55820bd"
     },
     "chainreaction6": {
@@ -1465,11 +1467,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "0e5c5b1bbff5",
+      "sourceHash": "22bae91093f7",
       "assetHash": "9ccba0279ab1"
     },
     "checkers": {
-      "w": 232,
+      "w": 194,
       "h": 340,
       "steps": [
         {
@@ -1480,7 +1482,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 232,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
@@ -1489,7 +1491,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 232,
+            "w": 194,
             "h": 340
           }
         },
@@ -1497,20 +1499,20 @@
           "cap": 1,
           "box": {
             "x": 13.907967032967033,
-            "y": 55.25328330206379,
+            "y": 62.2626582278481,
             "w": 11.572802197802197,
-            "h": 7.9033771106941835
+            "h": 6.665348101265823
           },
-          "w": 232,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
               "x": 13.907967032967033,
-              "y": 55.25328330206379,
+              "y": 62.2626582278481,
               "w": 11.572802197802197,
-              "h": 7.9033771106941835
+              "h": 6.665348101265823
             },
-            "w": 232,
+            "w": 194,
             "h": 340
           }
         },
@@ -1518,31 +1520,31 @@
           "cap": 1,
           "box": {
             "x": 13.907967032967033,
-            "y": 55.25328330206379,
+            "y": 62.2626582278481,
             "w": 11.572802197802197,
-            "h": 7.9033771106941835
+            "h": 6.665348101265823
           },
-          "w": 232,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
               "x": 13.907967032967033,
-              "y": 55.25328330206379,
+              "y": 62.2626582278481,
               "w": 11.572802197802197,
-              "h": 7.9033771106941835
+              "h": 6.665348101265823
             },
-            "w": 232,
+            "w": 194,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 93880,
-        "dark": 71517
+        "light": 68895,
+        "dark": 61311
       },
       "sources": [
         "src/components/CheckersBoard.jsx",
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
@@ -1550,6 +1552,7 @@
         "src/lib/botLevels.js",
         "src/lib/checkersBot.js",
         "src/lib/checkersLogic.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/platform.js",
@@ -1557,8 +1560,8 @@
         "src/lib/sounds.js",
         "src/pages/CheckersDemo.jsx"
       ],
-      "sourceHash": "bf174c3d9e60",
-      "assetHash": "d72a0687426a"
+      "sourceHash": "e5e0f6c53eee",
+      "assetHash": "5dcdc7348af4"
     },
     "chimp": {
       "w": 250,
@@ -1863,7 +1866,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1e3a2734e11e",
+      "sourceHash": "58e902745d5d",
       "assetHash": "3e066672f517"
     },
     "connectfour": {
@@ -2083,7 +2086,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "3f0f3e5c9b07",
+      "sourceHash": "bbfcb88e66f4",
       "assetHash": "fdba1dcddea4"
     },
     "connectfourpop": {
@@ -2264,7 +2267,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "3f0f3e5c9b07",
+      "sourceHash": "bbfcb88e66f4",
       "assetHash": "f64ff140d408"
     },
     "dice": {
@@ -2443,7 +2446,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "841b409fddc5",
+      "sourceHash": "3ce9ed2c277b",
       "assetHash": "bafc9fc46ab9"
     },
     "dice-big": {
@@ -2622,7 +2625,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "841b409fddc5",
+      "sourceHash": "3ce9ed2c277b",
       "assetHash": "b3f55ab9296f"
     },
     "dotsandboxes": {
@@ -2803,7 +2806,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9d466e528443",
+      "sourceHash": "4c19fd012bcd",
       "assetHash": "e0735114437c"
     },
     "dotsandboxes4": {
@@ -2984,7 +2987,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9d466e528443",
+      "sourceHash": "4c19fd012bcd",
       "assetHash": "de1c482a7238"
     },
     "fibbage": {
@@ -3061,7 +3064,7 @@
       },
       "sources": [
         "src/components/Avatar.jsx",
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/PartyBotSetup.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
@@ -3081,6 +3084,7 @@
         "src/lib/decks/spyfair.js",
         "src/lib/decks/spyfairChat.js",
         "src/lib/decks/wavelength.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/features.js",
         "src/lib/fibbageLogic.js",
@@ -3106,7 +3110,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/FibbageDemo.jsx"
       ],
-      "sourceHash": "50edc99ac465",
+      "sourceHash": "27cedb1a4d02",
       "assetHash": "da94206dd86d"
     },
     "gomoku": {
@@ -3328,11 +3332,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "b4b9ef8ca0cb",
+      "sourceHash": "bee7610faf86",
       "assetHash": "24ce1dab8c88"
     },
     "hangwoman": {
-      "w": 152,
+      "w": 192,
       "h": 340,
       "steps": [
         {
@@ -3343,7 +3347,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 152,
+          "w": 192,
           "h": 340,
           "dark": {
             "box": {
@@ -3352,7 +3356,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 164,
+            "w": 192,
             "h": 340
           }
         },
@@ -3364,7 +3368,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 154,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
@@ -3373,7 +3377,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 166,
+            "w": 194,
             "h": 340
           }
         },
@@ -3385,7 +3389,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 154,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
@@ -3394,17 +3398,17 @@
               "w": 98,
               "h": 98
             },
-            "w": 166,
+            "w": 194,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 26057,
-        "dark": 37975
+        "light": 59082,
+        "dark": 46185
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/HangmanGallows.jsx",
         "src/components/LetterKeyboard.jsx",
         "src/components/MatchScoreRail.jsx",
@@ -3422,6 +3426,7 @@
         "src/lib/commonWords.js",
         "src/lib/decks/wordAllowList.js",
         "src/lib/dictionary.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/fibbageLogic.js",
         "src/lib/hangmanLogic.js",
@@ -3444,9 +3449,8 @@
         "src/lib/wordraceLogic.js",
         "src/pages/HangmanDemo.jsx"
       ],
-      "sourceHash": "2ad8250290f1",
-      "assetHash": "9b60b313fc5b",
-      "dpr": 1
+      "sourceHash": "d9cbc8d1a5cb",
+      "assetHash": "b1a0ce636645"
     },
     "herd": {
       "w": 288,
@@ -3724,7 +3728,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "7d5b274ca542",
+      "sourceHash": "c3f4f0234f96",
       "assetHash": "aeea89f98433"
     },
     "kamisado": {
@@ -3905,7 +3909,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "270500d7b6c6",
+      "sourceHash": "09f152de178f",
       "assetHash": "2fded02af5ce"
     },
     "loa": {
@@ -4086,7 +4090,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "961149b349ce",
+      "sourceHash": "a070ec2ae1d6",
       "assetHash": "c5726614d72e"
     },
     "numbermemory": {
@@ -4391,7 +4395,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f74c0885329a",
+      "sourceHash": "8614d3b82691",
       "assetHash": "97f769906b92"
     },
     "orderchaos": {
@@ -4571,11 +4575,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "abe022c7955d",
+      "sourceHash": "8f12bf34a367",
       "assetHash": "b47560592daa"
     },
     "pacmac": {
-      "w": 174,
+      "w": 152,
       "h": 340,
       "steps": [
         {
@@ -4586,7 +4590,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 174,
+          "w": 152,
           "h": 340,
           "dark": {
             "box": {
@@ -4595,7 +4599,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 174,
+            "w": 152,
             "h": 340
           }
         },
@@ -4607,7 +4611,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 176,
+          "w": 152,
           "h": 340,
           "dark": {
             "box": {
@@ -4616,7 +4620,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 174,
+            "w": 152,
             "h": 340
           }
         },
@@ -4628,7 +4632,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 174,
+          "w": 152,
           "h": 340,
           "dark": {
             "box": {
@@ -4637,17 +4641,17 @@
               "w": 98,
               "h": 98
             },
-            "w": 176,
+            "w": 152,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 54537,
-        "dark": 45442
+        "light": 38752,
+        "dark": 40716
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/PacmacArena.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/hooks/useFocusArena.js",
@@ -4656,6 +4660,7 @@
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/pacmacLogic.js",
@@ -4665,12 +4670,12 @@
         "src/lib/sounds.js",
         "src/pages/PacmacDemo.jsx"
       ],
-      "sourceHash": "b35b12f9a2a6",
-      "assetHash": "83eebee31dbb"
+      "sourceHash": "cec3fc752cb0",
+      "assetHash": "85a5f0d28b90"
     },
     "paint": {
-      "w": 224,
-      "h": 338,
+      "w": 190,
+      "h": 340,
       "steps": [
         {
           "cap": "objective",
@@ -4680,8 +4685,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 224,
-          "h": 338,
+          "w": 190,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -4689,8 +4694,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 224,
-            "h": 338
+            "w": 190,
+            "h": 340
           }
         },
         {
@@ -4701,8 +4706,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 224,
-          "h": 338,
+          "w": 190,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -4710,8 +4715,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 224,
-            "h": 338
+            "w": 190,
+            "h": 340
           }
         },
         {
@@ -4722,8 +4727,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 224,
-          "h": 338,
+          "w": 190,
+          "h": 340,
           "dark": {
             "box": {
               "x": 1,
@@ -4731,23 +4736,24 @@
               "w": 98,
               "h": 98
             },
-            "w": 224,
-            "h": 338
+            "w": 190,
+            "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 49838,
-        "dark": 44444
+        "light": 51278,
+        "dark": 40402
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/PaintArena.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/hooks/usePaintControls.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/paintLogic.js",
@@ -4756,8 +4762,8 @@
         "src/lib/sounds.js",
         "src/pages/PaintDemo.jsx"
       ],
-      "sourceHash": "1454f6668433",
-      "assetHash": "ebb408ec8700"
+      "sourceHash": "0cbbdc50ead2",
+      "assetHash": "134c943eff84"
     },
     "pairs": {
       "w": 178,
@@ -4941,7 +4947,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1f0dc3acd8b3",
+      "sourceHash": "07b11d361b91",
       "assetHash": "2c7934c7307f"
     },
     "pairs4": {
@@ -5126,7 +5132,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1f0dc3acd8b3",
+      "sourceHash": "07b11d361b91",
       "assetHash": "b3320a587486"
     },
     "quarto": {
@@ -5306,7 +5312,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "a9859bcf3db6",
+      "sourceHash": "75a3e9f15958",
       "assetHash": "5c809ea92d69"
     },
     "reaction": {
@@ -5391,7 +5397,7 @@
         "src/lib/soloBotLevels.js",
         "src/pages/demos/ReactionDemo.jsx"
       ],
-      "sourceHash": "a0213ee97e3d",
+      "sourceHash": "3ba3edd49b88",
       "assetHash": "57dd61e098a8"
     },
     "reversi": {
@@ -5610,7 +5616,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "bf4d42f90187",
+      "sourceHash": "b5b3089c1d7e",
       "assetHash": "b7a5312ac893"
     },
     "sim": {
@@ -5790,7 +5796,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "2169cf28f6d1",
+      "sourceHash": "bc5632e4cd84",
       "assetHash": "c36a829dca91"
     },
     "simon": {
@@ -6095,11 +6101,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "a10d4f882f47",
+      "sourceHash": "87f80a60b43e",
       "assetHash": "7d9999cf3604"
     },
     "spaceduel": {
-      "w": 206,
+      "w": 176,
       "h": 340,
       "steps": [
         {
@@ -6110,7 +6116,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 206,
+          "w": 176,
           "h": 340,
           "dark": {
             "box": {
@@ -6119,7 +6125,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 206,
+            "w": 176,
             "h": 340
           }
         },
@@ -6131,7 +6137,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 206,
+          "w": 176,
           "h": 340,
           "dark": {
             "box": {
@@ -6140,7 +6146,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 206,
+            "w": 176,
             "h": 340
           }
         },
@@ -6152,7 +6158,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 206,
+          "w": 176,
           "h": 340,
           "dark": {
             "box": {
@@ -6161,23 +6167,24 @@
               "w": 98,
               "h": 98
             },
-            "w": 206,
+            "w": 176,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 66561,
-        "dark": 47115
+        "light": 46446,
+        "dark": 39864
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/SpaceduelArena.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/hooks/useSpaceduelControls.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/platform.js",
@@ -6186,8 +6193,8 @@
         "src/lib/spaceduelLogic.js",
         "src/pages/SpaceduelDemo.jsx"
       ],
-      "sourceHash": "979febc6c64f",
-      "assetHash": "9dbf9c5c04f6"
+      "sourceHash": "92c1abf6d08b",
+      "assetHash": "d60fe07117f1"
     },
     "spyfair": {
       "w": 364,
@@ -6263,7 +6270,7 @@
       },
       "sources": [
         "src/components/Avatar.jsx",
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/PartyBotSetup.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
@@ -6282,6 +6289,7 @@
         "src/lib/decks/spyfair.js",
         "src/lib/decks/spyfairChat.js",
         "src/lib/decks/wavelength.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/features.js",
         "src/lib/fibbageLogic.js",
@@ -6308,11 +6316,11 @@
         "src/lib/wordDenylist.js",
         "src/pages/SpyfairDemo.jsx"
       ],
-      "sourceHash": "308910317dfc",
+      "sourceHash": "494c34f257f0",
       "assetHash": "c8e43764d1cd"
     },
     "sumo": {
-      "w": 214,
+      "w": 182,
       "h": 340,
       "steps": [
         {
@@ -6323,7 +6331,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 214,
+          "w": 182,
           "h": 340,
           "dark": {
             "box": {
@@ -6332,7 +6340,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 214,
+            "w": 182,
             "h": 340
           }
         },
@@ -6344,7 +6352,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 214,
+          "w": 182,
           "h": 340,
           "dark": {
             "box": {
@@ -6353,7 +6361,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 214,
+            "w": 182,
             "h": 340
           }
         },
@@ -6365,7 +6373,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 224,
+          "w": 190,
           "h": 340,
           "dark": {
             "box": {
@@ -6374,17 +6382,17 @@
               "w": 98,
               "h": 98
             },
-            "w": 224,
+            "w": 190,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 89395,
-        "dark": 66878
+        "light": 53742,
+        "dark": 48673
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/SumoArena.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/hooks/useSumoControls.js",
@@ -6392,6 +6400,7 @@
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/platform.js",
@@ -6400,8 +6409,8 @@
         "src/lib/sumoLogic.js",
         "src/pages/SumoDemo.jsx"
       ],
-      "sourceHash": "0a2df4989c70",
-      "assetHash": "6d6396b63d6c"
+      "sourceHash": "3df7d6e2a472",
+      "assetHash": "f4b9a8130813"
     },
     "tictactoe": {
       "w": 316,
@@ -6482,8 +6491,8 @@
       "assetHash": "daec1215bfc4"
     },
     "trivia": {
-      "w": 314,
-      "h": 340,
+      "w": 364,
+      "h": 288,
       "steps": [
         {
           "cap": "objective",
@@ -6493,8 +6502,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 314,
-          "h": 340,
+          "w": 364,
+          "h": 288,
           "dark": {
             "box": {
               "x": 1,
@@ -6502,8 +6511,8 @@
               "w": 98,
               "h": 98
             },
-            "w": 314,
-            "h": 340
+            "w": 364,
+            "h": 306
           }
         },
         {
@@ -6536,7 +6545,7 @@
             "h": 98
           },
           "w": 364,
-          "h": 288,
+          "h": 306,
           "dark": {
             "box": {
               "x": 1,
@@ -6550,16 +6559,17 @@
         }
       ],
       "bytes": {
-        "light": 82771,
-        "dark": 45580
+        "light": 64034,
+        "dark": 40611
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/botLevels.js",
         "src/lib/decks/trivia.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/fibbageLogic.js",
         "src/lib/haptics.js",
@@ -6575,11 +6585,11 @@
         "src/lib/wordDenylist.js",
         "src/pages/TriviaDemo.jsx"
       ],
-      "sourceHash": "78dca2af9887",
-      "assetHash": "9140a6947b9d"
+      "sourceHash": "0f0b9a0081cc",
+      "assetHash": "ec34bb9962de"
     },
     "tron": {
-      "w": 238,
+      "w": 200,
       "h": 340,
       "steps": [
         {
@@ -6590,7 +6600,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 238,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
@@ -6599,7 +6609,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 238,
+            "w": 200,
             "h": 340
           }
         },
@@ -6611,7 +6621,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 238,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
@@ -6620,7 +6630,7 @@
               "w": 98,
               "h": 98
             },
-            "w": 238,
+            "w": 200,
             "h": 340
           }
         },
@@ -6632,7 +6642,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 238,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
@@ -6641,23 +6651,24 @@
               "w": 98,
               "h": 98
             },
-            "w": 238,
+            "w": 200,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 44667,
-        "dark": 37437
+        "light": 48054,
+        "dark": 32127
       },
       "sources": [
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/TronArena.jsx",
         "src/hooks/useBotDifficulty.js",
         "src/hooks/useTronControls.js",
         "src/index.css",
         "src/lib/audioContext.js",
         "src/lib/botLevels.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/haptics.js",
         "src/lib/platform.js",
@@ -6666,8 +6677,8 @@
         "src/lib/tronLogic.js",
         "src/pages/TronDemo.jsx"
       ],
-      "sourceHash": "2dfa2bd84efc",
-      "assetHash": "fcd5d70f9edc"
+      "sourceHash": "bccfb0202cd0",
+      "assetHash": "956d74d031aa"
     },
     "typing": {
       "w": 328,
@@ -6755,7 +6766,7 @@
         "src/lib/typingLogic.js",
         "src/pages/demos/TypingDemo.jsx"
       ],
-      "sourceHash": "86f2c1fd97e8",
+      "sourceHash": "ec7cc08d709f",
       "assetHash": "b058e8494711"
     },
     "ultimatettt": {
@@ -6935,7 +6946,7 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "798e20138d93",
+      "sourceHash": "d36f7f56520d",
       "assetHash": "1afc235fa150"
     },
     "wavelength": {
@@ -7012,7 +7023,7 @@
       },
       "sources": [
         "src/components/Avatar.jsx",
-        "src/components/CpuDifficultyChips.jsx",
+        "src/components/DifficultySlider.jsx",
         "src/components/PartyBotSetup.jsx",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useBotDifficulty.js",
@@ -7032,6 +7043,7 @@
         "src/lib/decks/spyfair.js",
         "src/lib/decks/spyfairChat.js",
         "src/lib/decks/wavelength.js",
+        "src/lib/difficultySliderLogic.js",
         "src/lib/displayPrefs.js",
         "src/lib/features.js",
         "src/lib/fibbageLogic.js",
@@ -7057,7 +7069,7 @@
         "src/lib/wordDenylist.js",
         "src/pages/WavelengthDemo.jsx"
       ],
-      "sourceHash": "1509a44c784e",
+      "sourceHash": "1df8f56078a0",
       "assetHash": "54407b8c89ce"
     },
     "yavalath": {
@@ -7238,11 +7250,11 @@
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "45eedfa1f62b",
+      "sourceHash": "833fc70e7eda",
       "assetHash": "f1ec8041b23a"
     }
   },
-  "commit": "650bfcc",
+  "commit": "6da880a",
   "skipped": {
     "mancala": "No enabled control for cell: [data-testid^=\"pit \"]",
     "snake": "error: \"Error: Cannot read properties of null (reading 'children')\"\ncode: UNKNOWN",
