@@ -31,3 +31,19 @@ export function searchGames(query, { excludePredicate } = {}) {
     return haystackFor(t).includes(q)
   })
 }
+
+/**
+ * Terms offered when a search finds nothing: broad words that each match
+ * several games (checked in gameSearch.test.js), so a dead end becomes a
+ * way back into the catalog.
+ */
+export const SUGGESTED_SEARCH_TERMS = Object.freeze(['word', 'race', 'party', 'bluff', 'card'])
+
+/**
+ * The suggestions that find something in the caller's scope, so a picker
+ * that hides some games never suggests a term leading to another dead end.
+ * @param {(term: string) => boolean} hasResults
+ */
+export function suggestedSearchTerms(hasResults) {
+  return SUGGESTED_SEARCH_TERMS.filter(term => hasResults(term))
+}

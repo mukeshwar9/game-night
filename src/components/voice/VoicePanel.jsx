@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import Avatar from '../Avatar'
 import BottomSheet from '../BottomSheet'
 import useBusy from '../../hooks/useBusy'
 import { useVoice } from './VoiceProvider'
 import { getPlayerId } from '../../lib/playerId'
-import { birthYearOptions } from '../../lib/premium'
-import { saveBirthYear } from '../../lib/entitlements'
+import { parseBirthYear } from '../../lib/premium'
+import { getBirthYear, saveBirthYear } from '../../lib/entitlements'
+import YearField from './YearField'
 import { blockPlayer } from '../../lib/mute'
 import { submitReport } from '../../lib/feedback'
 import { useAuth } from '../../lib/AuthContext'
@@ -199,7 +200,28 @@ export function VoiceNotice({ state, onAge, onClear }) {
   )
 }
 
+// JOIN VOICE?: the choice (mic or listen only) and, for an account with no
+// birth year on file, the 13+ question in the same sheet. The two join buttons
+// stay off until the year is a valid one, so the age check is part of choosing
+// rather than a toast and a second sheet afterwards. `onJoin(listenOnly)` runs
+// once the year (if one was needed) is saved.
 export function IntroSheet({ onClose, onJoin }) {
+  // undefined = still looking; true = a year is already on file.
+  const [haveYear, setHaveYear] = useState(undefined)
+  const [year, setYear] = useState('')
+  const [busy, run] = useBusy()
+  useEffect(() => {
+    let live = true
+    // A failed read skips the question; join re-checks and reports age-required.
+    getBirthYear().then(y => live && setHaveYear(y !== null), () => live && setHaveYear(true))
+    return () => { live = false }
+  }, [])
+  const needYear = haveYear === false
+  const ready = haveYear !== undefined && (!needYear || parseBirthYear(year) !== null)
+  const choose = (listenOnly) => run(async () => {
+    if (needYear) await saveBirthYear(/** @type {number} */ (parseBirthYear(year)))
+    onJoin(listenOnly)
+  }, () => toast.error("COULDN'T SAVE THAT — TRY AGAIN"))
   return (
     <BottomSheet onClose={onClose} ariaLabel="Join voice?" className="bg-retro-card space-y-3">
       <h2 className="font-pixel text-xs text-retro-cta">JOIN VOICE?</h2>
@@ -209,34 +231,34 @@ export function IntroSheet({ onClose, onJoin }) {
         <li>· Music stops while you’re in voice</li>
         <li>· Voice pauses if you leave the app</li>
       </ul>
-      <button type="button" onClick={() => onJoin(false)} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded">JOIN WITH MIC</button>
-      <button type="button" onClick={() => onJoin(true)} className="w-full min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded">LISTEN ONLY</button>
+      {needYear && (
+        <div data-testid="voice-age-field" className="rounded border border-retro-border bg-retro-bg p-3">
+          <YearField id="voice-birth-year" value={year} onChange={setYear} label="Voice is for 13 and over. What year were you born?" />
+        </div>
+      )}
+      <button type="button" onClick={() => choose(false)} disabled={!ready || busy} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded disabled:opacity-50">{busy ? 'SAVING…' : 'JOIN WITH MIC'}</button>
+      <button type="button" onClick={() => choose(true)} disabled={!ready || busy} className="w-full min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded disabled:opacity-50">LISTEN ONLY</button>
       <button type="button" onClick={onClose} className="w-full min-h-11 font-pixel text-[8px] text-retro-dim">NOT NOW</button>
     </BottomSheet>
   )
 }
 
+// The same question on its own, for someone who has already seen the intro but
+// has no year on file (a new guest on a used device): reached from the voice
+// notice's CHECK button.
 export function AgeSheet({ onClose, onSaved }) {
   const [year, setYear] = useState('')
   const [busy, run] = useBusy()
+  const parsed = parseBirthYear(year)
   const save = () => run(async () => {
-    await saveBirthYear(Number(year))
+    await saveBirthYear(/** @type {number} */ (parsed))
     onSaved()
   }, () => toast.error("COULDN'T SAVE THAT — TRY AGAIN"))
   return (
     <BottomSheet onClose={onClose} ariaLabel="Age check" className="bg-retro-card space-y-3">
       <h2 className="font-pixel text-xs text-retro-cta">AGE CHECK</h2>
-      <label htmlFor="voice-birth-year" className="block font-mono text-[11px] text-retro-text">Voice is for 13 and over. What year were you born?</label>
-      <select
-        id="voice-birth-year"
-        value={year}
-        onChange={(e) => setYear(e.target.value)}
-        className="w-full min-h-11 rounded border border-retro-border bg-retro-surface text-retro-text font-mono text-sm px-2"
-      >
-        <option value="">Choose a year</option>
-        {birthYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
-      </select>
-      <button type="button" onClick={save} disabled={!year || busy} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded disabled:opacity-50">
+      <YearField id="voice-birth-year" value={year} onChange={setYear} label="Voice is for 13 and over. What year were you born?" />
+      <button type="button" onClick={save} disabled={parsed === null || busy} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] rounded disabled:opacity-50">
         {busy ? 'SAVING…' : 'CONTINUE'}
       </button>
     </BottomSheet>

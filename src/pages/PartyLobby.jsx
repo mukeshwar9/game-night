@@ -2,14 +2,14 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import Avatar from '../components/Avatar'
 import { GameArt } from '../components/GameArt'
-import QrCode from '../components/QrCode'
 import VoicePanel from '../components/voice/VoicePanel'
 import useBusy from '../hooks/useBusy'
 import { GAME_TYPES, getPlayerTag } from '../lib/games'
 import GameSearchInput from '../components/GameSearchInput'
+import SearchEmpty from '../components/SearchEmpty'
+import { suggestedSearchTerms } from '../lib/gameSearch'
 import { effectiveCap, filterPartyGroups, groupPickerForParty, partyMembers, partyPresentMembers } from '../lib/partyLogic'
 import { hostUidOf } from '../lib/night'
-import { memberPresent } from '../lib/nightLogic'
 import { recordFunnel } from '../lib/analytics'
 import { track } from '../lib/track'
 import { shareUrl } from '../lib/platform'
@@ -31,8 +31,9 @@ const HEADLINE_2P = HEADLINE_GAMES.map(h => h.type)
 import { shellActive } from '../lib/partyShellLogic'
 import { cn } from '@/lib/utils'
 
-// The party lobby (party-first rooms): who is here, places to invite into,
-// and the game list filtered by how many are present. The host picks; a pick
+// The party lobby (party-first rooms): the game list filtered by how many are
+// present, and one way to invite more. Who is here is the shell's header (tiles
+// or strip) and nothing in this body repeats it. The host picks; a pick
 // switches the room through the shell's normal switch path (onSwitchGame),
 // which seats a 2-player game's two and lines up the rest (winner stays).
 export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame, onInvite }) {
@@ -49,7 +50,6 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
   groups.rotate = [...HEADLINE_2P.map(t => groups.rotate.find(g => g.type === t)).filter(Boolean), ...groups.rotate.filter(g => !HEADLINE_2P.includes(g.type))]
   const [picking, setPicking] = useState(null)
   const [query, setQuery] = useState('')
-  const [showQr, setShowQr] = useState(false)
   const [warmUp, setWarmUp] = useState(false)
   const [arrived, setArrived] = useState(null)
   const { now: clockNow } = useServerClock({ tickMs: 30_000 })
@@ -97,30 +97,27 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
     toast.success('LINK COPIED!')
   }, () => toast.error("COULDN'T SHARE — COPY THE LINK FROM THE ADDRESS BAR"))
 
-  const slots = Array.from({ length: cap }, (_, i) => members[i] || null)
-
   const searching = !!query.trim()
+  const groupCount = (g) => g.all.length + g.rotate.length + g.short.length
   const shownGroups = filterPartyGroups(groups, query)
-  const total = groups.all.length + groups.rotate.length + groups.short.length
-  const noMatches = searching && shownGroups.all.length + shownGroups.rotate.length + shownGroups.short.length === 0
+  const total = groupCount(groups)
+  const noMatches = searching && groupCount(shownGroups) === 0
 
   const pickerGroups = (
     <>
       <GameSearchInput value={query} onChange={setQuery} placeholder={`Search ${total} games…`} testId="party-search" />
       {noMatches && (
-        <p data-testid="party-search-empty" className="rounded border border-retro-border bg-retro-card p-3 text-center font-pixel text-[8px] tracking-wider text-retro-dim">
-          NO GAMES MATCH "{query.trim().toUpperCase()}"
-        </p>
+        <SearchEmpty testId="party-search-empty" query={query} terms={suggestedSearchTerms(t => groupCount(filterPartyGroups(groups, t)) > 0)} onClear={() => setQuery('')} onSuggest={setQuery} />
       )}
       {(!searching || shownGroups.all.length > 0) && <PickerGroup
         testId="party-group-all" title={`EVERYONE PLAYS · ${shownGroups.all.length}`} tone="text-retro-win"
-        games={shownGroups.all} chip={() => ({ label: `ALL ${n}`, tone: 'win' })}
+        games={shownGroups.all}
         onPick={canPick ? pick : null} picking={picking} showAll={searching}
       />}
       {shownGroups.rotate.length > 0 && (
         <PickerGroup
           testId="party-group-rotate" title={`TAKE TURNS · 2 PLAY, WINNER STAYS · ${shownGroups.rotate.length}`} tone="text-retro-p4"
-          games={shownGroups.rotate} chip={() => ({ label: `2 + ${n - 2}`, tone: 'p4' })}
+          games={shownGroups.rotate}
           onPick={canPick ? pick : null} picking={picking} showAll={searching}
         />
       )}
@@ -158,63 +155,36 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        {slots.map((m, i) => m ? (
-          <Member key={m.uid} member={m} here={memberPresent(game, m.uid, true)} isHost={m.uid === hostUid} isMe={m.uid === mySeat} popIn={!!arrived && m.name?.toUpperCase() === arrived} />
-        ) : (
-          <button
-            key={`empty-${i}`}
-            type="button"
-            onClick={onInvite}
-            disabled={!amMember || !onInvite}
-            className="flex flex-col items-center justify-center gap-1.5 rounded border-2 border-dashed border-retro-border min-h-[104px] text-retro-cta hover:border-retro-cta/60 transition press-card disabled:opacity-50"
-          >
-            <span className="seat-breathe font-pixel text-lg leading-none" aria-hidden="true">+</span>
-            <span className="font-pixel text-[8px] tracking-wider">{alone && i === 1 ? 'SAVING A SEAT' : 'INVITE'}</span>
-          </button>
-        ))}
-      </div>
-
       {amMember && !shellActive(game) && <VoicePanel game={game} gameId={gameId} />}
 
-      {amMember && members.length < cap && (
-        <div className="bg-retro-card border border-retro-border rounded p-3 space-y-3" data-testid={alone ? 'party-alone' : undefined}>
-          <p className={cn('font-pixel text-[8px] tracking-wider', alone ? 'text-retro-cta' : 'text-retro-dim')}>{alone ? 'WHILE YOUR FRIENDS ARRIVE' : 'BRING FRIENDS'}</p>
-          {alone && (
-            <div className="space-y-1.5">
-              <div className="flex gap-1.5" aria-hidden="true">
-                {Array.from({ length: progress.need }, (_, i) => (
-                  <span key={i} className={cn('h-1.5 flex-1 rounded-sm', i < progress.present ? 'bg-retro-win' : 'bg-retro-border')} />
-                ))}
-              </div>
-              <p data-testid="party-progress" className="font-pixel text-[8px] tracking-wider text-retro-text">
-                {arrivingN > 0 ? 'SOMEONE OPENED YOUR LINK…' : progress.text}
-              </p>
-            </div>
-          )}
-          {onInvite && (
-            <button type="button" onClick={onInvite} className="w-full min-h-11 bg-retro-cta text-retro-bg font-pixel text-[9px] tracking-wider rounded hover:shadow-neon-cta transition press-card">
-              INVITE FRIENDS
-            </button>
-          )}
-          <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={share} disabled={shareBusy} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition press-card disabled:opacity-50">
-              {shareBusy ? 'SHARING…' : 'LINK'}
-            </button>
-            <button type="button" onClick={() => setShowQr(v => !v)} aria-expanded={showQr} className="min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] rounded hover:border-retro-cta/60 transition press-card">
-              QR
-            </button>
-            <span className="min-h-11 flex items-center justify-center border border-retro-border bg-retro-card text-retro-text font-mono text-[12px] tracking-[0.2em] rounded" aria-label={`Room code ${gameId}`}>
-              {gameId}
-            </span>
+      {amMember && alone && (
+        <div className="bg-retro-card border border-retro-border rounded p-4 space-y-4 text-center" data-testid="party-alone">
+          <p className="font-pixel text-[8px] tracking-wider text-retro-cta">WHILE YOUR FRIENDS ARRIVE</p>
+          <div className="space-y-1">
+            <p className="font-mono text-[12px] text-retro-dim">Room code</p>
+            <p data-testid="party-code" className="font-mono text-4xl font-bold tracking-[0.3em] text-retro-text select-all" aria-label={`Room code ${gameId}`}>{gameId}</p>
           </div>
-          {showQr && <div className="flex justify-center"><QrCode value={url} size={160} /></div>}
-          {alone && (
-            <button type="button" onClick={() => setWarmUp(true)} className="w-full min-h-11 border border-retro-border bg-retro-surface text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card">
-              WARM UP SOLO · 30 SEC
-            </button>
-          )}
+          <div className="space-y-1.5">
+            <div className="flex gap-1.5" aria-hidden="true">
+              {Array.from({ length: progress.need }, (_, i) => (
+                <span key={i} className={cn('h-1.5 flex-1 rounded-sm', i < progress.present ? 'bg-retro-win' : 'bg-retro-border')} />
+              ))}
+            </div>
+            <p data-testid="party-progress" className="font-pixel text-[8px] tracking-wider text-retro-text">
+              {arrivingN > 0 ? 'SOMEONE OPENED YOUR LINK…' : progress.text}
+            </p>
+          </div>
+          {/* The one invite entry point: its sheet holds friends, the link and the QR. */}
+          <button type="button" onClick={onInvite || share} disabled={!onInvite && shareBusy} className="w-full min-h-12 bg-retro-cta text-retro-bg font-pixel text-[10px] tracking-wider rounded hover:shadow-neon-cta transition press-card disabled:opacity-50">
+            INVITE FRIENDS
+          </button>
         </div>
+      )}
+
+      {alone && (
+        <button type="button" onClick={() => setWarmUp(true)} className="w-full min-h-11 border border-dashed border-retro-border text-retro-dim font-pixel text-[8px] tracking-wider rounded hover:border-retro-cta/60 hover:text-retro-text transition press-card">
+          WARM UP SOLO · 30 SEC
+        </button>
       )}
 
       {warmUp && (
@@ -247,40 +217,28 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
           <div className="space-y-4 pt-2">{pickerGroups}</div>
         </details>
       ) : pickerGroups}
-    </div>
-  )
-}
 
-function Member({ member, here, isHost, isMe, popIn = false }) {
-  return (
-    <div data-testid="party-member" className={cn(popIn && 'seat-pop', 'flex flex-col items-center gap-1.5 rounded border border-retro-border bg-retro-card pt-3 pb-2 px-1 min-w-0 min-h-[104px]')}>
-      <span className={cn('relative', !here && 'opacity-40 grayscale')}>
-        <Avatar id={member.avatar} size={48} />
-        {isHost && (
-          <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-retro-cta border-2 border-retro-card flex items-center justify-center" title="Host">
-            <svg width="10" height="8" viewBox="0 0 12 10" aria-hidden="true" className="fill-retro-bg"><path d="M0 2h2v2h2V0h4v4h2V2h2v8H0z" /></svg>
+      {/* Once friends are here, inviting is one quiet row (the header's empty
+          seats open the same sheet). */}
+      {amMember && !alone && members.length < cap && (
+        <div className="flex items-center gap-2" data-testid="party-invite-row">
+          <button type="button" onClick={onInvite || share} disabled={!onInvite && shareBusy} className="flex-1 min-h-11 border border-retro-border bg-retro-card text-retro-text font-pixel text-[9px] tracking-wider rounded hover:border-retro-cta/60 transition press-card disabled:opacity-50">
+            INVITE FRIENDS
+          </button>
+          <span className="min-h-11 px-3 flex items-center border border-retro-border bg-retro-surface text-retro-text font-mono text-sm tracking-[0.2em] rounded" aria-label={`Room code ${gameId}`}>
+            {gameId}
           </span>
-        )}
-        <span className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-retro-card', here ? 'bg-retro-win' : 'bg-retro-dim')} />
-      </span>
-      <span className="font-mono text-[11px] text-retro-text truncate max-w-full">{member.name}{isMe ? ' (you)' : ''}</span>
-      <span className={cn('font-pixel text-[7px] tracking-wider', isHost ? 'text-retro-cta' : 'text-retro-dim')}>
-        {isHost ? 'HOST' : here ? 'READY' : 'RECONNECTING…'}
-      </span>
+        </div>
+      )}
     </div>
   )
-}
-
-const CHIP_TONE = {
-  win: 'text-retro-win border-retro-win/60 bg-retro-tint-p1',
-  p4: 'text-retro-p4 border-retro-p4/50 bg-retro-tint-p4',
 }
 
 // Long groups (55 take-turns games, 67 for two) show their first few with a
 // SHOW ALL toggle, so the lobby stays a lobby rather than a catalogue.
 const GROUP_PREVIEW = 6
 
-function PickerGroup({ testId, title, tone, games, chip, onPick, picking, showAll = false }) {
+function PickerGroup({ testId, title, tone, games, onPick, picking, showAll = false }) {
   const [expanded, setExpanded] = useState(false)
   const shown = expanded || showAll ? games : games.slice(0, GROUP_PREVIEW)
   return (
@@ -288,7 +246,6 @@ function PickerGroup({ testId, title, tone, games, chip, onPick, picking, showAl
       <p className={cn('font-pixel text-[8px] tracking-wider', tone)}>{title}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {shown.map(g => {
-          const c = chip(g)
           const Icon = g.Icon
           return (
             <button
@@ -317,7 +274,6 @@ function PickerGroup({ testId, title, tone, games, chip, onPick, picking, showAl
                   {g.durationMin != null && ` · ~${g.durationMin} min`}
                 </span>
               </span>
-              <span className={cn('font-pixel text-[7px] tracking-wider border rounded px-1.5 py-1 whitespace-nowrap', CHIP_TONE[c.tone])}>{c.label}</span>
             </button>
           )
         })}

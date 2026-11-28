@@ -173,7 +173,9 @@ function playLanded(cfg, symbol, { touch = false } = {}) {
 // The invite sheet's party mode: head-count and cap of a party-first room.
 function partyInviteInfo(game, cfg) {
   if (!game?.partyRoom) return null
-  return { size: partyMembers(game, !!cfg?.nPlayer).length, cap: effectiveCap(game, cfg) }
+  const members = partyMembers(game, !!cfg?.nPlayer)
+  const hostName = members.find(m => m.uid === hostUidOf(game))?.name
+  return { size: members.length, cap: effectiveCap(game, cfg), hostName }
 }
 
 // The result screen's one-tap GG goes out as an ordinary room reaction.

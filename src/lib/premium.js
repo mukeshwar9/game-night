@@ -143,6 +143,37 @@ export function birthYearOptions(now = new Date()) {
 }
 
 /**
+ * The year typed into the age question: a whole year inside the offered range
+ * (see birthYearOptions), else null.
+ * @param {string | number | null | undefined} text
+ * @param {Date} [now]
+ * @returns {number | null}
+ */
+export function parseBirthYear(text, now = new Date()) {
+  const raw = String(text ?? '').trim()
+  if (!/^\d{4}$/.test(raw)) return null
+  const year = Number(raw)
+  const top = now.getUTCFullYear()
+  return year <= top && year >= top - 100 ? year : null
+}
+
+/**
+ * One tap of the year stepper. A blank or invalid field starts from a neutral
+ * year (no hint about what answer unlocks anything), then moves one year per
+ * tap, staying inside the offered range.
+ * @param {string | number | null | undefined} current
+ * @param {1 | -1} delta
+ * @param {Date} [now]
+ * @returns {number}
+ */
+export function stepBirthYear(current, delta, now = new Date()) {
+  const top = now.getUTCFullYear()
+  const from = parseBirthYear(current, now)
+  const next = (from ?? top - 30) + (from === null ? 0 : delta)
+  return Math.min(top, Math.max(top - 100, next))
+}
+
+/**
  * Who may use "view as regular player": an account on the admin allowlist, or a
  * dev server / the emulators (the two places the locks are normally hidden).
  * Eligibility reads the real record, never the view-as one, so the switch cannot

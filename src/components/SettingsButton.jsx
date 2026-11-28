@@ -216,13 +216,16 @@ export default function SettingsButton({ className = '' }) {
             />
           </Suspense>
         ) : (
-          <div className="flex items-center gap-3">
-            <Avatar id={myAvatar} size={40} />
-            <p className="min-w-0 flex-1 font-pixel text-xs text-retro-text truncate">{myName || 'NO NAME YET'}</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Avatar id={myAvatar} size={40} />
+              {/* The name gets the whole row (it wraps, never cuts off); the button sits under it. */}
+              <p className="min-w-0 flex-1 font-pixel text-xs leading-snug text-retro-text [overflow-wrap:anywhere]">{myName || 'NO NAME YET'}</p>
+            </div>
             <button
               type="button"
               onClick={() => setEditingMe(true)}
-              className="shrink-0 min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition press"
+              className="w-full min-h-11 px-3 border border-retro-border rounded font-pixel text-[9px] text-retro-cta hover:border-retro-cta transition press"
             >
               EDIT NAME &amp; LOOK
             </button>

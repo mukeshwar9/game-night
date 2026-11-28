@@ -8,8 +8,10 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 let searchGames
+let SUGGESTED_SEARCH_TERMS
+let suggestedSearchTerms
 beforeAll(async () => {
-  ;({ searchGames } = await import('./gameSearch'))
+  ;({ searchGames, SUGGESTED_SEARCH_TERMS, suggestedSearchTerms } = await import('./gameSearch'))
 })
 
 describe('searchGames', () => {
@@ -49,5 +51,26 @@ describe('searchGames', () => {
     expect(lower).toEqual(upper)
     expect(lower).toEqual(mixed)
     expect(lower).toContain('dice')
+  })
+})
+
+describe('SUGGESTED_SEARCH_TERMS', () => {
+  it('every suggestion finds several games, so the empty state never dead-ends', () => {
+    for (const term of SUGGESTED_SEARCH_TERMS) {
+      expect(searchGames(term).length, term).toBeGreaterThanOrEqual(3)
+    }
+  })
+})
+
+describe('suggestedSearchTerms', () => {
+  it('keeps only the terms that find games in the caller scope', () => {
+    expect(suggestedSearchTerms(() => true)).toEqual([...SUGGESTED_SEARCH_TERMS])
+    expect(suggestedSearchTerms(() => false)).toEqual([])
+  })
+
+  it('drops a term whose every match is out of scope', () => {
+    const hits = new Set(searchGames('party').map(t => t.type))
+    const scoped = suggestedSearchTerms(term => searchGames(term, { excludePredicate: t => hits.has(t.type) }).length > 0)
+    expect(scoped).not.toContain('party')
   })
 })

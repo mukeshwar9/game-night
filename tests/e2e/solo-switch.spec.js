@@ -30,9 +30,9 @@ test('search filters the solo picker and a pick switches the game', async ({ bro
   // Party games with no bot (Two Truths) and games with no solo page
   // (Chameleon) are not offered.
   await search.fill('two truths')
-  await expect(sheet.getByText(/NO GAMES MATCH/)).toBeVisible()
+  await expect(sheet.getByText(/no games match/i)).toBeVisible()
   await search.fill('chameleon')
-  await expect(sheet.getByText(/NO GAMES MATCH/)).toBeVisible()
+  await expect(sheet.getByText(/no games match/i)).toBeVisible()
 
   await search.fill('reversi')
   await sheet.getByRole('button', { name: /^REVERSI\b/ }).click()

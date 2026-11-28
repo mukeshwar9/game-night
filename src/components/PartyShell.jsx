@@ -100,7 +100,7 @@ function BigTile({ tile, status, me, onPerson }) {
       onClick={onPerson ? () => onPerson(tile) : undefined}
       aria-label={`${tile.name}${me ? ' (you)' : ''}, seat ${tile.seat}${label ? `, ${label.toLowerCase()}` : ''}`}
       className={cn(
-        'relative flex-1 min-w-0 h-24 flex flex-col items-center gap-1 px-1 rounded border-2 bg-retro-card transition-colors',
+        'relative flex-1 min-w-0 min-h-24 py-1 flex flex-col items-center gap-1 px-1 rounded border-2 bg-retro-card transition-colors',
         status?.video ? 'justify-end' : 'justify-center',
         tile.online ? SEAT_BORDER[i] : 'border-retro-border opacity-60',
         ringClass(tile, status),
@@ -110,7 +110,7 @@ function BigTile({ tile, status, me, onPerson }) {
       {status?.video
         ? <span className="absolute inset-0 overflow-hidden rounded-[3px]">{status.video}</span>
         : <span className="relative"><Avatar id={tile.avatar} size={48} /></span>}
-      <span className={cn('relative w-full truncate font-pixel text-[7px] text-center', status?.video ? 'mt-auto bg-retro-bg/75 text-retro-text' : 'text-retro-text')}>{me ? 'YOU' : tile.name}</span>
+      <span className={cn('relative w-full line-clamp-2 [overflow-wrap:anywhere] leading-tight font-pixel text-[7px] text-center', status?.video ? 'mt-auto bg-retro-bg/75 text-retro-text' : 'text-retro-text')}>{me ? 'YOU' : tile.name}</span>
       <span className="font-pixel text-[6px] text-retro-dim h-2">{label}</span>
       <Badges tile={tile} status={status} size={14} />
     </button>
@@ -135,7 +135,7 @@ function StripFace({ tile, status, me, onPerson }) {
           : <Avatar id={tile.avatar} size={24} />}
         <Badges tile={tile} status={status} size={12} />
       </span>
-      <span className="w-full truncate font-pixel text-[6px] text-retro-text text-center">{me ? 'YOU' : tile.name}</span>
+      <span className="w-full line-clamp-2 [overflow-wrap:anywhere] leading-tight font-pixel text-[6px] text-retro-text text-center">{me ? 'YOU' : tile.name}</span>
     </button>
   )
 }

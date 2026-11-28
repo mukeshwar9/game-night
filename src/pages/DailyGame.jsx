@@ -178,10 +178,10 @@ export default function DailyGame() {
           <div className="space-y-4">
             <div className="bg-retro-card border border-retro-border rounded p-5 text-center space-y-4">
               <p className="font-pixel text-[9px] text-retro-cta">MENTAL MATH GAUNTLET</p>
-              <div className="font-pixel text-[8px] text-retro-dim space-y-1.5 text-left mx-auto w-fit leading-relaxed">
-                <p>● 60 SECONDS · SOLVE AS MANY AS YOU CAN</p>
-                <p>● SAME PUZZLE FOR EVERYONE TODAY</p>
-                <p>● ONE SCORE PER DAY — COME BACK TOMORROW</p>
+              <div className="font-mono text-[12px] text-retro-dim space-y-1.5 text-left mx-auto w-fit max-w-full leading-relaxed">
+                <p>● 60 seconds · solve as many as you can</p>
+                <p>● Same puzzle for everyone today</p>
+                <p>● One score per day — come back tomorrow</p>
               </div>
               {playedToday && (
                 <div className="bg-retro-tint-cta border border-retro-cta/50 rounded px-3 py-2">
@@ -196,8 +196,8 @@ export default function DailyGame() {
                 {playedToday ? 'PLAY AGAIN' : 'START'}
               </button>
               {playedToday && (
-                <p className="font-pixel text-[8px] text-retro-dim leading-relaxed">
-                  REPLAYS ARE JUST FOR FUN ·{'\n'}YOUR BEST IS ALREADY LOGGED
+                <p className="font-mono text-[12px] text-retro-dim leading-relaxed">
+                  Replays are just for fun. Your best is already logged.
                 </p>
               )}
             </div>

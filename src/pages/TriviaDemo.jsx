@@ -41,7 +41,8 @@ export default function TriviaDemo() {
   )
 
   const [qNum, setQNum] = useState(0)
-  const [phase, setPhase] = useState('question')
+  // 'ready' (a card with START; no clock yet) -> 'question' <-> 'reveal' -> 'end'.
+  const [phase, setPhase] = useState('ready')
   const [qStartAt, setQStartAt] = useState(() => Date.now())
   const [answers, setAnswers] = useState({})
   const [deltas, setDeltas] = useState({})
@@ -53,8 +54,8 @@ export default function TriviaDemo() {
   const streaksRef = useRef({})
   const settleRef = useRef(null)
   const [level, setLevel] = useBotDifficulty('trivia', BOT_LEVEL_IDS)
-  // The bots read the level when they answer, so picking one during the first
-  // question (the only time the chips show) applies to the whole match.
+  // The bots read the level when they answer; it is picked on the ready card
+  // or after the match, so one level applies to the whole match.
   const levelRef = useRef(level)
   useEffect(() => { levelRef.current = level }, [level])
 
@@ -141,6 +142,15 @@ export default function TriviaDemo() {
     lockIn('me', idx)
   }
 
+  // The clock belongs to the question, so it starts here, not on page load.
+  const startMatch = () => {
+    sounds.move('O')
+    const t = Date.now()
+    setQStartAt(t)
+    setNow(t)
+    setPhase('question')
+  }
+
   const playAgain = () => {
     streaksRef.current = {}
     answersRef.current = {}
@@ -181,15 +191,37 @@ export default function TriviaDemo() {
 
   return (
     <div className="space-y-3">
-      {((qNum === 0 && phase === 'question') || phase === 'end') && (
+      {/* The level is picked before the first question or after the match,
+          never mid-play. */}
+      {(phase === 'ready' || phase === 'end') && (
         <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
       )}
-      <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim">
-        <span>Q{Math.min(qNum + 1, MATCH_QUESTIONS)}/{MATCH_QUESTIONS}</span>
-        <span>{answeredCount}/4 IN</span>
-      </div>
 
-      {phase !== 'end' && question && (
+      {phase === 'ready' && (
+        <div data-testid="trivia-ready" className="bg-retro-card border border-retro-border rounded p-5 text-center space-y-4">
+          <p className="font-pixel text-[10px] text-retro-text tracking-wider">TRIVIA BLITZ</p>
+          <p className="font-mono text-[12px] leading-relaxed text-retro-dim">
+            {MATCH_QUESTIONS} questions, {QUESTION_MS / 1000} seconds each, against three bots.
+            Answer fast: speed is points.
+          </p>
+          <button
+            type="button"
+            onClick={startMatch}
+            className="min-h-11 px-6 py-2 bg-retro-cta text-retro-bg font-pixel text-[10px] rounded hover:shadow-neon-cta transition press"
+          >
+            START
+          </button>
+        </div>
+      )}
+
+      {phase !== 'ready' && (
+        <div className="flex items-center justify-between font-pixel text-[9px] text-retro-dim">
+          <span>Q{Math.min(qNum + 1, MATCH_QUESTIONS)}/{MATCH_QUESTIONS}</span>
+          <span>{answeredCount}/4 IN</span>
+        </div>
+      )}
+
+      {phase !== 'end' && phase !== 'ready' && question && (
         <>
           {phase === 'question' && (
             <div className="h-2 rounded overflow-hidden bg-retro-surface border border-retro-border">

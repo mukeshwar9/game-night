@@ -35,7 +35,7 @@ All snake_case. Properties outside this list are dropped by `buildEvent` (`track
 | `game_finished` | `game`, `mode`, `result` (win, loss, draw, abandoned, finished), `duration_s` | `Game.jsx`, `BotBoardDemo.jsx` |
 | `room_created` | `game`, `mode`, `visibility` (private, public) | `useCreateGame`, `OnlineLobby`, `Friends`, `ArrowsRaceSetup` |
 | `room_joined` | `game`, `mode`, `via` (link, public) | `useRoomSession`, `OnlineLobby`, `ArrowsRaceSetup` |
-| `invite_shared` | `surface`, `method` (native_share, copy, friend) | waiting room, lobby, party lobby, friend invite |
+| `invite_shared` | `surface`, `method` (native_share, copy, friend) | waiting room, lobby, party lobby, party invite sheet, friend invite |
 | `sign_in_started`, `sign_in_completed` | `provider` (google, apple) | `auth.js` |
 | `arrows_level_cleared` | `level`, `stars`, `kind` (campaign, endless_*) | `ArrowsSolo.jsx` |
 | `theme_changed` | `theme` | `theme.js` `pickTheme` |
