@@ -46,6 +46,7 @@ const Friends = lazyWithRetry(() => import('./pages/Friends'));
 const Shop = lazyWithRetry(() => import('./pages/Shop'));
 const Pass = lazyWithRetry(() => import('./pages/Pass'));
 const Notes = lazyWithRetry(() => import('./pages/Notes'));
+const LocalNight = lazyWithRetry(() => import('./pages/LocalNight'));
 // Developer-only page: the route (and so its chunk) exists in dev builds only.
 const EmojiLab = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/EmojiLab')) : null;
 const ArtDemo = import.meta.env.DEV ? lazyWithRetry(() => import('./pages/ArtDemo')) : null;
@@ -168,6 +169,7 @@ function AppRoutes() {
               <Route path="/play" element={<AdLanding />} />
               <Route path="/play/:type" element={<AdLanding />} />
               <Route path="/local/:type" element={<Demo mode="local" />} />
+              <Route path="/night" element={<LocalNight />} />
               <Route path="/daily" element={<DailyGame />} />
               <Route path="/daily/memory" element={<DailyMemory />} />
               <Route path="/profile" element={<Profile />} />

@@ -101,6 +101,9 @@ A browser-based multiplayer games platform. Play with friends in real time — n
 ### Daily
 - **`/daily`** — a date-seeded solo puzzle, same board for everyone, personal best tracked locally
 
+### One-phone night
+- **`/night`** (PLAY A NIGHT on Home) — deals 5, 7 or 10 pass-and-play games for 2–4 players on one phone; the group taps who won after each game (3 to the winner, 1 each for a draw), a standings strip stays on screen, and the night survives a reload
+
 ## How it works
 
 1. Pick a game — games with modes (Tic Tac Toe, Connect Four, Gomoku, …) first ask which mode you want
