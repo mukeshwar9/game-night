@@ -234,6 +234,10 @@ export default function MathDemo() {
         onPlay={() => setPhase('countdown')}
       >
         <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+        <div className="font-pixel text-[8px] text-retro-dim space-y-1 text-center">
+          <p>● FIRST CORRECT ANSWER WINS THE ROUND</p>
+          <p>✗ WRONG ANSWERS RESET YOUR STREAK — SCORE NEVER DROPS</p>
+        </div>
       </IntroCard>
     )
   }
