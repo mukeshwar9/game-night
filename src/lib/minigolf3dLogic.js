@@ -270,7 +270,7 @@ export function chaseCamera(hole, x, y, heading, speed, z = 0) {
   return behindPose(hole, x, y, heading, z, back, up, 2.4)
 }
 
-/** @param {any} hole @param {number} x @param {number} y @param {number} a @param {number} z @param {number} want @param {number} up @param {number} ahead */
+/** @param {any} hole @param {number} x @param {number} y @param {number} a @param {number} z @param {number} back @param {number} up @param {number} ahead */
 function behindPose(hole, x, y, a, z, back, up, ahead) {
   // A rail right behind the ball would cut the sight line: rise until the line
   // from the camera to the ball clears a rail at that distance (with a margin).
