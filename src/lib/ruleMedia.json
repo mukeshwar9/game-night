@@ -460,8 +460,8 @@
       "assetHash": "110c7eb2ade7"
     },
     "ataxx": {
-      "w": 206,
-      "h": 340,
+      "w": 208,
+      "h": 338,
       "steps": [
         {
           "cap": "objective",
@@ -471,8 +471,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 206,
-          "h": 340,
+          "w": 208,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -480,85 +480,110 @@
               "w": 98,
               "h": 98
             },
-            "w": 206,
-            "h": 340
+            "w": 208,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 4.294478527607362,
-            "y": 64.80432242990655,
-            "w": 12.006326687116564,
-            "h": 7.316004672897196
+            "x": 3.8461538461538463,
+            "y": 66.31155303030303,
+            "w": 12.246737637362637,
+            "h": 7.504734848484849
           },
-          "w": 206,
-          "h": 340,
+          "w": 208,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 64.80432242990655,
-              "w": 12.006326687116564,
-              "h": 7.316004672897196
+              "x": 3.8461538461538463,
+              "y": 66.31155303030303,
+              "w": 12.246737637362637,
+              "h": 7.504734848484849
             },
-            "w": 206,
-            "h": 340
+            "w": 208,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 4.294478527607362,
-            "y": 56.74065420560748,
-            "w": 12.006326687116564,
-            "h": 7.316004672897196
+            "x": 3.8461538461538463,
+            "y": 66.31155303030303,
+            "w": 12.246737637362637,
+            "h": 7.504734848484849
           },
-          "w": 206,
-          "h": 340,
+          "w": 208,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 56.74065420560748,
-              "w": 12.006326687116564,
-              "h": 7.316004672897196
+              "x": 3.8461538461538463,
+              "y": 66.31155303030303,
+              "w": 12.246737637362637,
+              "h": 7.504734848484849
             },
-            "w": 206,
-            "h": 340
+            "w": 208,
+            "h": 338
           }
         }
       ],
       "bytes": {
-        "light": 32488,
-        "dark": 47364
+        "light": 64288,
+        "dark": 49835
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/AtaxxBoard.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -567,18 +592,33 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/interact.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -588,15 +628,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "5fd81216e303",
-      "assetHash": "14d0f4bf977f",
-      "dpr": 1
+      "sourceHash": "d4aaf7355bbf",
+      "assetHash": "d8d38c46ee60"
     },
     "battleship": {
       "w": 150,
@@ -698,283 +740,6 @@
       "assetHash": "a2744377c020"
     },
     "blockade": {
-      "w": 196,
-      "h": 340,
-      "steps": [
-        {
-          "cap": "objective",
-          "box": {
-            "x": 1,
-            "y": 1,
-            "w": 98,
-            "h": 98
-          },
-          "w": 196,
-          "h": 340,
-          "dark": {
-            "box": {
-              "x": 1,
-              "y": 1,
-              "w": 98,
-              "h": 98
-            },
-            "w": 196,
-            "h": 340
-          }
-        },
-        {
-          "cap": 0,
-          "box": {
-            "x": 1,
-            "y": 1,
-            "w": 98,
-            "h": 98
-          },
-          "w": 196,
-          "h": 340,
-          "dark": {
-            "box": {
-              "x": 1,
-              "y": 1,
-              "w": 98,
-              "h": 98
-            },
-            "w": 196,
-            "h": 340
-          }
-        },
-        {
-          "cap": 0,
-          "box": {
-            "x": 1,
-            "y": 1,
-            "w": 98,
-            "h": 98
-          },
-          "w": 196,
-          "h": 340,
-          "dark": {
-            "box": {
-              "x": 1,
-              "y": 1,
-              "w": 98,
-              "h": 98
-            },
-            "w": 196,
-            "h": 340
-          }
-        }
-      ],
-      "bytes": {
-        "light": 34184,
-        "dark": 51180
-      },
-      "sources": [
-        "src/components/Avatar.jsx",
-        "src/components/BlockadeBoard.jsx",
-        "src/components/BottomSheet.jsx",
-        "src/components/CategoryTabs.jsx",
-        "src/components/EmptyState.jsx",
-        "src/components/GameCard.jsx",
-        "src/components/GameOptionsSheet.jsx",
-        "src/components/GamePicker.jsx",
-        "src/components/GameSearchInput.jsx",
-        "src/components/GameStatus.jsx",
-        "src/components/GameSwitcher.jsx",
-        "src/components/NewGamesRail.jsx",
-        "src/components/PlayerCard.jsx",
-        "src/components/SearchEmpty.jsx",
-        "src/components/VariantChooser.jsx",
-        "src/components/loading/PixelDots.jsx",
-        "src/hooks/useModalHistory.js",
-        "src/index.css",
-        "src/lib/a11yLabels.js",
-        "src/lib/analytics.js",
-        "src/lib/ataxxLogic.js",
-        "src/lib/audioContext.js",
-        "src/lib/auth.js",
-        "src/lib/avatarSprites.js",
-        "src/lib/avatars.js",
-        "src/lib/blockadeLogic.js",
-        "src/lib/breakthroughLogic.js",
-        "src/lib/chainReactionLogic.js",
-        "src/lib/chompLogic.js",
-        "src/lib/connectFourLogic.js",
-        "src/lib/demoBots.js",
-        "src/lib/diceLogic.js",
-        "src/lib/displayPrefs.js",
-        "src/lib/dotsAndBoxesLogic.js",
-        "src/lib/favorites.js",
-        "src/lib/firebase.js",
-        "src/lib/gameLogic.js",
-        "src/lib/gameSearch.js",
-        "src/lib/games.js",
-        "src/lib/gomokuLogic.js",
-        "src/lib/hexLogic.js",
-        "src/lib/kamisadoLogic.js",
-        "src/lib/loaLogic.js",
-        "src/lib/onitamaLogic.js",
-        "src/lib/orderChaosLogic.js",
-        "src/lib/pairsLogic.js",
-        "src/lib/quartoLogic.js",
-        "src/lib/reversiLogic.js",
-        "src/lib/roomSwitchContext.js",
-        "src/lib/rules.js",
-        "src/lib/santoriniLogic.js",
-        "src/lib/sha256.js",
-        "src/lib/simLogic.js",
-        "src/lib/sosLogic.js",
-        "src/lib/sounds.js",
-        "src/lib/telemetry.js",
-        "src/lib/tictactoe4Logic.js",
-        "src/lib/ultimateTttLogic.js",
-        "src/lib/yavalathLogic.js",
-        "src/pages/demos/BotBoardDemo.jsx"
-      ],
-      "sourceHash": "03257d929dc1",
-      "assetHash": "c09ac5ade8ff",
-      "dpr": 1
-    },
-    "breakthrough": {
-      "w": 210,
-      "h": 340,
-      "steps": [
-        {
-          "cap": "objective",
-          "box": {
-            "x": 1,
-            "y": 1,
-            "w": 98,
-            "h": 98
-          },
-          "w": 210,
-          "h": 340,
-          "dark": {
-            "box": {
-              "x": 1,
-              "y": 1,
-              "w": 98,
-              "h": 98
-            },
-            "w": 210,
-            "h": 340
-          }
-        },
-        {
-          "cap": 1,
-          "box": {
-            "x": 4.294478527607362,
-            "y": 63.830798479087456,
-            "w": 10.35276073619632,
-            "h": 6.416349809885932
-          },
-          "w": 210,
-          "h": 340,
-          "dark": {
-            "box": {
-              "x": 4.294478527607362,
-              "y": 63.830798479087456,
-              "w": 10.35276073619632,
-              "h": 6.416349809885932
-            },
-            "w": 210,
-            "h": 340
-          }
-        },
-        {
-          "cap": 1,
-          "box": {
-            "x": 4.294478527607362,
-            "y": 56.653992395437264,
-            "w": 10.35276073619632,
-            "h": 6.416349809885932
-          },
-          "w": 210,
-          "h": 340,
-          "dark": {
-            "box": {
-              "x": 4.294478527607362,
-              "y": 56.653992395437264,
-              "w": 10.35276073619632,
-              "h": 6.416349809885932
-            },
-            "w": 210,
-            "h": 340
-          }
-        }
-      ],
-      "bytes": {
-        "light": 47662,
-        "dark": 64809
-      },
-      "sources": [
-        "src/components/Avatar.jsx",
-        "src/components/BottomSheet.jsx",
-        "src/components/BreakthroughBoard.jsx",
-        "src/components/CategoryTabs.jsx",
-        "src/components/EmptyState.jsx",
-        "src/components/GameCard.jsx",
-        "src/components/GameOptionsSheet.jsx",
-        "src/components/GamePicker.jsx",
-        "src/components/GameSearchInput.jsx",
-        "src/components/GameStatus.jsx",
-        "src/components/GameSwitcher.jsx",
-        "src/components/NewGamesRail.jsx",
-        "src/components/PlayerCard.jsx",
-        "src/components/SearchEmpty.jsx",
-        "src/components/VariantChooser.jsx",
-        "src/components/loading/PixelDots.jsx",
-        "src/hooks/useModalHistory.js",
-        "src/index.css",
-        "src/lib/a11yLabels.js",
-        "src/lib/analytics.js",
-        "src/lib/ataxxLogic.js",
-        "src/lib/audioContext.js",
-        "src/lib/auth.js",
-        "src/lib/avatarSprites.js",
-        "src/lib/avatars.js",
-        "src/lib/blockadeLogic.js",
-        "src/lib/breakthroughLogic.js",
-        "src/lib/chainReactionLogic.js",
-        "src/lib/chompLogic.js",
-        "src/lib/connectFourLogic.js",
-        "src/lib/demoBots.js",
-        "src/lib/diceLogic.js",
-        "src/lib/displayPrefs.js",
-        "src/lib/dotsAndBoxesLogic.js",
-        "src/lib/favorites.js",
-        "src/lib/firebase.js",
-        "src/lib/gameLogic.js",
-        "src/lib/gameSearch.js",
-        "src/lib/games.js",
-        "src/lib/gomokuLogic.js",
-        "src/lib/hexLogic.js",
-        "src/lib/interact.js",
-        "src/lib/kamisadoLogic.js",
-        "src/lib/loaLogic.js",
-        "src/lib/onitamaLogic.js",
-        "src/lib/orderChaosLogic.js",
-        "src/lib/pairsLogic.js",
-        "src/lib/quartoLogic.js",
-        "src/lib/reversiLogic.js",
-        "src/lib/roomSwitchContext.js",
-        "src/lib/rules.js",
-        "src/lib/santoriniLogic.js",
-        "src/lib/sha256.js",
-        "src/lib/simLogic.js",
-        "src/lib/sosLogic.js",
-        "src/lib/sounds.js",
-        "src/lib/telemetry.js",
-        "src/lib/tictactoe4Logic.js",
-        "src/lib/ultimateTttLogic.js",
-        "src/lib/yavalathLogic.js",
-        "src/pages/demos/BotBoardDemo.jsx"
-      ],
-      "sourceHash": "aef7f9c4e752",
-      "assetHash": "d97a9340ae51",
-      "dpr": 1
-    },
-    "chainreaction": {
       "w": 186,
       "h": 340,
       "steps": [
@@ -1002,19 +767,19 @@
         {
           "cap": 0,
           "box": {
-            "x": 3.067484662576687,
-            "y": 21.52542372881356,
-            "w": 11.330521472392638,
-            "h": 6.260593220338983
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
           },
           "w": 186,
           "h": 340,
           "dark": {
             "box": {
-              "x": 3.067484662576687,
-              "y": 21.52542372881356,
-              "w": 11.330521472392638,
-              "h": 6.260593220338983
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
             },
             "w": 186,
             "h": 340
@@ -1023,19 +788,19 @@
         {
           "cap": 0,
           "box": {
-            "x": 3.067484662576687,
-            "y": 21.52542372881356,
-            "w": 11.330521472392638,
-            "h": 6.260593220338983
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
           },
           "w": 186,
           "h": 340,
           "dark": {
             "box": {
-              "x": 3.067484662576687,
-              "y": 21.52542372881356,
-              "w": 11.330521472392638,
-              "h": 6.260593220338983
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
             },
             "w": 186,
             "h": 340
@@ -1043,39 +808,65 @@
         }
       ],
       "bytes": {
-        "light": 30380,
-        "dark": 49308
+        "light": 61717,
+        "dark": 50622
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
+        "src/components/BlockadeBoard.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
-        "src/components/ChainReactionBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
-        "src/components/crColors.js",
+        "src/components/ZoomViewport.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useBoardCamera.js",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
         "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/boardCameraLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -1084,17 +875,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -1104,18 +910,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "6d981040cc8d",
-      "assetHash": "ad60d803b0ad",
-      "dpr": 1
+      "sourceHash": "34f65e5b87f3",
+      "assetHash": "f4e0bfeb2e24"
     },
-    "chainreaction6": {
-      "w": 178,
+    "breakthrough": {
+      "w": 208,
       "h": 340,
       "steps": [
         {
@@ -1126,7 +934,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 178,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
@@ -1135,87 +943,110 @@
               "w": 98,
               "h": 98
             },
-            "w": 178,
+            "w": 208,
             "h": 340
           }
         },
         {
-          "cap": 0,
+          "cap": 1,
           "box": {
-            "x": 3.067484662576687,
-            "y": 20.616883116883116,
-            "w": 15.260736196319018,
-            "h": 8.0762987012987
+            "x": 3.8461538461538463,
+            "y": 64.83050847457628,
+            "w": 10.576923076923077,
+            "h": 6.52542372881356
           },
-          "w": 178,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 3.067484662576687,
-              "y": 20.616883116883116,
-              "w": 15.260736196319018,
-              "h": 8.0762987012987
+              "x": 3.8461538461538463,
+              "y": 64.83050847457628,
+              "w": 10.576923076923077,
+              "h": 6.52542372881356
             },
-            "w": 178,
+            "w": 208,
             "h": 340
           }
         },
         {
-          "cap": 0,
+          "cap": 1,
           "box": {
-            "x": 3.067484662576687,
-            "y": 20.616883116883116,
-            "w": 15.260736196319018,
-            "h": 8.0762987012987
+            "x": 3.8461538461538463,
+            "y": 64.83050847457628,
+            "w": 10.576923076923077,
+            "h": 6.52542372881356
           },
-          "w": 178,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 3.067484662576687,
-              "y": 20.616883116883116,
-              "w": 15.260736196319018,
-              "h": 8.0762987012987
+              "x": 3.8461538461538463,
+              "y": 64.83050847457628,
+              "w": 10.576923076923077,
+              "h": 6.52542372881356
             },
-            "w": 178,
+            "w": 208,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 25256,
-        "dark": 40968
+        "light": 69297,
+        "dark": 67096
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/BreakthroughBoard.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
-        "src/components/ChainReactionBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
-        "src/components/crColors.js",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
         "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -1224,17 +1055,33 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
+        "src/lib/interact.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -1244,15 +1091,379 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "6d981040cc8d",
-      "assetHash": "c697f74d6866",
-      "dpr": 1
+      "sourceHash": "d5779a1c86cc",
+      "assetHash": "72732775f3dc"
+    },
+    "chainreaction": {
+      "w": 188,
+      "h": 340,
+      "steps": [
+        {
+          "cap": "objective",
+          "box": {
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
+          },
+          "w": 188,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
+            },
+            "w": 188,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 2.7472527472527473,
+            "y": 22.340425531914892,
+            "w": 11.45260989010989,
+            "h": 6.33548632218845
+          },
+          "w": 188,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 2.7472527472527473,
+              "y": 22.340425531914892,
+              "w": 11.45260989010989,
+              "h": 6.33548632218845
+            },
+            "w": 188,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 2.7472527472527473,
+            "y": 22.340425531914892,
+            "w": 11.45260989010989,
+            "h": 6.33548632218845
+          },
+          "w": 188,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 2.7472527472527473,
+              "y": 22.340425531914892,
+              "w": 11.45260989010989,
+              "h": 6.33548632218845
+            },
+            "w": 188,
+            "h": 340
+          }
+        }
+      ],
+      "bytes": {
+        "light": 75934,
+        "dark": 53554
+      },
+      "sources": [
+        "src/components/AddFriendButton.jsx",
+        "src/components/Avatar.jsx",
+        "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
+        "src/components/CategoryTabs.jsx",
+        "src/components/ChainReactionBoard.jsx",
+        "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
+        "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
+        "src/components/GameOptionsSheet.jsx",
+        "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
+        "src/components/GameSearchInput.jsx",
+        "src/components/GameStatus.jsx",
+        "src/components/GameSwitcher.jsx",
+        "src/components/NewGamesRail.jsx",
+        "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
+        "src/components/VariantChooser.jsx",
+        "src/components/crColors.js",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
+        "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
+        "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/index.css",
+        "src/lib/a11yLabels.js",
+        "src/lib/analytics.js",
+        "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
+        "src/lib/audioContext.js",
+        "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
+        "src/lib/avatarSprites.js",
+        "src/lib/avatars.js",
+        "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
+        "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
+        "src/lib/chainReactionLogic.js",
+        "src/lib/chompLogic.js",
+        "src/lib/connectFourLogic.js",
+        "src/lib/demoBots.js",
+        "src/lib/diceLogic.js",
+        "src/lib/displayPrefs.js",
+        "src/lib/dotsAndBoxesLogic.js",
+        "src/lib/favorites.js",
+        "src/lib/features.js",
+        "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
+        "src/lib/gameLogic.js",
+        "src/lib/gameSearch.js",
+        "src/lib/games.js",
+        "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
+        "src/lib/hexLogic.js",
+        "src/lib/inView.js",
+        "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
+        "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
+        "src/lib/onitamaLogic.js",
+        "src/lib/orderChaosLogic.js",
+        "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
+        "src/lib/quartoLogic.js",
+        "src/lib/reversiLogic.js",
+        "src/lib/roomSwitchContext.js",
+        "src/lib/rules.js",
+        "src/lib/santoriniLogic.js",
+        "src/lib/sha256.js",
+        "src/lib/simLogic.js",
+        "src/lib/sosLogic.js",
+        "src/lib/sounds.js",
+        "src/lib/spring.js",
+        "src/lib/telemetry.js",
+        "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
+        "src/lib/ultimateTttLogic.js",
+        "src/lib/yavalathLogic.js",
+        "src/pages/demos/BotBoardDemo.jsx"
+      ],
+      "sourceHash": "304ce9dfa6b7",
+      "assetHash": "ebb6ff2b38d1"
+    },
+    "chainreaction6": {
+      "w": 180,
+      "h": 340,
+      "steps": [
+        {
+          "cap": "objective",
+          "box": {
+            "x": 1,
+            "y": 1,
+            "w": 98,
+            "h": 98
+          },
+          "w": 180,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 1,
+              "y": 1,
+              "w": 98,
+              "h": 98
+            },
+            "w": 180,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 2.7472527472527473,
+            "y": 21.397379912663755,
+            "w": 15.406078296703297,
+            "h": 8.162754730713246
+          },
+          "w": 180,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 2.7472527472527473,
+              "y": 21.397379912663755,
+              "w": 15.406078296703297,
+              "h": 8.162754730713246
+            },
+            "w": 180,
+            "h": 340
+          }
+        },
+        {
+          "cap": 0,
+          "box": {
+            "x": 2.7472527472527473,
+            "y": 21.397379912663755,
+            "w": 15.406078296703297,
+            "h": 8.162754730713246
+          },
+          "w": 180,
+          "h": 340,
+          "dark": {
+            "box": {
+              "x": 2.7472527472527473,
+              "y": 21.397379912663755,
+              "w": 15.406078296703297,
+              "h": 8.162754730713246
+            },
+            "w": 180,
+            "h": 340
+          }
+        }
+      ],
+      "bytes": {
+        "light": 61776,
+        "dark": 43734
+      },
+      "sources": [
+        "src/components/AddFriendButton.jsx",
+        "src/components/Avatar.jsx",
+        "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
+        "src/components/CategoryTabs.jsx",
+        "src/components/ChainReactionBoard.jsx",
+        "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
+        "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
+        "src/components/GameOptionsSheet.jsx",
+        "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
+        "src/components/GameSearchInput.jsx",
+        "src/components/GameStatus.jsx",
+        "src/components/GameSwitcher.jsx",
+        "src/components/NewGamesRail.jsx",
+        "src/components/PlayerCard.jsx",
+        "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
+        "src/components/VariantChooser.jsx",
+        "src/components/crColors.js",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
+        "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
+        "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/index.css",
+        "src/lib/a11yLabels.js",
+        "src/lib/analytics.js",
+        "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
+        "src/lib/audioContext.js",
+        "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
+        "src/lib/avatarSprites.js",
+        "src/lib/avatars.js",
+        "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
+        "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
+        "src/lib/chainReactionLogic.js",
+        "src/lib/chompLogic.js",
+        "src/lib/connectFourLogic.js",
+        "src/lib/demoBots.js",
+        "src/lib/diceLogic.js",
+        "src/lib/displayPrefs.js",
+        "src/lib/dotsAndBoxesLogic.js",
+        "src/lib/favorites.js",
+        "src/lib/features.js",
+        "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
+        "src/lib/gameLogic.js",
+        "src/lib/gameSearch.js",
+        "src/lib/games.js",
+        "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
+        "src/lib/hexLogic.js",
+        "src/lib/inView.js",
+        "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
+        "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
+        "src/lib/onitamaLogic.js",
+        "src/lib/orderChaosLogic.js",
+        "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
+        "src/lib/quartoLogic.js",
+        "src/lib/reversiLogic.js",
+        "src/lib/roomSwitchContext.js",
+        "src/lib/rules.js",
+        "src/lib/santoriniLogic.js",
+        "src/lib/sha256.js",
+        "src/lib/simLogic.js",
+        "src/lib/sosLogic.js",
+        "src/lib/sounds.js",
+        "src/lib/spring.js",
+        "src/lib/telemetry.js",
+        "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
+        "src/lib/ultimateTttLogic.js",
+        "src/lib/yavalathLogic.js",
+        "src/pages/demos/BotBoardDemo.jsx"
+      ],
+      "sourceHash": "304ce9dfa6b7",
+      "assetHash": "93135ba87d55"
     },
     "checkers": {
       "w": 232,
@@ -1447,7 +1658,7 @@
       "dpr": 1
     },
     "chomp": {
-      "w": 222,
+      "w": 244,
       "h": 340,
       "steps": [
         {
@@ -1458,7 +1669,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 222,
+          "w": 244,
           "h": 340,
           "dark": {
             "box": {
@@ -1467,85 +1678,110 @@
               "w": 98,
               "h": 98
             },
-            "w": 222,
+            "w": 244,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 73.00613496932516,
-            "y": 71.5725806451613,
-            "w": 15.950920245398773,
-            "h": 10.483870967741936
+            "x": 65.38461538461539,
+            "y": 72.5296442687747,
+            "w": 13.736263736263735,
+            "h": 9.881422924901186
           },
-          "w": 222,
+          "w": 244,
           "h": 340,
           "dark": {
             "box": {
-              "x": 73.00613496932516,
-              "y": 71.5725806451613,
-              "w": 15.950920245398773,
-              "h": 10.483870967741936
+              "x": 65.38461538461539,
+              "y": 72.5296442687747,
+              "w": 13.736263736263735,
+              "h": 9.881422924901186
             },
-            "w": 222,
+            "w": 244,
             "h": 340
           }
         },
         {
           "cap": 2,
           "box": {
-            "x": 4.294478527607362,
-            "y": 60.28225806451613,
-            "w": 15.950920245398773,
-            "h": 10.483870967741936
+            "x": 6.043956043956044,
+            "y": 61.85770750988142,
+            "w": 13.736263736263735,
+            "h": 9.881422924901186
           },
-          "w": 222,
+          "w": 244,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 60.28225806451613,
-              "w": 15.950920245398773,
-              "h": 10.483870967741936
+              "x": 6.043956043956044,
+              "y": 61.85770750988142,
+              "w": 13.736263736263735,
+              "h": 9.881422924901186
             },
-            "w": 222,
+            "w": 244,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 28870,
-        "dark": 41423
+        "light": 69118,
+        "dark": 49175
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ChompBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -1554,17 +1790,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -1574,15 +1825,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "83dc7cd90062",
-      "assetHash": "91c862625413",
-      "dpr": 1
+      "sourceHash": "3f4f3f5e6a90",
+      "assetHash": "2e64c1f904ab"
     },
     "connectfour": {
       "w": 304,
@@ -1624,8 +1877,8 @@
       "assetHash": "2bf0de076596"
     },
     "connectfour5": {
-      "w": 306,
-      "h": 238,
+      "w": 344,
+      "h": 268,
       "steps": [
         {
           "cap": "objective",
@@ -1635,8 +1888,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 306,
-          "h": 238,
+          "w": 344,
+          "h": 268,
           "dark": {
             "box": {
               "x": 1,
@@ -1644,85 +1897,111 @@
               "w": 98,
               "h": 98
             },
-            "w": 306,
-            "h": 238
+            "w": 344,
+            "h": 268
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 1.3071895424836601,
-            "y": 95.19422310756973,
-            "w": 9.655841503267974,
-            "h": 3.187250996015936
+            "x": 1.1627906976744187,
+            "y": 95.54048042704626,
+            "w": 9.815588662790697,
+            "h": 2.8469750889679717
           },
-          "w": 306,
-          "h": 250,
+          "w": 344,
+          "h": 280,
           "dark": {
             "box": {
-              "x": 1.3071895424836601,
-              "y": 95.19422310756973,
-              "w": 9.655841503267974,
-              "h": 3.187250996015936
+              "x": 1.1627906976744187,
+              "y": 95.54048042704626,
+              "w": 9.815588662790697,
+              "h": 2.8469750889679717
             },
-            "w": 306,
-            "h": 250
+            "w": 344,
+            "h": 280
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 1.3071895424836601,
-            "y": 95.19422310756973,
-            "w": 9.655841503267974,
-            "h": 3.187250996015936
+            "x": 1.1627906976744187,
+            "y": 95.54048042704626,
+            "w": 9.815588662790697,
+            "h": 2.8469750889679717
           },
-          "w": 306,
-          "h": 250,
+          "w": 344,
+          "h": 280,
           "dark": {
             "box": {
-              "x": 1.3071895424836601,
-              "y": 95.19422310756973,
-              "w": 9.655841503267974,
-              "h": 3.187250996015936
+              "x": 1.1627906976744187,
+              "y": 95.54048042704626,
+              "w": 9.815588662790697,
+              "h": 2.8469750889679717
             },
-            "w": 306,
-            "h": 250
+            "w": 344,
+            "h": 280
           }
         }
       ],
       "bytes": {
-        "light": 24631,
-        "dark": 24587
+        "light": 67296,
+        "dark": 41090
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ConnectFourBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useTapConfirm.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -1731,17 +2010,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -1751,19 +2045,21 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "b8a89450d80b",
-      "assetHash": "711bb2f27081",
-      "dpr": 1
+      "sourceHash": "ca09dd2a7875",
+      "assetHash": "4448fe6b984f"
     },
     "connectfourpop": {
-      "w": 306,
-      "h": 262,
+      "w": 344,
+      "h": 296,
       "steps": [
         {
           "cap": "objective",
@@ -1773,8 +2069,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 306,
-          "h": 262,
+          "w": 344,
+          "h": 296,
           "dark": {
             "box": {
               "x": 1,
@@ -1782,29 +2078,29 @@
               "w": 98,
               "h": 98
             },
-            "w": 306,
-            "h": 262
+            "w": 344,
+            "h": 296
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 1.3071895424836601,
-            "y": 95.57954545454545,
-            "w": 12.791053921568627,
-            "h": 2.909090909090909
+            "x": 1.1627906976744187,
+            "y": 95.93141233766234,
+            "w": 12.95421511627907,
+            "h": 2.5974025974025974
           },
-          "w": 306,
-          "h": 274,
+          "w": 344,
+          "h": 308,
           "dark": {
             "box": {
-              "x": 1.3071895424836601,
-              "y": 95.57954545454545,
-              "w": 12.791053921568627,
-              "h": 2.909090909090909
+              "x": 1.1627906976744187,
+              "y": 95.93141233766234,
+              "w": 12.95421511627907,
+              "h": 2.5974025974025974
             },
-            "w": 306,
-            "h": 274
+            "w": 344,
+            "h": 308
           }
         },
         {
@@ -1815,8 +2111,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 306,
-          "h": 262,
+          "w": 344,
+          "h": 296,
           "dark": {
             "box": {
               "x": 1,
@@ -1824,43 +2120,69 @@
               "w": 98,
               "h": 98
             },
-            "w": 306,
-            "h": 262
+            "w": 344,
+            "h": 296
           }
         }
       ],
       "bytes": {
-        "light": 24154,
-        "dark": 24555
+        "light": 54765,
+        "dark": 29519
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/ConnectFourBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useTapConfirm.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -1869,17 +2191,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -1889,18 +2226,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "b8a89450d80b",
-      "assetHash": "1187e7e0a09d",
-      "dpr": 1
+      "sourceHash": "ca09dd2a7875",
+      "assetHash": "1e9447ef77b8"
     },
     "dice": {
-      "w": 194,
+      "w": 208,
       "h": 340,
       "steps": [
         {
@@ -1911,7 +2250,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 194,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
@@ -1920,84 +2259,109 @@
               "w": 98,
               "h": 98
             },
-            "w": 194,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 6.748466257668712,
-            "y": 78.53356890459364,
-            "w": 41.41104294478528,
-            "h": 8.480565371024735
+            "x": 10.989010989010989,
+            "y": 79.49152542372882,
+            "w": 37.362637362637365,
+            "h": 8.135593220338983
           },
-          "w": 194,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 6.748466257668712,
-              "y": 78.53356890459364,
-              "w": 41.41104294478528,
-              "h": 8.480565371024735
+              "x": 10.989010989010989,
+              "y": 79.49152542372882,
+              "w": 37.362637362637365,
+              "h": 8.135593220338983
             },
-            "w": 194,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 51.84049079754601,
-            "y": 78.53356890459364,
-            "w": 41.41104294478528,
-            "h": 8.480565371024735
+            "x": 51.64835164835165,
+            "y": 79.49152542372882,
+            "w": 37.362637362637365,
+            "h": 8.135593220338983
           },
-          "w": 194,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 51.84049079754601,
-              "y": 78.53356890459364,
-              "w": 41.41104294478528,
-              "h": 8.480565371024735
+              "x": 51.64835164835165,
+              "y": 79.49152542372882,
+              "w": 37.362637362637365,
+              "h": 8.135593220338983
             },
-            "w": 194,
+            "w": 208,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 29878,
-        "dark": 42134
+        "light": 41838,
+        "dark": 50176
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/DiceBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -2006,17 +2370,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -2026,18 +2405,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "4085f91070f7",
-      "assetHash": "6f2911a9b6bd",
-      "dpr": 1
+      "sourceHash": "2a2b9000005e",
+      "assetHash": "4196d08f42f7"
     },
     "dice-big": {
-      "w": 194,
+      "w": 208,
       "h": 340,
       "steps": [
         {
@@ -2048,7 +2429,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 194,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
@@ -2057,84 +2438,109 @@
               "w": 98,
               "h": 98
             },
-            "w": 194,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 6.748466257668712,
-            "y": 78.53356890459364,
-            "w": 41.41104294478528,
-            "h": 8.480565371024735
+            "x": 10.989010989010989,
+            "y": 79.49152542372882,
+            "w": 37.362637362637365,
+            "h": 8.135593220338983
           },
-          "w": 194,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 6.748466257668712,
-              "y": 78.53356890459364,
-              "w": 41.41104294478528,
-              "h": 8.480565371024735
+              "x": 10.989010989010989,
+              "y": 79.49152542372882,
+              "w": 37.362637362637365,
+              "h": 8.135593220338983
             },
-            "w": 194,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 51.84049079754601,
-            "y": 78.53356890459364,
-            "w": 41.41104294478528,
-            "h": 8.480565371024735
+            "x": 51.64835164835165,
+            "y": 79.49152542372882,
+            "w": 37.362637362637365,
+            "h": 8.135593220338983
           },
-          "w": 194,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 51.84049079754601,
-              "y": 78.53356890459364,
-              "w": 41.41104294478528,
-              "h": 8.480565371024735
+              "x": 51.64835164835165,
+              "y": 79.49152542372882,
+              "w": 37.362637362637365,
+              "h": 8.135593220338983
             },
-            "w": 194,
+            "w": 208,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 30065,
-        "dark": 44592
+        "light": 42880,
+        "dark": 51986
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/DiceBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -2143,17 +2549,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -2163,19 +2584,21 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "4085f91070f7",
-      "assetHash": "cc9d021603dc",
-      "dpr": 1
+      "sourceHash": "2a2b9000005e",
+      "assetHash": "abbfaf6c6921"
     },
     "dotsandboxes": {
-      "w": 214,
-      "h": 340,
+      "w": 208,
+      "h": 338,
       "steps": [
         {
           "cap": "objective",
@@ -2185,8 +2608,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 214,
-          "h": 340,
+          "w": 208,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -2194,85 +2617,111 @@
               "w": 98,
               "h": 98
             },
-            "w": 214,
-            "h": 340
+            "w": 208,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 10.429447852760736,
-            "y": 23.984526112185687,
-            "w": 10.630751533742332,
-            "h": 8.51063829787234
+            "x": 9.340659340659341,
+            "y": 24.242424242424242,
+            "w": 11.263736263736265,
+            "h": 7.407407407407407
           },
-          "w": 214,
-          "h": 340,
+          "w": 208,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 10.429447852760736,
-              "y": 23.984526112185687,
-              "w": 10.630751533742332,
-              "h": 8.51063829787234
+              "x": 9.340659340659341,
+              "y": 24.242424242424242,
+              "w": 11.263736263736265,
+              "h": 7.407407407407407
             },
-            "w": 214,
-            "h": 340
+            "w": 208,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 2.147239263803681,
-            "y": 29.20696324951644,
-            "w": 13.496932515337424,
-            "h": 6.703336557059961
+            "x": 1.9230769230769231,
+            "y": 28.78787878787879,
+            "w": 12.087912087912088,
+            "h": 6.902356902356902
           },
-          "w": 214,
-          "h": 340,
+          "w": 208,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 2.147239263803681,
-              "y": 29.20696324951644,
-              "w": 13.496932515337424,
-              "h": 6.703336557059961
+              "x": 1.9230769230769231,
+              "y": 28.78787878787879,
+              "w": 12.087912087912088,
+              "h": 6.902356902356902
             },
-            "w": 214,
-            "h": 340
+            "w": 208,
+            "h": 338
           }
         }
       ],
       "bytes": {
-        "light": 32473,
-        "dark": 47997
+        "light": 52230,
+        "dark": 48482
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/DotsAndBoxesBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useTapConfirm.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -2281,17 +2730,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -2301,15 +2765,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f47ff12f580e",
-      "assetHash": "c103f1f2c664",
-      "dpr": 1
+      "sourceHash": "9ba1a6a1fcdc",
+      "assetHash": "5bc9dfe82169"
     },
     "dotsandboxes4": {
       "w": 214,
@@ -2339,19 +2805,19 @@
         {
           "cap": 0,
           "box": {
-            "x": 10.429447852760736,
-            "y": 23.984526112185687,
-            "w": 17.484662576687118,
-            "h": 8.51063829787234
+            "x": 9.340659340659341,
+            "y": 25.043478260869566,
+            "w": 18.26923076923077,
+            "h": 7.6521739130434785
           },
           "w": 214,
           "h": 340,
           "dark": {
             "box": {
-              "x": 10.429447852760736,
-              "y": 23.984526112185687,
-              "w": 17.484662576687118,
-              "h": 8.51063829787234
+              "x": 9.340659340659341,
+              "y": 25.043478260869566,
+              "w": 18.26923076923077,
+              "h": 7.6521739130434785
             },
             "w": 214,
             "h": 340
@@ -2360,19 +2826,19 @@
         {
           "cap": 0,
           "box": {
-            "x": 2.147239263803681,
-            "y": 29.20696324951644,
-            "w": 13.496932515337424,
-            "h": 11.02514506769826
+            "x": 1.9230769230769231,
+            "y": 29.73913043478261,
+            "w": 12.087912087912088,
+            "h": 11.565217391304348
           },
           "w": 214,
           "h": 340,
           "dark": {
             "box": {
-              "x": 2.147239263803681,
-              "y": 29.20696324951644,
-              "w": 13.496932515337424,
-              "h": 11.02514506769826
+              "x": 1.9230769230769231,
+              "y": 29.73913043478261,
+              "w": 12.087912087912088,
+              "h": 11.565217391304348
             },
             "w": 214,
             "h": 340
@@ -2380,37 +2846,63 @@
         }
       ],
       "bytes": {
-        "light": 26101,
-        "dark": 39847
+        "light": 72667,
+        "dark": 43598
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/DotsAndBoxesBoard.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useTapConfirm.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -2419,17 +2911,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -2439,15 +2946,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f47ff12f580e",
-      "assetHash": "bca0a221831b",
-      "dpr": 1
+      "sourceHash": "9ba1a6a1fcdc",
+      "assetHash": "13628c7bf957"
     },
     "fibbage": {
       "w": 364,
@@ -2611,7 +3120,7 @@
       "assetHash": "2b96a7237958"
     },
     "gomokuswap": {
-      "w": 216,
+      "w": 200,
       "h": 340,
       "steps": [
         {
@@ -2622,7 +3131,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 216,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
@@ -2631,65 +3140,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 216,
+            "w": 200,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 3.6809815950920246,
-            "y": 25.146198830409357,
-            "w": 5.8857361963190185,
-            "h": 3.740253411306043
+            "x": 3.2967032967032965,
+            "y": 24.18831168831169,
+            "w": 5.96668956043956,
+            "h": 3.525771103896104
           },
-          "w": 216,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
-              "x": 3.6809815950920246,
-              "y": 25.146198830409357,
-              "w": 5.8857361963190185,
-              "h": 3.740253411306043
+              "x": 3.2967032967032965,
+              "y": 24.18831168831169,
+              "w": 5.96668956043956,
+              "h": 3.525771103896104
             },
-            "w": 216,
+            "w": 200,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 3.6809815950920246,
-            "y": 25.146198830409357,
-            "w": 5.8857361963190185,
-            "h": 3.740253411306043
+            "x": 3.2967032967032965,
+            "y": 24.18831168831169,
+            "w": 5.96668956043956,
+            "h": 3.525771103896104
           },
-          "w": 216,
+          "w": 200,
           "h": 340,
           "dark": {
             "box": {
-              "x": 3.6809815950920246,
-              "y": 25.146198830409357,
-              "w": 5.8857361963190185,
-              "h": 3.740253411306043
+              "x": 3.2967032967032965,
+              "y": 24.18831168831169,
+              "w": 5.96668956043956,
+              "h": 3.525771103896104
             },
-            "w": 216,
+            "w": 200,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 35025,
-        "dark": 48114
+        "light": 75236,
+        "dark": 44757
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -2697,19 +3214,39 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/ZoomViewport.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useBoardCamera.js",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/boardCameraLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -2718,17 +3255,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -2738,15 +3290,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1a46891571c7",
-      "assetHash": "5509438ab603",
-      "dpr": 1
+      "sourceHash": "0514df3da0b8",
+      "assetHash": "8f58f9da4731"
     },
     "hangwoman": {
       "w": 152,
@@ -2952,7 +3506,7 @@
       "dpr": 1
     },
     "hex": {
-      "w": 258,
+      "w": 238,
       "h": 340,
       "steps": [
         {
@@ -2963,7 +3517,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 258,
+          "w": 238,
           "h": 340,
           "dark": {
             "box": {
@@ -2972,65 +3526,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 258,
+            "w": 238,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 2.594461031486652,
-            "y": 34.70144036955434,
-            "w": 5.925693394947637,
-            "h": 5.490082238108067
+            "x": 2.4699598878294555,
+            "y": 31.45511834196342,
+            "w": 5.941254752022879,
+            "h": 4.835906509281129
           },
-          "w": 272,
+          "w": 238,
           "h": 340,
           "dark": {
             "box": {
-              "x": 2.594461031486652,
-              "y": 34.70144036955434,
-              "w": 5.925693394947637,
-              "h": 5.490082238108067
+              "x": 2.4699598878294555,
+              "y": 31.45511834196342,
+              "w": 5.941254752022879,
+              "h": 4.835906509281129
             },
-            "w": 272,
+            "w": 238,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 8.520154426434289,
-            "y": 34.70144036955434,
-            "w": 5.925692224795101,
-            "h": 5.490082238108067
+            "x": 2.4699598878294555,
+            "y": 32.92259850801851,
+            "w": 5.941254752022879,
+            "h": 5.061516752107631
           },
-          "w": 272,
+          "w": 250,
           "h": 340,
           "dark": {
             "box": {
-              "x": 8.520154426434289,
-              "y": 34.70144036955434,
-              "w": 5.925692224795101,
-              "h": 5.490082238108067
+              "x": 2.4699598878294555,
+              "y": 32.92259850801851,
+              "w": 5.941254752022879,
+              "h": 5.061516752107631
             },
-            "w": 272,
+            "w": 250,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 59439,
-        "dark": 68506
+        "light": 99436,
+        "dark": 73584
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -3038,19 +3600,40 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/ZoomViewport.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useBoardCamera.js",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useTapConfirm.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/boardCameraLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -3059,17 +3642,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -3079,18 +3677,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "053d60bb4283",
-      "assetHash": "5eb98978c05b",
-      "dpr": 1
+      "sourceHash": "25892324e725",
+      "assetHash": "ab09d17dfdd8"
     },
     "kamisado": {
-      "w": 192,
+      "w": 194,
       "h": 340,
       "steps": [
         {
@@ -3101,7 +3701,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 192,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
@@ -3110,65 +3710,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 192,
+            "w": 194,
             "h": 340
           }
         },
         {
           "cap": 2,
           "box": {
-            "x": 4.294478527607362,
-            "y": 36.32404181184669,
-            "w": 10.889570552147239,
-            "h": 6.184668989547038
+            "x": 3.8461538461538463,
+            "y": 36.90664556962025,
+            "w": 11.057692307692308,
+            "h": 6.368670886075949
           },
-          "w": 192,
+          "w": 194,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 36.32404181184669,
-              "w": 10.889570552147239,
-              "h": 6.184668989547038
+              "x": 3.8461538461538463,
+              "y": 37.10567823343849,
+              "w": 11.057692307692308,
+              "h": 6.348580441640379
             },
-            "w": 192,
+            "w": 194,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 4.294478527607362,
-            "y": 35.160202360876895,
-            "w": 10.889570552147239,
-            "h": 5.986509274873525
+            "x": 3.8461538461538463,
+            "y": 31.704851752021565,
+            "w": 11.057692307692308,
+            "h": 5.4245283018867925
           },
-          "w": 186,
+          "w": 166,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 35.160202360876895,
-              "w": 10.889570552147239,
-              "h": 5.986509274873525
+              "x": 3.8461538461538463,
+              "y": 31.704851752021565,
+              "w": 11.057692307692308,
+              "h": 5.4245283018867925
             },
-            "w": 186,
+            "w": 166,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 37017,
-        "dark": 51037
+        "light": 56682,
+        "dark": 47868
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -3176,19 +3784,36 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -3197,18 +3822,33 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/interact.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -3218,18 +3858,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "60fd9f483276",
-      "assetHash": "7ab8b0197c56",
-      "dpr": 1
+      "sourceHash": "a3fbd434458c",
+      "assetHash": "3a3f11d230a6"
     },
     "loa": {
-      "w": 210,
+      "w": 208,
       "h": 340,
       "steps": [
         {
@@ -3240,7 +3882,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 210,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
@@ -3249,65 +3891,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 210,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 27.45398773006135,
-            "y": 32.08174904942966,
-            "w": 10.35276073619632,
-            "h": 6.416349809885932
+            "x": 27.197802197802197,
+            "y": 32.79661016949152,
+            "w": 10.576923076923077,
+            "h": 6.52542372881356
           },
-          "w": 210,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 27.45398773006135,
-              "y": 32.08174904942966,
-              "w": 10.35276073619632,
-              "h": 6.416349809885932
+              "x": 27.197802197802197,
+              "y": 32.79661016949152,
+              "w": 10.576923076923077,
+              "h": 6.52542372881356
             },
-            "w": 210,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 4.294478527607362,
-            "y": 32.08174904942966,
-            "w": 10.35276073619632,
-            "h": 6.416349809885932
+            "x": 27.197802197802197,
+            "y": 32.79661016949152,
+            "w": 10.576923076923077,
+            "h": 6.52542372881356
           },
-          "w": 210,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 32.08174904942966,
-              "w": 10.35276073619632,
-              "h": 6.416349809885932
+              "x": 27.197802197802197,
+              "y": 32.79661016949152,
+              "w": 10.576923076923077,
+              "h": 6.52542372881356
             },
-            "w": 210,
+            "w": 208,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 43018,
-        "dark": 59363
+        "light": 70136,
+        "dark": 63195
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -3315,19 +3965,36 @@
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -3336,18 +4003,33 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/interact.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -3357,15 +4039,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "143db743ad5c",
-      "assetHash": "986a9387f9c3",
-      "dpr": 1
+      "sourceHash": "e1e03692d7cc",
+      "assetHash": "2202731bace8"
     },
     "numbermemory": {
       "w": 364,
@@ -3477,7 +4161,7 @@
       "assetHash": "029a93d33546"
     },
     "onitama": {
-      "w": 152,
+      "w": 156,
       "h": 340,
       "steps": [
         {
@@ -3488,7 +4172,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 152,
+          "w": 156,
           "h": 340,
           "dark": {
             "box": {
@@ -3497,65 +4181,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 152,
+            "w": 156,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 15.030674846625766,
-            "y": 69.32854729729729,
-            "w": 33.12883435582822,
-            "h": 16.62162162162162
+            "x": 18.681318681318682,
+            "y": 71.75,
+            "w": 29.67032967032967,
+            "h": 15.375
           },
-          "w": 148,
+          "w": 154,
           "h": 340,
           "dark": {
             "box": {
-              "x": 15.030674846625766,
-              "y": 69.32854729729729,
-              "w": 33.12883435582822,
-              "h": 16.62162162162162
+              "x": 18.681318681318682,
+              "y": 71.75,
+              "w": 29.67032967032967,
+              "h": 15.375
             },
-            "w": 148,
+            "w": 154,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 4.294478527607362,
-            "y": 53.621374309392266,
-            "w": 17.302530674846626,
-            "h": 7.790918508287293
+            "x": 3.8461538461538463,
+            "y": 55.357142857142854,
+            "w": 17.582417582417584,
+            "h": 8.16326530612245
           },
-          "w": 152,
+          "w": 156,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 53.621374309392266,
-              "w": 17.302530674846626,
-              "h": 7.790918508287293
+              "x": 3.8461538461538463,
+              "y": 55.357142857142854,
+              "w": 17.582417582417584,
+              "h": 8.16326530612245
             },
-            "w": 152,
+            "w": 156,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 38097,
-        "dark": 48372
+        "light": 46463,
+        "dark": 51119
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -3563,19 +4255,36 @@
         "src/components/OnitamaBoard.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -3584,17 +4293,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -3604,19 +4328,21 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "375340f09785",
-      "assetHash": "c98179dd4cf9",
-      "dpr": 1
+      "sourceHash": "fd6d4d9efda3",
+      "assetHash": "c154a6f7432d"
     },
     "orderchaos": {
-      "w": 194,
-      "h": 340,
+      "w": 196,
+      "h": 338,
       "steps": [
         {
           "cap": "objective",
@@ -3626,8 +4352,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 194,
-          "h": 340,
+          "w": 196,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -3635,65 +4361,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 194,
-            "h": 340
+            "w": 196,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 5.521472392638037,
-            "y": 23.851590106007066,
-            "w": 14.057707055214724,
-            "h": 8.096841872791519
+            "x": 4.945054945054945,
+            "y": 24.76038338658147,
+            "w": 14.32864010989011,
+            "h": 8.331669329073483
           },
-          "w": 194,
-          "h": 340,
+          "w": 196,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 5.521472392638037,
-              "y": 23.851590106007066,
-              "w": 14.057707055214724,
-              "h": 8.096841872791519
+              "x": 4.945054945054945,
+              "y": 24.76038338658147,
+              "w": 14.32864010989011,
+              "h": 8.331669329073483
             },
-            "w": 194,
-            "h": 340
+            "w": 196,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 20.499424846625768,
-            "y": 23.851590106007066,
-            "w": 14.057707055214724,
-            "h": 8.096841872791519
+            "x": 20.09787087912088,
+            "y": 24.76038338658147,
+            "w": 14.332932692307692,
+            "h": 8.33416533546326
           },
-          "w": 194,
-          "h": 340,
+          "w": 196,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 20.499424846625768,
-              "y": 23.851590106007066,
-              "w": 14.057707055214724,
-              "h": 8.096841872791519
+              "x": 20.09787087912088,
+              "y": 24.76038338658147,
+              "w": 14.332932692307692,
+              "h": 8.33416533546326
             },
-            "w": 194,
-            "h": 340
+            "w": 196,
+            "h": 338
           }
         }
       ],
       "bytes": {
-        "light": 26703,
-        "dark": 41887
+        "light": 52965,
+        "dark": 42931
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -3701,19 +4435,36 @@
         "src/components/OrderChaosBoard.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -3722,17 +4473,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -3742,15 +4508,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "d67787ade407",
-      "assetHash": "348ccf7307d6",
-      "dpr": 1
+      "sourceHash": "73346ce996cf",
+      "assetHash": "875a01a8f62c"
     },
     "pacmac": {
       "w": 174,
@@ -3938,7 +4706,7 @@
       "assetHash": "ebb408ec8700"
     },
     "pairs": {
-      "w": 224,
+      "w": 208,
       "h": 340,
       "steps": [
         {
@@ -3949,7 +4717,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 224,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
@@ -3958,65 +4726,74 @@
               "w": 98,
               "h": 98
             },
-            "w": 224,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 4.9079754601226995,
-            "y": 18.052738336713997,
-            "w": 13.496932515337424,
-            "h": 8.924949290060852
+            "x": 4.395604395604396,
+            "y": 25.04201680672269,
+            "w": 13.826407967032967,
+            "h": 8.458508403361344
           },
-          "w": 224,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.9079754601226995,
-              "y": 18.052738336713997,
-              "w": 13.496932515337424,
-              "h": 8.924949290060852
+              "x": 4.395604395604396,
+              "y": 25.04201680672269,
+              "w": 13.826407967032967,
+              "h": 8.458508403361344
             },
-            "w": 224,
+            "w": 208,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 20.245398773006134,
-            "y": 18.864097363083165,
-            "w": 13.496932515337424,
-            "h": 8.924949290060852
+            "x": 19.87036401098901,
+            "y": 25.714285714285715,
+            "w": 13.826407967032967,
+            "h": 8.458508403361344
           },
-          "w": 224,
+          "w": 208,
           "h": 340,
           "dark": {
             "box": {
-              "x": 20.245398773006134,
-              "y": 18.864097363083165,
-              "w": 13.496932515337424,
-              "h": 8.924949290060852
+              "x": 19.87036401098901,
+              "y": 25.714285714285715,
+              "w": 13.826407967032967,
+              "h": 8.458508403361344
             },
-            "w": 224,
+            "w": 208,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 74298,
-        "dark": 90564
+        "light": 92966,
+        "dark": 63753
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FaceSprite.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -4024,20 +4801,37 @@
         "src/components/PairsBoard.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/hooks/useServerClock.js",
         "src/hooks/useTurnDeadlineEnforcer.js",
         "src/index.css",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -4046,18 +4840,33 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsFaces.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
@@ -4069,15 +4878,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "3ba4ebae4275",
-      "assetHash": "f8c153941e69",
-      "dpr": 1
+      "sourceHash": "5d184f29d691",
+      "assetHash": "957c26050e25"
     },
     "pairs4": {
       "w": 208,
@@ -4138,29 +4949,36 @@
           "dark": {
             "box": {
               "x": 27.60989010989011,
-              "y": 26.65505226480836,
+              "y": 25.757575757575758,
               "w": 21.565934065934066,
-              "h": 13.67595818815331
+              "h": 13.215488215488216
             },
-            "w": 214,
-            "h": 340
+            "w": 208,
+            "h": 338
           }
         }
       ],
       "bytes": {
-        "light": 80613,
-        "dark": 79606
+        "light": 86259,
+        "dark": 78062
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FaceSprite.jsx",
+        "src/components/FocusStage.jsx",
         "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
         "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -4170,9 +4988,14 @@
         "src/components/SearchEmpty.jsx",
         "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
         "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/hooks/useServerClock.js",
         "src/hooks/useTurnDeadlineEnforcer.js",
         "src/index.css",
@@ -4191,7 +5014,9 @@
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -4202,6 +5027,8 @@
         "src/lib/favorites.js",
         "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
         "src/lib/gameArtStyle.js",
         "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
@@ -4210,15 +5037,21 @@
         "src/lib/gomokuLogic.js",
         "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
         "src/lib/native/nativeAuth.js",
         "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsFaces.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
         "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/playerId.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
@@ -4230,17 +5063,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "f020639dcbd2",
-      "assetHash": "9870bacff510"
+      "sourceHash": "5d184f29d691",
+      "assetHash": "756f0b88a3b0"
     },
     "quarto": {
-      "w": 158,
+      "w": 162,
       "h": 340,
       "steps": [
         {
@@ -4251,7 +5087,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 158,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
@@ -4260,28 +5096,28 @@
               "w": 98,
               "h": 98
             },
-            "w": 158,
+            "w": 162,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 4.294478527607362,
-            "y": 24.142857142857142,
-            "w": 21.932515337423315,
-            "h": 10.214285714285714
+            "x": 3.8461538461538463,
+            "y": 24.90118577075099,
+            "w": 22.252747252747252,
+            "h": 10.671936758893281
           },
-          "w": 158,
+          "w": 162,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 24.142857142857142,
-              "w": 21.932515337423315,
-              "h": 10.214285714285714
+              "x": 3.8461538461538463,
+              "y": 24.90118577075099,
+              "w": 22.252747252747252,
+              "h": 10.671936758893281
             },
-            "w": 158,
+            "w": 162,
             "h": 340
           }
         },
@@ -4293,7 +5129,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 158,
+          "w": 174,
           "h": 340,
           "dark": {
             "box": {
@@ -4302,23 +5138,31 @@
               "w": 98,
               "h": 98
             },
-            "w": 158,
+            "w": 174,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 25337,
-        "dark": 34944
+        "light": 43280,
+        "dark": 37568
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -4326,19 +5170,36 @@
         "src/components/PlayerCard.jsx",
         "src/components/QuartoBoard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -4347,17 +5208,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -4367,15 +5243,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "bd5ba62675c4",
-      "assetHash": "d46d59c1f5ad",
-      "dpr": 1
+      "sourceHash": "4097b56b2942",
+      "assetHash": "40ef34427e14"
     },
     "reaction": {
       "w": 364,
@@ -4528,40 +5406,40 @@
         {
           "cap": 1,
           "box": {
-            "x": 4.294478527607362,
-            "y": 61.43963195691203,
-            "w": 17.29773773006135,
-            "h": 10.123990125673249
+            "x": 3.8461538461538463,
+            "y": 61.53846153846154,
+            "w": 17.582417582417584,
+            "h": 10.474631751227497
           },
-          "w": 198,
+          "w": 202,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 61.43963195691203,
-              "w": 17.29773773006135,
-              "h": 10.123990125673249
+              "x": 3.8461538461538463,
+              "y": 61.53846153846154,
+              "w": 17.582417582417584,
+              "h": 10.474631751227497
             },
-            "w": 198,
+            "w": 202,
             "h": 340
           }
         },
         {
           "cap": 1,
           "box": {
-            "x": 4.294478527607362,
-            "y": 49.50688073394495,
-            "w": 17.29773773006135,
-            "h": 10.346903669724771
+            "x": 3.8461538461538463,
+            "y": 50.40916530278233,
+            "w": 17.582417582417584,
+            "h": 10.474631751227497
           },
           "w": 202,
           "h": 340,
           "dark": {
             "box": {
-              "x": 4.294478527607362,
-              "y": 49.50688073394495,
-              "w": 17.29773773006135,
-              "h": 10.346903669724771
+              "x": 3.8461538461538463,
+              "y": 50.40916530278233,
+              "w": 17.582417582417584,
+              "h": 10.474631751227497
             },
             "w": 202,
             "h": 340
@@ -4569,17 +5447,25 @@
         }
       ],
       "bytes": {
-        "light": 30575,
-        "dark": 42983
+        "light": 54508,
+        "dark": 47706
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -4587,19 +5473,36 @@
         "src/components/PlayerCard.jsx",
         "src/components/SantoriniBoard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -4608,17 +5511,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -4628,18 +5546,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "01d873cbf6a8",
-      "assetHash": "bca4c743fdaf",
-      "dpr": 1
+      "sourceHash": "d3a387b7c3e5",
+      "assetHash": "e9c66d582cf2"
     },
     "sim": {
-      "w": 224,
+      "w": 230,
       "h": 340,
       "steps": [
         {
@@ -4650,7 +5570,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 224,
+          "w": 230,
           "h": 340,
           "dark": {
             "box": {
@@ -4659,65 +5579,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 224,
+            "w": 230,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 63.28843941717791,
-            "y": 28.205556906614785,
-            "w": 13.482553680981596,
-            "h": 8.551191634241246
+            "x": 62.736092032967036,
+            "y": 29.78812611806798,
+            "w": 12.920673076923077,
+            "h": 8.413461538461538
           },
-          "w": 214,
+          "w": 220,
           "h": 340,
           "dark": {
             "box": {
-              "x": 63.28843941717791,
-              "y": 28.205556906614785,
-              "w": 13.482553680981596,
-              "h": 8.551191634241246
+              "x": 62.736092032967036,
+              "y": 29.78812611806798,
+              "w": 12.920673076923077,
+              "h": 8.413461538461538
             },
-            "w": 214,
+            "w": 220,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 63.28843941717791,
-            "y": 42.866913910505836,
-            "w": 13.482553680981596,
-            "h": 8.551191634241246
+            "x": 62.736092032967036,
+            "y": 44.21399821109124,
+            "w": 12.920673076923077,
+            "h": 8.413461538461538
           },
-          "w": 214,
+          "w": 220,
           "h": 340,
           "dark": {
             "box": {
-              "x": 63.28843941717791,
-              "y": 42.866913910505836,
-              "w": 13.482553680981596,
-              "h": 8.551191634241246
+              "x": 62.736092032967036,
+              "y": 44.21399821109124,
+              "w": 12.920673076923077,
+              "h": 8.413461538461538
             },
-            "w": 214,
+            "w": 220,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 49764,
-        "dark": 59607
+        "light": 95431,
+        "dark": 64223
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -4725,19 +5653,36 @@
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
         "src/components/SimBoard.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -4746,17 +5691,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -4766,15 +5726,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "bef361912dd2",
-      "assetHash": "1636859f66c0",
-      "dpr": 1
+      "sourceHash": "cca4d2421adc",
+      "assetHash": "601ff2b53d4f"
     },
     "simon": {
       "w": 212,
@@ -4886,8 +5848,8 @@
       "assetHash": "2ac1432f3a13"
     },
     "sos": {
-      "w": 194,
-      "h": 340,
+      "w": 196,
+      "h": 338,
       "steps": [
         {
           "cap": "objective",
@@ -4897,8 +5859,8 @@
             "w": 98,
             "h": 98
           },
-          "w": 194,
-          "h": 340,
+          "w": 196,
+          "h": 338,
           "dark": {
             "box": {
               "x": 1,
@@ -4906,65 +5868,73 @@
               "w": 98,
               "h": 98
             },
-            "w": 194,
-            "h": 340
+            "w": 196,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 5.521472392638037,
-            "y": 23.767605633802816,
-            "w": 11.91526073619632,
-            "h": 6.83868838028169
+            "x": 4.945054945054945,
+            "y": 24.76038338658147,
+            "w": 12.165178571428571,
+            "h": 7.0736821086261985
           },
-          "w": 194,
-          "h": 340,
+          "w": 196,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 5.521472392638037,
-              "y": 23.767605633802816,
-              "w": 11.91526073619632,
-              "h": 6.83868838028169
+              "x": 4.945054945054945,
+              "y": 24.76038338658147,
+              "w": 12.165178571428571,
+              "h": 7.0736821086261985
             },
-            "w": 194,
-            "h": 340
+            "w": 196,
+            "h": 338
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 18.35697852760736,
-            "y": 23.767605633802816,
-            "w": 11.920053680981596,
-            "h": 6.84143926056338
+            "x": 17.93440934065934,
+            "y": 24.76038338658147,
+            "w": 12.165178571428571,
+            "h": 7.0736821086261985
           },
-          "w": 194,
-          "h": 340,
+          "w": 196,
+          "h": 338,
           "dark": {
             "box": {
-              "x": 18.35697852760736,
-              "y": 23.767605633802816,
-              "w": 11.920053680981596,
-              "h": 6.84143926056338
+              "x": 17.93440934065934,
+              "y": 24.76038338658147,
+              "w": 12.165178571428571,
+              "h": 7.0736821086261985
             },
-            "w": 194,
-            "h": 340
+            "w": 196,
+            "h": 338
           }
         }
       ],
       "bytes": {
-        "light": 24503,
-        "dark": 40134
+        "light": 55721,
+        "dark": 46165
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
@@ -4972,19 +5942,36 @@
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
         "src/components/SosBoard.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -4993,17 +5980,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -5013,15 +6015,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "1a6c5980e2b8",
-      "assetHash": "7a2de1780001",
-      "dpr": 1
+      "sourceHash": "8a0d165b9376",
+      "assetHash": "711e43f85005"
     },
     "spaceduel": {
       "w": 206,
@@ -5710,19 +6714,19 @@
         {
           "cap": 1,
           "box": {
-            "x": 3.6809815950920246,
-            "y": 28.932038834951456,
-            "w": 9.063458588957054,
-            "h": 5.737257281553398
+            "x": 3.2967032967032965,
+            "y": 29.49389179755672,
+            "w": 9.276270604395604,
+            "h": 5.8927792321116925
           },
           "w": 214,
           "h": 340,
           "dark": {
             "box": {
-              "x": 3.6809815950920246,
-              "y": 28.932038834951456,
-              "w": 9.063458588957054,
-              "h": 5.737257281553398
+              "x": 3.2967032967032965,
+              "y": 29.49389179755672,
+              "w": 9.276270604395604,
+              "h": 5.8927792321116925
             },
             "w": 214,
             "h": 340
@@ -5731,19 +6735,19 @@
         {
           "cap": 1,
           "box": {
-            "x": 35.78412576687116,
-            "y": 49.25970873786408,
-            "w": 9.063458588957054,
-            "h": 5.737257281553398
+            "x": 35.52970467032967,
+            "y": 49.9727312390925,
+            "w": 9.276270604395604,
+            "h": 5.8927792321116925
           },
           "w": 214,
           "h": 340,
           "dark": {
             "box": {
-              "x": 35.78412576687116,
-              "y": 49.25970873786408,
-              "w": 9.063458588957054,
-              "h": 5.737257281553398
+              "x": 35.52970467032967,
+              "y": 49.9727312390925,
+              "w": 9.276270604395604,
+              "h": 5.8927792321116925
             },
             "w": 214,
             "h": 340
@@ -5751,37 +6755,62 @@
         }
       ],
       "bytes": {
-        "light": 25515,
-        "dark": 42348
+        "light": 82012,
+        "dark": 45172
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/UltimateTttBoard.jsx",
         "src/components/VariantChooser.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -5790,17 +6819,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -5810,15 +6854,17 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "50d2370c3c73",
-      "assetHash": "3365a0dd1dbc",
-      "dpr": 1
+      "sourceHash": "1f55a2c0e033",
+      "assetHash": "ba15315c33a4"
     },
     "wavelength": {
       "w": 204,
@@ -5943,7 +6989,7 @@
       "assetHash": "54407b8c89ce"
     },
     "yavalath": {
-      "w": 228,
+      "w": 244,
       "h": 340,
       "steps": [
         {
@@ -5954,7 +7000,7 @@
             "w": 98,
             "h": 98
           },
-          "w": 228,
+          "w": 244,
           "h": 340,
           "dark": {
             "box": {
@@ -5963,85 +7009,111 @@
               "w": 98,
               "h": 98
             },
-            "w": 228,
+            "w": 244,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 24.539877300613497,
-            "y": 27.178423236514522,
-            "w": 9.202453987730062,
-            "h": 5.413641078838174
+            "x": 27.197802197802197,
+            "y": 30.816326530612244,
+            "w": 8.241758241758241,
+            "h": 5.325255102040816
           },
-          "w": 228,
+          "w": 252,
           "h": 340,
           "dark": {
             "box": {
-              "x": 24.539877300613497,
-              "y": 27.178423236514522,
-              "w": 9.202453987730062,
-              "h": 5.413641078838174
+              "x": 27.197802197802197,
+              "y": 30.816326530612244,
+              "w": 8.241758241758241,
+              "h": 5.325255102040816
             },
-            "w": 228,
+            "w": 252,
             "h": 340
           }
         },
         {
           "cap": 0,
           "box": {
-            "x": 24.539877300613497,
-            "y": 27.178423236514522,
-            "w": 9.202453987730062,
-            "h": 5.413641078838174
+            "x": 27.197802197802197,
+            "y": 29.900990099009903,
+            "w": 8.241758241758241,
+            "h": 5.167079207920792
           },
-          "w": 228,
+          "w": 244,
           "h": 340,
           "dark": {
             "box": {
-              "x": 24.539877300613497,
-              "y": 27.178423236514522,
-              "w": 9.202453987730062,
-              "h": 5.413641078838174
+              "x": 27.197802197802197,
+              "y": 29.900990099009903,
+              "w": 8.241758241758241,
+              "h": 5.167079207920792
             },
-            "w": 228,
+            "w": 244,
             "h": 340
           }
         }
       ],
       "bytes": {
-        "light": 57368,
-        "dark": 72172
+        "light": 96279,
+        "dark": 75402
       },
       "sources": [
+        "src/components/AddFriendButton.jsx",
         "src/components/Avatar.jsx",
         "src/components/BottomSheet.jsx",
+        "src/components/BottomSheetPanel.jsx",
+        "src/components/CardTag.jsx",
         "src/components/CategoryTabs.jsx",
         "src/components/EmptyState.jsx",
+        "src/components/FocusStage.jsx",
+        "src/components/GameArt.jsx",
+        "src/components/GameArtCutPaper.jsx",
         "src/components/GameCard.jsx",
+        "src/components/GameFilters.jsx",
         "src/components/GameOptionsSheet.jsx",
         "src/components/GamePicker.jsx",
+        "src/components/GamePickerSheet.jsx",
         "src/components/GameSearchInput.jsx",
         "src/components/GameStatus.jsx",
         "src/components/GameSwitcher.jsx",
         "src/components/NewGamesRail.jsx",
         "src/components/PlayerCard.jsx",
         "src/components/SearchEmpty.jsx",
+        "src/components/SwitchRow.jsx",
         "src/components/VariantChooser.jsx",
         "src/components/YavalathBoard.jsx",
+        "src/components/gameArtToon/GameArtToon.jsx",
+        "src/components/gameArtToon/toonPalette.js",
         "src/components/loading/PixelDots.jsx",
+        "src/hooks/useFocusArena.js",
+        "src/hooks/useFocusMode.js",
+        "src/hooks/useKeyboardInset.js",
         "src/hooks/useModalHistory.js",
+        "src/hooks/useMotionPref.js",
+        "src/hooks/useTapConfirm.js",
         "src/index.css",
         "src/lib/a11yLabels.js",
         "src/lib/analytics.js",
         "src/lib/ataxxLogic.js",
+        "src/lib/attribution.js",
         "src/lib/audioContext.js",
         "src/lib/auth.js",
+        "src/lib/authDomainLogic.js",
+        "src/lib/avatarKit/art.js",
+        "src/lib/avatarKit/canvas.js",
+        "src/lib/avatarKit/catalog.js",
+        "src/lib/avatarKit/character.js",
+        "src/lib/avatarKit/compose.js",
+        "src/lib/avatarKit/palette.js",
         "src/lib/avatarSprites.js",
         "src/lib/avatars.js",
         "src/lib/blockadeLogic.js",
+        "src/lib/botRecordLogic.js",
         "src/lib/breakthroughLogic.js",
+        "src/lib/catalogTags.js",
         "src/lib/chainReactionLogic.js",
         "src/lib/chompLogic.js",
         "src/lib/connectFourLogic.js",
@@ -6050,17 +7122,32 @@
         "src/lib/displayPrefs.js",
         "src/lib/dotsAndBoxesLogic.js",
         "src/lib/favorites.js",
+        "src/lib/features.js",
         "src/lib/firebase.js",
+        "src/lib/focusLogic.js",
+        "src/lib/gameArtLogic.js",
+        "src/lib/gameArtStyle.js",
+        "src/lib/gameFilters.js",
         "src/lib/gameLogic.js",
         "src/lib/gameSearch.js",
         "src/lib/games.js",
         "src/lib/gomokuLogic.js",
+        "src/lib/haptics.js",
         "src/lib/hexLogic.js",
+        "src/lib/inView.js",
         "src/lib/kamisadoLogic.js",
+        "src/lib/lazyWithRetry.js",
         "src/lib/loaLogic.js",
+        "src/lib/monitoring.js",
+        "src/lib/motion.js",
+        "src/lib/native/nativeAuth.js",
+        "src/lib/nativeAuthLogic.js",
         "src/lib/onitamaLogic.js",
         "src/lib/orderChaosLogic.js",
         "src/lib/pairsLogic.js",
+        "src/lib/pickerScope.js",
+        "src/lib/platform.js",
+        "src/lib/playerCacheLogic.js",
         "src/lib/quartoLogic.js",
         "src/lib/reversiLogic.js",
         "src/lib/roomSwitchContext.js",
@@ -6070,18 +7157,20 @@
         "src/lib/simLogic.js",
         "src/lib/sosLogic.js",
         "src/lib/sounds.js",
+        "src/lib/spring.js",
         "src/lib/telemetry.js",
         "src/lib/tictactoe4Logic.js",
+        "src/lib/track.js",
+        "src/lib/trackLogic.js",
         "src/lib/ultimateTttLogic.js",
         "src/lib/yavalathLogic.js",
         "src/pages/demos/BotBoardDemo.jsx"
       ],
-      "sourceHash": "9e36cdfd1197",
-      "assetHash": "3038ed15f2a9",
-      "dpr": 1
+      "sourceHash": "2139739c1c7d",
+      "assetHash": "9032c820deb8"
     }
   },
-  "commit": "d47e9be",
+  "commit": "99e6ae6",
   "skipped": {
     "mancala": "No enabled control for cell: [data-testid^=\"pit \"]",
     "snake": "error: \"Error: Cannot read properties of null (reading 'children')\"\ncode: UNKNOWN",
