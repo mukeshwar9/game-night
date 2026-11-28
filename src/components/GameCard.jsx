@@ -42,7 +42,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           disabled={isBusy}
           title={desc}
           className={cn(
-            'glass glass-tx w-full text-left border rounded-2xl overflow-hidden bg-retro-card transition press-card p-2',
+            'glass glass-tx relative w-full text-left border rounded-2xl overflow-hidden bg-retro-card transition press-card p-2',
             isLoading
               ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
               : 'border-retro-border hover:border-retro-cta/50',
@@ -54,8 +54,8 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
               {Icon && <Icon />}
             </span>
             <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
-            {tag && <CardTag tag={tag} className="absolute top-1.5 left-1.5" />}
           </span>
+          {tag && <CardTag tag={tag} className="absolute top-3.5 left-3.5" />}
           <span className="block px-1 pt-2 pb-1">
             {isLoading ? (
               <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>

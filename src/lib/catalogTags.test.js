@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { START_HERE, MAX_NEW_MARKS, getStartHere, getCardTag } from './catalogTags'
+import { START_HERE, getStartHere, getCardTag } from './catalogTags'
 
 if (typeof globalThis.localStorage === 'undefined') {
   globalThis.localStorage = { getItem: () => null, setItem: () => {} }
@@ -36,13 +36,6 @@ describe('getCardTag', () => {
 
   it('marks a new game NEW', () => {
     expect(getCardTag('sim', new Set(['sim']))).toBe('new')
-  })
-
-  it('shows no NEW mark when a batch launch made many games new', () => {
-    const many = new Set(Array.from({ length: MAX_NEW_MARKS + 1 }, (_, i) => `g${i}`))
-    expect(getCardTag('g0', many)).toBeNull()
-    const few = new Set(Array.from({ length: MAX_NEW_MARKS }, (_, i) => `g${i}`))
-    expect(getCardTag('g0', few)).toBe('new')
   })
 
   it('marks nothing else', () => {

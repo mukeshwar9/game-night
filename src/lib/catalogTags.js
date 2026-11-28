@@ -18,11 +18,6 @@ export const START_HERE = [
   'pong',
 ]
 
-/** After a batch launch every recent game is NEW and the mark means nothing,
- *  so NEW marks only show while this few games are new. The catalogue's NEW
- *  THIS MONTH rail still lists them all. */
-export const MAX_NEW_MARKS = 6
-
 /**
  * The START HERE entries, in list order.
  * @template {{ type: string }} T
@@ -45,6 +40,6 @@ export function getStartHere(entries) {
  */
 export function getCardTag(type, newTypes) {
   if (START_HERE.includes(type)) return 'popular'
-  if (newTypes.has(type) && newTypes.size <= MAX_NEW_MARKS) return 'new'
+  if (newTypes.has(type)) return 'new'
   return null
 }
