@@ -5,14 +5,15 @@
 //
 // The header has two views the player flips at any time (big tiles / a 64 pt
 // face strip; never automatic) plus a minimise to a row of dots. The choice is
-// remembered per device. Every tile carries data-seat-card={uid} so reactions
+// remembered per device, except the fold, which lasts only for the visit; the
+// dots row marks live cameras so folded video is never silently hidden. Every tile carries data-seat-card={uid} so reactions
 // and chat bubbles float up from the sender's face.
 import { Suspense, lazy, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import Avatar from './Avatar'
 import { cn } from '@/lib/utils'
 import { memberPresent } from '../lib/nightLogic'
 import {
-  SHELL_VIEW_KEY, SHORT_LANDSCAPE_QUERY, effectiveShellView, isPartyFamily, parseShellView, shellTiles, toggleShellMinimised, toggleShellView,
+  SHELL_VIEW_KEY, SHORT_LANDSCAPE_QUERY, effectiveShellView, isPartyFamily, liveVideoUids, restoredShellView, shellTiles, toggleShellMinimised, toggleShellView,
 } from '../lib/partyShellLogic'
 
 const EmoteBar = lazy(() => import('./EmoteBar'))
@@ -39,7 +40,7 @@ function subscribeShortLandscape(onChange) {
 const shortLandscapeNow = () => (typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(SHORT_LANDSCAPE_QUERY).matches)
 
 function readView() {
-  try { return parseShellView(localStorage.getItem(SHELL_VIEW_KEY)) } catch { return parseShellView(null) }
+  try { return restoredShellView(localStorage.getItem(SHELL_VIEW_KEY)) } catch { return restoredShellView(null) }
 }
 
 /** The tile's state words, in one place for the big tile and the strip face. */
@@ -201,6 +202,7 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
 
   const seated = tiles.filter(t => !t.invite)
   const statusOf = (t) => (t.uid ? statusFor?.[t.uid] : undefined)
+  const videoUids = liveVideoUids(tiles, statusFor, myUid)
 
   // The wrapper and the children's slot are identical whether or not the chrome
   // shows, so a room that flips between party and plain never remounts the game.
@@ -233,19 +235,30 @@ export default function PartyShell({ active, game, myUid, hostUid, inLobby, onIn
         {view === 'mini' && (
           <button
             type="button"
-            onClick={() => setView(toggleShellMinimised(view))}
-            aria-label="Show the player row"
+            onClick={shortLandscape ? undefined : () => setView(toggleShellMinimised(view))}
+            aria-disabled={shortLandscape || undefined}
+            aria-label={shortLandscape
+              ? (videoUids.length ? 'Player row, a camera is on, turn the phone upright to see it' : 'Player row, turn the phone upright to open it')
+              : (videoUids.length ? 'Show the player row, a camera is on' : 'Show the player row')}
             data-testid="shell-expand"
+            data-video={videoUids.length || undefined}
             className="w-full h-[30px] flex items-center justify-center gap-2"
           >
             {seated.map(t => (
               <span
                 key={t.key}
                 data-seat-card={t.uid}
-                className={cn('w-3 h-3 rounded-full', SEAT_BG[(t.seat - 1) % 4], !t.online && 'opacity-40', statusOf(t)?.speaking && 'ring-2 ring-retro-win', t.turn && 'ring-2 ring-retro-cta')}
-              />
+                className={cn(
+                  'w-3 h-3 rounded-full flex items-center justify-center',
+                  SEAT_BG[(t.seat - 1) % 4], !t.online && 'opacity-40',
+                  statusOf(t)?.speaking && 'ring-2 ring-retro-win', t.turn && 'ring-2 ring-retro-cta',
+                )}
+              >
+                {videoUids.includes(t.uid) && <span className="w-1 h-1 rounded-full bg-retro-bg" data-testid="mini-video-dot" />}
+              </span>
             ))}
-            <span className="font-pixel text-[7px] text-retro-dim">▾</span>
+            {videoUids.length > 0 && <span className="font-pixel text-[7px] text-retro-text tracking-wider" data-testid="mini-video-cue">{shortLandscape ? 'CAMERA ON · TURN UPRIGHT TO SEE' : 'CAMERA ON · TAP TO SEE'}</span>}
+            {!shortLandscape && <span className="font-pixel text-[7px] text-retro-dim">▾</span>}
           </button>
         )}
       </header>}

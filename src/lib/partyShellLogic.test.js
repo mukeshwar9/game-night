@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   shellActive, isPartyFamily, parseShellView, toggleShellView, toggleShellMinimised,
-  turnUid, shellTiles, tickerLine, DEFAULT_SHELL_VIEW, effectiveShellView,
+  turnUid, shellTiles, tickerLine, DEFAULT_SHELL_VIEW, effectiveShellView, restoredShellView, liveVideoUids,
 } from './partyShellLogic'
 
 const online = { conns: { c1: true } }
@@ -47,6 +47,22 @@ describe('view', () => {
   it('minimises from the strip and opens back to it', () => {
     expect(toggleShellMinimised('strip')).toBe('mini')
     expect(toggleShellMinimised('mini')).toBe('strip')
+  })
+  it('a stored fold opens as the strip; the other picks stand', () => {
+    expect(restoredShellView('mini')).toBe('strip')
+    expect(restoredShellView('strip')).toBe('strip')
+    expect(restoredShellView('tiles')).toBe('tiles')
+    expect(restoredShellView(null)).toBe(DEFAULT_SHELL_VIEW)
+  })
+  it('lists the seated players whose camera is live, skipping invite tiles', () => {
+    const tiles = [{ uid: 'a' }, { uid: 'b' }, { uid: null, invite: true }]
+    expect(liveVideoUids(tiles, { a: { video: {} }, b: { muted: true } })).toEqual(['a'])
+    expect(liveVideoUids(tiles, undefined)).toEqual([])
+  })
+  it('leaves the viewer\'s own camera out of the cue', () => {
+    const tiles = [{ uid: 'me' }, { uid: 'b' }]
+    expect(liveVideoUids(tiles, { me: { video: {} } }, 'me')).toEqual([])
+    expect(liveVideoUids(tiles, { me: { video: {} }, b: { video: {} } }, 'me')).toEqual(['b'])
   })
 })
 

@@ -4,7 +4,9 @@
 // self options) that used to hang off the in-page voice strip. Renders
 // PartyShell itself so the shell's tiles and footer get these props; with voice
 // off it is just the shell. Opens muted on join (tap the mic to talk); the
-// camera is off every session until the player turns it on.
+// camera is off every session until the player turns it on. The camera button
+// shows from the start: turning it on outside voice joins listen only, and
+// listen only always has a way back to the mic.
 import { useState } from 'react'
 import { ref, set } from 'firebase/database'
 import { toast } from 'sonner'
@@ -26,7 +28,9 @@ export default function VoiceShell({ gameId, ...shellProps }) {
   const voice = useVoice()
   const { game } = shellProps
   const [sheet, setSheet] = useState(null) // 'intro' | 'age' | 'cam' | 'self' | { person }
-  const [joinChoice, setJoinChoice] = useState({ listenOnly: false })
+  // What to retry once the AGE CHECK sheet saves a year: the camera (with its
+  // audience pick) when the camera button started the join, else a mic join.
+  const [pendingCam, setPendingCam] = useState(/** @type {{ everyone?: boolean } | null} */ (null))
   // The camera explainer shows once per visit; nothing about the camera is
   // remembered across sessions.
   const [camIntroSeen, setCamIntroSeen] = useState(false)
@@ -42,18 +46,43 @@ export default function VoiceShell({ gameId, ...shellProps }) {
   if (!available) return <PartyShell {...shellProps} />
 
   const camerasOff = game?.camerasOff === true
+  // The first join asks mic or listen only (and the age); after that the mic
+  // button joins with the mic, so LISTEN ONLY is never a choice that sticks.
   const startJoin = () => {
+    setPendingCam(null)
     if (!state.seenIntro) { setSheet('intro'); return }
-    actions.join(joinChoice)
+    actions.join({ listenOnly: false })
   }
   const joining = state.status === 'joining'
+  const enableMic = () => {
+    if (!state.seenIntro) { setSheet('intro-mic'); return }
+    actions.enableMic()
+  }
 
+  const startCamera = (opts = {}) => {
+    setPendingCam(live ? null : opts)
+    actions.startCamera(opts)
+  }
   const onCamera = () => {
     if (state.cam === 'on') { actions.stopCamera(); return }
-    if (state.cam === 'starting' || camerasOff) return
+    if (state.cam === 'starting' || camerasOff || joining) return
     if (!camIntroSeen) { setSheet('cam'); return }
-    actions.startCamera()
+    startCamera()
   }
+
+  const cameraButton = (
+    <button
+      type="button"
+      onClick={onCamera}
+      disabled={state.cam === 'starting' || camerasOff || joining}
+      aria-pressed={state.cam === 'on'}
+      aria-label={camerasOff ? 'Cameras are off in this party' : state.cam === 'on' ? 'Turn camera off' : 'Turn camera on'}
+      data-testid="camera-toggle"
+      className={cn(BTN, state.cam === 'on' ? 'border-retro-win bg-retro-win text-retro-bg' : 'border-retro-border bg-retro-card text-retro-dim', 'disabled:opacity-50')}
+    >
+      <VoiceIcon name={state.cam === 'on' ? 'camera' : 'cameraOff'} size={18} />
+    </button>
+  )
 
   const micInner = live ? (
     <>
@@ -69,33 +98,32 @@ export default function VoiceShell({ gameId, ...shellProps }) {
           <VoiceIcon name={state.muted ? 'micOff' : 'mic'} size={18} />
         </button>
       ) : (
-        <span aria-label="Listening only" data-testid="voice-listen-only" className={cn(BTN, 'border-retro-border bg-retro-card text-retro-dim')}>
+        <button
+          type="button"
+          onClick={enableMic}
+          aria-label="Listening only. Turn on microphone"
+          data-testid="voice-listen-only"
+          className={cn(BTN, 'border-retro-border bg-retro-card text-retro-dim')}
+        >
           <VoiceIcon name="speaker" size={18} />
-        </span>
+        </button>
       )}
-      <button
-        type="button"
-        onClick={onCamera}
-        disabled={state.cam === 'starting' || camerasOff}
-        aria-pressed={state.cam === 'on'}
-        aria-label={camerasOff ? 'Cameras are off in this party' : state.cam === 'on' ? 'Turn camera off' : 'Turn camera on'}
-        data-testid="camera-toggle"
-        className={cn(BTN, state.cam === 'on' ? 'border-retro-win bg-retro-win text-retro-bg' : 'border-retro-border bg-retro-card text-retro-dim', 'disabled:opacity-50')}
-      >
-        <VoiceIcon name={state.cam === 'on' ? 'camera' : 'cameraOff'} size={18} />
-      </button>
+      {cameraButton}
     </>
   ) : (
-    <button
-      type="button"
-      onClick={startJoin}
-      disabled={joining}
-      aria-label="Join voice"
-      data-testid="voice-join"
-      className={cn(BTN, 'border-retro-cta bg-retro-card text-retro-cta disabled:opacity-50')}
-    >
-      {joining ? <span className="font-pixel text-[8px]">…</span> : <VoiceIcon name="mic" size={18} />}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={startJoin}
+        disabled={joining}
+        aria-label="Join voice"
+        data-testid="voice-join"
+        className={cn(BTN, 'border-retro-cta bg-retro-card text-retro-cta disabled:opacity-50')}
+      >
+        {joining ? <span className="font-pixel text-[8px]">…</span> : <VoiceIcon name="mic" size={18} />}
+      </button>
+      {cameraButton}
+    </>
   )
 
   const mic = (
@@ -126,16 +154,28 @@ export default function VoiceShell({ gameId, ...shellProps }) {
   return (
     <>
       <PartyShell {...shellProps} statusFor={statusFor} onPerson={onPerson} trailing={mic} notice={notice} />
-      {sheet === 'intro' && <IntroSheet onClose={() => setSheet(null)} onJoin={(listenOnly) => { setSheet(null); setJoinChoice({ listenOnly }); actions.join({ listenOnly }) }} />}
-      {sheet === 'age' && <AgeSheet onClose={() => setSheet(null)} onSaved={() => { setSheet(null); actions.clearError(); actions.join(joinChoice) }} />}
+      {sheet === 'intro' && <IntroSheet onClose={() => setSheet(null)} onJoin={(listenOnly) => { setSheet(null); actions.join({ listenOnly }) }} />}
+      {sheet === 'intro-mic' && <IntroSheet onClose={() => setSheet(null)} onJoin={(listenOnly) => { setSheet(null); if (!listenOnly) actions.enableMic() }} />}
+      {sheet === 'age' && (
+        <AgeSheet
+          onClose={() => setSheet(null)}
+          onSaved={() => {
+            setSheet(null)
+            actions.clearError()
+            if (pendingCam) startCamera(pendingCam)
+            else actions.join({ listenOnly: false })
+          }}
+        />
+      )}
       {sheet?.person && (
         <PersonSheet person={sheet.person} gameId={gameId} voice={voice} isHost={hostUidOf(game) === me} onClose={() => setSheet(null)} />
       )}
       {sheet === 'cam' && (
         <CameraSheet
           initialEveryone={state.camAll}
+          joinsVoice={!live}
           onClose={() => setSheet(null)}
-          onStart={(everyone) => { setCamIntroSeen(true); setSheet(null); actions.startCamera({ everyone }) }}
+          onStart={(everyone) => { setCamIntroSeen(true); setSheet(null); startCamera({ everyone }) }}
         />
       )}
       {sheet === 'self' && (
@@ -145,6 +185,7 @@ export default function VoiceShell({ gameId, ...shellProps }) {
           voice={voice}
           live={live}
           isHost={hostUidOf(game) === me}
+          onEnableMic={enableMic}
           onClose={() => setSheet(null)}
         />
       )}
@@ -203,7 +244,7 @@ function CameraNotice({ state, onClear }) {
   return null
 }
 
-function CameraSheet({ initialEveryone, onClose, onStart }) {
+function CameraSheet({ initialEveryone, joinsVoice, onClose, onStart }) {
   const [everyone, setEveryone] = useState(!!initialEveryone)
   return (
     <BottomSheet onClose={onClose} ariaLabel="Turn on your camera?" className="bg-retro-card space-y-3">
@@ -214,6 +255,9 @@ function CameraSheet({ initialEveryone, onClose, onStart }) {
         <li>· The host can switch cameras off for the party</li>
         <li>· It turns off when you leave or switch apps</li>
       </ul>
+      {joinsVoice && (
+        <p className="font-mono text-[11px] text-retro-text" data-testid="cam-joins-voice">This also joins voice to listen, with your mic off. Tap the speaker any time to turn your mic on.</p>
+      )}
       <label className="flex items-center gap-3 rounded border border-retro-border bg-retro-bg px-3 min-h-11">
         <input type="checkbox" checked={everyone} onChange={(e) => setEveryone(e.target.checked)} data-testid="cam-everyone" className="accent-current text-retro-cta" />
         <span className="font-pixel text-[8px] tracking-wider text-retro-text">SHOW MY VIDEO TO EVERYONE, NOT JUST FRIENDS</span>
@@ -224,7 +268,7 @@ function CameraSheet({ initialEveryone, onClose, onStart }) {
   )
 }
 
-function SelfSheet({ gameId, game, voice, live, isHost, onClose }) {
+function SelfSheet({ gameId, game, voice, live, isHost, onEnableMic, onClose }) {
   const { state, actions } = voice
   const [busy, run] = useBusy()
   const camerasOff = game?.camerasOff === true
@@ -236,6 +280,11 @@ function SelfSheet({ gameId, game, voice, live, isHost, onClose }) {
   return (
     <BottomSheet onClose={onClose} ariaLabel="Your voice and video" className="bg-retro-card space-y-3">
       <h2 className="font-pixel text-xs text-retro-cta">YOU</h2>
+      {live && state.listenOnly && (
+        <button type="button" onClick={() => { onClose(); onEnableMic() }} data-testid="self-enable-mic" className={cn(row, 'border-retro-cta text-retro-cta')}>
+          LISTENING ONLY · TURN ON MIC
+        </button>
+      )}
       {state.cam === 'on' && (
         <button type="button" onClick={() => actions.setCamAll(!state.camAll)} aria-pressed={state.camAll} data-testid="self-cam-all" className={row}>
           {state.camAll ? 'VIDEO SHOWN TO EVERYONE · TAP FOR FRIENDS ONLY' : 'VIDEO SHOWN TO FRIENDS · TAP TO SHOW EVERYONE'}

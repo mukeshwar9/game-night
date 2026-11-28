@@ -37,6 +37,29 @@ export function parseShellView(raw) {
 }
 
 /**
+ * The view a new visit opens with. The fold to dots is for the moment, not a
+ * setting: a stored 'mini' opens as the strip it was folded from, so a row
+ * folded last week never hides live faces and video today.
+ * @param {unknown} raw
+ */
+export function restoredShellView(raw) {
+  const view = parseShellView(raw)
+  return view === 'mini' ? 'strip' : view
+}
+
+/**
+ * The other seated players whose camera is live, for the folded dots row
+ * (which has no room for video) to point at; the viewer's own preview is not news.
+ * @param {{ uid: string | null, invite?: boolean }[]} tiles
+ * @param {Record<string, { video?: unknown } | undefined> | undefined} statusFor
+ * @param {string | null | undefined} [myUid]
+ * @returns {string[]}
+ */
+export function liveVideoUids(tiles, statusFor, myUid) {
+  return tiles.filter(t => !t.invite && t.uid && t.uid !== myUid && statusFor?.[t.uid]?.video).map(t => /** @type {string} */ (t.uid))
+}
+
+/**
  * The toggle between the two main views. From the minimised row it expands to
  * the strip (the view it was folded from).
  * @param {string} view
