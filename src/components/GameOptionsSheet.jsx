@@ -147,7 +147,7 @@ export default function GameOptionsSheet({ game, onInvite, onPublic, onSolo, onL
                   <Row
                     onClick={() => onLocal(game)}
                     label="SAME DEVICE"
-                    badge={game.localMaxPlayers ? `2-${game.localMaxPlayers}P` : '2P'}
+                    badge={game.localMaxPlayers ? `${game.localMinPlayers ?? 2}-${game.localMaxPlayers}P` : '2P'}
                     disabled={isBusy}
                     blurb="Pass one device between turns."
                   />

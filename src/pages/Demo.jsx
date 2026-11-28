@@ -253,7 +253,7 @@ function LocalPlayPage({ routeType }) {
             {cfg.label}
           </h1>
           <p className="font-pixel text-[9px] text-retro-dim text-center">
-            {cfg.localBlurb || 'PASS & PLAY · ONE SCREEN, TAKE TURNS'}{cfg.localMaxPlayers ? ` · 2-${cfg.localMaxPlayers} PLAYERS` : ''}
+            {cfg.localBlurb || 'PASS & PLAY · ONE SCREEN, TAKE TURNS'}{cfg.localMaxPlayers ? ` · ${cfg.localMinPlayers ?? 2}-${cfg.localMaxPlayers} PLAYERS` : ''}
           </p>
           <div className="pt-3">
             <Suspense fallback={<DemoFallback />}>

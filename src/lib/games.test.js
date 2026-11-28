@@ -125,10 +125,12 @@ describe('supportsLocalPlay', () => {
     'quiver',
     // custom online duel that keeps its turn-based board for pass-and-play (localBoard)
     'visualmemory',
+    // custom party game with its own one-phone page (secret reveal)
+    'chameleon',
   ]
 
-  it('is true for all 44 eligible games (33 registry boards + ten custom LocalPages + one localBoard)', () => {
-    expect(LOCAL_TYPES).toHaveLength(44)
+  it('is true for all 45 eligible games (33 registry boards + eleven custom LocalPages + one localBoard)', () => {
+    expect(LOCAL_TYPES).toHaveLength(45)
     for (const type of LOCAL_TYPES) {
       expect(supportsLocalPlay(type), type).toBe(true)
     }
