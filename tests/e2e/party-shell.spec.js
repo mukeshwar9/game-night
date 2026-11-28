@@ -49,6 +49,11 @@ test('party shell: faces, manual view toggle, and it survives a game switch', as
     await expect(alice.page.getByTestId('party-shell')).toHaveAttribute('data-view', 'strip')
     await alice.page.getByTestId('shell-minimise').click()
     await expect(alice.page.getByTestId('party-shell')).toHaveAttribute('data-view', 'mini')
+    // The fold lasts for the visit only: a reload opens the strip it came from.
+    await alice.page.reload()
+    await expect(alice.page.getByTestId('party-shell')).toHaveAttribute('data-view', 'strip')
+    await alice.page.getByTestId('shell-minimise').click()
+    await expect(alice.page.getByTestId('party-shell')).toHaveAttribute('data-view', 'mini')
     await alice.page.getByTestId('shell-expand').click()
     await expect(alice.page.getByTestId('party-shell')).toHaveAttribute('data-view', 'strip')
     await alice.page.getByTestId('shell-view-toggle').click()

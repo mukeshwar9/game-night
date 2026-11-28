@@ -230,6 +230,7 @@ export function IntroSheet({ onClose, onJoin }) {
         <li>· Tap anyone to mute, block or report them</li>
         <li>· Music stops while you’re in voice</li>
         <li>· Voice pauses if you leave the app</li>
+        <li>· Tap the camera any time to show your face</li>
       </ul>
       {needYear && (
         <div data-testid="voice-age-field" className="rounded border border-retro-border bg-retro-bg p-3">

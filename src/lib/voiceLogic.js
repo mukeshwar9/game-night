@@ -216,6 +216,14 @@ export function newAttemptId(now = Date.now(), rand = Math.random) {
 // choose SHOW MY VIDEO TO EVERYONE), per-viewer hide, and a host CAMERAS OFF
 // switch. The server resolves who may pull whose video; a client only asks.
 
+/**
+ * Who sees a camera when its owner turns it on without changing the choice:
+ * false = friends only (the server's friends-first rule), true = everyone in the
+ * party (SHOW MY VIDEO TO EVERYONE ticked). The one place the default lives;
+ * the camera sheet's tick and the controller's starting `camAll` both read it.
+ */
+export const CAM_SHOW_EVERYONE_BY_DEFAULT = false
+
 /** The camera send limits the client applies (240p-class, 15 fps, ~200 kbps). */
 export const CAMERA_LIMITS = Object.freeze({ width: 320, height: 240, frameRate: 15, maxBitrate: 200_000 })
 

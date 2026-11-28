@@ -8,6 +8,7 @@ beforeEach(() => {
 afterEach(() => { delete globalThis.window })
 
 const { createVoiceController } = await import('./voiceController')
+const { CAM_SHOW_EVERYONE_BY_DEFAULT } = await import('../voiceLogic')
 
 const room = (over = {}) => ({
   gameType: 'party', partyRoom: true, partyCap: 4,
@@ -215,16 +216,43 @@ describe('voice controller', () => {
       return { f, ctl }
     }
 
-    it('is off by default and does nothing without a voice session', async () => {
+    it('is off by default, and a join alone never turns it on', async () => {
       const f = fakeIo()
       const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
       ctl.setRoom(room())
-      expect(ctl.getState().cam).toBe('off')
-      await ctl.startCamera()
-      expect(f.io.getCamera).not.toHaveBeenCalled()
+      expect(ctl.getState()).toMatchObject({ cam: 'off', camAll: CAM_SHOW_EVERYONE_BY_DEFAULT })
       await ctl.join()
       expect(ctl.getState().cam).toBe('off')
       expect(f.io.published.cam).toBeUndefined()
+    })
+
+    it('outside voice, turning the camera on joins listen only first (no mic prompt)', async () => {
+      const f = fakeIo()
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.startCamera({ everyone: true })
+      expect(f.io.openSession).toHaveBeenCalledTimes(1)
+      expect(f.io.openSession.mock.calls[0][0].listenOnly).toBe(true)
+      expect(ctl.getState()).toMatchObject({ cam: 'on', camAll: true, listenOnly: true })
+      expect(f.io.published).toMatchObject({ on: true, cam: true, camAll: true })
+    })
+
+    it('outside voice, a refused join (no year on file) leaves the camera off with the age check', async () => {
+      const f = fakeIo({ birthYear: null })
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.startCamera()
+      expect(f.io.getCamera).not.toHaveBeenCalled()
+      expect(ctl.getState()).toMatchObject({ cam: 'off', status: 'off', error: 'age-required' })
+    })
+
+    it('outside voice, cameras off for the party refuses before joining', async () => {
+      const f = fakeIo()
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room({ camerasOff: true }))
+      await ctl.startCamera()
+      expect(f.io.openSession).not.toHaveBeenCalled()
+      expect(ctl.getState().camError).toBe('cameras-off')
     })
 
     it('turns on when asked, tells the room (cam, camAll), and turns off cleanly', async () => {
@@ -377,6 +405,44 @@ describe('voice controller', () => {
       } finally {
         vi.useRealTimers()
       }
+    })
+  })
+
+  describe('listen only to mic', () => {
+    it('turns the mic on by rejoining with it, muted, and brings a running camera back', async () => {
+      const f = fakeIo()
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.join({ listenOnly: true })
+      await ctl.startCamera({ everyone: true })
+      expect(ctl.getState()).toMatchObject({ listenOnly: true, cam: 'on' })
+      await ctl.enableMic()
+      expect(f.sessions).toHaveLength(2)
+      expect(f.sessions[0].closed).toBe(true)
+      expect(f.sessions[1].listenOnly).toBe(false)
+      expect(ctl.getState()).toMatchObject({ listenOnly: false, muted: true, cam: 'on', camAll: true })
+      expect(f.sessions[1].startCamera).toHaveBeenCalled()
+    })
+
+    it('a refused mic falls back to listen only with the blocked note, not a dead end', async () => {
+      const f = fakeIo({ micDenied: true })
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.join({ listenOnly: true })
+      await ctl.enableMic()
+      expect(ctl.getState()).toMatchObject({ listenOnly: true, error: 'mic-denied' })
+      expect(['connecting', 'connected']).toContain(ctl.getState().status)
+    })
+
+    it('does nothing with the mic already on or outside voice', async () => {
+      const f = fakeIo()
+      const ctl = createVoiceController({ gameId: 'G1', me: 'me', enabled: true, io: f.io })
+      ctl.setRoom(room())
+      await ctl.enableMic()
+      expect(f.io.openSession).not.toHaveBeenCalled()
+      await ctl.join()
+      await ctl.enableMic()
+      expect(f.io.openSession).toHaveBeenCalledTimes(1)
     })
   })
 })

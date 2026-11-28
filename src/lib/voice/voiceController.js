@@ -12,8 +12,10 @@
 // Camera (video) rides the same session: off by default every session (nothing
 // is remembered), started only by the player's tap, stopped on leave, in the
 // background, when the host switches cameras off, and on a weak link (voice
-// stays). Who may see it is decided on the server (friends first); this side
-// only asks for the faces it wants and may hide any of them.
+// stays). The camera needs a session but not a microphone: turning it on
+// outside voice joins listen only first. Who may see it is decided on the
+// server (friends first); this side only asks for the faces it wants and may
+// hide any of them.
 
 import { ref, onValue, set, update, remove, onDisconnect } from 'firebase/database'
 import { db } from '../firebase'
@@ -22,7 +24,7 @@ import { setMusicBlock } from '../music'
 import { getBirthYear } from '../entitlements'
 import {
   voiceAccess, wantedFromDirectory, wantedVideoFromDirectory, isSpeaking,
-  classifyLink, nextLinkState, LINK_START,
+  classifyLink, nextLinkState, LINK_START, CAM_SHOW_EVERYONE_BY_DEFAULT,
 } from '../voiceLogic'
 import { openVoiceSession, voiceErrorCode, VIDEO_CONSTRAINTS } from './sfuSession'
 
@@ -42,7 +44,7 @@ const INITIAL = Object.freeze({
   // explain ('cam-denied', 'cameras-off', …); `camAll` is SHOW MY VIDEO TO EVERYONE.
   cam: 'off',
   camError: null,
-  camAll: false,
+  camAll: CAM_SHOW_EVERYONE_BY_DEFAULT,
   localVideo: null, // MediaStream of my own camera, for my tile
   videos: {}, // uid -> MediaStream of a friend's camera
   hiddenVideo: {}, // per-viewer hide, by uid
@@ -207,8 +209,15 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
   }
 
   async function startCamera({ everyone } = {}) {
-    if (!session || state.cam !== 'off') return
+    if (state.cam !== 'off') return
     if (room?.camerasOff === true) { emit({ camError: 'cameras-off' }); return }
+    // Outside voice: join listen only (no microphone prompt) so the camera has
+    // a session to ride. A refusal (age check, no service) lands in `error`.
+    if (!session) {
+      if (state.status === 'joining') return
+      await join({ listenOnly: true })
+      if (!session || state.cam !== 'off') return
+    }
     emit({ cam: 'starting', camError: null, ...(typeof everyone === 'boolean' ? { camAll: everyone } : {}) })
     let stream
     try {
@@ -368,6 +377,18 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     syncPulls()
   }
 
+  // From listen only to an open mic: the session was opened without one, so
+  // leave and rejoin with the mic (muted, as every fresh join), bringing a
+  // camera that was on straight back. A refused microphone falls back to
+  // listen only again with the MIC IS BLOCKED note.
+  async function enableMic() {
+    if (!session || !session.listenOnly || state.status === 'joining') return
+    const restoreCam = state.cam === 'on'
+    await leave()
+    await join({ listenOnly: false })
+    if (restoreCam && session) await startCamera()
+  }
+
   const onPause = () => {
     if (!session) return
     pausedAt = Date.now()
@@ -412,6 +433,7 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
     },
     setBlocks(next) { blocks = next || {}; syncPulls() },
     join,
+    enableMic,
     leave: () => { intent = null; return leave() },
     toggleMute: () => { if (session && !session.listenOnly) setMicMuted(!state.muted, { clearHostMute: state.muted }) },
     setVolume(uid, v) { emit({ volumes: { ...state.volumes, [uid]: Math.max(0, Math.min(1, v)) } }); applyGains() },

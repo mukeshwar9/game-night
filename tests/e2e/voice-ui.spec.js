@@ -1,5 +1,6 @@
 // Party voice controls, without a Cloudflare app: the voice panel shows only
-// to party members, the first JOIN VOICE asks once (mic or listen only) and, for an
+// to party members (camera button included, before anyone joins), the first
+// JOIN VOICE asks once (mic or listen only) and, for an
 // account with no birth year on file, the 13+ question inside that same sheet, and a
 // voiceSfu that is not reachable (no Functions emulator here) leaves a clear
 // error instead of a stuck button. A real SFU session needs a Cloudflare test
@@ -31,6 +32,8 @@ test('voice panel, first-use sheet and the 13+ age check in a party', async ({ b
   await test.step('members see the voice panel; JOIN VOICE asks once', async () => {
     await expect(alice.page.getByTestId('voice-panel')).toBeVisible()
     await expect(bob.page.getByTestId('voice-panel')).toBeVisible()
+    // The camera button is there before anyone joins voice.
+    await expect(bob.page.getByTestId('camera-toggle')).toBeEnabled()
     await alice.page.getByTestId('voice-join').click()
     const sheet = alice.page.getByRole('dialog', { name: 'Join voice?' })
     await expect(sheet).toContainText('Nothing is recorded')
@@ -55,6 +58,16 @@ test('voice panel, first-use sheet and the 13+ age check in a party', async ({ b
     await expect.poll(async () => `${await panel.getAttribute('data-status')}|${await panel.getAttribute('data-error')}`, { timeout: 45_000 }).toMatch(/^off\|(?!null)/)
     await expect(alice.page.getByTestId('voice-error').or(alice.page.getByTestId('voice-mic-blocked'))).toBeVisible()
     await expect(alice.page.getByTestId('voice-join')).toBeEnabled()
+  })
+
+  await test.step('the camera button outside voice explains it joins to listen, and asks the age first', async () => {
+    await bob.page.getByTestId('camera-toggle').click()
+    const sheet = bob.page.getByRole('dialog', { name: 'Turn on your camera?' })
+    await expect(sheet.getByTestId('cam-joins-voice')).toBeVisible()
+    await sheet.getByTestId('cam-start').click()
+    // Bob has no birth year on file: the join behind the camera stops at the age check.
+    await expect(bob.page.getByTestId('voice-age')).toBeVisible()
+    await expect(bob.page.getByTestId('voice-panel')).toHaveAttribute('data-cam', 'off')
   })
 
   expectNoPageErrors(alice, bob)
