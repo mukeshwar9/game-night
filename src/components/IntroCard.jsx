@@ -24,9 +24,10 @@ const TONE = {
 //   children   extra controls, rendered between the chips and PLAY
 //   onPlay     PLAY handler; `playLabel` renames it (default PLAY)
 //   pitch/meta override the registry-derived text; `players` feeds the meta
+//   hideTitle  for a host that already prints the game name above the card
 export default function IntroCard({
   gameType, title, pitch, meta, players, seats = [], modes, mode, onMode,
-  children, onPlay, playLabel = 'PLAY', playDisabled = false, busy = false,
+  children, onPlay, playLabel = 'PLAY', playDisabled = false, busy = false, hideTitle = false,
 }) {
   const cfg = getGameConfig(gameType)
   const [rulesOpen, setRulesOpen] = useState(false)
@@ -36,7 +37,7 @@ export default function IntroCard({
   const metaText = meta ?? introMeta(cfg, { players })
 
   return (
-    <section aria-label={`${name} intro`} className="flex flex-col gap-4 text-left" data-testid="intro-card">
+    <section aria-label={`${name} intro`} className="flex flex-col gap-4 text-left flex-1" data-testid="intro-card">
       <div className="relative h-32 rounded-xl border-2 border-retro-cta/40 bg-retro-tint-cta text-retro-cta overflow-hidden flex items-center justify-center">
         {Icon && <span className="w-16 h-16 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"><Icon /></span>}
         <GameArt type={cfg?.variantOf || cfg?.type} className="absolute inset-0 w-full h-full block object-contain" />
@@ -57,7 +58,7 @@ export default function IntroCard({
       </div>
 
       <div className="space-y-1.5">
-        <h2 className="font-pixel text-sm text-retro-cta text-glow-cta tracking-wider">{name}</h2>
+        {!hideTitle && <h2 className="font-pixel text-sm text-retro-cta text-glow-cta tracking-wider">{name}</h2>}
         {pitchText && <p className="font-mono text-sm text-retro-text leading-snug">{pitchText}</p>}
         {metaText && <p className="font-mono text-[11px] text-retro-dim">{metaText}</p>}
       </div>
@@ -106,7 +107,7 @@ export default function IntroCard({
 
       {/* Pinned: stays in reach on a long card (a tall bot roster, a small
           phone) and clears the home indicator. */}
-      <div className="sticky bottom-0 z-10 -mx-1 px-1 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-retro-bg from-70% to-transparent">
+      <div className="mt-auto sticky bottom-0 z-10 -mx-1 px-1 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-retro-bg from-70% to-transparent">
         <button
           type="button"
           onClick={onPlay}

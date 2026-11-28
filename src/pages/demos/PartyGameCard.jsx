@@ -13,6 +13,7 @@ export default function PartyGameCard({ type }) {
   const me = useOwnSeat()
   return (
     <IntroCard
+      hideTitle
       gameType={type}
       pitch={PARTY_BLURB[type]}
       seats={introSeats(me)}

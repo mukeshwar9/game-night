@@ -231,7 +231,7 @@ function LocalPlayPage({ routeType }) {
   if (!started) {
     return (
       <VideoCallShell><main className="min-h-screen bg-retro-bg flex flex-col items-center">
-        <div className="w-full max-w-md p-4 pt-5">
+        <div className="w-full max-w-md p-4 pt-5 flex-1 flex flex-col">
           <IntroCard
             gameType={routeType}
             seats={introSeats(me, [{ id: 'friend', name: 'Friend' }])}

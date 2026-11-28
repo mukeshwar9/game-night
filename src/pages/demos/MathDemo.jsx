@@ -227,6 +227,7 @@ export default function MathDemo() {
   if (phase === 'idle') {
     return (
       <IntroCard
+        hideTitle
         gameType="math"
         seats={introSeats(me, [{ id: 'bot', name: 'BOT' }])}
         meta={`1 player vs a bot · ${DEMO_MATH_S} sec`}
