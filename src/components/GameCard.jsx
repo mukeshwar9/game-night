@@ -2,6 +2,7 @@ import { getPlayerTag, getGameConfig } from '../lib/games'
 import { GameArt } from './GameArt'
 import { cn } from '@/lib/utils'
 import PixelDots from './loading/PixelDots'
+import CardTag from './CardTag'
 
 // One compact catalog row (~56px): icon left, name, then one meta line
 // (players · duration, plus the blurb from sm up). Two columns on a phone
@@ -12,9 +13,10 @@ import PixelDots from './loading/PixelDots'
 // Tapping the row opens GameOptionsSheet on the Games page (see `handleTap`
 // in GamePicker.jsx); in GameSwitcher's in-room picker it proposes the
 // switch, and `onModes` (optional) adds a MODES button for games with
-// variants so those stay reachable there. New games are surfaced by the
-// catalog's NEW THIS MONTH rail, not a per-row tag.
-export default function GameCard({ game, onTap, onModes, loadingType, disabled, isFav, onToggleFav, layout = 'row' }) {
+// variants so those stay reachable there. `tag` ('popular' | 'new', from
+// lib/catalogTags.js) adds a small word mark; the catalog's NEW THIS MONTH
+// rail still lists every new game.
+export default function GameCard({ game, onTap, onModes, loadingType, disabled, isFav, onToggleFav, layout = 'row', tag = null }) {
   const { type, variantOf } = game
   const base = variantOf ? getGameConfig(variantOf) : null
   const label = variantOf ? (game.variantLabel || game.label) : game.label
@@ -40,7 +42,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           disabled={isBusy}
           title={desc}
           className={cn(
-            'glass glass-tx w-full text-left border rounded-2xl overflow-hidden bg-retro-card transition press-card p-2',
+            'glass glass-tx relative w-full text-left border rounded-2xl overflow-hidden bg-retro-card transition press-card p-2',
             isLoading
               ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
               : 'border-retro-border hover:border-retro-cta/50',
@@ -53,6 +55,7 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
             </span>
             <GameArt type={artType} className="absolute inset-0 w-full h-full block" />
           </span>
+          {tag && <CardTag tag={tag} className="absolute top-3.5 left-3.5" />}
           <span className="block px-1 pt-2 pb-1">
             {isLoading ? (
               <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
@@ -106,7 +109,12 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
             loadingType && !isLoading && 'opacity-40',
           )}
         >
-          <span className="flex-1 min-w-0 font-pixel text-[9px] text-retro-text truncate">{label}</span>
+          {/* Tag on its own line under the name: inline, it truncated long
+              names on a 360 px phone (as in the compact row). */}
+          <span className="flex-1 min-w-0">
+            <span className="block font-pixel text-[9px] text-retro-text truncate">{label}</span>
+            {tag && !isLoading && <span className="block mt-1 leading-none"><CardTag tag={tag} className="inline-block" /></span>}
+          </span>
           {isLoading ? (
             <span className="shrink-0"><PixelDots size="sm" tone="cta" /></span>
           ) : (
@@ -170,12 +178,16 @@ export default function GameCard({ game, onTap, onModes, loadingType, disabled, 
           {isLoading ? (
             <span className="block mt-1"><PixelDots size="sm" tone="cta" /></span>
           ) : (
+            <>
+            {/* Own line: inline in the one-line truncated meta, the tag ate
+                the players · duration text on a 360-390 px phone. */}
+            {tag && <span className="block mt-1 leading-none"><CardTag tag={tag} className="inline-block" /></span>}
             <span className="block font-mono text-[10px] text-retro-dim mt-0.5 truncate">
-              {' '}
               <span className={game.nPlayer ? 'text-retro-p2' : undefined}>{getPlayerTag(game)}</span>
               {game.durationMin != null && ` · ~${game.durationMin} min`}
               <span className="hidden sm:inline"> · {desc}</span>
             </span>
+            </>
           )}
         </span>
       </button>

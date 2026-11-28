@@ -9,6 +9,7 @@ import GameOptionsSheet from './GameOptionsSheet'
 import GameCard from './GameCard'
 import GameSearchInput from './GameSearchInput'
 import NewGamesRail from './NewGamesRail'
+import { getStartHere, getCardTag } from '../lib/catalogTags'
 import EmptyState from './EmptyState'
 import SearchEmpty from './SearchEmpty'
 import FilterButton, { ViewTabs } from './GameFilters'
@@ -166,6 +167,14 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
         .map(g => ({ ...g, hasVariants: variantsFor(g.type).length > 0 }))
     : []
 
+  // START HERE: the hand-picked row above the list (full catalogue only).
+  // Cards across the list get a POPULAR / NEW mark from the same data.
+  const startHere = isFull
+    ? getStartHere(GAME_TYPES.filter(t => !isHidden(t) && !t.variantOf && passesFilters(t)))
+        .map(g => ({ ...g, hasVariants: variantsFor(g.type).length > 0 }))
+    : []
+  const newTypes = new Set(isFull ? getNewGames(GAME_TYPES.filter(t => !isHidden(t))).map(g => g.type) : [])
+
   useEffect(() => {
     if (!isFull) return
     const onKey = (e) => {
@@ -307,6 +316,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           isFav={favSet.has(g.type)}
           onToggleFav={isFull ? handleToggleFav : undefined}
           layout={detailed ? 'tile' : mini ? 'mini' : 'row'}
+          tag={isFull && !g.variantOf ? getCardTag(g.type, newTypes) : null}
         />
       ))}
     </div>
@@ -384,6 +394,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
           emptyState('NO GAMES MATCH THESE FILTERS')
         ) : (
           <div ref={listTopRef} className="space-y-5" style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}>
+            <NewGamesRail games={startHere} onTap={handleTap} loadingType={loadingType} id="catalog-start" title="START HERE" tone="cta" />
             <NewGamesRail games={newGames} onTap={handleTap} loadingType={loadingType} />
             {visibleFavorites.length > 0 && (
               <div className="space-y-2">

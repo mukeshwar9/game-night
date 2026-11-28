@@ -2151,9 +2151,9 @@ export const isNewGame = (entry, now = new Date()) => {
   return now.getTime() - addedAt.getTime() <= NEW_BADGE_WINDOW_MS
 }
 
-// The catalog's one NEW rail (instead of a NEW tag on every card, which a
-// batch launch turned into noise): base entries inside the window, newest
-// first, registry order breaking ties.
+// The catalog's NEW rail, and the set behind the cards' NEW mark
+// (lib/catalogTags.js): base entries inside the window, newest first,
+// registry order breaking ties.
 export const getNewGames = (entries, now = new Date()) =>
   entries
     .map((entry, i) => ({ entry, i }))

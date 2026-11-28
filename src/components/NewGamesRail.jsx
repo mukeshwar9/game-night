@@ -2,14 +2,14 @@ import { getPlayerTag } from '../lib/games'
 import { cn } from '@/lib/utils'
 import { GameArt } from './GameArt'
 
-// The catalog's single NEW signal: one horizontal rail at the top of the ALL
-// view (games from getNewGames), replacing a NEW tag on every recent card —
-// after a batch launch that was ~25 cards and meant nothing.
-export default function NewGamesRail({ games, onTap, loadingType }) {
+// A horizontal rail at the top of the ALL view. Used for NEW THIS MONTH (games
+// from getNewGames, so a batch launch is one rail instead of ~25 tags) and,
+// with title/tone, for the hand-picked START HERE row.
+export default function NewGamesRail({ games, onTap, loadingType, id = 'catalog-new', title = 'NEW THIS MONTH', tone = 'win' }) {
   if (games.length === 0) return null
   return (
-    <section className="space-y-2" aria-labelledby="catalog-new">
-      <h2 id="catalog-new" className="font-pixel text-[9px] text-retro-win tracking-widest">NEW THIS MONTH</h2>
+    <section className="space-y-2" aria-labelledby={id}>
+      <h2 id={id} className={cn('font-pixel text-[9px] tracking-widest', tone === 'cta' ? 'text-retro-cta' : 'text-retro-win')}>{title}</h2>
       <div className="relative">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x snap-proximity scroll-px-1">
           {games.map(g => {
@@ -25,7 +25,9 @@ export default function NewGamesRail({ games, onTap, loadingType }) {
                   'glass glass-tx shrink-0 snap-start w-[118px] min-h-[92px] flex flex-col items-start gap-1.5 p-2.5 text-left border rounded transition press',
                   isLoading
                     ? 'border-retro-cta bg-retro-tint-cta shadow-neon-cta'
-                    : 'border-retro-win/50 bg-retro-card hover:border-retro-win',
+                    : tone === 'cta'
+                      ? 'border-retro-cta/40 bg-retro-card hover:border-retro-cta'
+                      : 'border-retro-win/50 bg-retro-card hover:border-retro-win',
                   loadingType && !isLoading && 'opacity-40',
                 )}
               >
