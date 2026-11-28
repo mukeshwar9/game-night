@@ -1,9 +1,10 @@
 // @ts-check
 // Catalogue tags: the START HERE row and the POPULAR / NEW marks on cards.
 //
-// Nothing in the repo records play counts, so POPULAR and START HERE come from
-// one short hand-picked list: easy to learn, quick, and good with a mixed
-// group. Edit START_HERE to change both. NEW is not guessed: it follows the
+// POPULAR and START HERE come from one short hand-picked list (easy to learn,
+// quick, and good with a mixed group), not from the play counters in
+// lib/analytics.js, which the catalogue does not read. Edit START_HERE to
+// change both. NEW is not guessed: it follows the
 // registry's `addedAt` date (isNewGame, 14-day window).
 
 /** Hand-picked, in display order. Unknown or hidden types are skipped. */

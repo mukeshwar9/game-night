@@ -64,7 +64,7 @@ The in-room experience is genuinely strong — the invite trio (link / QR / frie
 | F-42 | Hidden-info rooms give joiners no anticipation copy | Medium-High | Medium Effort | Open |
 | F-43 | Rules unreachable inside a room before start | Medium | Quick Win | Open |
 | F-44 | Multi-act moments under-weighted (extra turn / hit again) | Medium | Medium Effort | Open |
-| F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | Open |
+| F-45 | No curated START HERE path at 44 tiles | Low-Medium | Medium Effort | ✅ Done |
 | F-46 | Share cards not standardized across all end screens | Low | Quick Win | Open |
 | F-47 | Real-time simulation continues during disconnect grace | High | Medium Effort | Planned |
 | F-48 | Board moves lack server-acknowledgement feedback | Medium | Medium Effort | Planned |
@@ -794,6 +794,8 @@ Sketch), rendered above categories for first-session visitors only
 (`hasOnboarded`-gated like F-13).
 
 **Impact:** Conversion of new visitors who freeze at choice overload.
+
+**Status: ✅ Implemented (November 2026).** A START HERE rail sits above NEW THIS MONTH in the full catalogue for every visitor (not onboarding-gated). Its games also carry a POPULAR mark, and games inside the NEW window carry a NEW mark. The list is hand-picked in `START_HERE` (`src/lib/catalogTags.js`), not from play data.
 
 ### F-46 · Low · Quick Win — Share cards not standardized
 
