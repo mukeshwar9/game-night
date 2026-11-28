@@ -192,6 +192,14 @@ export default function Home() {
             <span className="font-pixel text-[10px] tracking-widest">{loading === 'party' ? 'STARTING…' : 'START A PARTY'}</span>
             <span className="font-mono text-[10px] opacity-80">invite up to 3 friends, then pick a game</span>
           </button>
+          <Link
+            to="/one-phone"
+            data-testid="one-phone-door"
+            className="mt-2 min-h-12 w-full flex flex-col items-center justify-center gap-1 py-2 border border-retro-cta/50 bg-retro-tint-cta text-retro-text rounded hover:border-retro-cta transition press-card"
+          >
+            <span className="font-pixel text-[10px] tracking-widest">ONE PHONE</span>
+            <span className="font-mono text-[10px] text-retro-dim">everyone here, pass it around</span>
+          </Link>
           <div className="grid grid-cols-2 gap-2 mt-2">
             <Link
               to="/demo"
