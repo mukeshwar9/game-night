@@ -1,8 +1,7 @@
 // The "no games match" moment shared by the catalog and the party picker: say
 // what was searched, offer CLEAR SEARCH, and suggest terms that do find games.
-import { SUGGESTED_SEARCH_TERMS } from '../lib/gameSearch'
 
-export default function SearchEmpty({ query, onClear, onSuggest, testId }) {
+export default function SearchEmpty({ query, terms, onClear, onSuggest, testId }) {
   return (
     <div data-testid={testId} className="bg-retro-card border border-retro-border rounded p-4 text-center space-y-3">
       <p className="font-mono text-sm text-retro-text break-words">
@@ -15,10 +14,10 @@ export default function SearchEmpty({ query, onClear, onSuggest, testId }) {
       >
         CLEAR SEARCH
       </button>
-      <div className="space-y-2">
+      {terms.length > 0 && <div className="space-y-2">
         <p className="font-mono text-xs text-retro-dim">Try one of these:</p>
         <div className="flex flex-wrap justify-center gap-2">
-          {SUGGESTED_SEARCH_TERMS.map(term => (
+          {terms.map(term => (
             <button
               key={term}
               type="button"
@@ -29,7 +28,7 @@ export default function SearchEmpty({ query, onClear, onSuggest, testId }) {
             </button>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

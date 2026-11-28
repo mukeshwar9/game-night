@@ -54,8 +54,8 @@ export default function TriviaDemo() {
   const streaksRef = useRef({})
   const settleRef = useRef(null)
   const [level, setLevel] = useBotDifficulty('trivia', BOT_LEVEL_IDS)
-  // The bots read the level when they answer, so picking one during the first
-  // question (the only time the chips show) applies to the whole match.
+  // The bots read the level when they answer; it is picked on the ready card
+  // or after the match, so one level applies to the whole match.
   const levelRef = useRef(level)
   useEffect(() => { levelRef.current = level }, [level])
 

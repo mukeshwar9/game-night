@@ -7,6 +7,7 @@ import useBusy from '../hooks/useBusy'
 import { GAME_TYPES, getPlayerTag } from '../lib/games'
 import GameSearchInput from '../components/GameSearchInput'
 import SearchEmpty from '../components/SearchEmpty'
+import { suggestedSearchTerms } from '../lib/gameSearch'
 import { effectiveCap, filterPartyGroups, groupPickerForParty, partyMembers, partyPresentMembers } from '../lib/partyLogic'
 import { hostUidOf } from '../lib/night'
 import { recordFunnel } from '../lib/analytics'
@@ -97,15 +98,16 @@ export default function PartyLobby({ gameId, game, mySeat, isHost, onSwitchGame,
   }, () => toast.error("COULDN'T SHARE — COPY THE LINK FROM THE ADDRESS BAR"))
 
   const searching = !!query.trim()
+  const groupCount = (g) => g.all.length + g.rotate.length + g.short.length
   const shownGroups = filterPartyGroups(groups, query)
-  const total = groups.all.length + groups.rotate.length + groups.short.length
-  const noMatches = searching && shownGroups.all.length + shownGroups.rotate.length + shownGroups.short.length === 0
+  const total = groupCount(groups)
+  const noMatches = searching && groupCount(shownGroups) === 0
 
   const pickerGroups = (
     <>
       <GameSearchInput value={query} onChange={setQuery} placeholder={`Search ${total} games…`} testId="party-search" />
       {noMatches && (
-        <SearchEmpty testId="party-search-empty" query={query} onClear={() => setQuery('')} onSuggest={setQuery} />
+        <SearchEmpty testId="party-search-empty" query={query} terms={suggestedSearchTerms(t => groupCount(filterPartyGroups(groups, t)) > 0)} onClear={() => setQuery('')} onSuggest={setQuery} />
       )}
       {(!searching || shownGroups.all.length > 0) && <PickerGroup
         testId="party-group-all" title={`EVERYONE PLAYS · ${shownGroups.all.length}`} tone="text-retro-win"

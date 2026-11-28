@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { GAME_TYPES, GAME_CATEGORIES, getGameConfig, supportsLocalPlay, getNewGames } from '../lib/games'
-import { searchGames } from '../lib/gameSearch'
+import { searchGames, suggestedSearchTerms } from '../lib/gameSearch'
 import { getFavorites, toggleFavorite } from '../lib/favorites'
 import RulesModal from './LazyRulesModal'
 import CategoryTabs from './CategoryTabs'
@@ -312,9 +312,8 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
     </div>
   )
 
-  const searchResults = isSearching
-    ? searchGames(query, { excludePredicate: isOffLimits }).filter(passesFilters)
-    : []
+  const searchInScope = (q) => searchGames(q, { excludePredicate: isOffLimits }).filter(passesFilters)
+  const searchResults = isSearching ? searchInScope(query) : []
 
   // M-85: one bordered-card treatment for every "nothing here" moment in
   // this component, matching the Friends-page standard.
@@ -378,7 +377,7 @@ export default function GamePicker({ onSelect, onOnline, onSolo, onLocal, exclud
         searchResults.length > 0 ? (
           renderGrid(searchResults)
         ) : (
-          <SearchEmpty testId="catalog-search-empty" query={query} onClear={() => setQuery('')} onSuggest={setQuery} />
+          <SearchEmpty testId="catalog-search-empty" query={query} terms={suggestedSearchTerms(t => searchInScope(t).length > 0)} onClear={() => setQuery('')} onSuggest={setQuery} />
         )
       ) : isFull ? (
         visibleFavorites.length === 0 && categorySections.length === 0 ? (
