@@ -175,7 +175,12 @@ test('Number Memory duel: a shared 3-2-1, then GOT IT from both players skips to
 test('Pairs vs CPU offers three levels, and PAIRS 4×4 deals 16 cards', async ({ page }) => {
   await page.goto('/solo/pairs')
   const levels = page.getByRole('group', { name: 'CPU difficulty' })
-  for (const level of ['easy', 'normal', 'hard']) await expect(levels.getByRole('button', { name: level })).toBeVisible()
+  const slider = levels.getByRole('slider')
+  await expect(slider).toHaveAttribute('max', '2')
+  for (const [i, level] of ['easy', 'normal', 'hard'].entries()) {
+    await slider.fill(String(i))
+    await expect(slider).toHaveAttribute('aria-valuetext', level)
+  }
   await expect(page.locator('button[aria-label$="face down"]')).toHaveCount(36)
   await page.goto('/solo/pairs4')
   await expect(page.locator('button[aria-label$="face down"]')).toHaveCount(16)

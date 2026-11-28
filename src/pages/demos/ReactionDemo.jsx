@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import CpuDifficultyChips from '../../components/CpuDifficultyChips'
+import DifficultySlider from '../../components/DifficultySlider'
 import useBotDifficulty from '../../hooks/useBotDifficulty'
 import { BOT_LEVEL_IDS } from '../../lib/botLevels'
 import { reactionBotMs, rollBetween } from '../../lib/soloBotLevels'
@@ -66,7 +66,7 @@ export default function ReactionDemo() {
     const winner = avgY < avgB ? 'YOU' : avgY > avgB ? 'BOT' : null
     return (
       <div className="space-y-3">
-        <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
+        <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'YOU', a: avgY, f: fastY, w: winner === 'YOU', col: 'retro-p1' },
@@ -114,7 +114,7 @@ export default function ReactionDemo() {
 
   return (
     <div className="space-y-3">
-      {phase === 'start' && <CpuDifficultyChips levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />}
+      {phase === 'start' && <DifficultySlider levels={BOT_LEVEL_IDS} value={level} onChange={setLevel} />}
       <button
         onClick={handleClick}
         className={cn(
