@@ -379,8 +379,9 @@ export function createVoiceController({ gameId, me, enabled, io: ioOverride = nu
 
   // From listen only to an open mic: the session was opened without one, so
   // leave and rejoin with the mic (muted, as every fresh join), bringing a
-  // camera that was on straight back. A refused microphone falls back to
-  // listen only again with the MIC IS BLOCKED note.
+  // camera that was on straight back. If the mic join fails (a refused
+  // microphone, no service, a dropped link), it falls back to listen only again
+  // and keeps the join's error (MIC IS BLOCKED and the like) on show.
   async function enableMic() {
     if (!session || !session.listenOnly || state.status === 'joining') return
     const restoreCam = state.cam === 'on'
